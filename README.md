@@ -60,6 +60,27 @@ the cover every time:
 | `-qa` | opens Settings on launch |
 | `-help` | opens the help slip on launch |
 
+## Books have a personality
+
+A Book is a published thing, not just a difficulty tier. The first is
+**You've Got This, Probably** — cheerful, faintly unsure of itself — and it
+talks to the player in the margins while they play. `App/Books/BookEdition.swift`
+holds its title, blurb and hundred lines; harder Books get their own editions
+when the ladder in §2 is settled.
+
+Notes are print handwriting (Bradley Hand, on every device) rather than a
+script face, and they are **rolled from the seed**, not from a live random
+source — so a Book says the same things in the same places every time it is
+played, which is the same promise §15 makes about everything else. A note
+appears on the first Turn of each Puzzle and then about two Turns in five.
+
+They are drawn in the band under the grid: the one part of the page with
+nothing printed on it and nothing to tap. The note is offset from the left by
+at most a quarter of the free width and is never wider than the remaining three
+quarters, so whatever the line says it cannot reach the edge of the page, and
+the band reserves its height whether or not the Book speaks, so a note
+appearing never shifts the grid.
+
 ## The cover
 
 `StartBookView` is where the app opens, and where it returns whenever a Book

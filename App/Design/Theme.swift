@@ -61,6 +61,11 @@ enum Paper {
     static let coin = Color(hex: 0xE0B33C)
     static let coinRim = Color(hex: 0xA9801E)
     static let redPencil = Color(hex: 0xB4544A)
+    /// Graphite, for anything written by hand rather than printed.
+    static let pencil = Color(hex: 0x5A5750)
+    /// The first Book's accents: soft green and a warm orange.
+    static let bookGreen = Color(hex: 0x7C8C73)
+    static let bookOrange = Color(hex: 0xC8853F)
 
     /// The chapter tabs down the right edge of the book.
     static let tabs: [Color] = [

@@ -68,13 +68,14 @@ private struct TitleBlock: View {
                 .overlay { Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.8) }
                 .shadow(color: .black.opacity(0.6), radius: 6, y: 3)
 
-            Text("The Number Club")
-                .font(Print.heading(30))
+            Text(BookEdition.first.title)
+                .font(Print.heading(28))
                 .tracking(-0.4)
                 .foregroundStyle(Paper.page.opacity(0.94))
                 .shadow(color: .black.opacity(0.75), radius: 8, y: 2)
+                .padding(.horizontal, 24)
 
-            Text("27 puzzles. One book.")
+            Text(BookEdition.first.blurb)
                 .font(Print.body(13))
                 .foregroundStyle(Paper.page.opacity(0.5))
                 .shadow(color: .black.opacity(0.6), radius: 4, y: 1)

@@ -73,6 +73,23 @@ final class GameModel {
     }
     var coins: Int { run.coins }
 
+    /// Which Book this is, and therefore what it says in the margins.
+    var edition: BookEdition { BookEdition.edition(forBookTier: 1) }
+
+    /// The line written in the margin this Turn, if the Book has anything to
+    /// say. Derived from the seed, so a Book always says the same things in the
+    /// same places.
+    var marginNote: MarginNote? {
+        guard let puzzle, puzzle.phase == .playing || puzzle.phase == .keepFilling else {
+            return nil
+        }
+        return MarginNote.roll(seed: run.seed,
+                               level: puzzle.level,
+                               slot: puzzle.slot.rawValue,
+                               turn: puzzle.turnNumber,
+                               from: edition)
+    }
+
     /// Squares carrying a Marker, unless The Fog is hiding them (§13).
     var visibleMarkers: [Square: OwnedMarker] {
         guard puzzle?.boss?.hidesMarkedSquares != true else { return [:] }

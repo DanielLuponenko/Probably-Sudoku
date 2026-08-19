@@ -17,7 +17,11 @@ struct PuzzlePageView: View {
             GridView(model: model, board: puzzle.board)
                 .layoutPriority(1)
             if showsInstruction { instruction }
-            Spacer(minLength: 0)
+
+            // The band under the grid is the only part of the page with
+            // nothing printed on it and nothing to tap, which is why the Book
+            // writes here.
+            marginBand
 
             HandStripView(model: model, handSize: puzzle.handSize)
             actionRow
@@ -52,6 +56,20 @@ struct PuzzlePageView: View {
 
             Rectangle().fill(Paper.rule).frame(height: 1)
         }
+    }
+
+    /// The Book's own handwriting, given room whether or not it speaks, so a
+    /// note appearing never shifts the grid.
+    private var marginBand: some View {
+        ZStack {
+            if let note = model.marginNote {
+                MarginNoteView(note: note)
+                    .id(note.text)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 54, maxHeight: .infinity)
+        .padding(.bottom, 2)
+        .animation(.easeInOut(duration: 0.45), value: model.marginNote)
     }
 
     /// Only on the very first page of a Book.
