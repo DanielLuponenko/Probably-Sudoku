@@ -42,9 +42,10 @@ struct GridView: View {
     }
 
     private func state(for square: Square) -> CellState {
-        if let digit = model.highlightedDigit, board[square] == digit {
-            return model.selectedSquare == square ? .selected : .sameNumber
-        }
+        // The square you tapped is one of the matches, so it is marked the same
+        // way. Giving it its own colour made it look like a different kind of
+        // thing from the numbers it had just found.
+        if let digit = model.highlightedDigit, board[square] == digit { return .sameNumber }
         if model.selectedSquare == square { return .selected }
         return .plain
     }

@@ -143,39 +143,51 @@ final class RulesTests: XCTestCase {
 
     // MARK: Toss (§5.1)
 
-    func testTossIsMultiSelectAndLimitedPerTurnNotPerPress() throws {
+    func testTossIsOneAtATimeAndBudgetedForTheWholePuzzle() throws {
         var game = try startedGame()
-        XCTAssertEqual(game.puzzle?.tossAllowance, Baseline.tossAllowance)
+        XCTAssertEqual(game.puzzle?.tossAllowance, 4)
 
         let digit = game.puzzle!.hand[0]
         let poolBefore = game.puzzle!.pool[digit]
-        XCTAssertEqual(try game.toss([0]), 1)
+        XCTAssertEqual(try game.toss(handIndex: 0), digit)
         XCTAssertEqual(game.puzzle?.pool[digit], poolBefore + 1)
-        XCTAssertEqual(game.puzzle?.tossesRemaining, 1)
+        XCTAssertEqual(game.puzzle?.tossesRemaining, 3)
 
-        XCTAssertEqual(try game.toss([0]), 1)
+        for _ in 0..<3 { _ = try game.toss(handIndex: 0) }
         XCTAssertEqual(game.puzzle?.tossesRemaining, 0)
-        XCTAssertThrowsError(try game.toss([0])) {
+        XCTAssertThrowsError(try game.toss(handIndex: 0)) {
             XCTAssertEqual($0 as? PlacementError, .tossAllowanceSpent)
         }
+    }
+
+    func testTheTossAllowanceDoesNotRefillEachTurn() throws {
+        // The whole point of moving it off the Turn: ten Turns of two was
+        // effectively unlimited, so it never forced a decision.
+        var game = try startedGame()
+        for _ in 0..<4 { _ = try game.toss(handIndex: 0) }
+        XCTAssertEqual(game.puzzle?.tossesRemaining, 0)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.tossesRemaining, 0)
     }
 
     func testTossingLeavesYouShortForTheRestOfTheTurn() throws {
         // The Hand only refills at the end of a Turn, which is the whole cost.
         var game = try startedGame()
         let size = game.puzzle!.hand.count
-        _ = try game.toss([0, 1])
+        _ = try game.toss(handIndex: 0)
+        _ = try game.toss(handIndex: 0)
         XCTAssertEqual(game.puzzle?.hand.count, size - 2)
         _ = try game.endTurn()
         XCTAssertEqual(game.puzzle?.hand.count, size)
     }
 
-    func testWeatherForecastRaisesTheAllowanceToFour() throws {
+    func testWeatherForecastRaisesTheAllowanceBySix() throws {
         var game = Game(seed: "rules", startingBoard: .scholar)
         game.give(ad: Ads.weatherForecast)
         try game.startPuzzle()
-        XCTAssertEqual(game.puzzle?.tossAllowance, 4)
-        XCTAssertEqual(try game.toss([0, 1, 2, 3]), 4)
+        XCTAssertEqual(game.puzzle?.tossAllowance, 6)
+        for _ in 0..<6 { _ = try game.toss(handIndex: 0) }
+        XCTAssertEqual(game.puzzle?.tossesRemaining, 0)
     }
 
     // MARK: Turns (§4)

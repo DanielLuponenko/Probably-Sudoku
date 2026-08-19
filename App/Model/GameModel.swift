@@ -31,9 +31,6 @@ final class GameModel {
         didSet { if selectedHandIndex != nil { highlightSource = .hand } }
     }
     var selectedSquare: Square?
-    /// Hand indices staged for a Toss. Toss is a multi-select (§5.1).
-    var tossSelection: Set<Int> = []
-    var isTossing = false
 
     /// A row, column or box that has just been completed, held long enough to
     /// be marked on the board and then dropped.
@@ -136,7 +133,6 @@ final class GameModel {
     /// different number rather than at nothing.
     private func dropHandSelection() {
         selectedHandIndex = nil
-        tossSelection = []
         if highlightSource == .hand {
             highlightSource = selectedSquare == nil ? nil : .square
         }
@@ -153,20 +149,11 @@ final class GameModel {
     // MARK: - Actions
 
     func tapHand(_ index: Int) {
-        if isTossing {
-            if tossSelection.contains(index) { tossSelection.remove(index) }
-            else if tossSelection.count < (puzzle?.tossesRemaining ?? 0) { tossSelection.insert(index) }
-            return
-        }
         selectedHandIndex = selectedHandIndex == index ? nil : index
     }
 
     func tapSquare(_ square: Square) {
         guard let puzzle else { return }
-        // While staging a Toss the board is not a target; tapping it here
-        // would otherwise place a number you were about to throw away.
-        guard !isTossing else { return }
-
         selectedSquare = square
         highlightSource = .square
 
@@ -200,27 +187,22 @@ final class GameModel {
         }
     }
 
-    func beginToss() {
-        isTossing = true
-        tossSelection = []
-        selectedHandIndex = nil
-    }
-
-    func cancelToss() {
-        isTossing = false
-        tossSelection = []
-    }
-
-    func confirmToss() {
-        guard !tossSelection.isEmpty else { cancelToss(); return }
+    /// §5.1, revised — one number at a time, out of a budget for the whole
+    /// Puzzle. The number you have picked up is the one thrown back, so there
+    /// is no separate staging mode to be in.
+    func tossSelected() {
+        guard let index = selectedHandIndex else { return }
         do {
-            _ = try game.toss(Array(tossSelection))
+            _ = try game.toss(handIndex: index)
             message = nil
         } catch {
             message = describe(error)
         }
-        cancelToss()
         dropHandSelection()
+    }
+
+    var canToss: Bool {
+        selectedHandIndex != nil && (puzzle?.tossesRemaining ?? 0) > 0
     }
 
     func useClue(at square: Square) {
@@ -331,8 +313,6 @@ final class GameModel {
                     startingBoard: startingBoard ?? game.run.startingBoard)
         selectedHandIndex = nil
         selectedSquare = nil
-        tossSelection = []
-        isTossing = false
         lastOutcome = nil
         lastPayout = nil
         message = nil

@@ -265,6 +265,15 @@ swift run -c release genbench       # per-difficulty generation timing
 grid with its states, the Hand strip, the Buffs panel, the Shop page, the results
 page, the page-turn transition, and the Marker square picker.
 
+## Where this departs from GAME_REFERENCE.md
+
+**Toss is one number at a time, four for the whole Puzzle** (§5.1 has it as a
+multi-select with two per Turn). Two per Turn across ten Turns is twenty, which
+is not a budget — it costs tempo but never forces a decision, and multi-select
+let the Hand be reshaped wholesale every Turn, which is most of the Pool's
+pressure gone. Four for a Puzzle makes each one a choice. Weather Forecast
+still adds two; The Erratum still removes it.
+
 ## Decisions worth not re-deriving
 
 - **A Marker marks a square, not a number.** `GAME_REFERENCE.md` §11 is

@@ -17,11 +17,6 @@ struct HandStripView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(Paper.inkSoft)
                 Spacer()
-                if model.isTossing {
-                    Text("Choose numbers to toss back")
-                        .font(Print.body(12))
-                        .foregroundStyle(Paper.inkSoft)
-                }
             }
 
             HStack(spacing: 7) {
@@ -29,8 +24,7 @@ struct HandStripView: View {
                     if index < model.hand.count {
                         NumberTile(
                             digit: model.hand[index],
-                            isSelected: model.selectedHandIndex == index,
-                            isStaged: model.tossSelection.contains(index)
+                            isSelected: model.selectedHandIndex == index
                         )
                         .onTapGesture { model.tapHand(index) }
                     } else {
@@ -45,12 +39,11 @@ struct HandStripView: View {
 private struct NumberTile: View {
     var digit: Digit
     var isSelected: Bool
-    var isStaged: Bool
 
     var body: some View {
         Text("\(digit.rawValue)")
             .font(Print.numeral(27, weight: .medium))
-            .foregroundStyle(isStaged ? Paper.redPencil : Paper.ink)
+            .foregroundStyle(Paper.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background {
@@ -59,18 +52,14 @@ private struct NumberTile: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(borderColor, lineWidth: isSelected || isStaged ? 2 : 1)
+                    .strokeBorder(isSelected ? Paper.sageDeep : Paper.rule,
+                                  lineWidth: isSelected ? 2 : 1)
             }
             .offset(y: isSelected ? -4 : 0)
             .animation(.snappy(duration: 0.18), value: isSelected)
-            .animation(.snappy(duration: 0.18), value: isStaged)
             .accessibilityLabel("Number \(digit.rawValue)\(isSelected ? ", selected" : "")")
     }
 
-    private var borderColor: Color {
-        if isStaged { return Paper.redPencil }
-        return isSelected ? Paper.sageDeep : Paper.rule
-    }
 }
 
 private struct EmptySlot: View {

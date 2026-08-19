@@ -171,27 +171,29 @@ public enum Actions {
 
     // MARK: - Toss
 
-    /// §5.1 — a multi-select. What is limited is how many numbers may go back
-    /// to the Pool per Turn, not how many times the button is pressed. The Hand
-    /// only refills at the end of a Turn, so tossing is paid for in tempo.
+    /// §5.1, revised — one number at a time, and the allowance is for the whole
+    /// Puzzle rather than for each Turn. Multi-select plus a per-Turn budget let
+    /// a player reshape the Hand every Turn, which is most of the Pool's
+    /// pressure gone; a small per-Puzzle budget makes each Toss a decision.
+    ///
+    /// The Hand still only refills at the end of a Turn, so a Toss is paid for
+    /// in tempo as well as out of the allowance.
     @discardableResult
-    public static func toss(_ run: inout RunState, handIndices: [Int]) throws -> Int {
+    public static func toss(_ run: inout RunState, handIndex: Int) throws -> Digit {
         guard var puzzle = run.puzzle else { throw PlacementError.puzzleNotPlayable }
         guard puzzle.phase == .playing || puzzle.phase == .keepFilling else {
             throw PlacementError.puzzleNotPlayable
         }
-        let unique = Set(handIndices).filter { puzzle.hand.indices.contains($0) }
-        guard !unique.isEmpty else { return 0 }
-        guard unique.count <= puzzle.tossesRemaining else { throw PlacementError.tossAllowanceSpent }
+        guard puzzle.hand.indices.contains(handIndex) else { throw PlacementError.numberNotInHand }
+        guard puzzle.tossesRemaining > 0 else { throw PlacementError.tossAllowanceSpent }
 
-        for index in unique.sorted(by: >) {
-            puzzle.pool.put(puzzle.hand.remove(at: index))
-        }
-        puzzle.tossedThisTurn += unique.count
+        let digit = puzzle.hand.remove(at: handIndex)
+        puzzle.pool.put(digit)
+        puzzle.tossedThisPuzzle += 1
 
         puzzle.assertConservation()
         run.puzzle = puzzle
-        return unique.count
+        return digit
     }
 
     // MARK: - Clue
@@ -292,7 +294,6 @@ public enum Actions {
 
         let wasLastTurn = puzzle.turnNumber >= puzzle.turnsMax
         puzzle.turnNumber += 1
-        puzzle.tossedThisTurn = 0
 
         let needed = max(0, puzzle.handSize - puzzle.hand.count)
         if needed > 0 {

@@ -39,10 +39,6 @@ struct LoadoutRow: View {
                 }
             }
 
-            if !model.run.markers.isEmpty || model.markersAreHidden {
-                Divider().frame(height: 34).overlay(Paper.rule.opacity(0.5))
-                MarkerChips(markers: model.run.markers, hidden: model.markersAreHidden)
-            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -100,35 +96,6 @@ private struct LoadoutSlot: View {
         .simultaneousGesture(LongPressGesture().onEnded { _ in (inspect ?? action)() })
         .accessibilityLabel("\(def.name). \(def.text)")
         .accessibilityHint(isSpendable ? "Double tap to spend it" : "Double tap for details")
-    }
-}
-
-/// Markers by colour only. The board already says where they are, so repeating
-/// that here would be noise — this is just a reminder of which inks are live.
-private struct MarkerChips: View {
-    var markers: [OwnedMarker]
-    var hidden: Bool
-
-    var body: some View {
-        HStack(spacing: 3) {
-            if hidden {
-                Image(systemName: "eye.slash")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Paper.redPencil)
-                    .accessibilityLabel("Markers hidden by The Fog")
-            } else {
-                ForEach(markers, id: \.defID) { marker in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Paper.markerColor(marker.defID))
-                        .frame(width: 12, height: 24)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 2)
-                                .strokeBorder(Paper.ink.opacity(0.25), lineWidth: 0.8)
-                        }
-                        .accessibilityLabel(marker.def.name)
-                }
-            }
-        }
     }
 }
 

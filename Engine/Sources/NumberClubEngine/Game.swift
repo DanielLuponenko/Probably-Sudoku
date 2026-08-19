@@ -38,8 +38,9 @@ public struct Game: Sendable {
     public mutating func place(handIndex: Int, at square: Square) throws -> PlacementOutcome {
         try Actions.place(&run, handIndex: handIndex, square: square)
     }
-    public mutating func toss(_ handIndices: [Int]) throws -> Int {
-        try Actions.toss(&run, handIndices: handIndices)
+    @discardableResult
+    public mutating func toss(handIndex: Int) throws -> Digit {
+        try Actions.toss(&run, handIndex: handIndex)
     }
     public mutating func useClue(at square: Square) throws -> PlacementOutcome {
         try Actions.useClue(&run, square: square)

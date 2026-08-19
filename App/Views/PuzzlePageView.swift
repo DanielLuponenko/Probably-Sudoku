@@ -4,8 +4,6 @@ import NumberClubEngine
 struct PuzzlePageView: View {
     @Bindable var model: GameModel
     var puzzle: PuzzleState
-    @Environment(PageFlipper.self) private var flipper
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -88,33 +86,29 @@ struct PuzzlePageView: View {
 
     private var actionRow: some View {
         HStack(spacing: 10) {
-            if model.isTossing {
-                PaperButton(title: "Cancel", kind: .quiet) { model.cancelToss() }
-                PaperButton(title: "Toss \(model.tossSelection.count)",
-                            kind: .primary,
-                            isEnabled: !model.tossSelection.isEmpty) { model.confirmToss() }
-            } else {
-                PaperButton(title: "Toss",
-                            subtitle: "\(puzzle.tossesRemaining) left",
+            PaperButton(title: "Toss",
+                        subtitle: "\(puzzle.tossesRemaining) left this puzzle",
+                        kind: .quiet,
+                        isEnabled: model.canToss) {
+                model.tossSelected()
+            }
+
+            if puzzle.canUseClue {
+                PaperButton(title: "Clue",
+                            subtitle: model.selectedSquare == nil
+                                ? "pick a square" : "\(puzzle.cluesRemaining) left",
                             kind: .quiet,
-                            isEnabled: puzzle.tossesRemaining > 0 && !puzzle.hand.isEmpty) {
-                    model.beginToss()
-                }
-                if puzzle.canUseClue {
-                    PaperButton(title: "Clue",
-                                subtitle: model.selectedSquare == nil
-                                    ? "pick a square" : "\(puzzle.cluesRemaining) left",
-                                kind: .quiet,
-                                isEnabled: model.selectedSquare.map {
-                                    puzzle.board.isBlank($0)
-                                } ?? false) {
-                        if let square = model.selectedSquare { model.useClue(at: square) }
-                    }
-                }
-                PaperButton(title: "End Turn", kind: .primary) {
-                    Task { await flipper.flip(from: model, reduceMotion: reduceMotion) { model.endTurn() } }
+                            isEnabled: model.selectedSquare.map {
+                                puzzle.board.isBlank($0)
+                            } ?? false) {
+                    if let square = model.selectedSquare { model.useClue(at: square) }
                 }
             }
+
+            // No page turn here: a Turn ending deals a new Hand on the same
+            // page. Turning the page for it made every Turn feel like leaving
+            // the Puzzle.
+            PaperButton(title: "End Turn", kind: .primary) { model.endTurn() }
         }
     }
 }

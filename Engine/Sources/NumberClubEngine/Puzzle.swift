@@ -23,8 +23,9 @@ public struct PuzzleState: Codable, Sendable {
     public var handSize: Int
     public var turnNumber: Int
     public var turnsMax: Int
-    /// How many numbers have gone back to the Pool this Turn (§5.1).
-    public var tossedThisTurn: Int
+    /// How many numbers have gone back to the Pool this Puzzle (§5.1).
+    public var tossedThisPuzzle: Int
+    /// Per Puzzle, not per Turn.
     public var tossAllowance: Int
 
     public var score: Int
@@ -44,7 +45,7 @@ public struct PuzzleState: Codable, Sendable {
 
     public var isBoss: Bool { slot == .boss }
     public var turnsRemaining: Int { max(0, turnsMax - turnNumber + 1) }
-    public var tossesRemaining: Int { max(0, tossAllowance - tossedThisTurn) }
+    public var tossesRemaining: Int { max(0, tossAllowance - tossedThisPuzzle) }
     public var canUseClue: Bool { cluesRemaining > 0 && boss?.disablesClues != true }
     /// §4 — what the player could work out for themselves. The UI must never
     /// show this; it exists for tests and for the tutorial.
@@ -87,7 +88,7 @@ public extension PuzzleState {
             handSize: handSize,
             turnNumber: 1,
             turnsMax: run.effectiveTurns(boss: boss),
-            tossedThisTurn: 0,
+            tossedThisPuzzle: 0,
             tossAllowance: run.effectiveTossAllowance(boss: boss),
             score: 0,
             target: Targets.target(level: run.level, slot: slot),

@@ -25,8 +25,10 @@ public enum Baseline {
     public static let coins = 5
     public static let turns = 10
     public static let clues = 0
-    /// §5.1 — provisional; the design doc flags this number for playtesting.
-    public static let tossAllowance = 2
+    /// §5.1, revised: the allowance is **per Puzzle**, not per Turn. Per Turn
+    /// it was effectively unlimited over ten Turns, so it cost tempo but never
+    /// forced a decision. Four for a whole Puzzle makes each one a choice.
+    public static let tossAllowance = 4
     public static let interestCap = 10
 }
 
@@ -114,6 +116,7 @@ public struct RunState: Codable, Sendable {
         return clues
     }
 
+    /// Per Puzzle. The Erratum removes it entirely; Weather Forecast adds two.
     public func effectiveTossAllowance(boss: BossModifier?) -> Int {
         if boss?.forcesTossAllowanceToZero == true { return 0 }
         return Baseline.tossAllowance + (owns(ad: Ads.weatherForecast) ? 2 : 0)

@@ -29,9 +29,9 @@ final class BossModifierTests: XCTestCase {
 
     func testTheErratumRemovesTheTossAllowanceEntirely() {
         var r = run
-        XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 2)
-        r.ads.append(OwnedAd(defID: Ads.weatherForecast, boughtAtLevel: 1, pricePaid: 4))
         XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 4)
+        r.ads.append(OwnedAd(defID: Ads.weatherForecast, boughtAtLevel: 1, pricePaid: 4))
+        XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 6)
         XCTAssertEqual(r.effectiveTossAllowance(boss: .erratum), 0)
     }
 
@@ -272,7 +272,7 @@ final class RunAndDeterminismTests: XCTestCase {
             var game = Game(seed: seed, startingBoard: .scholar)
             try game.startPuzzle()
             for _ in 0..<3 {
-                _ = try? game.toss([0])
+                _ = try? game.toss(handIndex: 0)
                 _ = try? game.endTurn()
             }
             game.openShop()

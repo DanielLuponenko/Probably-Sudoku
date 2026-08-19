@@ -90,8 +90,8 @@ func playPuzzle(_ game: inout Game, _ report: inout Report, _ rng: inout RandomS
         }
 
         if !placedThisTurn, let puzzle = game.puzzle, puzzle.tossesRemaining > 0, !puzzle.hand.isEmpty {
-            let count = min(puzzle.tossesRemaining, puzzle.hand.count)
-            _ = try? game.toss(Array(0..<count))
+            // One at a time now, and the allowance is for the whole Puzzle.
+            _ = try? game.toss(handIndex: 0)
             checkConservation(game, "after toss", &report)
         }
 
