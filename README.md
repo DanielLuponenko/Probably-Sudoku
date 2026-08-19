@@ -118,8 +118,11 @@ page, the page-turn transition, and the Marker square picker.
 - **The book is an object, not a card.** What makes something read as a book is
   thickness, so it is built as one: boards standing proud of the paper, a block
   of individually drawn page edges down the fore-edge and along the tail, a
-  binding the paper turns down into, a sewn-in ribbon, and a printed page
-  number. The live page is a separate view from the volume, which is what lets
+  binding the paper turns down into, and a printed page number. A bookmark
+  ribbon was tried and removed: a ribbon only reads as one if it drapes down
+  over the page with a shadow under it, and that space belongs to the turn
+  counter and the level dots — pinned to the fore-edge at ribbon width it just
+  looked like a red line. The live page is a separate view from the volume, which is what lets
   it lift off the block when the page turns while the boards stay put.
 - **Almost nothing is an exported image.** The grid, every cell state, the
   buttons, the badges, the Marker colours and the progress dots are all drawn.

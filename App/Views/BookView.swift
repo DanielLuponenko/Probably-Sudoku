@@ -213,40 +213,6 @@ struct PageSurface<Content: View>: View {
     }
 }
 
-/// A ribbon marker sewn into the head of the book, lying down the fore-edge.
-/// One of the cheapest possible signals that this object is a book.
-struct BookmarkRibbon: View {
-    var length: CGFloat
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(
-                    LinearGradient(colors: [Color(hex: 0x7E3129), Color(hex: 0x9C4038)],
-                                   startPoint: .leading, endPoint: .trailing)
-                )
-                .frame(width: 9, height: length)
-            // The tail of a ribbon is cut on the slant.
-            Triangle()
-                .fill(Color(hex: 0x6E2A23))
-                .frame(width: 9, height: 8)
-        }
-        .shadow(color: .black.opacity(0.45), radius: 2, x: 1, y: 2)
-        .allowsHitTesting(false)
-    }
-}
-
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.closeSubpath()
-        return path
-    }
-}
-
 /// The book as one object: boards, block, binding, and the live page on top.
 struct BookView<Content: View>: View {
     var flipper: PageFlipper
@@ -268,10 +234,6 @@ struct BookView<Content: View>: View {
             .clipped()
             .padding(EdgeInsets(top: Volume.head, leading: Volume.spine,
                                 bottom: Volume.tail, trailing: Volume.foreEdge))
-
-            BookmarkRibbon(length: 96)
-                .offset(x: -4, y: -8)
-                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }
