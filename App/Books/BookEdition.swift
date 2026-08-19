@@ -33,27 +33,31 @@ struct BookEdition: Identifiable, Equatable {
     )
 
     /// Placeholders for the ladder above it. They can be picked up and looked
-    /// at — the cover changes behind them — but not opened.
+    /// at, but not opened. Shown rather than hidden, so the shelf says how far
+    /// this goes instead of implying it.
     static let unwritten: [BookEdition] = [
-        BookEdition(
-            id: "sharpen",
-            title: "Sharpen Up",
-            shelfLabel: "Volume 2",
-            blurb: "Not yet written.",
-            cover: nil,
-            accent: Color(hex: 0xC8853F),
-            marginalia: []
-        ),
-        BookEdition(
-            id: "nonsense",
-            title: "No More Nonsense",
-            shelfLabel: "Volume 3",
-            blurb: "Not yet written.",
-            cover: nil,
-            accent: Color(hex: 0xB4544A),
-            marginalia: []
-        ),
+        unwritten(id: "sorry", title: "Slightly Harder, Sorry",
+                  volume: 2, accent: Color(hex: 0xC8853F)),
+        unwritten(id: "pressure", title: "No Pressure, Obviously",
+                  volume: 3, accent: Color(hex: 0x6F9EC4)),
+        unwritten(id: "bites", title: "This One Bites",
+                  volume: 4, accent: Color(hex: 0xB4544A)),
+        unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
+                  volume: 5, accent: Color(hex: 0x8E7BA8)),
     ]
+
+    private static func unwritten(id: String, title: String,
+                                  volume: Int, accent: Color) -> BookEdition {
+        BookEdition(
+            id: id,
+            title: title,
+            shelfLabel: "Volume \(volume)",
+            blurb: "Not written yet.",
+            cover: nil,
+            accent: accent,
+            marginalia: []
+        )
+    }
 
     static let shelf: [BookEdition] = [first] + unwritten
 

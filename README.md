@@ -87,10 +87,13 @@ appearing never shifts the grid.
 ends or is abandoned — §3 makes the Starting Board a choice you make when you
 open a Book, so one is never dealt silently.
 
-It is a shelf, not a title screen. Books sit on it as covers; picking one puts
-it on the desk in front of you. Only the written one can be opened, and the
-rest are shown locked rather than hidden, so the ladder above it is visible
-instead of implied.
+It is a shelf, not a title screen. Five Books are swiped through as covers.
+Only the written one can be opened; the other four are shown locked rather than
+hidden, so the ladder §2 leaves undecided is visible instead of implied.
+
+The Starting Board moved **off** the shelf and onto a slip shown when you open
+a Book. Three cards competing with a cover is three cards too many, and §3 says
+the choice belongs to the moment a Book is opened anyway.
 
 Two decisions that are easy to get wrong here:
 
