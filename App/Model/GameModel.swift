@@ -35,6 +35,16 @@ final class GameModel {
     var tossSelection: Set<Int> = []
     var isTossing = false
 
+    /// A row, column or box that has just been completed, held long enough to
+    /// be marked on the board and then dropped.
+    struct Cleared: Equatable, Identifiable {
+        let unit: NumberClubEngine.Unit
+        let square: Square
+        let id: Int
+    }
+    private(set) var cleared: [Cleared] = []
+    private var clearTicket = 0
+
     /// The most recent placement, for the score flourish and the ink animation.
     private(set) var lastOutcome: PlacementOutcome?
     private(set) var lastPlacedSquare: Square?
@@ -96,13 +106,6 @@ final class GameModel {
         return run.markedSquares
     }
     var markersAreHidden: Bool { puzzle?.boss?.hidesMarkedSquares == true }
-
-    /// Squares that would light up as related to the selection, the way a
-    /// paper solver's eye follows a row and column.
-    var peerSquares: Set<Square> {
-        guard let square = selectedSquare else { return [] }
-        return Set(Geometry.rows[square.row] + Geometry.cols[square.col] + Geometry.boxes[square.box])
-    }
 
     var selectedDigit: Digit? {
         guard let index = selectedHandIndex, hand.indices.contains(index) else { return nil }
@@ -176,10 +179,24 @@ final class GameModel {
             let outcome = try game.place(handIndex: handIndex, at: square)
             lastOutcome = outcome
             lastPlacedSquare = square
+            markCleared(outcome, at: square)
             dropHandSelection()
             message = outcome.correct ? nil : "Wrong number — \(outcome.penalty) points"
         } catch {
             message = describe(error)
+        }
+    }
+
+    /// Shows each completed unit briefly. Cleared once, on a ticket, so a
+    /// second clear arriving mid-flash cannot cancel the first one's fade.
+    private func markCleared(_ outcome: PlacementOutcome, at square: Square) {
+        guard !outcome.lineClears.isEmpty || outcome.fullClear else { return }
+        clearTicket += 1
+        let ticket = clearTicket
+        cleared = outcome.lineClears.map { Cleared(unit: $0, square: square, id: ticket) }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1100))
+            if clearTicket == ticket { cleared = [] }
         }
     }
 
@@ -208,8 +225,9 @@ final class GameModel {
 
     func useClue(at square: Square) {
         do {
-            _ = try game.useClue(at: square)
+            let outcome = try game.useClue(at: square)
             lastPlacedSquare = square
+            markCleared(outcome, at: square)
         } catch {
             message = describe(error)
         }
@@ -331,6 +349,36 @@ final class GameModel {
     func qaMeetTarget() { game.qaMeetTarget() }
     func qaFailPuzzle() { game.qaFailPuzzle(); page = .results }
     func qaFillBoard() { game.qaFillBoard() }
+    func qaGrantBuff(_ defID: String) { game.qaGrantBuff(defID) }
+
+    /// Fills the emptiest row but for one square, then plays that square, so
+    /// the completed-unit mark can be looked at.
+    func qaCompleteARow() {
+        guard let puzzle = game.puzzle else { return }
+        let row = (0..<9).max {
+            Geometry.rows[$0].filter(puzzle.board.isBlank).count
+                < Geometry.rows[$1].filter(puzzle.board.isBlank).count
+        }!
+        let blanks = Geometry.rows[row].filter { game.puzzle!.board.isBlank($0) }
+        guard let last = blanks.last else { return }
+        for square in blanks.dropLast() {
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            guard game.qaPlace(digit: digit, at: square) else { return }
+        }
+        let digit = game.puzzle!.board.correctDigit(at: last)
+        guard let index = stageDigitInHand(digit) else { return }
+        place(handIndex: index, at: last)
+    }
+
+    /// Puts a specific number into the Hand, taken from the Pool so the
+    /// conservation rule still holds.
+    private func stageDigitInHand(_ digit: Digit) -> Int? {
+        guard var puzzle = game.puzzle else { return nil }
+        if let existing = puzzle.hand.firstIndex(of: digit) { return existing }
+        guard game.qaTakeFromPool(digit) else { return nil }
+        puzzle = game.puzzle!
+        return puzzle.hand.firstIndex(of: digit)
+    }
     #endif
 
     private func describe(_ error: Error) -> String {

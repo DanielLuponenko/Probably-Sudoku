@@ -99,11 +99,15 @@ private struct GameView: View {
     @State private var flipper = PageFlipper()
     @State private var showingSettings = false
     @State private var showingHelp = false
+    /// The Buff being spent, while its slip is open.
+    @State private var usingBuff: Int?
 
     var body: some View {
         DeskView {
             VStack(spacing: 8) {
-                LoadoutRow(model: model) { model.useBuff(at: $0) }
+                LoadoutRow(model: model) { index in
+                    withAnimation(.snappy(duration: 0.2)) { usingBuff = index }
+                }
                     .padding(.horizontal, 12)
                     .padding(.top, 4)
 
@@ -151,13 +155,30 @@ private struct GameView: View {
                         withAnimation(.snappy(duration: 0.2)) { showingHelp = false }
                     }
                 }
+                if let index = usingBuff {
+                    BuffSlip(model: model, index: index) {
+                        withAnimation(.snappy(duration: 0.2)) { usingBuff = nil }
+                    }
+                }
             }
             .animation(.snappy(duration: 0.22), value: showingSettings)
             .animation(.snappy(duration: 0.22), value: showingHelp)
+            .animation(.snappy(duration: 0.22), value: usingBuff)
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
                 if ProcessInfo.processInfo.arguments.contains("-help") { showingHelp = true }
+                if ProcessInfo.processInfo.arguments.contains("-buffSlip") {
+                    model.qaGrantBuff(Buffs.paperCrane)
+                    try? await Task.sleep(for: .milliseconds(300))
+                    usingBuff = 0
+                    return
+                }
+                if ProcessInfo.processInfo.arguments.contains("-clearLine") {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    model.qaCompleteARow()
+                    return
+                }
                 if ProcessInfo.processInfo.arguments.contains("-winNow") {
                     try? await Task.sleep(for: .milliseconds(400))
                     model.qaMeetTarget()

@@ -59,6 +59,8 @@ the cover every time:
 | `-winNow` | meets the target on launch, to land on the results page |
 | `-qa` | opens Settings on launch |
 | `-playOpening` | starts on the Book-opening transition, to record it |
+| `-clearLine` | completes a row on launch, to see the completed-unit mark |
+| `-buffSlip` | grants Paper Crane and opens its slip |
 | `-help` | opens the help slip on launch |
 
 ## Books have a personality

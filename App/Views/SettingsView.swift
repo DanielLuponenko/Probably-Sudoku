@@ -7,6 +7,10 @@ import NumberClubEngine
 struct PaperSlip<Content: View>: View {
     var title: String
     var subtitle: String?
+    var closeLabel: String = "Close"
+    /// Tapping the desk behind the slip puts it down. Off for slips that are
+    /// asking a question rather than showing something.
+    var dismissesOnBackground: Bool = true
     var onClose: () -> Void
     @ViewBuilder var content: Content
 
@@ -16,7 +20,7 @@ struct PaperSlip<Content: View>: View {
             Rectangle()
                 .fill(.black.opacity(0.55))
                 .ignoresSafeArea()
-                .onTapGesture(perform: onClose)
+                .onTapGesture { if dismissesOnBackground { onClose() } }
 
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 5) {
@@ -40,7 +44,7 @@ struct PaperSlip<Content: View>: View {
                         .padding(.bottom, 14)
                 }
 
-                PaperButton(title: "Close", kind: .quiet, action: onClose)
+                PaperButton(title: closeLabel, kind: .quiet, action: onClose)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 18)
             }

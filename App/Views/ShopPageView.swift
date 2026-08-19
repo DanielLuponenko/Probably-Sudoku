@@ -20,7 +20,7 @@ struct ShopPageView: View {
                         OfferCard(offer: offer,
                                   affordable: model.coins >= offer.price,
                                   hasSlot: hasSlot(for: offer.def.kind)) {
-                            model.buy(slot: offer.slot)
+                            buy(offer)
                         }
                     }
                 }
@@ -38,13 +38,29 @@ struct ShopPageView: View {
                 }
             }
         }
-        .sheet(item: Binding(get: { claimingMarker.map(MarkerIndex.init) },
-                             set: { claimingMarker = $0?.value })) { wrapper in
-            SquarePickerSheet(model: model, markerIndex: wrapper.value)
+        .overlay {
+            if let index = claimingMarker {
+                MarkerPlacementSlip(model: model, markerIndex: index) {
+                    withAnimation(.snappy(duration: 0.2)) { claimingMarker = nil }
+                }
+            }
         }
+        .animation(.snappy(duration: 0.22), value: claimingMarker)
     }
 
     private struct MarkerIndex: Identifiable { let value: Int; var id: Int { value } }
+
+    /// A Marker is useless until it has a square, so it asks for one the moment
+    /// it is bought rather than waiting to be noticed further down the page.
+    private func buy(_ offer: ShopOffer) {
+        let before = model.run.markers.count
+        model.buy(slot: offer.slot)
+        if offer.def.kind == .marker, model.run.markers.count > before {
+            withAnimation(.snappy(duration: 0.2)) {
+                claimingMarker = model.run.markers.count - 1
+            }
+        }
+    }
 
     private func hasSlot(for kind: ItemKind) -> Bool {
         switch kind {
@@ -273,85 +289,5 @@ private struct RarityMark: View {
         case .uncommon: return Paper.sageDeep
         case .rare: return Paper.redPencil
         }
-    }
-}
-
-// MARK: - Choosing a Marker's squares
-
-/// §11 — squares are chosen in the Shop the moment they are gained, and they
-/// persist for the rest of the Book even though boards are regenerated.
-struct SquarePickerSheet: View {
-    @Bindable var model: GameModel
-    var markerIndex: Int
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 14) {
-            VStack(spacing: 4) {
-                Text(marker?.def.name ?? "Marker").pageHeading(24)
-                Text("Choose a square. It keeps this mark for the rest of the Book.")
-                    .font(Print.body(13))
-                    .foregroundStyle(Paper.inkSoft)
-                    .multilineTextAlignment(.center)
-                if let pending = marker?.pendingSquares(atLevel: model.run.level), pending > 0 {
-                    Text("\(pending) still to place")
-                        .font(Print.caption(11))
-                        .foregroundStyle(Paper.redPencil)
-                }
-            }
-
-            picker
-
-            PaperButton(title: "Done", kind: .quiet) { dismiss() }
-        }
-        .padding(20)
-        .background(Paper.page.ignoresSafeArea())
-        .presentationDetents([.large])
-    }
-
-    private var marker: OwnedMarker? {
-        model.run.markers.indices.contains(markerIndex) ? model.run.markers[markerIndex] : nil
-    }
-
-    private var picker: some View {
-        GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            let cell = side / 9
-            ZStack(alignment: .topLeading) {
-                ForEach(Square.all, id: \.index) { square in
-                    let owner = model.run.markedSquares[square]
-                    Rectangle()
-                        .fill(owner.map { Paper.markerColor($0.defID).opacity(0.45) } ?? Paper.pageWarm)
-                        .overlay { Rectangle().strokeBorder(Paper.gridHair, lineWidth: 0.5) }
-                        .frame(width: cell, height: cell)
-                        .position(x: (CGFloat(square.col) + 0.5) * cell,
-                                  y: (CGFloat(square.row) + 0.5) * cell)
-                        .onTapGesture {
-                            guard owner == nil else { return }
-                            model.claimSquare(markerIndex: markerIndex, square: square)
-                        }
-                        .accessibilityLabel("\(square.description)\(owner != nil ? ", taken" : "")")
-                }
-                boxRules(side: side, cell: cell)
-            }
-            .frame(width: side, height: side)
-            .frame(maxWidth: .infinity)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-
-    private func boxRules(side: CGFloat, cell: CGFloat) -> some View {
-        Canvas { context, _ in
-            for i in stride(from: 3, to: 9, by: 3) {
-                let offset = CGFloat(i) * cell
-                var v = Path(); v.move(to: .init(x: offset, y: 0)); v.addLine(to: .init(x: offset, y: side))
-                var h = Path(); h.move(to: .init(x: 0, y: offset)); h.addLine(to: .init(x: side, y: offset))
-                context.stroke(v, with: .color(Paper.gridBold), lineWidth: 2)
-                context.stroke(h, with: .color(Paper.gridBold), lineWidth: 2)
-            }
-            context.stroke(Path(CGRect(x: 0, y: 0, width: side, height: side)),
-                           with: .color(Paper.gridBold), lineWidth: 2.5)
-        }
-        .allowsHitTesting(false)
     }
 }

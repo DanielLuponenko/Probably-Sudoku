@@ -15,6 +15,7 @@ struct GridView: View {
             ZStack(alignment: .topLeading) {
                 cells(cell: cell)
                 rules(side: side, cell: cell)
+                clears(side: side, cell: cell)
             }
             .frame(width: side, height: side)
         }
@@ -45,8 +46,17 @@ struct GridView: View {
             return model.selectedSquare == square ? .selected : .sameNumber
         }
         if model.selectedSquare == square { return .selected }
-        if model.peerSquares.contains(square) { return .peer }
         return .plain
+    }
+
+    /// A completed row, column or box, marked once and then let go. Completing
+    /// a unit is worth far more than a placement (§6), so it is worth seeing.
+    private func clears(side: CGFloat, cell: CGFloat) -> some View {
+        ForEach(model.cleared) { clear in
+            ClearedUnitMark(cells: Geometry.cells(of: clear.unit, through: clear.square),
+                            cell: cell)
+        }
+        .allowsHitTesting(false)
     }
 
     // MARK: Rules
@@ -77,7 +87,49 @@ struct GridView: View {
 }
 
 enum CellState {
-    case plain, peer, selected, sameNumber
+    case plain, selected, sameNumber
+}
+
+/// Washes the cells of a finished unit and rules a heavy line round it — the
+/// whole row for a row, and the box's own three-by-three for a box.
+private struct ClearedUnitMark: View {
+    var cells: [Square]
+    var cell: CGFloat
+    @State private var shown = false
+
+    private var bounds: CGRect {
+        let rows = cells.map(\.row), cols = cells.map(\.col)
+        let minRow = rows.min() ?? 0, maxRow = rows.max() ?? 0
+        let minCol = cols.min() ?? 0, maxCol = cols.max() ?? 0
+        return CGRect(x: CGFloat(minCol) * cell,
+                      y: CGFloat(minRow) * cell,
+                      width: CGFloat(maxCol - minCol + 1) * cell,
+                      height: CGFloat(maxRow - minRow + 1) * cell)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Multiplied rather than painted over: the numbers in the unit are
+            // the point of it, and an opaque wash hides them.
+            ForEach(cells, id: \.index) { square in
+                Rectangle()
+                    .fill(Paper.cellCleared)
+                    .blendMode(.multiply)
+                    .frame(width: cell, height: cell)
+                    .offset(x: CGFloat(square.col) * cell, y: CGFloat(square.row) * cell)
+            }
+            Rectangle()
+                .strokeBorder(Paper.sageDeep, lineWidth: 3)
+                .frame(width: bounds.width, height: bounds.height)
+                .offset(x: bounds.minX, y: bounds.minY)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .opacity(shown ? 1 : 0)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.18)) { shown = true }
+            withAnimation(.easeIn(duration: 0.55).delay(0.5)) { shown = false }
+        }
+    }
 }
 
 private struct CellView: View {
@@ -129,7 +181,6 @@ private struct CellView: View {
         switch state {
         case .selected: return Paper.cellSelected
         case .sameNumber: return Paper.cellSameNumber
-        case .peer: return Paper.cellPeer
         case .plain: return provenance == .given ? Paper.cellGiven : .clear
         }
     }

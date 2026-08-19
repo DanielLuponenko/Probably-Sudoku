@@ -27,6 +27,8 @@ struct LoadoutRow: View {
             ForEach(0..<ItemKind.buff.capacity, id: \.self) { index in
                 if index < model.run.buffs.count {
                     let buff = model.run.buffs[index]
+                    // Opens the Buff rather than spending it: a one-shot should
+                    // not be gone because a finger landed on it.
                     LoadoutSlot(def: buff.def, tint: Paper.cellSelected, isSpendable: true) {
                         onUseBuff(index)
                     } inspect: {
@@ -97,7 +99,7 @@ private struct LoadoutSlot: View {
         .buttonStyle(PressedPaperStyle())
         .simultaneousGesture(LongPressGesture().onEnded { _ in (inspect ?? action)() })
         .accessibilityLabel("\(def.name). \(def.text)")
-        .accessibilityHint(isSpendable ? "Double tap to use" : "Double tap for details")
+        .accessibilityHint(isSpendable ? "Double tap to spend it" : "Double tap for details")
     }
 }
 

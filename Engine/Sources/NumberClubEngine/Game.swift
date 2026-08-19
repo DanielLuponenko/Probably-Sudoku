@@ -117,6 +117,36 @@ public extension Game {
     /// Pool or the Hand so the conservation rule still holds. Nothing is
     /// scored — this is for reaching the Full Clear and the results page, not
     /// for checking what they are worth.
+    /// Hands over a Buff, for exercising the ones that ask a question.
+    mutating func qaGrantBuff(_ defID: String) {
+        guard Catalog.item(defID) != nil, run.buffs.count < ItemKind.buff.capacity else { return }
+        run.buffs.append(OwnedBuff(defID: defID, pricePaid: 0))
+    }
+
+    /// Fills one square without scoring, for setting a board up by hand.
+    mutating func qaPlace(digit: Digit, at square: Square) -> Bool {
+        guard var puzzle = run.puzzle, puzzle.board.isBlank(square),
+              puzzle.board.correctDigit(at: square) == digit else { return false }
+        if puzzle.pool.take(digit) {
+            // taken from the Pool
+        } else if let index = puzzle.hand.firstIndex(of: digit) {
+            puzzle.hand.remove(at: index)
+        } else {
+            return false
+        }
+        puzzle.board.fill(square, with: digit, by: .player)
+        run.puzzle = puzzle
+        return true
+    }
+
+    /// Moves one number from the Pool into the Hand.
+    mutating func qaTakeFromPool(_ digit: Digit) -> Bool {
+        guard var puzzle = run.puzzle, puzzle.pool.take(digit) else { return false }
+        puzzle.hand.append(digit)
+        run.puzzle = puzzle
+        return true
+    }
+
     mutating func qaFillBoard() {
         guard var puzzle = run.puzzle else { return }
         for square in puzzle.board.blanks {

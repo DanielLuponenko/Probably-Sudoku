@@ -41,11 +41,6 @@ enum Paper {
     /// The soft olive wash the mockups use for a Given.
     static let cellGiven = Color(hex: 0xE0DCC4)
     static let cellSelected = Color(hex: 0xD3D9C2)
-    /// The row, column and box through the selected square. This has to be
-    /// unmistakably a marking: a faint warm wash over a third of the board is
-    /// read as the light changing, not as "these cells are related", so it is
-    /// cooler than the paper rather than merely darker than it.
-    static let cellPeer = Color(hex: 0xDADDD6)
     /// Every copy of the number you are holding. This has to read instantly
     /// against the Givens wash, so it is a distinctly cooler green rather than
     /// another shade of olive.
