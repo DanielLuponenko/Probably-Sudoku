@@ -59,9 +59,16 @@ the cover every time:
 | `-thenTapSquare 1` | after `-selectHand`, taps that square — reproduces the highlight order |
 | `-winNow` | meets the target on launch, to land on the results page |
 
+## Settings and help
+
+The gear opens Settings: where you are in the Book, the seed (with a copy
+button, since a seed plus the same choices reproduces a Book), how to play, and
+**Abandon Book and start again** behind a confirmation. The `?` opens the same
+help directly.
+
 ## QA panel
 
-The gear opens a QA panel in debug builds: add points or coins, meet the target,
+Settings has a Development section in debug builds that opens the QA panel: add points or coins, meet the target,
 fail the Puzzle, fill the board, start a new Book, and read the live state
 (seed, level, score, turn, phase, Pool remaining, Boss).
 

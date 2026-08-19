@@ -49,7 +49,8 @@ private struct GameView: View {
     @Bindable var model: GameModel
     var reduceMotion: Bool
     @State private var flipper = PageFlipper()
-    @State private var showingQA = false
+    @State private var showingSettings = false
+    @State private var showingHelp = false
 
     var body: some View {
         DeskView {
@@ -85,12 +86,11 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
-            #if DEBUG
-            .sheet(isPresented: $showingQA) { QAPanel(model: model) }
-            #endif
+            .sheet(isPresented: $showingSettings) { SettingsView(model: model) }
+            .sheet(isPresented: $showingHelp) { HelpView() }
             .task {
                 #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("-qa") { showingQA = true }
+                if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
                 if ProcessInfo.processInfo.arguments.contains("-winNow") {
                     try? await Task.sleep(for: .milliseconds(400))
                     model.qaMeetTarget()
@@ -138,22 +138,15 @@ private struct GameView: View {
     /// Puzzle page and Reroll onto the Shop page, because both act on a page.
     private var controls: [StripControl] {
         [
-            StripControl(systemImage: "questionmark", label: "How to play") {},
-            StripControl(systemImage: "gearshape", label: settingsLabel) {
-                #if DEBUG
-                showingQA = true
-                #endif
+            StripControl(systemImage: "questionmark", label: "How to play") {
+                showingHelp = true
+            },
+            StripControl(systemImage: "gearshape", label: "Settings") {
+                showingSettings = true
             },
         ]
     }
 
-    private var settingsLabel: String {
-        #if DEBUG
-        "QA tools"
-        #else
-        "Settings"
-        #endif
-    }
 
     @ViewBuilder
     private var toast: some View {
