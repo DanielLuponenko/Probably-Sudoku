@@ -3,6 +3,8 @@ import NumberClubEngine
 
 struct ContentView: View {
     @State private var model: GameModel? = ContentView.debugModel()
+    /// The obstacle level chosen with the Book.
+    @State private var chosenObstacle: Obstacle = .none
     /// The Book being opened, while its clip plays. `-playOpening` starts on
     /// it, so the transition can be recorded without tapping through the shelf.
     @State private var opening: BookEdition? = ContentView.debugOpening()
@@ -56,7 +58,8 @@ struct ContentView: View {
                     begin(book)
                 }
             } else {
-                StartBookView { book in
+                StartBookView { book, obstacle in
+                    chosenObstacle = obstacle
                     if openingClip(for: book) == nil {
                         begin(book)          // no clip: straight in
                     } else {
@@ -82,7 +85,7 @@ struct ContentView: View {
     /// Deals the first Puzzle behind the veil, then lifts it.
     private func begin(_ book: BookEdition) {
         veil = 1
-        model = GameModel(startingBoard: book.bonus)
+        model = GameModel(startingBoard: book.bonus, obstacle: chosenObstacle)
         opening = nil
         Task {
             // One frame flat first: animating a value in the same update that
@@ -265,5 +268,5 @@ private struct GameView: View {
 }
 
 #Preview("Start") {
-    StartBookView { _ in }
+    StartBookView { _, _ in }
 }

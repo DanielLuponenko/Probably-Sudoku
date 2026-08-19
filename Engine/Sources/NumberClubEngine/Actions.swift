@@ -276,6 +276,8 @@ public enum Actions {
         public var numbersDrawn = 0
         public var turnsExhausted = false
         public var puzzleFailed = false
+        /// Obstacle III only: the number taken back out of the Hand.
+        public var numberSnatched: Digit?
     }
 
     /// §4 — ending a Turn refills the Hand from the Pool up to hand size;
@@ -309,6 +311,15 @@ public enum Actions {
             let drawn = puzzle.pool.draw(&run.streams.pool, count: needed)
             puzzle.hand.append(contentsOf: drawn)
             turn.numbersDrawn = drawn.count
+        }
+
+        // Obstacle III takes one back, after the refill — before it, the refill
+        // would simply replace what was taken and the obstacle would do nothing.
+        if run.obstacle.snatchesANumberEachTurn, !puzzle.hand.isEmpty {
+            let index = run.streams.pool.int(puzzle.hand.count)
+            let snatched = puzzle.hand.remove(at: index)
+            puzzle.pool.put(snatched)
+            turn.numberSnatched = snatched
         }
 
         if wasLastTurn {

@@ -9,9 +9,10 @@ import NumberClubEngine
 /// opened; the rest are locked and shown anyway, so the ladder §2 leaves
 /// undecided is visible instead of implied.
 struct StartBookView: View {
-    var onStart: (BookEdition) -> Void
+    var onStart: (BookEdition, Obstacle) -> Void
 
     @State private var index = 0
+    @State private var obstacle: Obstacle = .none
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var books: [BookEdition] { BookEdition.shelf }
@@ -31,6 +32,12 @@ struct StartBookView: View {
             // The scene is shot for the whole screen, so it has to reach past
             // the safe area or the desk behind it shows as strips.
             .ignoresSafeArea()
+
+            // The desk above the Book is the only bare space on the screen, and
+            // choosing how hard to make it belongs next to choosing which Book.
+            ObstacleSwiper(obstacle: $obstacle)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .padding(.top, 8)
 
             controls
         }
@@ -59,7 +66,7 @@ struct StartBookView: View {
             }
 
             if book.isWritten {
-                PaperButton(title: "Open the Book", kind: .primary) { onStart(book) }
+                PaperButton(title: "Open the Book", kind: .primary) { onStart(book, obstacle) }
             } else {
                 PaperButton(title: "Locked", kind: .quiet, isEnabled: false) {}
             }
@@ -228,5 +235,63 @@ private struct UnwrittenCover: View {
                     .foregroundStyle(Paper.page.opacity(0.35))
             }
         }
+    }
+}
+
+// MARK: - Obstacle
+
+/// How hard to make the Book, swiped through in the band above it.
+///
+/// Set like the volume line below the Book, because it is the same kind of
+/// statement — a label on the thing you are about to pick up, not a control.
+private struct ObstacleSwiper: View {
+    @Binding var obstacle: Obstacle
+
+    private var levels: [Obstacle] { Obstacle.allCases }
+    private var index: Binding<Int> {
+        Binding(
+            get: { levels.firstIndex(of: obstacle) ?? 0 },
+            set: { obstacle = levels[$0] }
+        )
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            TabView(selection: index) {
+                ForEach(Array(levels.enumerated()), id: \.offset) { position, level in
+                    VStack(spacing: 3) {
+                        Text(level.name)
+                            .font(Print.caption(10))
+                            .tracking(1.8)
+                            .textCase(.uppercase)
+                            .foregroundStyle(Paper.page.opacity(0.55))
+                        Text(level.text)
+                            .font(Print.body(13))
+                            .foregroundStyle(Paper.page.opacity(0.88))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .padding(.horizontal, 34)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .tag(position)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 52)
+
+            HStack(spacing: 6) {
+                ForEach(levels, id: \.self) { level in
+                    Circle()
+                        .fill(Paper.page.opacity(level == obstacle ? 0.8 : 0.26))
+                        .frame(width: level == obstacle ? 6 : 4.5,
+                               height: level == obstacle ? 6 : 4.5)
+                }
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: obstacle)
+        .shadow(color: .black.opacity(0.7), radius: 6, y: 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Obstacle level: \(obstacle.name). \(obstacle.text)")
     }
 }

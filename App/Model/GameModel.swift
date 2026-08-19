@@ -48,8 +48,10 @@ final class GameModel {
     private(set) var lastPayout: RunState.Payout?
     private(set) var message: String?
 
-    init(seed: String = GameModel.randomSeed(), startingBoard: StartingBoard = .scholar) {
-        game = Game(seed: seed, startingBoard: startingBoard)
+    init(seed: String = GameModel.randomSeed(),
+         startingBoard: StartingBoard = .scholar,
+         obstacle: Obstacle = .none) {
+        game = Game(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
         try? game.startPuzzle()
     }
 
@@ -310,7 +312,8 @@ final class GameModel {
     /// Restarts in place, without going back to the cover. Used by QA only.
     func startNewBook(startingBoard: StartingBoard? = nil) {
         game = Game(seed: Self.randomSeed(),
-                    startingBoard: startingBoard ?? game.run.startingBoard)
+                    startingBoard: startingBoard ?? game.run.startingBoard,
+                    obstacle: game.run.obstacle)
         selectedHandIndex = nil
         selectedSquare = nil
         lastOutcome = nil

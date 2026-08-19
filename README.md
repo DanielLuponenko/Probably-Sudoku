@@ -85,6 +85,24 @@ quarters, so whatever the line says it cannot reach the edge of the page, and
 the band reserves its height whether or not the Book speaks, so a note
 appearing never shifts the grid.
 
+## Obstacles
+
+Chosen with the Book, in the band above it, and fixed for the run. Deliberately
+separate from the Book's own difficulty ladder (§2, still undecided): an
+obstacle does not change the boards or the targets, it changes what you have to
+work with, so the two dials move independently.
+
+| | |
+|---|---|
+| Obstacle I | Nothing |
+| Obstacle II | One fewer number in hand |
+| Obstacle III | II, and one number taken back out of the hand every Turn |
+
+The snatch happens **after** the refill. Before it, the refill would simply
+replace what was taken and the obstacle would do nothing at all. It goes back
+to the Pool, so conservation still holds, and it is drawn from the seeded pool
+stream, so a seed still reproduces a run exactly.
+
 ## The shelf
 
 `StartBookView` is where the app opens, and where it returns whenever a Book

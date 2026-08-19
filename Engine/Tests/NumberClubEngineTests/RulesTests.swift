@@ -322,3 +322,49 @@ final class FailureTests: XCTestCase {
         XCTAssertEqual(game.run.outcome, .failed)
     }
 }
+
+final class ObstacleTests: XCTestCase {
+
+    func testObstacleOneChangesNothing() throws {
+        var plain = Game(seed: "obstacle", startingBoard: .scholar, obstacle: .none)
+        try plain.startPuzzle()
+        XCTAssertEqual(plain.puzzle?.handSize, 7)   // Scholar's Board
+    }
+
+    func testObstacleTwoTakesOneOutOfTheHand() throws {
+        var game = Game(seed: "obstacle", startingBoard: .scholar, obstacle: .shortHanded)
+        try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.handSize, 6)
+        XCTAssertEqual(game.puzzle?.hand.count, 6)
+    }
+
+    func testObstacleThreeAlsoTakesOneBackEveryTurn() throws {
+        var game = Game(seed: "obstacle", startingBoard: .scholar,
+                        obstacle: .shortHandedAndSnatched)
+        try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.handSize, 6)
+
+        // Refilled to six, then one is taken back — so a Turn starts on five.
+        let result = try game.endTurn()
+        XCTAssertNotNil(result.numberSnatched)
+        XCTAssertEqual(game.puzzle?.hand.count, 5)
+        XCTAssertNil(Conservation.check(board: game.puzzle!.board,
+                                        pool: game.puzzle!.pool,
+                                        hand: game.puzzle!.hand),
+                     "a snatched number must go back to the Pool")
+    }
+
+    func testTheSnatchIsSeededLikeEverythingElse() throws {
+        func play() throws -> [Digit] {
+            var game = Game(seed: "same-seed", startingBoard: .scholar,
+                            obstacle: .shortHandedAndSnatched)
+            try game.startPuzzle()
+            var taken: [Digit] = []
+            for _ in 0..<4 {
+                if let digit = try game.endTurn().numberSnatched { taken.append(digit) }
+            }
+            return taken
+        }
+        XCTAssertEqual(try play(), try play())
+    }
+}

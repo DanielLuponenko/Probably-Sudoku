@@ -41,6 +41,8 @@ public struct RunState: Codable, Sendable {
     public let seed: String
     public var streams: SeedStreams
     public let startingBoard: StartingBoard
+    /// Chosen with the Book, and fixed for the whole run.
+    public let obstacle: Obstacle
 
     public var level: Int
     public var slot: PuzzleSlot
@@ -58,10 +60,11 @@ public struct RunState: Codable, Sendable {
     public var shop: ShopState?
     public var outcome: RunOutcome?
 
-    public init(seed: String, startingBoard: StartingBoard) {
+    public init(seed: String, startingBoard: StartingBoard, obstacle: Obstacle = .none) {
         self.seed = seed
         self.streams = SeedStreams(seed: seed)
         self.startingBoard = startingBoard
+        self.obstacle = obstacle
         self.level = 1
         self.slot = .easy
         self.coins = startingBoard == .merchant ? 15 : Baseline.coins
@@ -97,6 +100,7 @@ public struct RunState: Codable, Sendable {
         if startingBoard == .scholar { size += 1 }
         if owns(bookmark: Bookmarks.helpWanted) { size += 1 }
         size += boss?.handSizeDelta ?? 0
+        size += obstacle.handSizeDelta
         return max(1, size)
     }
 

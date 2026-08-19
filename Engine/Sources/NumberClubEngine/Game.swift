@@ -5,8 +5,8 @@ import Foundation
 public struct Game: Sendable {
     public internal(set) var run: RunState
 
-    public init(seed: String, startingBoard: StartingBoard) {
-        run = RunState(seed: seed, startingBoard: startingBoard)
+    public init(seed: String, startingBoard: StartingBoard, obstacle: Obstacle = .none) {
+        run = RunState(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
     }
     public init(run: RunState) { self.run = run }
 
