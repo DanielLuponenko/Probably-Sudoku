@@ -46,17 +46,20 @@ private struct GameView: View {
     var body: some View {
         DeskView {
             VStack(spacing: 8) {
-                topStrip
-
                 LoadoutRow(model: model) { model.useBuff(at: $0) }
                     .padding(.horizontal, 12)
+                    .padding(.top, 4)
 
                 BookPageView { pageContent }
                     .padding(.horizontal, 12)
             }
-            .padding(.vertical, 8)
+            .padding(.bottom, 8)
             .overlay(alignment: .center) { wonOverlay }
             .overlay(alignment: .bottom) { toast }
+            .overlay(alignment: .top) {
+                IslandBar(coins: model.coins, controls: controls)
+                    .ignoresSafeArea(edges: .top)
+            }
         }
         .animation(.snappy(duration: 0.35), value: model.page)
         .preferredColorScheme(.dark)
@@ -86,45 +89,13 @@ private struct GameView: View {
 
     // MARK: Chrome
 
-    private var topStrip: some View {
-        TopStripView(
-            coins: model.coins,
-            levelLabel: "Level \(model.run.level)",
-            slotIndex: model.run.slot.rawValue,
-            slotCount: 3,
-            trailing: controls
-        )
-        .padding(.horizontal, 14)
-    }
-
-    /// Refresh belongs to the Shop page only; the Puzzle page carries Clue.
+    /// Only the two things that are true on every page. Clue moved onto the
+    /// Puzzle page and Reroll onto the Shop page, because both act on a page.
     private var controls: [StripControl] {
-        switch model.page {
-        case .shop:
-            return [
-                StripControl(systemImage: "arrow.triangle.2.circlepath",
-                             label: "Reroll the shop",
-                             badge: model.shop.map { "\($0.rerollCost)" },
-                             isEnabled: model.coins >= (model.shop?.rerollCost ?? .max)) {
-                    model.reroll()
-                },
-                StripControl(systemImage: "questionmark", label: "How to play") {},
-                StripControl(systemImage: "gearshape", label: "Settings") {},
-            ]
-        default:
-            let clues = model.puzzle?.cluesRemaining ?? 0
-            return [
-                StripControl(systemImage: "magnifyingglass",
-                             label: "Use a Clue",
-                             badge: clues > 0 ? "\(clues)" : nil,
-                             isEnabled: model.puzzle?.canUseClue == true
-                                        && model.selectedSquare != nil) {
-                    if let square = model.selectedSquare { model.useClue(at: square) }
-                },
-                StripControl(systemImage: "questionmark", label: "How to play") {},
-                StripControl(systemImage: "gearshape", label: "Settings") {},
-            ]
-        }
+        [
+            StripControl(systemImage: "questionmark", label: "How to play") {},
+            StripControl(systemImage: "gearshape", label: "Settings") {},
+        ]
     }
 
     @ViewBuilder

@@ -8,11 +8,15 @@ struct PuzzlePageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            ScoreMeter(score: puzzle.score, target: puzzle.target)
+            ScoreMeter(score: puzzle.score, target: puzzle.target,
+                       level: puzzle.level, slot: puzzle.slot.rawValue)
+
+            Spacer(minLength: 0)
             GridView(model: model, board: puzzle.board)
                 .layoutPriority(1)
-            instruction
+            if showsInstruction { instruction }
             Spacer(minLength: 0)
+
             HandStripView(model: model, handSize: puzzle.handSize)
             actionRow
         }
@@ -47,6 +51,11 @@ struct PuzzlePageView: View {
         }
     }
 
+    /// Only on the very first page of a Book.
+    private var showsInstruction: Bool {
+        puzzle.level == 1 && puzzle.slot == .easy
+    }
+
     private var instruction: some View {
         Text("Fill the grid so each column, row and 3x3 box contains numbers 1-9.")
             .font(Print.body(11.5))
@@ -70,6 +79,17 @@ struct PuzzlePageView: View {
                             isEnabled: puzzle.tossesRemaining > 0 && !puzzle.hand.isEmpty) {
                     model.beginToss()
                 }
+                if puzzle.canUseClue {
+                    PaperButton(title: "Clue",
+                                subtitle: model.selectedSquare == nil
+                                    ? "pick a square" : "\(puzzle.cluesRemaining) left",
+                                kind: .quiet,
+                                isEnabled: model.selectedSquare.map {
+                                    puzzle.board.isBlank($0)
+                                } ?? false) {
+                        if let square = model.selectedSquare { model.useClue(at: square) }
+                    }
+                }
                 PaperButton(title: "End Turn", kind: .primary) { model.endTurn() }
             }
         }
@@ -81,6 +101,8 @@ struct PuzzlePageView: View {
 struct ScoreMeter: View {
     var score: Int
     var target: Int
+    var level: Int
+    var slot: Int
 
     private var fraction: Double {
         target > 0 ? min(1, Double(score) / Double(target)) : 0
@@ -99,7 +121,11 @@ struct ScoreMeter: View {
                 Text("of \(target.formatted())")
                     .font(Print.numeral(15, weight: .semibold))
                     .foregroundStyle(Paper.inkFaint)
-                Spacer(minLength: 4)
+                Spacer(minLength: 6)
+                Text("Level \(level)")
+                    .font(Print.caption(11))
+                    .foregroundStyle(Paper.inkSoft)
+                ProgressDots(index: slot, count: 3)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -176,7 +202,7 @@ struct PaperButton: View {
             }
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .frame(height: 46)
+            .frame(height: 52)
             .background {
                 RoundedRectangle(cornerRadius: 5).fill(background)
             }

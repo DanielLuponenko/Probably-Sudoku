@@ -52,12 +52,37 @@ struct ShopPageView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("Shop Page").pageHeading(34)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Shop Page").pageHeading(30)
+                Spacer(minLength: 6)
+                rerollButton
+            }
             Text("Stock up before the next puzzle.")
                 .font(Print.body(13))
                 .foregroundStyle(Paper.inkSoft)
             Rectangle().fill(Paper.rule).frame(height: 1)
         }
+    }
+
+    /// §9 — rerolling is the Shop's own action, so it lives on the Shop's page.
+    private var rerollButton: some View {
+        Button { model.reroll() } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(shop.rerollCost == 0 ? "Free" : "\(shop.rerollCost)")
+                    .font(Print.numeral(13, weight: .bold))
+            }
+            .foregroundStyle(Paper.ink)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background { RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm) }
+            .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.rule, lineWidth: 1) }
+        }
+        .buttonStyle(PressedPaperStyle())
+        .disabled(model.coins < shop.rerollCost)
+        .opacity(model.coins < shop.rerollCost ? 0.45 : 1)
+        .accessibilityLabel("Reroll the shop for \(shop.rerollCost) coins")
     }
 
     /// §11 — a Marker gains a square per Level, and the player chooses it here.

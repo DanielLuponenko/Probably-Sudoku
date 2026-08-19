@@ -49,10 +49,10 @@ private struct NumberTile: View {
 
     var body: some View {
         Text("\(digit.rawValue)")
-            .font(Print.numeral(24, weight: .medium))
+            .font(Print.numeral(27, weight: .medium))
             .foregroundStyle(isStaged ? Paper.redPencil : Paper.ink)
             .frame(maxWidth: .infinity)
-            .frame(height: 46)
+            .frame(height: 54)
             .background {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(isSelected ? Paper.cellSelected : Paper.pageWarm)
@@ -78,7 +78,7 @@ private struct EmptySlot: View {
         RoundedRectangle(cornerRadius: 4)
             .strokeBorder(Paper.rule.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             .frame(maxWidth: .infinity)
-            .frame(height: 46)
+            .frame(height: 54)
             .accessibilityLabel("Empty slot")
     }
 }
