@@ -12,7 +12,6 @@ struct StartBookView: View {
     var onStart: (StartingBoard) -> Void
 
     @State private var index = 0
-    @State private var choosingBoard = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var books: [BookEdition] { BookEdition.shelf }
@@ -36,33 +35,28 @@ struct StartBookView: View {
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .animation(.easeInOut(duration: 0.35), value: index)
-        .overlay {
-            if choosingBoard {
-                BoardChoiceSlip { board in
-                    choosingBoard = false
-                    onStart(board)
-                } onClose: {
-                    withAnimation(.snappy(duration: 0.2)) { choosingBoard = false }
-                }
-            }
-        }
-        .animation(.snappy(duration: 0.22), value: choosingBoard)
     }
 
     private var controls: some View {
         VStack(spacing: 12) {
             PageDots(count: books.count, index: index)
 
-            Text(book.isWritten ? book.shelfLabel : "Not written yet")
-                .font(Print.caption(10))
-                .tracking(1.8)
-                .textCase(.uppercase)
-                .foregroundStyle(Paper.page.opacity(0.5))
+            // What the Book gives you. §3's boards are not a separate choice
+            // — the Book you pick up is the board you play on.
+            VStack(spacing: 3) {
+                Text(book.isWritten ? book.shelfLabel : "Not written yet")
+                    .font(Print.caption(10))
+                    .tracking(1.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Paper.page.opacity(0.5))
+
+                Text(book.bonusText)
+                    .font(Print.body(13))
+                    .foregroundStyle(Paper.page.opacity(0.82))
+            }
 
             if book.isWritten {
-                PaperButton(title: "Open the Book", kind: .primary) {
-                    withAnimation(.snappy(duration: 0.22)) { choosingBoard = true }
-                }
+                PaperButton(title: "Open the Book", kind: .primary) { onStart(book.bonus) }
             } else {
                 PaperButton(title: "Locked", kind: .quiet, isEnabled: false) {}
             }
@@ -142,28 +136,43 @@ private struct ShelfBackdrop: View {
 /// phone throws away the tabs, the notes and half the title.
 private struct BookOnDesk: View {
     var book: BookEdition
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var playsLoop: Bool {
+        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
 
     var body: some View {
-        VStack {
-            Group {
-                if let cover = book.cover {
+        // The cover is width-bound on a phone, so it can never fill the height.
+        // Centring it in what is left puts the slack above and below instead of
+        // dumping all of it under the Book.
+        Group {
+            if let cover = book.cover {
+                ZStack {
+                    // The still is always underneath, so the Book is painted
+                    // before any decoder has started and there is never a
+                    // black flash — and so a Book without a loop still works.
                     Image(cover)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                } else {
-                    UnwrittenCover(book: book)
-                        .aspectRatio(968.0 / 1330.0, contentMode: .fit)
-                }
-            }
-            .frame(maxWidth: 336)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .shadow(color: .black.opacity(0.65), radius: 26, x: 6, y: 16)
 
-            Spacer(minLength: 0)
+                    if let loop = book.loop, playsLoop,
+                       let url = Bundle.main.url(forResource: loop, withExtension: "mp4") {
+                        LoopingVideo(url: url)
+                            .aspectRatio(968.0 / 1330.0, contentMode: .fit)
+                    }
+                }
+            } else {
+                UnwrittenCover(book: book)
+                    .aspectRatio(968.0 / 1330.0, contentMode: .fit)
+            }
         }
-        .padding(.top, 40)
-        .padding(.horizontal, 26)
-        .padding(.bottom, 190)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .shadow(color: .black.opacity(0.65), radius: 28, x: 6, y: 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 14)
+        .padding(.top, 16)
+        .padding(.bottom, 128)
         .accessibilityLabel(book.isWritten
             ? "\(book.title), \(book.shelfLabel)"
             : "\(book.title), not written yet")
@@ -200,73 +209,6 @@ private struct UnwrittenCover: View {
                     .textCase(.uppercase)
                     .foregroundStyle(Paper.page.opacity(0.35))
             }
-        }
-    }
-}
-
-// MARK: - Starting Board
-
-/// §3 — chosen once, when you open a Book. It moved off the shelf so the Book
-/// is the only thing on it, and it is asked on a slip because that is what the
-/// rest of the game does.
-private struct BoardChoiceSlip: View {
-    var onChoose: (StartingBoard) -> Void
-    var onClose: () -> Void
-    @State private var choice: StartingBoard = .scholar
-
-    var body: some View {
-        PaperSlip(title: "Which board?",
-                  subtitle: "Chosen once, for the whole Book.",
-                  onClose: onClose) {
-            VStack(spacing: 9) {
-                ForEach(StartingBoard.allCases, id: \.self) { board in
-                    Button {
-                        withAnimation(.snappy(duration: 0.16)) { choice = board }
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: symbol(board))
-                                .font(.system(size: 17))
-                                .foregroundStyle(Paper.ink)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(board.name)
-                                    .font(Print.subheading(14.5))
-                                    .foregroundStyle(Paper.ink)
-                                Text(board.text)
-                                    .font(Print.body(12))
-                                    .foregroundStyle(Paper.inkSoft)
-                            }
-                            Spacer()
-                            Image(systemName: choice == board ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 18))
-                                .foregroundStyle(choice == board ? Paper.sageDeep : Paper.rule)
-                        }
-                        .padding(11)
-                        .background {
-                            RoundedRectangle(cornerRadius: 5).fill(Paper.pageWarm.opacity(0.6))
-                        }
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(choice == board ? Paper.sageDeep : Paper.pageEdge,
-                                              lineWidth: choice == board ? 2 : 1)
-                        }
-                    }
-                    .buttonStyle(PressedPaperStyle())
-                    .accessibilityLabel("\(board.name). \(board.text)")
-                    .accessibilityAddTraits(choice == board ? [.isSelected] : [])
-                }
-
-                PaperButton(title: "Begin", kind: .primary) { onChoose(choice) }
-                    .padding(.top, 6)
-            }
-        }
-    }
-
-    private func symbol(_ board: StartingBoard) -> String {
-        switch board {
-        case .scholar: return "graduationcap"
-        case .merchant: return "bag"
-        case .oracle: return "eye"
         }
     }
 }

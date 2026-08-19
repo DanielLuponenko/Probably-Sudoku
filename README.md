@@ -109,6 +109,35 @@ Two decisions that are easy to get wrong here:
 generated type is always gibberish. The Meshy MCP server is also registered at
 user scope, so the same generation can be driven conversationally.
 
+### The cover loop
+
+`App/Resources/probably-loop.mp4` is the first Book, animated. Made in Meshy's
+web app (Kling 2.5 Turbo, 25 credits) rather than through the API, then
+processed:
+
+```bash
+ffmpeg -i in.mp4 -filter_complex \
+  "[0:v]scale=720:-2,setpts=PTS-STARTPTS,split[a][b];[b]reverse,trim=start_frame=1[r];[a][r]concat=n=2:v=1[v]" \
+  -map "[v]" -an -c:v libx264 -pix_fmt yuv420p -crf 25 -movflags +faststart out.mp4
+```
+
+Played forward then backward, so the loop point is the same frame and there is
+no jump — a 5s clip becomes a 10s loop with no seam, at ~600KB.
+
+Three things learned the expensive way:
+
+- **Seedance ignores the source aspect.** A portrait image came back 1280x720
+  landscape. Kling 2.5 Turbo keeps the framing, and costs 25 credits against
+  Seedance's 110.
+- **Ask for stillness in the negative and the specific.** "Almost imperceptibly
+  slowly" was read as a hard push-in that ended on a close-up of cloth. Listing
+  what must not happen — no push in, no zoom, no pan, no dolly — worked.
+- **Anything you invite it to move, it will move too far.** Asking for sticky
+  note corners to "lift and settle" produced a note peeling up to reveal a
+  second note underneath covered in invented handwriting. Asking instead for
+  the notes to *stay stuck flat and never reveal anything beneath them*, while
+  still letting the paper flutter, kept the draught and lost the artefact.
+
 **Meshy's API cannot make video.** `image-to-video`, `text-to-video` and
 `video` all 404 with `NoMatchingRoute`, though the feature exists in their web
 app; only `text-to-image`, `image-to-image` and `image-to-3d` answer. Driving

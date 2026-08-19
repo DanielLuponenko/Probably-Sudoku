@@ -1,4 +1,5 @@
 import SwiftUI
+import NumberClubEngine
 
 /// A Book is a published thing with a personality, not just a difficulty tier.
 /// The first one is cheerful and faintly unsure of itself, and it talks to the
@@ -11,8 +12,17 @@ struct BookEdition: Identifiable, Equatable {
     let blurb: String
     /// Asset name of the cover photograph, or nil while a Book is unwritten.
     let cover: String?
+    /// Bundle resource for the cover's loop, when one has been made. The still
+    /// stays underneath it either way, so a Book without a loop is not a Book
+    /// missing something.
+    let loop: String?
     /// The Book's own colour, used for its spine and its accents.
     let accent: Color
+    /// §3 — what this Book gives you for the whole run. The board is not a
+    /// separate choice: it is what the Book is.
+    let bonus: StartingBoard
+
+    var bonusText: String { bonus.text }
     /// §2 leaves the ladder of harder Books undecided, so the rest are shelved
     /// rather than pretended into existence.
     var isWritten: Bool { cover != nil }
@@ -28,7 +38,10 @@ struct BookEdition: Identifiable, Equatable {
         shelfLabel: "Volume 1",
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
         cover: "BookProbably",
+        loop: "probably-loop",
         accent: Color(hex: 0x7C8C73),
+        // A relaxed Book hands you more to work with.
+        bonus: .scholar,
         marginalia: firstBookLines
     )
 
@@ -37,24 +50,26 @@ struct BookEdition: Identifiable, Equatable {
     /// this goes instead of implying it.
     static let unwritten: [BookEdition] = [
         unwritten(id: "sorry", title: "Slightly Harder, Sorry",
-                  volume: 2, accent: Color(hex: 0xC8853F)),
+                  volume: 2, accent: Color(hex: 0xC8853F), bonus: .merchant),
         unwritten(id: "pressure", title: "No Pressure, Obviously",
-                  volume: 3, accent: Color(hex: 0x6F9EC4)),
+                  volume: 3, accent: Color(hex: 0x6F9EC4), bonus: .oracle),
         unwritten(id: "bites", title: "This One Bites",
-                  volume: 4, accent: Color(hex: 0xB4544A)),
+                  volume: 4, accent: Color(hex: 0xB4544A), bonus: .merchant),
         unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
-                  volume: 5, accent: Color(hex: 0x8E7BA8)),
+                  volume: 5, accent: Color(hex: 0x8E7BA8), bonus: .oracle),
     ]
 
-    private static func unwritten(id: String, title: String,
-                                  volume: Int, accent: Color) -> BookEdition {
+    private static func unwritten(id: String, title: String, volume: Int,
+                                  accent: Color, bonus: StartingBoard) -> BookEdition {
         BookEdition(
             id: id,
             title: title,
             shelfLabel: "Volume \(volume)",
             blurb: "Not written yet.",
             cover: nil,
+            loop: nil,
             accent: accent,
+            bonus: bonus,
             marginalia: []
         )
     }
