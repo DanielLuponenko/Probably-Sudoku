@@ -104,12 +104,13 @@ private struct GameView: View {
 
     var body: some View {
         DeskView {
-            VStack(spacing: 8) {
-                LoadoutRow(model: model) { index in
+            VStack(spacing: 0) {
+                BookmarkRow(model: model) { index in
                     withAnimation(.snappy(duration: 0.2)) { usingBuff = index }
                 }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 4)
+                .padding(.horizontal, 26)
+                .padding(.top, 4)
+                .zIndex(0)
 
                 BookView(
                     flipper: flipper,
@@ -119,6 +120,10 @@ private struct GameView: View {
                 }
                 .padding(.leading, 8)
                 .padding(.trailing, 10)
+                // Pulls the book up over the bookmarks' tails, so they read as
+                // slipped into the pages rather than resting on them.
+                .padding(.top, -BookmarkRow.tuck)
+                .zIndex(1)
             }
             .padding(.bottom, 8)
             .overlay(alignment: .bottom) { toast }
@@ -163,6 +168,10 @@ private struct GameView: View {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
                 if ProcessInfo.processInfo.arguments.contains("-runInfo") { showingRunInfo = true }
+                if ProcessInfo.processInfo.arguments.contains("-loadout") {
+                    model.qaFillLoadout()
+                    return
+                }
                 if ProcessInfo.processInfo.arguments.contains("-buffSlip") {
                     model.qaGrantBuff(Buffs.paperCrane)
                     try? await Task.sleep(for: .milliseconds(300))

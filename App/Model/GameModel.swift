@@ -331,6 +331,13 @@ final class GameModel {
     func qaFillBoard() { game.qaFillBoard() }
     func qaGrantBuff(_ defID: String) { game.qaGrantBuff(defID) }
 
+    /// Fills the bookmarks, so the row can be looked at populated.
+    func qaFillLoadout() {
+        for ad in Catalog.items(of: .ad).prefix(3) { game.qaGrantAd(ad.id) }
+        game.qaGrantBuff(Buffs.peek)
+        game.qaGrantBuff(Buffs.freshInk)
+    }
+
     /// Fills the emptiest row but for one square, then plays that square, so
     /// the completed-unit mark can be looked at.
     func qaCompleteARow() {

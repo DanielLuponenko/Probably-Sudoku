@@ -62,6 +62,7 @@ the cover every time:
 | `-clearLine` | completes a row on launch, to see the completed-unit mark |
 | `-buffSlip` | grants Paper Crane and opens its slip |
 | `-runInfo` | opens the run information slip on launch |
+| `-loadout` | grants some Ads and Buffs, to see the bookmarks populated |
 
 ## Books have a personality
 
