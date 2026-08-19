@@ -54,17 +54,27 @@ the cover every time:
 | `-seed DEMO` | the same Book every launch |
 | `-selectHand 0` | start with a number picked up, to see the highlight |
 | `-autoEndTurn` | ends a Turn one second in, so the page flip can be recorded |
-| `-qa` | opens the QA panel on launch |
 | `-curlHold 0.35` | freezes a page turn part-way, to look at the curl without racing it |
 | `-thenTapSquare 1` | after `-selectHand`, taps that square — reproduces the highlight order |
 | `-winNow` | meets the target on launch, to land on the results page |
+| `-qa` | opens Settings on launch |
+| `-help` | opens the help slip on launch |
 
 ## Settings and help
 
-The gear opens Settings: where you are in the Book, the seed (with a copy
-button, since a seed plus the same choices reproduces a Book), how to play, and
-**Abandon Book and start again** behind a confirmation. The `?` opens the same
-help directly.
+The gear opens Settings, the `?` opens the help. Both are **printed slips laid
+on the desk over the book**, not system sheets: cream stock with grain, ink
+type, dotted leaders, paper buttons, red pencil for the destructive one, and the
+desk dimming behind. A `List` inside a `NavigationStack` would be the one place
+the game stops being an object, which is the whole premise.
+
+Settings carries where you are in the Book, the seed with a copy button (a seed
+plus the same choices reproduces a Book), how to play, and Abandon Book behind
+a confirmation that names what is lost. The confirmation is in the slip too —
+a system dialog would break the illusion just as badly.
+
+The QA panel stays a plain system list on purpose. It is a tool for building the
+game, not part of it.
 
 ## QA panel
 

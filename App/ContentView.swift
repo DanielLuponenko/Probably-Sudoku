@@ -86,11 +86,30 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
-            .sheet(isPresented: $showingSettings) { SettingsView(model: model) }
-            .sheet(isPresented: $showingHelp) { HelpView() }
+            .overlay {
+                // In-world, on the desk — not a system sheet sliding up over it.
+                if showingSettings {
+                    SettingsSlip(model: model) {
+                        withAnimation(.snappy(duration: 0.2)) { showingSettings = false }
+                    } onShowHelp: {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            showingSettings = false
+                            showingHelp = true
+                        }
+                    }
+                }
+                if showingHelp {
+                    HelpSlip {
+                        withAnimation(.snappy(duration: 0.2)) { showingHelp = false }
+                    }
+                }
+            }
+            .animation(.snappy(duration: 0.22), value: showingSettings)
+            .animation(.snappy(duration: 0.22), value: showingHelp)
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
+                if ProcessInfo.processInfo.arguments.contains("-help") { showingHelp = true }
                 if ProcessInfo.processInfo.arguments.contains("-winNow") {
                     try? await Task.sleep(for: .milliseconds(400))
                     model.qaMeetTarget()
@@ -139,10 +158,10 @@ private struct GameView: View {
     private var controls: [StripControl] {
         [
             StripControl(systemImage: "questionmark", label: "How to play") {
-                showingHelp = true
+                withAnimation(.snappy(duration: 0.22)) { showingHelp = true }
             },
             StripControl(systemImage: "gearshape", label: "Settings") {
-                showingSettings = true
+                withAnimation(.snappy(duration: 0.22)) { showingSettings = true }
             },
         ]
     }
