@@ -56,6 +56,8 @@ the cover every time:
 | `-autoEndTurn` | ends a Turn one second in, so the page flip can be recorded |
 | `-qa` | opens the QA panel on launch |
 | `-curlHold 0.35` | freezes a page turn part-way, to look at the curl without racing it |
+| `-thenTapSquare 1` | after `-selectHand`, taps that square — reproduces the highlight order |
+| `-winNow` | meets the target on launch, to land on the results page |
 
 ## QA panel
 

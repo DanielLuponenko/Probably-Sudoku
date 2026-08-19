@@ -21,6 +21,12 @@ struct ContentView: View {
            let handIndex = Int(arguments[index + 1]) {
             model.selectedHandIndex = handIndex
         }
+        // Reproduces "pick a number, then tap a filled square" — the order the
+        // highlight has to respect.
+        if let index = arguments.firstIndex(of: "-thenTapSquare"), index + 1 < arguments.count,
+           let square = Int(arguments[index + 1]), (0..<81).contains(square) {
+            model.tapSquare(Square(square))
+        }
         return model
         #else
         return nil
@@ -62,8 +68,19 @@ private struct GameView: View {
                 .padding(.trailing, 10)
             }
             .padding(.bottom, 8)
-            .overlay(alignment: .center) { wonOverlay }
             .overlay(alignment: .bottom) { toast }
+            .onChange(of: model.puzzle?.phase) { _, phase in
+                // Reaching the target or running out of Turns finishes the
+                // page, so the book turns to the result the same way it turns
+                // to anything else.
+                guard model.page == .puzzle,
+                      phase == .won || phase == .failed else { return }
+                Task {
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.showResults()
+                    }
+                }
+            }
             .overlay(alignment: .top) {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
@@ -74,6 +91,11 @@ private struct GameView: View {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingQA = true }
+                if ProcessInfo.processInfo.arguments.contains("-winNow") {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    model.qaMeetTarget()
+                    return
+                }
                 let arguments = ProcessInfo.processInfo.arguments
                 if let index = arguments.firstIndex(of: "-curlHold"), index + 1 < arguments.count,
                    let value = Double(arguments[index + 1]) {
@@ -131,16 +153,6 @@ private struct GameView: View {
         #else
         "Settings"
         #endif
-    }
-
-    @ViewBuilder
-    private var wonOverlay: some View {
-        if model.page == .puzzle, let puzzle = model.puzzle, puzzle.phase == .won {
-            Color.black.opacity(0.45).ignoresSafeArea()
-                .transition(.opacity)
-            WonOverlay(model: model, puzzle: puzzle)
-                .transition(.scale(scale: 0.94).combined(with: .opacity))
-        }
     }
 
     @ViewBuilder

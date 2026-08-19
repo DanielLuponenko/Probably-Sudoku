@@ -11,25 +11,62 @@ struct ResultsPageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+            Spacer(minLength: 0)
 
-            if let payout = model.lastPayout {
+            if let payout = model.lastPayout ?? (didWin ? model.payoutPreview : nil) {
                 payoutLines(payout)
+            }
+            if model.puzzle?.phase == .won {
+                Text("Keep Filling freezes the score, but every clear banks coins.")
+                    .font(Print.body(12))
+                    .foregroundStyle(Paper.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
 
-            if model.run.outcome == nil {
-                PaperButton(title: "Continue", subtitle: "To the Shop", kind: .primary) {
-                    Task { await flipper.flip(from: model, reduceMotion: reduceMotion) { model.openShop() } }
-                }
-            } else {
-                PaperButton(title: "New Book", kind: .primary) { model.startNewBook() }
-            }
+            actions
         }
     }
 
     private var didWin: Bool {
-        model.puzzle?.phase == .cashedOut || model.lastPayout != nil
+        guard let phase = model.puzzle?.phase else { return model.lastPayout != nil }
+        return phase != .failed
+    }
+
+    /// §7 — target met means a choice: bank it, or play on for coins.
+    @ViewBuilder
+    private var actions: some View {
+        if model.run.outcome != nil {
+            PaperButton(title: "New Book", kind: .primary) { model.startNewBook() }
+        } else if model.puzzle?.phase == .won {
+            HStack(spacing: 10) {
+                PaperButton(title: "Keep Filling",
+                            subtitle: "\(model.puzzle?.turnsRemaining ?? 0) turns left",
+                            kind: .quiet,
+                            isEnabled: (model.puzzle?.turnsRemaining ?? 0) > 0) {
+                    Task {
+                        await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                            model.keepFilling()
+                        }
+                    }
+                }
+                PaperButton(title: "Cash Out", kind: .primary) {
+                    Task {
+                        await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                            model.cashOut()
+                            model.openShop()
+                        }
+                    }
+                }
+            }
+        } else {
+            PaperButton(title: "Continue", subtitle: "To the Shop", kind: .primary) {
+                Task {
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) { model.openShop() }
+                }
+            }
+        }
     }
 
     private var header: some View {
@@ -59,7 +96,7 @@ struct ResultsPageView: View {
         switch model.run.outcome {
         case .bookCompleted: return "Book Complete"
         case .failed: return "Book Over"
-        case nil: return "Puzzle Complete"
+        case nil: return model.puzzle?.phase == .failed ? "Puzzle Failed" : "Puzzle Complete"
         }
     }
 
@@ -70,7 +107,9 @@ struct ResultsPageView: View {
         case .failed:
             return "The target was not met. Ads, Markers and Buffs do not carry over."
         case nil:
-            return "Banked and on to the Shop."
+            return model.puzzle?.phase == .won
+                ? "Target met. Bank it, or play on with the Turns you have left."
+                : "Banked and on to the Shop."
         }
     }
 
@@ -102,37 +141,5 @@ struct ResultsPageView: View {
                     .foregroundStyle(Paper.ink)
             }
         }
-    }
-}
-
-/// §7 — the choice the moment the target is met.
-struct WonOverlay: View {
-    @Bindable var model: GameModel
-    var puzzle: PuzzleState
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Text("Target Met").pageHeading(26)
-            Text("Cash out now, or keep filling with your \(puzzle.turnsRemaining) remaining Turns. "
-                 + "Score stops, but every clear banks coins.")
-                .font(Print.body(13))
-                .foregroundStyle(Paper.inkSoft)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 10) {
-                PaperButton(title: "Keep Filling", kind: .quiet,
-                            isEnabled: puzzle.turnsRemaining > 0) { model.keepFilling() }
-                PaperButton(title: "Cash Out", kind: .primary) { model.cashOut() }
-            }
-        }
-        .padding(20)
-        .background {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Paper.page)
-                .overlay { PaperGrain(opacity: 0.05) }
-                .shadow(color: .black.opacity(0.5), radius: 24, y: 12)
-        }
-        .padding(24)
     }
 }

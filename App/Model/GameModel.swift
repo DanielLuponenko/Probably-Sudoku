@@ -19,8 +19,17 @@ final class GameModel {
     private(set) var game: Game
     private(set) var page: BookPage = .puzzle
 
+    /// Which of the two selections the board should be highlighting. Both a
+    /// Hand tile and a square can be selected at once, so without this the
+    /// older of the two wins and the highlight looks stuck on the number you
+    /// picked first.
+    enum Highlight { case hand, square }
+    private(set) var highlightSource: Highlight?
+
     /// Index into the Hand, not a digit — the Hand can hold duplicates.
-    var selectedHandIndex: Int?
+    var selectedHandIndex: Int? {
+        didSet { if selectedHandIndex != nil { highlightSource = .hand } }
+    }
     var selectedSquare: Square?
     /// Hand indices staged for a Toss. Toss is a multi-select (§5.1).
     var tossSelection: Set<Int> = []
@@ -83,14 +92,34 @@ final class GameModel {
         return hand[index]
     }
 
-    /// The number the board should be highlighting: whichever you picked up
-    /// from the Hand, or the one already sitting in the square you tapped.
-    /// Scanning for every 7 is the core reading motion of a sudoku, so it is
-    /// worth making free.
+    /// The number the board should be highlighting. Scanning for every 7 is the
+    /// core reading motion of a sudoku, so it is worth making free — but only
+    /// one number at a time, and it is always the one you touched last.
     var highlightedDigit: Digit? {
-        if let selectedDigit { return selectedDigit }
-        if let square = selectedSquare { return puzzle?.board[square] }
-        return nil
+        switch highlightSource {
+        case .hand:
+            return selectedDigit ?? squareDigit
+        case .square:
+            return squareDigit ?? selectedDigit
+        case nil:
+            return nil
+        }
+    }
+
+    private var squareDigit: Digit? {
+        guard let square = selectedSquare else { return nil }
+        return puzzle?.board[square]
+    }
+
+    /// Hand indices go stale the moment the Hand changes — after a placement,
+    /// a Toss, a Buff or a refill — and a stale index quietly points at a
+    /// different number rather than at nothing.
+    private func dropHandSelection() {
+        selectedHandIndex = nil
+        tossSelection = []
+        if highlightSource == .hand {
+            highlightSource = selectedSquare == nil ? nil : .square
+        }
     }
 
     /// Blanks the selected number could legally go in — every empty square, but
@@ -114,12 +143,14 @@ final class GameModel {
 
     func tapSquare(_ square: Square) {
         guard let puzzle else { return }
-        guard puzzle.board.isBlank(square) else {
-            selectedSquare = square
-            return
-        }
+        // While staging a Toss the board is not a target; tapping it here
+        // would otherwise place a number you were about to throw away.
+        guard !isTossing else { return }
+
         selectedSquare = square
-        guard let index = selectedHandIndex else { return }
+        highlightSource = .square
+
+        guard puzzle.board.isBlank(square), let index = selectedHandIndex else { return }
         place(handIndex: index, at: square)
     }
 
@@ -128,7 +159,7 @@ final class GameModel {
             let outcome = try game.place(handIndex: handIndex, at: square)
             lastOutcome = outcome
             lastPlacedSquare = square
-            selectedHandIndex = nil
+            dropHandSelection()
             message = outcome.correct ? nil : "Wrong number — \(outcome.penalty) points"
         } catch {
             message = describe(error)
@@ -155,6 +186,7 @@ final class GameModel {
             message = describe(error)
         }
         cancelToss()
+        dropHandSelection()
     }
 
     func useClue(at square: Square) {
@@ -167,14 +199,19 @@ final class GameModel {
     }
 
     func useBuff(at index: Int, digit: Digit? = nil) {
-        do { _ = try game.useBuff(at: index, digit: digit) }
-        catch { message = describe(error) }
+        do {
+            _ = try game.useBuff(at: index, digit: digit)
+            // Redraw and Lucky Dip both reshape the Hand under the selection.
+            dropHandSelection()
+        } catch {
+            message = describe(error)
+        }
     }
 
     func endTurn() {
         do {
             let result = try game.endTurn()
-            selectedHandIndex = nil
+            dropHandSelection()
             if result.puzzleFailed { page = .results }
         } catch {
             message = describe(error)
@@ -183,17 +220,27 @@ final class GameModel {
 
     // MARK: - Page turns
 
-    func cashOut() {
-        do {
-            lastPayout = try game.cashOut()
-            page = .results
-        } catch {
-            message = describe(error)
-        }
+    /// What cashing out would pay, worked out before you commit to it. Pure, so
+    /// showing it costs nothing and the decision is an informed one.
+    var payoutPreview: RunState.Payout? {
+        guard let puzzle else { return nil }
+        return run.payout(for: puzzle)
     }
 
+    /// Finishing a Puzzle turns the page rather than throwing up a panel.
+    func showResults() {
+        page = .results
+    }
+
+    func cashOut() {
+        do { lastPayout = try game.cashOut() }
+        catch { message = describe(error) }
+    }
+
+    /// §7 — play on with the Turns you have left, back on the Puzzle page.
     func keepFilling() {
         try? game.keepFilling()
+        page = .puzzle
     }
 
     /// Results → shop, the first of the two page turns between Puzzles.
