@@ -43,6 +43,7 @@ private struct GameView: View {
     @Bindable var model: GameModel
     var reduceMotion: Bool
     @State private var flipper = PageFlipper()
+    @State private var showingQA = false
 
     var body: some View {
         DeskView {
@@ -62,8 +63,12 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
+            #if DEBUG
+            .sheet(isPresented: $showingQA) { QAPanel(model: model) }
+            #endif
             .task {
                 #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-qa") { showingQA = true }
                 guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
                 try? await Task.sleep(for: .seconds(1))
                 await flipper.flip(reduceMotion: false) { model.endTurn() }
@@ -100,8 +105,20 @@ private struct GameView: View {
     private var controls: [StripControl] {
         [
             StripControl(systemImage: "questionmark", label: "How to play") {},
-            StripControl(systemImage: "gearshape", label: "Settings") {},
+            StripControl(systemImage: "gearshape", label: settingsLabel) {
+                #if DEBUG
+                showingQA = true
+                #endif
+            },
         ]
+    }
+
+    private var settingsLabel: String {
+        #if DEBUG
+        "QA tools"
+        #else
+        "Settings"
+        #endif
     }
 
     @ViewBuilder

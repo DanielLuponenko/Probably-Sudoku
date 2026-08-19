@@ -54,6 +54,26 @@ the cover every time:
 | `-seed DEMO` | the same Book every launch |
 | `-selectHand 0` | start with a number picked up, to see the highlight |
 | `-autoEndTurn` | ends a Turn one second in, so the page flip can be recorded |
+| `-qa` | opens the QA panel on launch |
+
+## QA panel
+
+The gear opens a QA panel in debug builds: add points or coins, meet the target,
+fail the Puzzle, fill the board, start a new Book, and read the live state
+(seed, level, score, turn, phase, Pool remaining, Boss).
+
+The whole panel and the engine calls behind it sit inside `#if DEBUG`, so they
+cannot reach a player. Verified rather than assumed — a release build contains
+none of the panel's strings and no debug dylib:
+
+```bash
+strings <Release>/NumberClub.app/NumberClub | grep -c 'Add 1,000 points'   # 0
+```
+
+Awards go through the same phase check a real placement does, so a QA win
+reaches the Cash Out / Keep Filling choice exactly the way a played one would.
+"Fill the board" takes each number from the Pool or Hand so the conservation
+rule still holds, but scores nothing.
 
 To actually look at an animation, record rather than screenshot — a `simctl
 screenshot` takes longer than the flip does:

@@ -79,3 +79,60 @@ public extension Game {
         run = try JSONDecoder().decode(RunState.self, from: data)
     }
 }
+
+// MARK: - QA
+
+#if DEBUG
+/// Shortcuts for exercising the game by hand. Compiled out of release builds,
+/// so these can never reach a player. They deliberately go through the same
+/// phase check as a real action, otherwise a QA win would not behave like one.
+public extension Game {
+
+    mutating func qaAward(points: Int) {
+        guard var puzzle = run.puzzle else { return }
+        puzzle.score = max(0, puzzle.score + points)
+        Actions.updatePhase(&puzzle)
+        run.puzzle = puzzle
+    }
+
+    mutating func qaAward(coins: Int) {
+        run.coins = max(0, run.coins + coins)
+    }
+
+    /// Puts the score exactly on target, which is the fastest way to reach the
+    /// Cash Out / Keep Filling choice and everything downstream of it.
+    mutating func qaMeetTarget() {
+        guard let puzzle = run.puzzle else { return }
+        qaAward(points: puzzle.target - puzzle.score)
+    }
+
+    mutating func qaFailPuzzle() {
+        guard var puzzle = run.puzzle else { return }
+        puzzle.phase = .failed
+        run.puzzle = puzzle
+        run.outcome = .failed
+    }
+
+    /// Fills every Blank with its solution digit, taking each number from the
+    /// Pool or the Hand so the conservation rule still holds. Nothing is
+    /// scored — this is for reaching the Full Clear and the results page, not
+    /// for checking what they are worth.
+    mutating func qaFillBoard() {
+        guard var puzzle = run.puzzle else { return }
+        for square in puzzle.board.blanks {
+            let digit = puzzle.board.correctDigit(at: square)
+            if puzzle.pool.take(digit) {
+                // taken from the Pool
+            } else if let index = puzzle.hand.firstIndex(of: digit) {
+                puzzle.hand.remove(at: index)
+            } else {
+                continue
+            }
+            puzzle.board.fill(square, with: digit, by: .player)
+        }
+        Actions.updatePhase(&puzzle)
+        run.puzzle = puzzle
+        puzzle.assertConservation()
+    }
+}
+#endif

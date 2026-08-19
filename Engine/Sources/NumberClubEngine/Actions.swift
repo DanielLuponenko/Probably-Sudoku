@@ -324,7 +324,7 @@ public enum Actions {
 
     // MARK: - Ending a Puzzle (§7)
 
-    private static func updatePhase(_ puzzle: inout PuzzleState) {
+    static func updatePhase(_ puzzle: inout PuzzleState) {
         if puzzle.phase == .playing && puzzle.score >= puzzle.target {
             puzzle.phase = .won
         }

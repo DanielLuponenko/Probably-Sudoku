@@ -245,6 +245,15 @@ final class GameModel {
 
     func clearMessage() { message = nil }
 
+    #if DEBUG
+    // QA shortcuts. Compiled out of release builds, as are the engine calls.
+    func qaAward(points: Int) { game.qaAward(points: points) }
+    func qaAward(coins: Int) { game.qaAward(coins: coins) }
+    func qaMeetTarget() { game.qaMeetTarget() }
+    func qaFailPuzzle() { game.qaFailPuzzle(); page = .results }
+    func qaFillBoard() { game.qaFillBoard() }
+    #endif
+
     private func describe(_ error: Error) -> String {
         switch error {
         case PlacementError.noCluesLeft: return "No Clues left"
