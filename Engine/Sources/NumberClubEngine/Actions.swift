@@ -29,7 +29,15 @@ public enum Actions {
 
         puzzle.assertConservation()
         run.puzzle = puzzle
+        endBookIfPuzzleFailed(&run)
         return outcome
+    }
+
+    /// §7 — a failed Puzzle ends the Book. There is more than one way to fail,
+    /// so this is checked wherever the phase can change rather than only where
+    /// the Turns run out.
+    private static func endBookIfPuzzleFailed(_ run: inout RunState) {
+        if run.puzzle?.phase == .failed { run.outcome = .failed }
     }
 
     /// §6 — a wrong placement subtracts `50 x the number`, doubled by The
@@ -222,6 +230,7 @@ public enum Actions {
 
         puzzle.assertConservation()
         run.puzzle = puzzle
+        endBookIfPuzzleFailed(&run)
         return outcome
     }
 
@@ -320,6 +329,7 @@ public enum Actions {
 
         puzzle.assertConservation()
         run.puzzle = puzzle
+        endBookIfPuzzleFailed(&run)
         return turn
     }
 

@@ -61,7 +61,7 @@ the cover every time:
 | `-playOpening` | starts on the Book-opening transition, to record it |
 | `-clearLine` | completes a row on launch, to see the completed-unit mark |
 | `-buffSlip` | grants Paper Crane and opens its slip |
-| `-help` | opens the help slip on launch |
+| `-runInfo` | opens the run information slip on launch |
 
 ## Books have a personality
 
@@ -266,6 +266,14 @@ grid with its states, the Hand strip, the Buffs panel, the Shop page, the result
 page, the page-turn transition, and the Marker square picker.
 
 ## Where this departs from GAME_REFERENCE.md
+
+**The Pool is shown.** §4 designs it to be invisible — "never shown, never
+counted for you, and has no tally anywhere" — because it is knowable anyway
+(nine of each digit, minus the board, minus your hand) and working it out is
+called the game's deepest source of information, "earned by paying attention,
+not by reading a number off the screen". The `?` now prints it as `9 x 5`. That
+is a deliberate choice to do the counting for the player; if the run ever feels
+like it lacks a skill ceiling, this is the first thing to take away again.
 
 **Toss is one number at a time, four for the whole Puzzle** (§5.1 has it as a
 multi-select with two per Turn). Two per Turn across ten Turns is twenty, which

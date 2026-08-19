@@ -98,7 +98,7 @@ private struct GameView: View {
     var reduceMotion: Bool
     @State private var flipper = PageFlipper()
     @State private var showingSettings = false
-    @State private var showingHelp = false
+    @State private var showingRunInfo = false
     /// The Buff being spent, while its slip is open.
     @State private var usingBuff: Int?
 
@@ -143,16 +143,11 @@ private struct GameView: View {
                 if showingSettings {
                     SettingsSlip(model: model) {
                         withAnimation(.snappy(duration: 0.2)) { showingSettings = false }
-                    } onShowHelp: {
-                        withAnimation(.snappy(duration: 0.2)) {
-                            showingSettings = false
-                            showingHelp = true
-                        }
                     }
                 }
-                if showingHelp {
-                    HelpSlip {
-                        withAnimation(.snappy(duration: 0.2)) { showingHelp = false }
+                if showingRunInfo {
+                    RunInfoSlip(model: model) {
+                        withAnimation(.snappy(duration: 0.2)) { showingRunInfo = false }
                     }
                 }
                 if let index = usingBuff {
@@ -162,12 +157,12 @@ private struct GameView: View {
                 }
             }
             .animation(.snappy(duration: 0.22), value: showingSettings)
-            .animation(.snappy(duration: 0.22), value: showingHelp)
+            .animation(.snappy(duration: 0.22), value: showingRunInfo)
             .animation(.snappy(duration: 0.22), value: usingBuff)
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
-                if ProcessInfo.processInfo.arguments.contains("-help") { showingHelp = true }
+                if ProcessInfo.processInfo.arguments.contains("-runInfo") { showingRunInfo = true }
                 if ProcessInfo.processInfo.arguments.contains("-buffSlip") {
                     model.qaGrantBuff(Buffs.paperCrane)
                     try? await Task.sleep(for: .milliseconds(300))
@@ -226,8 +221,8 @@ private struct GameView: View {
     /// Puzzle page and Reroll onto the Shop page, because both act on a page.
     private var controls: [StripControl] {
         [
-            StripControl(systemImage: "questionmark", label: "How to play") {
-                withAnimation(.snappy(duration: 0.22)) { showingHelp = true }
+            StripControl(systemImage: "questionmark", label: "Run information") {
+                withAnimation(.snappy(duration: 0.22)) { showingRunInfo = true }
             },
             StripControl(systemImage: "gearshape", label: "Settings") {
                 withAnimation(.snappy(duration: 0.22)) { showingSettings = true }

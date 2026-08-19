@@ -287,3 +287,38 @@ final class RulesTests: XCTestCase {
         XCTAssertEqual(run.interestCap, 15)
     }
 }
+
+final class FailureTests: XCTestCase {
+
+    /// §7 — a failed Puzzle ends the Book, and there is more than one way to
+    /// fail. Running out of Turns was handled; filling the board below target
+    /// left the Book running.
+    func testFillingTheBoardBelowTargetEndsTheBook() throws {
+        var game = Game(seed: "fail-by-filling", startingBoard: .scholar)
+        try game.startPuzzle()
+
+        // Play every Blank correctly. The target for a Level 1 Easy is 1,000,
+        // and bare placements plus clears cannot reach it without multipliers.
+        for square in game.puzzle!.board.blanks {
+            guard game.puzzle?.phase == .playing else { break }
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
+        }
+
+        if game.puzzle?.phase == .failed {
+            XCTAssertEqual(game.run.outcome, .failed,
+                           "a failed Puzzle must end the Book however it failed")
+        } else {
+            // The board was beaten; nothing to assert about failing.
+            XCTAssertTrue(game.puzzle?.phase == .won || game.puzzle?.phase == .keepFilling)
+        }
+    }
+
+    func testRunningOutOfTurnsAlsoEndsTheBook() throws {
+        var game = Game(seed: "fail-by-turns", startingBoard: .scholar)
+        try game.startPuzzle()
+        for _ in 0..<game.puzzle!.turnsMax { _ = try? game.endTurn() }
+        XCTAssertEqual(game.puzzle?.phase, .failed)
+        XCTAssertEqual(game.run.outcome, .failed)
+    }
+}

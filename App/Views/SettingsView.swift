@@ -130,8 +130,8 @@ struct SlipSection<Content: View>: View {
 struct SettingsSlip: View {
     @Bindable var model: GameModel
     var onClose: () -> Void
-    var onShowHelp: () -> Void
     @State private var confirmingAbandon = false
+    @State private var showingHelp = false
     @State private var copied = false
     #if DEBUG
     @State private var showingQA = false
@@ -187,7 +187,7 @@ struct SettingsSlip: View {
                 }
 
                 SlipSection(title: "The rules") {
-                    PaperButton(title: "How to play", kind: .quiet, action: onShowHelp)
+                    PaperButton(title: "How to play", kind: .quiet) { showingHelp = true }
                 }
 
                 SlipSection(
@@ -231,6 +231,12 @@ struct SettingsSlip: View {
         }
         #if DEBUG
         .sheet(isPresented: $showingQA) { QAPanel(model: model) }
+        .overlay {
+            if showingHelp {
+                HelpSlip { withAnimation(.snappy(duration: 0.2)) { showingHelp = false } }
+            }
+        }
+        .animation(.snappy(duration: 0.22), value: showingHelp)
         #endif
     }
 }
