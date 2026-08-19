@@ -42,6 +42,7 @@ struct ContentView: View {
 private struct GameView: View {
     @Bindable var model: GameModel
     var reduceMotion: Bool
+    @State private var flipper = PageFlipper()
 
     var body: some View {
         DeskView {
@@ -50,8 +51,15 @@ private struct GameView: View {
                     .padding(.horizontal, 12)
                     .padding(.top, 4)
 
-                BookPageView { pageContent }
-                    .padding(.horizontal, 12)
+                ZStack {
+                    PageBacking()
+                    BookPageView { pageContent }
+                        .pageFlip(flipper)
+                }
+                // A lifting page is foreshortened towards the reader, which
+                // without this would let it paint over the loadout row above.
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .padding(.horizontal, 12)
             }
             .padding(.bottom, 8)
             .overlay(alignment: .center) { wonOverlay }
@@ -60,8 +68,15 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
+            .task {
+                #if DEBUG
+                guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
+                try? await Task.sleep(for: .seconds(1))
+                await flipper.flip(reduceMotion: false) { model.endTurn() }
+                #endif
+            }
         }
-        .animation(.snappy(duration: 0.35), value: model.page)
+        .environment(flipper)
         .preferredColorScheme(.dark)
         .statusBarHidden()
     }
@@ -74,15 +89,12 @@ private struct GameView: View {
         case .puzzle:
             if let puzzle = model.puzzle {
                 PuzzlePageView(model: model, puzzle: puzzle)
-                    .pageTurnTransition(forward: false, reduceMotion: reduceMotion)
             }
         case .results:
             ResultsPageView(model: model)
-                .pageTurnTransition(forward: true, reduceMotion: reduceMotion)
         case .shop:
             if let shop = model.shop {
                 ShopPageView(model: model, shop: shop)
-                    .pageTurnTransition(forward: true, reduceMotion: reduceMotion)
             }
         }
     }
@@ -129,6 +141,7 @@ private struct GameView: View {
 
 #Preview("Puzzle") {
     GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false)
+        .environment(PageFlipper())
 }
 
 #Preview("Start") {

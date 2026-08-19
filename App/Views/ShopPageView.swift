@@ -7,6 +7,8 @@ struct ShopPageView: View {
     @Bindable var model: GameModel
     var shop: ShopState
     @State private var claimingMarker: Int?
+    @Environment(PageFlipper.self) private var flipper
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -31,7 +33,9 @@ struct ShopPageView: View {
 
             ownedSummary
             PaperButton(title: "Continue", subtitle: "Next Puzzle", kind: .primary) {
-                model.continueToNextPuzzle()
+                Task {
+                    await flipper.flip(reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
+                }
             }
         }
         .sheet(item: Binding(get: { claimingMarker.map(MarkerIndex.init) },

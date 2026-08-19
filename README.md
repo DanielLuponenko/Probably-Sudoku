@@ -53,6 +53,15 @@ the cover every time:
 | `-skipStartScreen` | straight into a Puzzle |
 | `-seed DEMO` | the same Book every launch |
 | `-selectHand 0` | start with a number picked up, to see the highlight |
+| `-autoEndTurn` | ends a Turn one second in, so the page flip can be recorded |
+
+To actually look at an animation, record rather than screenshot — a `simctl
+screenshot` takes longer than the flip does:
+
+```bash
+xcrun simctl io "$SIM" recordVideo --force flip.mp4 &   # then launch, then kill -INT
+ffmpeg -i flip.mp4 -vf fps=30 frame%03d.png
+```
 
 ## Building
 

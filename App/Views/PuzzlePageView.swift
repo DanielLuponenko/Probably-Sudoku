@@ -4,6 +4,8 @@ import NumberClubEngine
 struct PuzzlePageView: View {
     @Bindable var model: GameModel
     var puzzle: PuzzleState
+    @Environment(PageFlipper.self) private var flipper
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -90,7 +92,9 @@ struct PuzzlePageView: View {
                         if let square = model.selectedSquare { model.useClue(at: square) }
                     }
                 }
-                PaperButton(title: "End Turn", kind: .primary) { model.endTurn() }
+                PaperButton(title: "End Turn", kind: .primary) {
+                    Task { await flipper.flip(reduceMotion: reduceMotion) { model.endTurn() } }
+                }
             }
         }
     }

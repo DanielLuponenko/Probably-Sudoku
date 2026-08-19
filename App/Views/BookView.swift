@@ -88,3 +88,19 @@ struct BookPageView<Content: View>: View {
         .shadow(color: .black.opacity(0.5), radius: 24, x: 6, y: 14)
     }
 }
+
+/// The next sheet of the block, sitting flat under the one being turned. Without
+/// it the flip reveals bare desk, which no book has ever done.
+struct PageBacking: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(Paper.pageWarm)
+            .overlay { PaperGrain(opacity: 0.05) }
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Paper.pageEdge, lineWidth: 0.5)
+            }
+            .pageShading()
+            .allowsHitTesting(false)
+    }
+}

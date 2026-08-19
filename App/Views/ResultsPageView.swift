@@ -5,6 +5,8 @@ import NumberClubEngine
 /// where the Book goes next.
 struct ResultsPageView: View {
     @Bindable var model: GameModel
+    @Environment(PageFlipper.self) private var flipper
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -18,7 +20,7 @@ struct ResultsPageView: View {
 
             if model.run.outcome == nil {
                 PaperButton(title: "Continue", subtitle: "To the Shop", kind: .primary) {
-                    model.openShop()
+                    Task { await flipper.flip(reduceMotion: reduceMotion) { model.openShop() } }
                 }
             } else {
                 PaperButton(title: "New Book", kind: .primary) { model.startNewBook() }
