@@ -281,8 +281,16 @@ final class GameModel {
         catch { message = describe(error) }
     }
 
-    /// Finishing or failing a Book starts a fresh one. Nothing carries over
-    /// except the Book difficulty you have unlocked (§2).
+    /// Leaving a run returns to the cover, because §3 makes the Starting Board
+    /// a choice you make when you open a Book — so a new Book has to be opened,
+    /// not silently dealt.
+    var wantsMenu = false
+
+    func exitToMenu() {
+        wantsMenu = true
+    }
+
+    /// Restarts in place, without going back to the cover. Used by QA only.
     func startNewBook(startingBoard: StartingBoard? = nil) {
         game = Game(seed: Self.randomSeed(),
                     startingBoard: startingBoard ?? game.run.startingBoard)

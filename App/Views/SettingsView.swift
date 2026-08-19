@@ -197,7 +197,7 @@ struct SettingsSlip: View {
                         VStack(alignment: .leading, spacing: 9) {
                             Text("Abandon Level \(model.run.level), Puzzle "
                                  + "\(model.run.slot.rawValue + 1)? Everything you have "
-                                 + "bought is lost.")
+                                 + "bought is lost, and you go back to the cover.")
                                 .font(Print.body(12.5))
                                 .foregroundStyle(Paper.redPencil)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -206,8 +206,8 @@ struct SettingsSlip: View {
                                     withAnimation { confirmingAbandon = false }
                                 }
                                 PaperButton(title: "Abandon", kind: .danger) {
-                                    model.startNewBook()
                                     onClose()
+                                    model.exitToMenu()
                                 }
                             }
                         }

@@ -34,7 +34,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        if let model {
+        if let model, !model.wantsMenu {
             GameView(model: model, reduceMotion: reduceMotion)
         } else {
             StartBookView { board in
