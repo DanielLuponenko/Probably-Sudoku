@@ -46,7 +46,7 @@ public struct RunState: Codable, Sendable {
     public var slot: PuzzleSlot
     public var coins: Int
 
-    public var ads: [OwnedAd] = []
+    public var bookmarks: [OwnedBookmark] = []
     public var markers: [OwnedMarker] = []
     public var buffs: [OwnedBuff] = []
 
@@ -69,7 +69,7 @@ public struct RunState: Codable, Sendable {
 
     // MARK: - Ownership queries
 
-    public func owns(ad id: String) -> Bool { ads.contains { $0.defID == id } }
+    public func owns(bookmark id: String) -> Bool { bookmarks.contains { $0.defID == id } }
     public func owns(marker id: String) -> Bool { markers.contains { $0.defID == id } }
 
     /// Markers whose squares include `square` — what a placement there triggers.
@@ -90,12 +90,12 @@ public struct RunState: Codable, Sendable {
     }
 
     // MARK: - Standing modifiers
-    // Ads that are not event hooks but change the Puzzle's starting shape.
+    // Bookmarks that are not event hooks but change the Puzzle's starting shape.
 
     public func effectiveHandSize(boss: BossModifier?) -> Int {
         var size = Baseline.handSize
         if startingBoard == .scholar { size += 1 }
-        if owns(ad: Ads.helpWanted) { size += 1 }
+        if owns(bookmark: Bookmarks.helpWanted) { size += 1 }
         size += boss?.handSizeDelta ?? 0
         return max(1, size)
     }
@@ -104,7 +104,7 @@ public struct RunState: Codable, Sendable {
     /// Turn on top of whichever base applies.
     public func effectiveTurns(boss: BossModifier?) -> Int {
         var turns = boss?.turnsOverride ?? Baseline.turns
-        if owns(ad: Ads.lateCityFinal) { turns += 1 }
+        if owns(bookmark: Bookmarks.lateCityFinal) { turns += 1 }
         return max(1, turns)
     }
 
@@ -112,18 +112,18 @@ public struct RunState: Codable, Sendable {
         if boss?.disablesClues == true { return 0 }
         var clues = Baseline.clues
         if startingBoard == .oracle { clues += 1 }
-        if owns(ad: Ads.puzzleCorner) { clues += 1 }
+        if owns(bookmark: Bookmarks.puzzleCorner) { clues += 1 }
         return clues
     }
 
     /// Per Puzzle. The Erratum removes it entirely; Weather Forecast adds two.
     public func effectiveTossAllowance(boss: BossModifier?) -> Int {
         if boss?.forcesTossAllowanceToZero == true { return 0 }
-        return Baseline.tossAllowance + (owns(ad: Ads.weatherForecast) ? 2 : 0)
+        return Baseline.tossAllowance + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
     }
 
     public var interestCap: Int {
-        owns(ad: Ads.marketWrap) ? 15 : Baseline.interestCap
+        owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
     }
 
     // MARK: - Economy (§8)
@@ -145,7 +145,7 @@ public struct RunState: Codable, Sendable {
         if puzzle.boss?.cancelsInterest != true {
             p.interest = min(interestCap, coins / 10)
         }
-        if owns(ad: Ads.paperRoute) { p.paperRoute = 2 }
+        if owns(bookmark: Bookmarks.paperRoute) { p.paperRoute = 2 }
         return p
     }
 

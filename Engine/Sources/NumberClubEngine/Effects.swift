@@ -1,12 +1,12 @@
 import Foundation
 
 public enum ItemKind: String, Codable, CaseIterable, Sendable {
-    case ad, marker, buff
+    case bookmark, marker, buff
 
     /// §9 — slot capacity per kind.
     public var capacity: Int {
         switch self {
-        case .ad: return 5
+        case .bookmark: return 5
         case .marker: return 3
         case .buff: return 2
         }
@@ -48,8 +48,8 @@ public struct EffectContext: Sendable {
     public let level: Int
     public let slot: PuzzleSlot
     public let difficulty: Difficulty
-    /// How many Ads are owned, for Front Page Splash.
-    public let adCount: Int
+    /// How many Bookmarks are owned, for Front Page Splash.
+    public let bookmarkCount: Int
     /// Copies of `digit` locked on the board *before* this placement, Givens
     /// included — what the Silver Marker counts.
     public let boardCountBefore: Int
@@ -138,7 +138,7 @@ public struct ItemDef: Sendable {
 }
 
 public enum Catalog {
-    public static let all: [ItemDef] = Ads.all + Markers.all + Buffs.all
+    public static let all: [ItemDef] = Bookmarks.all + Markers.all + Buffs.all
     private static let byID: [String: ItemDef] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
 
     public static func item(_ id: String) -> ItemDef? { byID[id] }

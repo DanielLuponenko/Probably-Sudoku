@@ -49,8 +49,8 @@ final class RulesTests: XCTestCase {
 
     func testLineClearsUseTheSameMultipliersAsPlacements() throws {
         var game = try startedGame()
-        game.give(ad: "ad_op_ed")           // +1 additive -> x2
-        game.give(ad: "ad_sports_section")  // +25 flat on Line Clears
+        game.give(ad: "bm_op_ed")           // +1 additive -> x2
+        game.give(ad: "bm_sports_section")  // +25 flat on Line Clears
         let row = game.emptiestRow
         let last = try game.setUpRowClear(row: row)!
         let digit = game.puzzle!.board.correctDigit(at: last)
@@ -92,13 +92,13 @@ final class RulesTests: XCTestCase {
 
     func testRollingPressesGrowsPerLineClearAndStartsAtOne() throws {
         var game = try startedGame()
-        game.give(ad: "ad_rolling_presses")
+        game.give(ad: "bm_rolling_presses")
         let last = try game.setUpRowClear(row: game.emptiestRow)!
         let digit = game.puzzle!.board.correctDigit(at: last)
         // The clear that starts it still scores at x1; the next scores at x1.5.
         let first = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
         XCTAssertEqual(first.lineClearPoints.first, 45)
-        XCTAssertEqual(game.puzzle!.itemState["ad_rolling_presses"], 1)
+        XCTAssertEqual(game.puzzle!.itemState["bm_rolling_presses"], 1)
     }
 
     // MARK: Clues (§5, §6)
@@ -121,7 +121,7 @@ final class RulesTests: XCTestCase {
 
     func testOnyxRestoresAcluePlacementButNotItsLineClear() throws {
         var game = try startedGame(board: .oracle)
-        game.give(ad: Ads.puzzleCorner)   // a second Clue
+        game.give(ad: Bookmarks.puzzleCorner)   // a second Clue
         try game.startPuzzle()
 
         let last = try game.setUpRowClear(row: game.emptiestRow)!
@@ -183,7 +183,7 @@ final class RulesTests: XCTestCase {
 
     func testWeatherForecastRaisesTheAllowanceBySix() throws {
         var game = Game(seed: "rules", startingBoard: .scholar)
-        game.give(ad: Ads.weatherForecast)
+        game.give(ad: Bookmarks.weatherForecast)
         try game.startPuzzle()
         XCTAssertEqual(game.puzzle?.tossAllowance, 6)
         for _ in 0..<6 { _ = try game.toss(handIndex: 0) }
@@ -220,7 +220,7 @@ final class RulesTests: XCTestCase {
 
     func testMorningEditionPaysOutAtEachTurnEnd() throws {
         var game = try startedGame()
-        game.give(ad: "ad_morning_edition")
+        game.give(ad: "bm_morning_edition")
         let result = try game.endTurn()
         XCTAssertEqual(result.pointsGained, 100)
         XCTAssertEqual(game.puzzle?.score, 100)
@@ -230,8 +230,8 @@ final class RulesTests: XCTestCase {
 
     func testMeetingTheTargetOffersCashOutOrKeepFilling() throws {
         var game = try startedGame()
-        game.give(ad: "ad_stop_the_presses")
-        game.give(ad: "ad_editorial_board")
+        game.give(ad: "bm_stop_the_presses")
+        game.give(ad: "bm_editorial_board")
         while game.puzzle!.phase == .playing, let square = game.puzzle!.board.blanks.first {
             let digit = game.puzzle!.board.correctDigit(at: square)
             _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
@@ -242,8 +242,8 @@ final class RulesTests: XCTestCase {
 
     func testKeepFillingFreezesScoreAndBanksCoinsInstead() throws {
         var game = try startedGame()
-        game.give(ad: "ad_stop_the_presses")
-        game.give(ad: "ad_editorial_board")
+        game.give(ad: "bm_stop_the_presses")
+        game.give(ad: "bm_editorial_board")
         while game.puzzle!.phase == .playing, let square = game.puzzle!.board.blanks.first {
             let digit = game.puzzle!.board.correctDigit(at: square)
             _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
@@ -264,9 +264,9 @@ final class RulesTests: XCTestCase {
     func testPayoutAddsBaseUnusedTurnsInterestAndPaperRoute() throws {
         var game = try startedGame()
         game.run.coins = 60          // 10% interest = 6
-        game.give(ad: Ads.paperRoute)
-        game.give(ad: "ad_stop_the_presses")
-        game.give(ad: "ad_editorial_board")
+        game.give(ad: Bookmarks.paperRoute)
+        game.give(ad: "bm_stop_the_presses")
+        game.give(ad: "bm_editorial_board")
         while game.puzzle!.phase == .playing, let square = game.puzzle!.board.blanks.first {
             let digit = game.puzzle!.board.correctDigit(at: square)
             _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
@@ -283,7 +283,7 @@ final class RulesTests: XCTestCase {
         var run = RunState(seed: "interest", startingBoard: .scholar)
         run.coins = 500
         XCTAssertEqual(run.interestCap, 10)
-        run.ads.append(OwnedAd(defID: Ads.marketWrap, boughtAtLevel: 1, pricePaid: 6))
+        run.bookmarks.append(OwnedBookmark(defID: Bookmarks.marketWrap, boughtAtLevel: 1, pricePaid: 6))
         XCTAssertEqual(run.interestCap, 15)
     }
 }

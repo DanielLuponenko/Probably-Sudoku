@@ -333,7 +333,7 @@ final class GameModel {
 
     /// Fills the bookmarks, so the row can be looked at populated.
     func qaFillLoadout() {
-        for ad in Catalog.items(of: .ad).prefix(3) { game.qaGrantAd(ad.id) }
+        for ad in Catalog.items(of: .bookmark).prefix(3) { game.qaGrantAd(ad.id) }
         game.qaGrantBuff(Buffs.peek)
         game.qaGrantBuff(Buffs.freshInk)
     }

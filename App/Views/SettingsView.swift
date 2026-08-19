@@ -194,7 +194,7 @@ struct SettingsSlip: View {
                     title: "This run",
                     note: confirmingAbandon
                         ? nil
-                        : "Ads, Markers and Buffs do not carry over, Marker stacks reset, "
+                        : "Bookmarks, Markers and Buffs do not carry over, Marker stacks reset, "
                           + "and coins go back to the starting amount."
                 ) {
                     if confirmingAbandon {
@@ -276,7 +276,7 @@ struct HelpSlip: View {
         Rule(heading: "Between Puzzles", lines: [
             "Beat the target and you choose: bank the payout, or keep filling for coins "
             + "with the Turns you have left.",
-            "The Shop sells Ads, which run for the whole Book; Markers, which mark a "
+            "The Shop sells Bookmarks, which run for the whole Book; Markers, which mark a "
             + "square so whatever lands there scores more; and Buffs, used once.",
             "Targets double every Level, so multipliers are not a luxury.",
         ]),

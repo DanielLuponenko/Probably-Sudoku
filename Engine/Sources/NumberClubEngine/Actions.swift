@@ -361,8 +361,8 @@ public enum Actions {
         run.coins += payout.total
 
         // Syndication grows only on a Puzzle you win (§10).
-        if run.owns(ad: Ads.syndication) {
-            run.runItemState[Ads.syndication] = (run.runItemState[Ads.syndication] ?? 0) + 1
+        if run.owns(bookmark: Bookmarks.syndication) {
+            run.runItemState[Bookmarks.syndication] = (run.runItemState[Bookmarks.syndication] ?? 0) + 1
         }
 
         puzzle.phase = .cashedOut

@@ -2,7 +2,7 @@ import SwiftUI
 import NumberClubEngine
 
 /// §9 — the Shop is its own page of the book, reached by turning one. Stock is
-/// always two Ads, two Markers and one Buff.
+/// always two Bookmarks, two Markers and one Buff.
 struct ShopPageView: View {
     @Bindable var model: GameModel
     var shop: ShopState
@@ -64,7 +64,7 @@ struct ShopPageView: View {
 
     private func hasSlot(for kind: ItemKind) -> Bool {
         switch kind {
-        case .ad: return model.run.ads.count < kind.capacity
+        case .bookmark: return model.run.bookmarks.count < kind.capacity
         case .marker: return model.run.markers.count < kind.capacity
         case .buff: return model.run.buffs.count < kind.capacity
         }

@@ -82,9 +82,9 @@ public struct OwnedBuff: Codable, Sendable, Identifiable {
     }
 }
 
-/// An Ad the player owns. Purchase order matters: Ads resolve in the order
+/// A Bookmark the player owns. Purchase order matters: Bookmarks resolve in the order
 /// they were bought (§14).
-public struct OwnedAd: Codable, Sendable, Identifiable {
+public struct OwnedBookmark: Codable, Sendable, Identifiable {
     public let defID: String
     public let boughtAtLevel: Int
     public let pricePaid: Int

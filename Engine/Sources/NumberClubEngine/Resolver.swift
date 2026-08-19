@@ -2,7 +2,7 @@ import Foundation
 
 /// §14 — turns an event into the three running totals of §6 by walking every
 /// owned item in a fixed order: Boss Modifier, then the Markers on the square
-/// being played, then Ads in the order they were bought, then Buffs.
+/// being played, then Bookmarks in the order they were bought, then Buffs.
 ///
 /// Effects only read a snapshot, so a bump an item makes during an event takes
 /// effect from the *next* event onwards. That is what makes Rolling Presses
@@ -27,7 +27,7 @@ public enum Resolver {
             level: puzzle.level,
             slot: puzzle.slot,
             difficulty: puzzle.difficulty,
-            adCount: run.ads.count,
+            bookmarkCount: run.bookmarks.count,
             boardCountBefore: boardCountBefore,
             completesLine: completesLine,
             puzzleState: puzzle.itemState,
@@ -55,8 +55,8 @@ public enum Resolver {
             }
         }
 
-        // 3. Ads, in purchase order.
-        for ad in run.ads {
+        // 3. Bookmarks, in purchase order.
+        for ad in run.bookmarks {
             if let hook = ad.def.hooks[context.event] { hook(context, &result) }
             if context.event.isScoring, let hook = ad.def.hooks[.anyScore] { hook(context, &result) }
         }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// §9 — the Shop opens after every Puzzle. Stock is always five items:
-/// 2 Ads, 2 Markers, 1 Buff.
+/// 2 Bookmarks, 2 Markers, 1 Buff.
 public struct ShopOffer: Codable, Sendable, Identifiable {
     /// Which of the five slots this offer sits in. Two offers in one Shop can
     /// share a `defID` — a second Golden Marker is a real purchase — so the
@@ -28,7 +28,7 @@ public struct ShopState: Codable, Sendable {
 public enum Shop {
 
     /// §9 — the stock's shape never changes, only what fills it.
-    static let composition: [(ItemKind, Int)] = [(.ad, 2), (.marker, 2), (.buff, 1)]
+    static let composition: [(ItemKind, Int)] = [(.bookmark, 2), (.marker, 2), (.buff, 1)]
 
     /// §9 — rarity odds shift as the Book goes on.
     public static func rarityOdds(level: Int) -> [(Rarity, Double)] {
@@ -42,9 +42,9 @@ public enum Shop {
     /// §9 — prices, rolled within a band.
     public static func priceBand(_ kind: ItemKind, _ rarity: Rarity) -> ClosedRange<Int> {
         switch (kind, rarity) {
-        case (.ad, .common): return 4...5
-        case (.ad, .uncommon): return 6...7
-        case (.ad, .rare): return 7...8
+        case (.bookmark, .common): return 4...5
+        case (.bookmark, .uncommon): return 6...7
+        case (.bookmark, .rare): return 7...8
         case (.marker, .common): return 5...6
         case (.marker, .uncommon): return 7...7
         case (.marker, .rare): return 8...9
@@ -89,10 +89,10 @@ public enum Shop {
         return nil
     }
 
-    /// Ads the player already owns are never offered again (§9). Markers and
+    /// Bookmarks the player already owns are never offered again (§9). Markers and
     /// Buffs can repeat — a second Golden Marker is a real purchase.
     static func excluded(for run: RunState) -> Set<String> {
-        Set(run.ads.map(\.defID))
+        Set(run.bookmarks.map(\.defID))
     }
 
     public static func stock(_ run: inout RunState) -> ShopState {
@@ -103,8 +103,8 @@ public enum Shop {
                 guard let offer = rollOffer(&run.streams.shop, slot: offers.count, kind: kind,
                                             level: run.level, excluding: taken) else { continue }
                 offers.append(offer)
-                // Do not offer the same Ad twice in one Shop.
-                if kind == .ad { taken.insert(offer.defID) }
+                // Do not offer the same Bookmark twice in one Shop.
+                if kind == .bookmark { taken.insert(offer.defID) }
             }
         }
         return ShopState(offers: offers,
@@ -113,7 +113,7 @@ public enum Shop {
     }
 
     static func firstRerollCost(for run: RunState) -> Int {
-        run.owns(ad: Ads.auctionNotices) ? 0 : ShopState.firstRerollCost
+        run.owns(bookmark: Bookmarks.auctionNotices) ? 0 : ShopState.firstRerollCost
     }
 
     public enum ShopError: Error, Equatable, Sendable {
@@ -134,7 +134,7 @@ public enum Shop {
         fresh.rerollsUsed = used
         // 2 coins, then 3, then 4… within this Shop. Auction Notices only ever
         // discounts the first reroll, so subsequent ones climb from the base.
-        fresh.rerollCost = ShopState.firstRerollCost + used - (run.owns(ad: Ads.auctionNotices) ? 1 : 0)
+        fresh.rerollCost = ShopState.firstRerollCost + used - (run.owns(bookmark: Bookmarks.auctionNotices) ? 1 : 0)
         run.shop = fresh
     }
 
@@ -149,9 +149,9 @@ public enum Shop {
 
         let def = offer.def
         switch def.kind {
-        case .ad:
-            guard run.ads.count < ItemKind.ad.capacity else { throw ShopError.slotsFull }
-            run.ads.append(OwnedAd(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
+        case .bookmark:
+            guard run.bookmarks.count < ItemKind.bookmark.capacity else { throw ShopError.slotsFull }
+            run.bookmarks.append(OwnedBookmark(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
         case .marker:
             guard run.markers.count < ItemKind.marker.capacity else { throw ShopError.slotsFull }
             run.markers.append(OwnedMarker(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
@@ -167,10 +167,10 @@ public enum Shop {
 
     // MARK: - Selling and Marker squares
 
-    public static func sellAd(_ run: inout RunState, at index: Int) {
-        guard run.ads.indices.contains(index) else { return }
-        run.coins += RunState.sellValue(pricePaid: run.ads[index].pricePaid)
-        run.ads.remove(at: index)
+    public static func sellBookmark(_ run: inout RunState, at index: Int) {
+        guard run.bookmarks.indices.contains(index) else { return }
+        run.coins += RunState.sellValue(pricePaid: run.bookmarks[index].pricePaid)
+        run.bookmarks.remove(at: index)
     }
     public static func sellMarker(_ run: inout RunState, at index: Int) {
         guard run.markers.indices.contains(index) else { return }

@@ -3,14 +3,13 @@ import NumberClubEngine
 
 /// What you own, slipped into the top of the book like bookmarks.
 ///
-/// Ads run for the whole Book and Buffs are spent from here, so both have to be
+/// Bookmarks run for the whole Book and Buffs are spent from here, so both have to be
 /// on screen at all times — but a floating tray above the book is a piece of
 /// interface, and everything else in this game is an object. Bookmarks are
 /// tucked behind the block, so their tails disappear into the pages.
 struct BookmarkRow: View {
     @Bindable var model: GameModel
     var onTapBuff: (Int) -> Void
-    @State private var inspecting: ItemDef?
 
     /// How much of each bookmark is swallowed by the book beneath it.
     static let tuck: CGFloat = 16
@@ -18,12 +17,11 @@ struct BookmarkRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 5) {
-            ForEach(0..<ItemKind.ad.capacity, id: \.self) { slot in
-                if slot < model.run.ads.count {
-                    let ad = model.run.ads[slot]
-                    Bookmark(def: ad.def, colour: Paper.pageWarm, slot: slot) {
-                        inspecting = ad.def
-                    }
+            ForEach(0..<ItemKind.bookmark.capacity, id: \.self) { slot in
+                if slot < model.run.bookmarks.count {
+                    let owned = model.run.bookmarks[slot]
+                    Bookmark(def: owned.def, colour: Paper.pageWarm, slot: slot,
+                             explains: true) {}
                 } else {
                     EmptyBookmark(slot: slot)
                 }
@@ -36,19 +34,16 @@ struct BookmarkRow: View {
                     // Sage, because a Buff is a thing you spend rather than a
                     // thing that is simply running.
                     Bookmark(def: buff.def, colour: Paper.sage.opacity(0.55),
-                             slot: ItemKind.ad.capacity + slot) {
+                             slot: ItemKind.bookmark.capacity + slot,
+                             explains: false) {
                         onTapBuff(index)
                     }
                 } else {
-                    EmptyBookmark(slot: ItemKind.ad.capacity + slot)
+                    EmptyBookmark(slot: ItemKind.bookmark.capacity + slot)
                 }
             }
         }
         .frame(height: Self.visible + Self.tuck, alignment: .top)
-        .popover(item: $inspecting) { def in
-            ItemDetailCard(def: def)
-                .presentationCompactAdaptation(.popover)
-        }
     }
 }
 
@@ -74,7 +69,11 @@ private struct Bookmark: View {
     var def: ItemDef
     var colour: Color
     var slot: Int
+    /// True for a Bookmark, which only ever explains itself; false for a Buff,
+    /// which is spent and so opens its own slip instead.
+    var explains: Bool
     var action: () -> Void
+    @State private var explaining = false
 
     /// Hand-inserted things are never quite straight, and the tilt has to be
     /// the same every render or the row twitches on each state change.
@@ -84,7 +83,7 @@ private struct Bookmark: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        Button { explains ? (explaining = true) : action() } label: {
             VStack(spacing: 0) {
                 Image(systemName: ItemIcon.symbol(for: def.id))
                     .font(.system(size: 15, weight: .regular))
@@ -107,6 +106,12 @@ private struct Bookmark: View {
             .rotationEffect(.degrees(tilt), anchor: .bottom)
         }
         .buttonStyle(PressedPaperStyle())
+        // Anchored to this bookmark, so the arrow points at the one that was
+        // tapped rather than at the middle of the row.
+        .popover(isPresented: $explaining, arrowEdge: .bottom) {
+            ItemDetailCard(def: def)
+                .presentationCompactAdaptation(.popover)
+        }
         .accessibilityLabel("\(def.name). \(def.text)")
     }
 }
@@ -127,5 +132,30 @@ private struct EmptyBookmark: View {
             .frame(maxWidth: .infinity)
             .frame(height: 26 + BookmarkRow.tuck)
             .accessibilityLabel("Empty slot")
+    }
+}
+
+/// What an item actually does, on a torn slip of paper.
+struct ItemDetailCard: View {
+    var def: ItemDef
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 7) {
+                Image(systemName: ItemIcon.symbol(for: def.id))
+                    .font(.system(size: 15))
+                    .foregroundStyle(Paper.ink)
+                Text(def.name)
+                    .font(Print.subheading(15))
+                    .foregroundStyle(Paper.ink)
+            }
+            Text(def.text)
+                .font(Print.body(13))
+                .foregroundStyle(Paper.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: 260, alignment: .leading)
+        .background(Paper.page)
     }
 }

@@ -118,11 +118,11 @@ public extension Game {
     /// Pool or the Hand so the conservation rule still holds. Nothing is
     /// scored — this is for reaching the Full Clear and the results page, not
     /// for checking what they are worth.
-    /// Hands over an Ad, for looking at a populated loadout.
+    /// Hands over a Bookmark, for looking at a populated loadout.
     mutating func qaGrantAd(_ defID: String) {
-        guard Catalog.item(defID) != nil, run.ads.count < ItemKind.ad.capacity,
-              !run.owns(ad: defID) else { return }
-        run.ads.append(OwnedAd(defID: defID, boughtAtLevel: run.level, pricePaid: 0))
+        guard Catalog.item(defID) != nil, run.bookmarks.count < ItemKind.bookmark.capacity,
+              !run.owns(bookmark: defID) else { return }
+        run.bookmarks.append(OwnedBookmark(defID: defID, boughtAtLevel: run.level, pricePaid: 0))
     }
 
     /// Hands over a Buff, for exercising the ones that ask a question.

@@ -23,14 +23,14 @@ final class BossModifierTests: XCTestCase {
         var r = run
         XCTAssertEqual(r.effectiveTurns(boss: nil), 10)
         XCTAssertEqual(r.effectiveTurns(boss: .deadline), 8)
-        r.ads.append(OwnedAd(defID: Ads.lateCityFinal, boughtAtLevel: 1, pricePaid: 7))
+        r.bookmarks.append(OwnedBookmark(defID: Bookmarks.lateCityFinal, boughtAtLevel: 1, pricePaid: 7))
         XCTAssertEqual(r.effectiveTurns(boss: .deadline), 9)
     }
 
     func testTheErratumRemovesTheTossAllowanceEntirely() {
         var r = run
         XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 4)
-        r.ads.append(OwnedAd(defID: Ads.weatherForecast, boughtAtLevel: 1, pricePaid: 4))
+        r.bookmarks.append(OwnedBookmark(defID: Bookmarks.weatherForecast, boughtAtLevel: 1, pricePaid: 4))
         XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 6)
         XCTAssertEqual(r.effectiveTossAllowance(boss: .erratum), 0)
     }
@@ -56,8 +56,8 @@ final class BossModifierTests: XCTestCase {
         try game.startPuzzle()
         game.run.puzzle?.boss = .critic
         // Bank enough that the doubled penalty is visible above the floor at 0.
-        game.give(ad: "ad_stop_the_presses")
-        game.give(ad: "ad_editorial_board")
+        game.give(ad: "bm_stop_the_presses")
+        game.give(ad: "bm_editorial_board")
         _ = try game.place(handIndex: game.stackHand(with: .nine)!, at: game.blank(wanting: .nine)!)
         let before = game.puzzle!.score
         XCTAssertEqual(before, 810)
@@ -132,22 +132,22 @@ final class ShopTests: XCTestCase {
         Shop.open(&run)
         let offers = run.shop!.offers
         XCTAssertEqual(offers.count, 5)
-        XCTAssertEqual(offers.filter { $0.def.kind == .ad }.count, 2)
+        XCTAssertEqual(offers.filter { $0.def.kind == .bookmark }.count, 2)
         XCTAssertEqual(offers.filter { $0.def.kind == .marker }.count, 2)
         XCTAssertEqual(offers.filter { $0.def.kind == .buff }.count, 1)
     }
 
     func testAnAdYouOwnIsNeverOfferedAgain() {
         var run = RunState(seed: "shop", startingBoard: .scholar)
-        // Own every Ad but one; that one must be what the Shop offers.
-        let allAds = Catalog.items(of: .ad)
+        // Own every Bookmark but one; that one must be what the Shop offers.
+        let allAds = Catalog.items(of: .bookmark)
         for ad in allAds.dropLast(1).prefix(5) {
-            run.ads.append(OwnedAd(defID: ad.id, boughtAtLevel: 1, pricePaid: 0))
+            run.bookmarks.append(OwnedBookmark(defID: ad.id, boughtAtLevel: 1, pricePaid: 0))
         }
         for _ in 0..<20 {
             Shop.open(&run)
-            for offer in run.shop!.offers where offer.def.kind == .ad {
-                XCTAssertFalse(run.owns(ad: offer.defID), "offered an owned Ad: \(offer.defID)")
+            for offer in run.shop!.offers where offer.def.kind == .bookmark {
+                XCTAssertFalse(run.owns(bookmark: offer.defID), "offered an owned Bookmark: \(offer.defID)")
             }
         }
     }
@@ -156,7 +156,7 @@ final class ShopTests: XCTestCase {
         var run = RunState(seed: "dupes", startingBoard: .scholar)
         for _ in 0..<50 {
             Shop.open(&run)
-            let ads = run.shop!.offers.filter { $0.def.kind == .ad }.map(\.defID)
+            let ads = run.shop!.offers.filter { $0.def.kind == .bookmark }.map(\.defID)
             XCTAssertEqual(Set(ads).count, ads.count)
         }
     }
@@ -235,7 +235,7 @@ final class ShopTests: XCTestCase {
     func testAuctionNoticesMakesTheFirstRerollFree() throws {
         var run = RunState(seed: "reroll", startingBoard: .scholar)
         run.coins = 100
-        run.ads.append(OwnedAd(defID: Ads.auctionNotices, boughtAtLevel: 1, pricePaid: 6))
+        run.bookmarks.append(OwnedBookmark(defID: Bookmarks.auctionNotices, boughtAtLevel: 1, pricePaid: 6))
         Shop.open(&run)
         XCTAssertEqual(run.shop?.rerollCost, 0)
         try Shop.reroll(&run)
@@ -286,7 +286,7 @@ final class RunAndDeterminismTests: XCTestCase {
     func testSaveAndLoadRoundTripsMidPuzzle() throws {
         var game = Game(seed: "save", startingBoard: .oracle)
         try game.startPuzzle()
-        game.give(ad: "ad_op_ed")
+        game.give(ad: "bm_op_ed")
         game.give(marker: "mk_golden", on: [game.puzzle!.board.blanks[0]])
         _ = try game.place(handIndex: 0, at: game.blank(wanting: game.puzzle!.hand[0])!)
         _ = try game.endTurn()
@@ -299,7 +299,7 @@ final class RunAndDeterminismTests: XCTestCase {
     }
 
     func testItemCatalogueMatchesTheDesignTables() {
-        XCTAssertEqual(Catalog.items(of: .ad).count, 23)
+        XCTAssertEqual(Catalog.items(of: .bookmark).count, 23)
         XCTAssertEqual(Catalog.items(of: .marker).count, 12)
         XCTAssertEqual(Catalog.items(of: .buff).count, 10)
         // Ids must be unique — the catalogue is keyed by them.

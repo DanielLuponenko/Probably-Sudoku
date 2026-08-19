@@ -41,9 +41,9 @@ struct RunInfoSlip: View {
                     LeaderRow(label: "Coins", value: "\(model.coins)")
                 }
 
-                if !model.run.ads.isEmpty {
-                    SlipSection(title: "Ads") {
-                        ForEach(model.run.ads) { ad in
+                if !model.run.bookmarks.isEmpty {
+                    SlipSection(title: "Bookmarks") {
+                        ForEach(model.run.bookmarks) { ad in
                             OwnedLine(name: ad.def.name, detail: ad.def.text)
                         }
                     }

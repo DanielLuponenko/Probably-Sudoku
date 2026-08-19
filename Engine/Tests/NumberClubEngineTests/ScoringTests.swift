@@ -23,7 +23,7 @@ extension Game {
     }
 
     mutating func give(ad id: String) {
-        run.ads.append(OwnedAd(defID: id, boughtAtLevel: run.level, pricePaid: 0))
+        run.bookmarks.append(OwnedBookmark(defID: id, boughtAtLevel: run.level, pricePaid: 0))
     }
     mutating func give(marker id: String, on squares: [Square]) {
         run.markers.append(OwnedMarker(defID: id, boughtAtLevel: run.level,
@@ -58,7 +58,7 @@ final class ScoringTests: XCTestCase {
     func testWrongPlacementSubtractsFiftyTimesTheNumberAndReturnsItToThePool() throws {
         var game = try startedGame()
         // Bank enough first that the floor at 0 cannot hide the penalty.
-        game.give(ad: "ad_stop_the_presses")            // x3
+        game.give(ad: "bm_stop_the_presses")            // x3
         let good = game.blank(wanting: .nine)!
         _ = try game.place(handIndex: game.stackHand(with: .nine)!, at: good)
         let before = game.puzzle!.score
@@ -87,10 +87,10 @@ final class ScoringTests: XCTestCase {
     // MARK: The formula (§6)
 
     func testAdditiveMultAccumulatesIntoOnePool() throws {
-        // Two "+1 mult" Ads give x3, not x4.
+        // Two "+1 mult" Bookmarks give x3, not x4.
         var game = try startedGame()
-        game.give(ad: "ad_op_ed")
-        game.give(ad: "ad_op_ed")
+        game.give(ad: "bm_op_ed")
+        game.give(ad: "bm_op_ed")
         let square = game.blank(wanting: .five)!
         let outcome = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
         XCTAssertEqual(outcome.points, 50 * 3)
@@ -98,8 +98,8 @@ final class ScoringTests: XCTestCase {
 
     func testMultiplicativeMultMultipliesWithTheAdditiveTotal() throws {
         var game = try startedGame()
-        game.give(ad: "ad_op_ed")             // +1 additive  -> x2
-        game.give(ad: "ad_stop_the_presses")  // x3 multiplicative
+        game.give(ad: "bm_op_ed")             // +1 additive  -> x2
+        game.give(ad: "bm_stop_the_presses")  // x3 multiplicative
         let square = game.blank(wanting: .five)!
         let outcome = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
         XCTAssertEqual(outcome.points, 50 * 2 * 3)
@@ -107,8 +107,8 @@ final class ScoringTests: XCTestCase {
 
     func testFlatBonusesAddBeforeMultiplication() throws {
         var game = try startedGame()
-        game.give(ad: "ad_local_gossip")   // +30 flat
-        game.give(ad: "ad_op_ed")          // x2
+        game.give(ad: "bm_local_gossip")   // +30 flat
+        game.give(ad: "bm_op_ed")          // x2
         let square = game.blank(wanting: .four)!
         let outcome = try game.place(handIndex: game.stackHand(with: .four)!, at: square)
         XCTAssertEqual(outcome.points, (40 + 30) * 2)
@@ -116,8 +116,8 @@ final class ScoringTests: XCTestCase {
 
     func testFrontPageSplashCountsItself() throws {
         var game = try startedGame()
-        game.give(ad: "ad_local_gossip")
-        game.give(ad: "ad_front_page_splash")   // +1 mult per Ad owned = +2
+        game.give(ad: "bm_local_gossip")
+        game.give(ad: "bm_front_page_splash")   // +1 mult per Bookmark owned = +2
         let square = game.blank(wanting: .one)!
         let outcome = try game.place(handIndex: game.stackHand(with: .one)!, at: square)
         XCTAssertEqual(outcome.points, (10 + 30) * 3)

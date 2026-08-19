@@ -104,7 +104,7 @@ struct ResultsPageView: View {
         case .bookCompleted:
             return "You finished all 27 Puzzles. Choose a harder Book to begin."
         case .failed:
-            return "The target was not met. Ads, Markers and Buffs do not carry over."
+            return "The target was not met. Bookmarks, Markers and Buffs do not carry over."
         case nil:
             return model.puzzle?.phase == .won
                 ? "Target met. Bank it, or play on with the Turns you have left."

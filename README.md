@@ -62,7 +62,7 @@ the cover every time:
 | `-clearLine` | completes a row on launch, to see the completed-unit mark |
 | `-buffSlip` | grants Paper Crane and opens its slip |
 | `-runInfo` | opens the run information slip on launch |
-| `-loadout` | grants some Ads and Buffs, to see the bookmarks populated |
+| `-loadout` | grants some Bookmarks and Buffs, to see the row populated |
 
 ## Books have a personality
 
@@ -257,7 +257,7 @@ swift run -c release genbench       # per-difficulty generation timing
 - The conservation rule (§4) is asserted after every action: Pool + Hand always
   equals exactly what the remaining Blanks need. 2,449 simulated puzzles, zero
   breaks.
-- All 23 Ads, 12 Markers, 10 Buffs, 9 Boss Modifiers, with the §6 scoring formula
+- All 23 Bookmarks, 12 Markers, 10 Buffs, 9 Boss Modifiers, with the §6 scoring formula
   and the §14 resolution order.
 - Shop with §9 stock, rarity odds, price bands and reroll pricing.
 - Save/load round-trips mid-Puzzle.
@@ -290,7 +290,7 @@ still adds two; The Erratum still removes it.
   and the asset checklist both attach a colour to a *digit* instead. Squares is
   what shipped. It is why The Fog is a real attack, why buying a Marker early
   compounds, and why moving a square costs coins.
-- **Naming is Ads / Markers / Buffs** in code and on screen, not
+- **Naming is Bookmarks / Markers / Buffs** in code and on screen, not
   Newspapers / Cardinals / Charms.
 - **Prices are rolled within the §9 band**, not taken from the per-item tables in
   §10–12. Every listed price does fall inside its band — a test asserts it — so
@@ -358,6 +358,6 @@ These are places where the design is genuinely undecided or where I had to pick.
 3. **The Censor** (§13) zeroes the placement *and* any clear that placement
    causes. Reading it as the placement alone makes it much weaker than the other
    eight modifiers.
-4. **The Deadline plus Late City Final** gives 9 Turns — the Ad adds to whatever
+4. **The Deadline plus Late City Final** gives 9 Turns — the Bookmark adds to whatever
    base applies. Reading The Deadline as a hard override instead would give 8.
 5. **Toss allowance of 2** is flagged provisional by §5.1 itself.
