@@ -80,9 +80,8 @@ struct ResultsPageView: View {
 
             if let puzzle = model.puzzle {
                 HStack {
-                    Text(puzzle.score.formatted())
-                        .font(Print.numeral(38, weight: .black))
-                        .foregroundStyle(didWin ? Paper.ink : Paper.redPencil)
+                    RollingNumber(value: puzzle.score, size: 38, weight: .black,
+                                  color: didWin ? Paper.ink : Paper.redPencil)
                     Text("/ \(puzzle.target.formatted())")
                         .font(Print.numeral(17, weight: .semibold))
                         .foregroundStyle(Paper.inkFaint)

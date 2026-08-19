@@ -87,13 +87,11 @@ struct CoinBadge: View {
             .frame(width: 26, height: 26)
             .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
 
-            Text("\(count)")
-                .font(Print.numeral(19, weight: .bold))
-                .foregroundStyle(Paper.page)
+            RollingNumber(value: count, size: 19, weight: .bold, color: Paper.page,
+                          grouped: false)
                 .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
                 .contentTransition(.numericText())
         }
-        .animation(.snappy, value: count)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(count) coins")
     }
