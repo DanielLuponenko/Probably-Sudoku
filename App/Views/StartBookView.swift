@@ -16,7 +16,7 @@ struct StartBookView: View {
 
     var body: some View {
         ZStack {
-            CoverPhotograph(still: reduceMotion)
+            CoverBackground(reduceMotion: reduceMotion)
             TitleBlock()
                 .frame(maxHeight: .infinity, alignment: .top)
                 .padding(.top, 120)
@@ -49,62 +49,6 @@ struct StartBookView: View {
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 26)
-    }
-}
-
-/// The photograph, drifting. The motion is slow enough that it is never the
-/// thing you are looking at — about a percent of the frame over half a minute.
-private struct CoverPhotograph: View {
-    var still: Bool
-    @State private var drifted = false
-    @State private var lamped = false
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                Image("Cover")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .scaleEffect(drifted ? 1.075 : 1.02, anchor: .center)
-                    .offset(x: drifted ? 7 : -7, y: drifted ? -10 : 8)
-                    .clipped()
-
-                // The lamp, up and to the left, the same one the desk and the
-                // page turn are lit by.
-                RadialGradient(
-                    colors: [Color(hex: 0xFFD9A0).opacity(lamped ? 0.20 : 0.11), .clear],
-                    center: .init(x: 0.12, y: 0.06),
-                    startRadius: 10,
-                    endRadius: proxy.size.height * 0.85
-                )
-                .blendMode(.plusLighter)
-
-                // Keeps the type legible over whatever the photograph is doing.
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.55), location: 0),
-                        .init(color: .black.opacity(0.12), location: 0.32),
-                        .init(color: .black.opacity(0.30), location: 0.62),
-                        .init(color: .black.opacity(0.88), location: 1),
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
-            }
-            .ignoresSafeArea()
-        }
-        .ignoresSafeArea()
-        .onAppear {
-            guard !still else { return }
-            withAnimation(.easeInOut(duration: 34).repeatForever(autoreverses: true)) {
-                drifted = true
-            }
-            // Off the drift's rhythm, so the two never pulse together.
-            withAnimation(.easeInOut(duration: 11).repeatForever(autoreverses: true)) {
-                lamped = true
-            }
-        }
-        .accessibilityHidden(true)
     }
 }
 
