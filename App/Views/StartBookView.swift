@@ -151,16 +151,34 @@ private struct ShelfBackdrop: View {
 /// bare desk instead.
 private struct BookOnDesk: View {
     var book: BookEdition
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// A moving cover is a nicety, so it yields to both of the settings that
+    /// ask for less of them.
+    private var playsLoop: Bool {
+        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
 
     var body: some View {
         Group {
             if let scene = book.cover {
                 GeometryReader { proxy in
-                    Image(scene)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
+                    ZStack {
+                        // The still is always underneath, so the scene is
+                        // painted before any decoder has started, a Book
+                        // without a loop still works, and Reduce Motion and
+                        // Low Power Mode simply fall back to it.
+                        Image(scene)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+
+                        if let loop = book.loop, playsLoop,
+                           let url = Bundle.main.url(forResource: loop, withExtension: "mp4") {
+                            LoopingVideo(url: url)
+                        }
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
                 }
                 .ignoresSafeArea()
             } else {

@@ -111,6 +111,22 @@ user scope, so the same generation can be driven conversationally.
 
 ### The cover loop
 
+Generated in Meshy's **web app** — the API has no video endpoint at all. Two
+settings decide whether it comes out usable, and one of them resets on you:
+
+| | |
+|---|---|
+| Tab | Image to Video |
+| Model | **Kling 2.5 Turbo** — resets to Seedance 2.0 on every page load |
+| Source | the Book's 9:16 scene, so the video matches the still exactly |
+
+Image to Video has **no aspect ratio control**; it takes the aspect from the
+image. Seedance ignores that and returns 16:9 whatever you feed it, so a
+landscape render almost always means the model reset itself back to Seedance.
+Kling keeps the framing and costs 25 credits against Seedance's 110. Text to
+Video does expose 16:9 / 9:16 / 1:1, but cannot reproduce a specific Book.
+
+
 `App/Resources/probably-loop.mp4` is the first Book, animated. Made in Meshy's
 web app (Kling 2.5 Turbo, 25 credits) rather than through the API, then
 processed:
@@ -122,7 +138,9 @@ ffmpeg -i in.mp4 -filter_complex \
 ```
 
 Played forward then backward, so the loop point is the same frame and there is
-no jump — a 5s clip becomes a 10s loop with no seam, at ~600KB.
+no jump — a 5s clip becomes a 10s loop with no seam, at ~690KB. Worth checking
+rather than assuming: comparing the first and last frames of the finished loop
+gives a mean difference of 0.77 out of 255, which is encoding noise.
 
 Three things learned the expensive way:
 
