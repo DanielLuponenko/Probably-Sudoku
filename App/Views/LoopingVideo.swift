@@ -59,3 +59,120 @@ struct LoopingVideo: UIViewRepresentable {
         }
     }
 }
+
+/// Plays a clip once and says when it is done. Used for the Book opening, which
+/// is a transition rather than a backdrop.
+struct OneShotVideo: UIViewRepresentable {
+    var url: URL
+    var onFinished: () -> Void
+
+    func makeUIView(context: Context) -> PlayerView {
+        let view = PlayerView()
+        view.play(url: url, onFinished: onFinished)
+        return view
+    }
+
+    func updateUIView(_ view: PlayerView, context: Context) {}
+
+    static func dismantleUIView(_ view: PlayerView, coordinator: ()) {
+        view.stop()
+    }
+
+    final class PlayerView: UIView {
+        override static var layerClass: AnyClass { AVPlayerLayer.self }
+        private var player: AVPlayer?
+        private var observers: [NSObjectProtocol] = []
+        private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+
+        func play(url: URL, onFinished: @escaping () -> Void) {
+            let item = AVPlayerItem(url: url)
+            let player = AVPlayer(playerItem: item)
+            player.isMuted = true
+            player.actionAtItemEnd = .pause
+
+            playerLayer.player = player
+            playerLayer.videoGravity = .resizeAspectFill
+            self.player = player
+
+            let center = NotificationCenter.default
+            observers.append(center.addObserver(
+                forName: AVPlayerItem.didPlayToEndTimeNotification,
+                object: item, queue: .main
+            ) { _ in onFinished() })
+            // Backgrounding mid-transition would otherwise strand the player.
+            observers.append(center.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in self?.player?.play() })
+
+            player.play()
+        }
+
+        func stop() {
+            player?.pause()
+            observers.forEach(NotificationCenter.default.removeObserver)
+            observers.removeAll()
+            playerLayer.player = nil
+            player = nil
+        }
+    }
+}
+
+/// Opening a Book: the cover swings open, then the page blurs and whitens out,
+/// and the first Puzzle is already there behind it.
+///
+/// The blur starts before the clip ends so the two movements overlap — cutting
+/// to a blur after the video has stopped reads as two separate things
+/// happening, which is exactly what a page turn should not feel like.
+struct BookOpening: View {
+    var url: URL
+    var reduceMotion: Bool
+    var onFinish: () -> Void
+
+    @State private var blur: CGFloat = 0
+    @State private var wash: Double = 0
+    @State private var finished = false
+
+    private let handover = 0.75
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            OneShotVideo(url: url) { finish() }
+                .blur(radius: blur)
+                .ignoresSafeArea()
+
+            Paper.page.opacity(wash).ignoresSafeArea()
+        }
+        .task {
+            guard !reduceMotion else { finish(); return }
+            Haptics.pageTurn()
+
+            let total = await Self.duration(of: url) ?? 3.2
+            try? await Task.sleep(for: .seconds(max(0, total - handover)))
+            withAnimation(.easeIn(duration: handover)) {
+                blur = 30
+                wash = 1
+            }
+            try? await Task.sleep(for: .seconds(handover))
+            finish()
+        }
+        .accessibilityLabel("Opening the book")
+    }
+
+    /// Guards against the clip's end notification and the timed hand-over both
+    /// firing, which would deal two Puzzles.
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        onFinish()
+    }
+
+    private static func duration(of url: URL) async -> Double? {
+        let asset = AVURLAsset(url: url)
+        guard let seconds = try? await asset.load(.duration).seconds,
+              seconds.isFinite, seconds > 0 else { return nil }
+        return seconds
+    }
+}

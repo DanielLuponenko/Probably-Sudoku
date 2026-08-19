@@ -3,6 +3,12 @@ import NumberClubEngine
 
 struct ContentView: View {
     @State private var model: GameModel? = ContentView.debugModel()
+    /// The Book being opened, while its clip plays. `-playOpening` starts on
+    /// it, so the transition can be recorded without tapping through the shelf.
+    @State private var opening: BookEdition? = ContentView.debugOpening()
+    /// Held over the swap from the opening clip to the first Puzzle, so the
+    /// two never show a hard cut between them.
+    @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
@@ -33,14 +39,56 @@ struct ContentView: View {
         #endif
     }
 
+    private static func debugOpening() -> BookEdition? {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-playOpening") ? .first : nil
+        #else
+        return nil
+        #endif
+    }
+
     var body: some View {
-        if let model, !model.wantsMenu {
-            GameView(model: model, reduceMotion: reduceMotion)
-        } else {
-            StartBookView { board in
-                model = GameModel(startingBoard: board)
+        ZStack {
+            if let model, !model.wantsMenu {
+                GameView(model: model, reduceMotion: reduceMotion)
+            } else if let book = opening, let url = openingClip(for: book) {
+                BookOpening(url: url, reduceMotion: reduceMotion) {
+                    begin(book)
+                }
+            } else {
+                StartBookView { book in
+                    if openingClip(for: book) == nil {
+                        begin(book)          // no clip: straight in
+                    } else {
+                        opening = book
+                    }
+                }
+                .transition(.opacity)
             }
-            .transition(.opacity)
+
+            // Paper, held opaque across the swap and then lifted off the board.
+            Paper.page
+                .opacity(veil)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func openingClip(for book: BookEdition) -> URL? {
+        guard let opening = book.opening else { return nil }
+        return Bundle.main.url(forResource: opening, withExtension: "mp4")
+    }
+
+    /// Deals the first Puzzle behind the veil, then lifts it.
+    private func begin(_ book: BookEdition) {
+        veil = 1
+        model = GameModel(startingBoard: book.bonus)
+        opening = nil
+        Task {
+            // One frame flat first: animating a value in the same update that
+            // sets it leaves the animation nothing to travel from.
+            try? await Task.sleep(for: .milliseconds(16))
+            withAnimation(.easeOut(duration: 0.65)) { veil = 0 }
         }
     }
 }

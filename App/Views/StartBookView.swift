@@ -9,7 +9,7 @@ import NumberClubEngine
 /// opened; the rest are locked and shown anyway, so the ladder §2 leaves
 /// undecided is visible instead of implied.
 struct StartBookView: View {
-    var onStart: (StartingBoard) -> Void
+    var onStart: (BookEdition) -> Void
 
     @State private var index = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -59,7 +59,7 @@ struct StartBookView: View {
             }
 
             if book.isWritten {
-                PaperButton(title: "Open the Book", kind: .primary) { onStart(book.bonus) }
+                PaperButton(title: "Open the Book", kind: .primary) { onStart(book) }
             } else {
                 PaperButton(title: "Locked", kind: .quiet, isEnabled: false) {}
             }

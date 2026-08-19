@@ -19,6 +19,8 @@ struct BookEdition: Identifiable, Equatable {
     /// stays underneath it either way, so a Book without a loop is not a Book
     /// missing something.
     let loop: String?
+    /// Bundle resource for the Book opening, played once when it is opened.
+    let opening: String?
     /// The Book's own colour, used for its spine and its accents.
     let accent: Color
     /// §3 — what this Book gives you for the whole run. The board is not a
@@ -44,6 +46,7 @@ struct BookEdition: Identifiable, Equatable {
         // Shot from the same phone-format scene as the still, so it overlays
         // it exactly rather than sitting on it as a rectangle.
         loop: "probably-loop",
+        opening: "probably-open",
         accent: Color(hex: 0x7C8C73),
         // A relaxed Book hands you more to work with.
         bonus: .scholar,
@@ -73,6 +76,7 @@ struct BookEdition: Identifiable, Equatable {
             blurb: "Not written yet.",
             cover: nil,
             loop: nil,
+            opening: nil,
             accent: accent,
             bonus: bonus,
             marginalia: []

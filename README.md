@@ -58,6 +58,7 @@ the cover every time:
 | `-thenTapSquare 1` | after `-selectHand`, taps that square — reproduces the highlight order |
 | `-winNow` | meets the target on launch, to land on the results page |
 | `-qa` | opens Settings on launch |
+| `-playOpening` | starts on the Book-opening transition, to record it |
 | `-help` | opens the help slip on launch |
 
 ## Books have a personality
@@ -108,6 +109,20 @@ Two decisions that are easy to get wrong here:
 12 credits, needs `MESHY_API_KEY`); it asks for no lettering anywhere, because
 generated type is always gibberish. The Meshy MCP server is also registered at
 user scope, so the same generation can be driven conversationally.
+
+### Opening a Book
+
+Tapping **Open the Book** plays `probably-open.mp4` — the cover swings open onto
+a blank page — and then blurs and whitens out onto the first Puzzle, which is
+dealt behind the wash. Same Meshy settings as the loop; trimmed to 3.2s, which
+is where the cover has finished opening and the model starts padding out its
+five seconds.
+
+The blur begins 0.75s **before** the clip ends so the two movements overlap.
+Waiting for the video to stop and then blurring reads as two separate things
+happening, which is the opposite of what a page turn should feel like. The
+paper wash is held across the swap and lifted afterwards, so there is never a
+cut between the clip and the board. Reduce Motion skips straight to the Puzzle.
 
 ### The cover loop
 
