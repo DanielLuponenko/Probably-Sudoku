@@ -3,24 +3,62 @@ import SwiftUI
 /// A Book is a published thing with a personality, not just a difficulty tier.
 /// The first one is cheerful and faintly unsure of itself, and it talks to the
 /// player in the margins.
-struct BookEdition {
+struct BookEdition: Identifiable, Equatable {
+    let id: String
     let title: String
-    let subtitle: String
+    /// Printed on the shelf under the cover.
+    let shelfLabel: String
     let blurb: String
-    /// Printed by hand in the margins while you play.
+    /// Asset name of the cover photograph, or nil while a Book is unwritten.
+    let cover: String?
+    /// The Book's own colour, used for its spine and its accents.
+    let accent: Color
+    /// §2 leaves the ladder of harder Books undecided, so the rest are shelved
+    /// rather than pretended into existence.
+    var isWritten: Bool { cover != nil }
+
+    /// Lines the Book writes in the margins while you play.
     let marginalia: [String]
 
+    static func == (a: BookEdition, b: BookEdition) -> Bool { a.id == b.id }
+
     static let first = BookEdition(
+        id: "probably",
         title: "You\u{2019}ve Got This, Probably",
-        subtitle: "Volume One",
-        blurb: "27 puzzles. Encouragement not guaranteed.",
+        shelfLabel: "Volume 1",
+        blurb: "Relaxed puzzles. Encouragement not guaranteed.",
+        cover: "BookProbably",
+        accent: Color(hex: 0x7C8C73),
         marginalia: firstBookLines
     )
 
-    /// Which Book you are in. Only one is written so far; the ladder of harder
-    /// Books is still an open design question (GAME_REFERENCE \u{00A7}2).
+    /// Placeholders for the ladder above it. They can be picked up and looked
+    /// at — the cover changes behind them — but not opened.
+    static let unwritten: [BookEdition] = [
+        BookEdition(
+            id: "sharpen",
+            title: "Sharpen Up",
+            shelfLabel: "Volume 2",
+            blurb: "Not yet written.",
+            cover: nil,
+            accent: Color(hex: 0xC8853F),
+            marginalia: []
+        ),
+        BookEdition(
+            id: "nonsense",
+            title: "No More Nonsense",
+            shelfLabel: "Volume 3",
+            blurb: "Not yet written.",
+            cover: nil,
+            accent: Color(hex: 0xB4544A),
+            marginalia: []
+        ),
+    ]
+
+    static let shelf: [BookEdition] = [first] + unwritten
+
     static func edition(forBookTier tier: Int) -> BookEdition {
-        first
+        shelf.indices.contains(tier - 1) ? shelf[tier - 1] : first
     }
 }
 
