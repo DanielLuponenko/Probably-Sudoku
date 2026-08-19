@@ -21,6 +21,7 @@ struct PuzzlePageView: View {
 
             HandStripView(model: model, handSize: puzzle.handSize)
             actionRow
+            PageNumber(level: puzzle.level, slot: puzzle.slot.rawValue)
         }
     }
 
@@ -246,5 +247,26 @@ struct PressedPaperStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
             .brightness(configuration.isPressed ? -0.04 : 0)
             .animation(.snappy(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+/// Printed at the foot of every page, the way a puzzle book numbers itself.
+struct PageNumber: View {
+    var level: Int
+    var slot: Int
+
+    /// Three Puzzles a Level, each taking a spread.
+    private var page: Int { ((level - 1) * 3 + slot) * 2 + 7 }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Rectangle().fill(Paper.rule.opacity(0.45)).frame(width: 14, height: 0.75)
+            Text("\(page)")
+                .font(Print.body(10.5))
+                .foregroundStyle(Paper.inkFaint)
+            Rectangle().fill(Paper.rule.opacity(0.45)).frame(width: 14, height: 0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityHidden(true)
     }
 }

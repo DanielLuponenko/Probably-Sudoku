@@ -51,15 +51,9 @@ private struct GameView: View {
                     .padding(.horizontal, 12)
                     .padding(.top, 4)
 
-                ZStack {
-                    PageBacking()
-                    BookPageView { pageContent }
-                        .pageFlip(flipper)
-                }
-                // A lifting page is foreshortened towards the reader, which
-                // without this would let it paint over the loadout row above.
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .padding(.horizontal, 12)
+                BookView(flipper: flipper) { pageContent }
+                    .padding(.leading, 8)
+                    .padding(.trailing, 10)
             }
             .padding(.bottom, 8)
             .overlay(alignment: .center) { wonOverlay }

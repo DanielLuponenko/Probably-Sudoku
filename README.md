@@ -115,6 +115,12 @@ page, the page-turn transition, and the Marker square picker.
 - **Prices are rolled within the §9 band**, not taken from the per-item tables in
   §10–12. Every listed price does fall inside its band — a test asserts it — so
   the tables stay accurate as documentation.
+- **The book is an object, not a card.** What makes something read as a book is
+  thickness, so it is built as one: boards standing proud of the paper, a block
+  of individually drawn page edges down the fore-edge and along the tail, a
+  binding the paper turns down into, a sewn-in ribbon, and a printed page
+  number. The live page is a separate view from the volume, which is what lets
+  it lift off the block when the page turns while the boards stay put.
 - **Almost nothing is an exported image.** The grid, every cell state, the
   buttons, the badges, the Marker colours and the progress dots are all drawn.
   Marker finishes are a `Color` plus a wash, not twelve textures. Icons are SF
