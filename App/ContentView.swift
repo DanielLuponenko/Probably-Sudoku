@@ -2,26 +2,57 @@ import SwiftUI
 import NumberClubEngine
 
 struct ContentView: View {
-    @State private var model = GameModel()
+    @State private var model: GameModel? = ContentView.debugModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
+    /// board does not mean tapping through the cover every launch. Add
+    /// `-seed <value>` to land on the same Book every time.
+    private static func debugModel() -> GameModel? {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-skipStartScreen") else { return nil }
+        var seed = GameModel.randomSeed()
+        if let index = arguments.firstIndex(of: "-seed"), index + 1 < arguments.count {
+            seed = arguments[index + 1]
+        }
+        let model = GameModel(seed: seed, startingBoard: .scholar)
+        if let index = arguments.firstIndex(of: "-selectHand"), index + 1 < arguments.count,
+           let handIndex = Int(arguments[index + 1]) {
+            model.selectedHandIndex = handIndex
+        }
+        return model
+        #else
+        return nil
+        #endif
+    }
+
+    var body: some View {
+        if let model {
+            GameView(model: model, reduceMotion: reduceMotion)
+        } else {
+            StartBookView { board in
+                model = GameModel(startingBoard: board)
+            }
+            .transition(.opacity)
+        }
+    }
+}
+
+private struct GameView: View {
+    @Bindable var model: GameModel
+    var reduceMotion: Bool
 
     var body: some View {
         DeskView {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 topStrip
 
-                BookPageView(tabIndex: min(model.run.level - 1, 4),
-                             tabLabels: tabLabels) {
-                    pageContent
-                }
-                .padding(.horizontal, 14)
-                .padding(.trailing, 22)          // room for the fore-edge tabs
+                LoadoutRow(model: model) { model.useBuff(at: $0) }
+                    .padding(.horizontal, 12)
 
-                if model.page == .puzzle {
-                    OwnedPanelView(model: model) { model.useBuff(at: $0) }
-                        .padding(.horizontal, 14)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                BookPageView { pageContent }
+                    .padding(.horizontal, 12)
             }
             .padding(.vertical, 8)
             .overlay(alignment: .center) { wonOverlay }
@@ -51,13 +82,6 @@ struct ContentView: View {
                     .pageTurnTransition(forward: true, reduceMotion: reduceMotion)
             }
         }
-    }
-
-    private var tabLabels: [String] {
-        // Five tabs, windowed onto the nine Levels so the active one is visible.
-        let start = max(0, min(model.run.level - 1, 4))
-        _ = start
-        return (1...5).map { "L\($0 + max(0, model.run.level - 5))" }
     }
 
     // MARK: Chrome
@@ -132,6 +156,10 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
+#Preview("Puzzle") {
+    GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false)
+}
+
+#Preview("Start") {
+    StartBookView { _ in }
 }

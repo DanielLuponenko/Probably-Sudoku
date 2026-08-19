@@ -53,8 +53,6 @@ private struct WoodGrain: View {
 /// One open page of the sudoku book, with the rest of the block showing as a
 /// stack of edges to the right and below, and the chapter tabs on the fore-edge.
 struct BookPageView<Content: View>: View {
-    var tabIndex: Int
-    var tabLabels: [String]
     @ViewBuilder var content: Content
 
     private let stackDepth: CGFloat = 10
@@ -84,43 +82,9 @@ struct BookPageView<Content: View>: View {
                         .strokeBorder(Paper.pageEdge, lineWidth: 0.5)
                 }
                 .pageShading()
-                .overlay(alignment: .topLeading) { content.padding(22) }
+                .overlay(alignment: .topLeading) { content.padding(16) }
                 .clipShape(RoundedRectangle(cornerRadius: corner))
         }
         .shadow(color: .black.opacity(0.5), radius: 24, x: 6, y: 14)
-        .overlay(alignment: .topTrailing) {
-            ChapterTabs(active: tabIndex, labels: tabLabels)
-                .offset(x: 26, y: 90)
-        }
-    }
-}
-
-/// The five chapter tabs down the fore-edge. The active one reaches further
-/// out, the way a thumbed tab does.
-struct ChapterTabs: View {
-    var active: Int
-    var labels: [String]
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
-                let isActive = index == active
-                Text(label)
-                    .font(Print.caption(13))
-                    .foregroundStyle(Paper.ink.opacity(isActive ? 0.85 : 0.55))
-                    .frame(width: 44, height: 46, alignment: .leading)
-                    .padding(.leading, 8)
-                    .background {
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0, bottomLeadingRadius: 0,
-                            bottomTrailingRadius: 6, topTrailingRadius: 6
-                        )
-                        .fill(Paper.tabs[index % Paper.tabs.count])
-                        .shadow(color: .black.opacity(0.25), radius: 3, x: 2, y: 2)
-                    }
-                    .offset(x: isActive ? 0 : -10)
-            }
-        }
-        .animation(.snappy(duration: 0.25), value: active)
     }
 }

@@ -18,6 +18,17 @@ struct Report {
     var highestLevel = 0
     var itemsSeen = Set<String>()
     var bossesSeen = Set<BossModifier>()
+    /// level -> (best score reached, target, attempts, wins)
+    var byLevel: [Int: (best: Int, target: Int, attempts: Int, wins: Int)] = [:]
+
+    mutating func record(level: Int, score: Int, target: Int, won: Bool) {
+        var entry = byLevel[level] ?? (best: 0, target: target, attempts: 0, wins: 0)
+        entry.best = max(entry.best, score)
+        entry.target = max(entry.target, target)
+        entry.attempts += 1
+        if won { entry.wins += 1 }
+        byLevel[level] = entry
+    }
 }
 
 func checkConservation(_ game: Game, _ where_: String, _ report: inout Report) {
@@ -101,9 +112,13 @@ func playPuzzle(_ game: inout Game, _ report: inout Report, _ rng: inout RandomS
         }
     }
 
-    if game.puzzle?.phase == .won || game.puzzle?.phase == .keepFilling {
-        report.puzzlesWon += 1
-        _ = try? game.cashOut()
+    if let puzzle = game.puzzle {
+        let won = puzzle.phase == .won || puzzle.phase == .keepFilling
+        report.record(level: puzzle.level, score: puzzle.score, target: puzzle.target, won: won)
+        if won {
+            report.puzzlesWon += 1
+            _ = try? game.cashOut()
+        }
     }
 }
 
@@ -186,6 +201,14 @@ for problem in report.conservationBreaks.prefix(5) { print("  BREAK  \(problem)"
 let grouped = Dictionary(grouping: report.errors, by: { $0 }).mapValues(\.count)
 for (message, count) in grouped.sorted(by: { $0.value > $1.value }).prefix(6) {
     print("  ERROR  x\(count)  \(message)")
+}
+
+print("\nLevel   attempts   won   best score   target   headroom")
+for level in report.byLevel.keys.sorted() {
+    let e = report.byLevel[level]!
+    let headroom = e.target > 0 ? Double(e.best) / Double(e.target) : 0
+    print(String(format: "  %d %10d %5d %12d %8d   %5.2fx",
+                 level, e.attempts, e.wins, e.best, e.target, headroom))
 }
 
 let unseen = Set(Catalog.all.map(\.id)).subtracting(report.itemsSeen)

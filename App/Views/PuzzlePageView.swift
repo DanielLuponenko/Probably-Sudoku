@@ -6,10 +6,11 @@ struct PuzzlePageView: View {
     var puzzle: PuzzleState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
             ScoreMeter(score: puzzle.score, target: puzzle.target)
             GridView(model: model, board: puzzle.board)
+                .layoutPriority(1)
             instruction
             Spacer(minLength: 0)
             HandStripView(model: model, handSize: puzzle.handSize)
@@ -20,25 +21,26 @@ struct PuzzlePageView: View {
     // MARK: Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Puzzle \(puzzle.slot.rawValue + 1)")
-                    .pageHeading(32)
-                Spacer()
-                Text("Turn \(min(puzzle.turnNumber, puzzle.turnsMax)) of \(puzzle.turnsMax)")
-                    .font(Print.caption(13))
+                    .pageHeading(27)
+                if puzzle.boss == nil {
+                    Text(puzzle.difficulty.rawValue)
+                        .font(Print.caption(10))
+                        .tracking(1.4)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Paper.inkFaint)
+                }
+                Spacer(minLength: 4)
+                Text("Turn \(min(puzzle.turnNumber, puzzle.turnsMax))/\(puzzle.turnsMax)")
+                    .font(Print.caption(12))
                     .foregroundStyle(Paper.inkSoft)
                     .contentTransition(.numericText())
             }
 
             if let boss = puzzle.boss {
                 BossStamp(boss: boss, censored: puzzle.censoredDigit)
-            } else {
-                Text(puzzle.difficulty.rawValue.capitalized)
-                    .font(Print.caption(11))
-                    .tracking(1.6)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Paper.inkFaint)
             }
 
             Rectangle().fill(Paper.rule).frame(height: 1)
@@ -47,7 +49,7 @@ struct PuzzlePageView: View {
 
     private var instruction: some View {
         Text("Fill the grid so each column, row and 3x3 box contains numbers 1-9.")
-            .font(Print.body(12.5))
+            .font(Print.body(11.5))
             .foregroundStyle(Paper.inkSoft)
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -86,26 +88,21 @@ struct ScoreMeter: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Score")
-                        .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
-                        .foregroundStyle(Paper.inkFaint)
-                    Text(score.formatted())
-                        .font(Print.numeral(26, weight: .bold))
-                        .foregroundStyle(Paper.ink)
-                        .contentTransition(.numericText())
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("Target")
-                        .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
-                        .foregroundStyle(Paper.inkFaint)
-                    Text(target.formatted())
-                        .font(Print.numeral(20, weight: .semibold))
-                        .foregroundStyle(Paper.inkSoft)
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Score")
+                    .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
+                    .foregroundStyle(Paper.inkFaint)
+                Text(score.formatted())
+                    .font(Print.numeral(25, weight: .bold))
+                    .foregroundStyle(Paper.ink)
+                    .contentTransition(.numericText())
+                Text("of \(target.formatted())")
+                    .font(Print.numeral(15, weight: .semibold))
+                    .foregroundStyle(Paper.inkFaint)
+                Spacer(minLength: 4)
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
 
             // A pencil line filling up along a printed rule.
             ZStack(alignment: .leading) {
@@ -179,7 +176,7 @@ struct PaperButton: View {
             }
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(height: 46)
             .background {
                 RoundedRectangle(cornerRadius: 5).fill(background)
             }

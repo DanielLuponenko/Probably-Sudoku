@@ -17,9 +17,9 @@ struct GridView: View {
                 rules(side: side, cell: cell)
             }
             .frame(width: side, height: side)
-            .frame(maxWidth: .infinity, alignment: .center)
         }
         .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: Cells
@@ -41,10 +41,10 @@ struct GridView: View {
     }
 
     private func state(for square: Square) -> CellState {
+        if let digit = model.highlightedDigit, board[square] == digit {
+            return model.selectedSquare == square ? .selected : .sameNumber
+        }
         if model.selectedSquare == square { return .selected }
-        if let digit = model.selectedDigit, board[square] == digit { return .sameNumber }
-        if let selected = model.selectedSquare, board[selected] != nil,
-           board[square] != nil, board[square] == board[selected] { return .sameNumber }
         if model.peerSquares.contains(square) { return .peer }
         return .plain
     }
@@ -101,9 +101,14 @@ private struct CellView: View {
                     .strokeBorder(Paper.markerColor(marker.defID).opacity(0.85), lineWidth: 1.5)
             }
 
+            if state == .sameNumber {
+                Rectangle()
+                    .strokeBorder(Paper.sageDeep.opacity(0.7), lineWidth: 1.5)
+            }
+
             if let digit {
                 Text("\(digit.rawValue)")
-                    .font(Print.numeral(size * 0.52, weight: provenance == .given ? .semibold : .regular))
+                    .font(Print.numeral(size * 0.52, weight: numeralWeight))
                     .foregroundStyle(inkColor)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
@@ -111,7 +116,13 @@ private struct CellView: View {
         .frame(width: size, height: size)
         .contentShape(Rectangle())
         .animation(.snappy(duration: 0.2), value: digit)
+        .animation(.snappy(duration: 0.16), value: state)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var numeralWeight: Font.Weight {
+        if state == .sameNumber { return .bold }
+        return provenance == .given ? .semibold : .regular
     }
 
     private var background: Color {
@@ -138,6 +149,7 @@ private struct CellView: View {
         if let digit { parts.append("\(digit.rawValue)") } else { parts.append("empty") }
         if provenance == .given { parts.append("given") }
         if let marker { parts.append(marker.def.name) }
+        if state == .sameNumber { parts.append("matches selection") }
         return parts.joined(separator: ", ")
     }
 }

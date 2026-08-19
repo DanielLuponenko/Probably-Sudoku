@@ -25,6 +25,35 @@ The split is strict: the engine has no notion of a screen, and the app has no
 notion of a rule. Everything in the engine is a value type, so a view can hold a
 snapshot without worrying about it changing underneath.
 
+## Running it
+
+```bash
+cd NumberClub && xcodegen generate
+xcodebuild -project NumberClub.xcodeproj -scheme NumberClub \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+```
+
+Then install and launch. Note the **uninstall** — `simctl install` over an
+existing app will happily keep running the old binary, which costs an hour the
+first time it happens:
+
+```bash
+SIM=$(xcrun simctl list devices available | grep -m1 'iPhone 17 Pro' | grep -o '[0-9A-F-]\{36\}')
+xcrun simctl boot "$SIM"; open -a Simulator
+xcrun simctl uninstall "$SIM" com.numberclub.app
+xcrun simctl install "$SIM" <DerivedData>/Build/Products/Debug-iphonesimulator/NumberClub.app
+xcrun simctl launch "$SIM" com.numberclub.app
+```
+
+Debug launch arguments, so iterating on the board does not mean tapping through
+the cover every time:
+
+| Argument | Effect |
+|---|---|
+| `-skipStartScreen` | straight into a Puzzle |
+| `-seed DEMO` | the same Book every launch |
+| `-selectHand 0` | start with a number picked up, to see the highlight |
+
 ## Building
 
 Xcode 26.2. The project is generated, so after adding files:
@@ -92,10 +121,24 @@ page, the page-turn transition, and the Marker square picker.
 
 These are places where the design is genuinely undecided or where I had to pick.
 
-1. **Balance.** A bot that places perfectly and buys greedily reaches Level 5–6
-   and completed 0 of 200 Books. Targets double per Level while the board stays
-   81 squares, so multiplier builds are not optional — they are the whole game.
-   That may be correct for the genre, but it wants playtesting.
+1. **Balance.** From `simulate 300` — a bot that places perfectly but buys
+   greedily (first affordable offer, no build plan):
+
+   | Level | attempts | won | best score | target | best / target |
+   |------:|---------:|----:|-----------:|-------:|--------------:|
+   | 1 | 900 | 900 | 3,000 | 2,000 | 1.50x |
+   | 3 | 828 | 749 | 10,300 | 8,000 | 1.29x |
+   | 5 | 289 | 237 | 46,085 | 32,000 | 1.44x |
+   | 7 | 32 | 23 | 161,085 | 128,000 | 1.26x |
+   | 9 | 4 | 2 | 393,960 | 512,000 | **0.77x** |
+
+   Two things fall out of this. The doubling ladder tracks achievable scoring
+   well — headroom sits at 1.2–1.5x almost the whole way, which is the right
+   shape. But **0 of 300 Books completed**, because a per-Puzzle win rate around
+   85% compounded over 27 Puzzles is roughly 1%. A real player builds better than
+   this bot, so the true rate is higher — but the Level 9 row, where the best run
+   out of 300 Books still fell 23% short of target, suggests the top of the ladder
+   may not be reachable at all. Worth playtesting before tuning anything else.
 2. **Book tiers.** §2 flags the difficulty ladder as undecided, so finishing a
    Book currently just starts another at the same difficulty.
 3. **The Censor** (§13) zeroes the placement *and* any clear that placement

@@ -42,7 +42,10 @@ enum Paper {
     static let cellGiven = Color(hex: 0xE0DCC4)
     static let cellSelected = Color(hex: 0xD3D9C2)
     static let cellPeer = Color(hex: 0xE7E3D3)
-    static let cellSameNumber = Color(hex: 0xDCDCC0)
+    /// Every copy of the number you are holding. This has to read instantly
+    /// against the Givens wash, so it is a distinctly cooler green rather than
+    /// another shade of olive.
+    static let cellSameNumber = Color(hex: 0xB9CEAE)
     static let cellWrong = Color(hex: 0xE4C4B8)
     static let cellCleared = Color(hex: 0xCFDBC2)
 

@@ -76,6 +76,16 @@ final class GameModel {
         return hand[index]
     }
 
+    /// The number the board should be highlighting: whichever you picked up
+    /// from the Hand, or the one already sitting in the square you tapped.
+    /// Scanning for every 7 is the core reading motion of a sudoku, so it is
+    /// worth making free.
+    var highlightedDigit: Digit? {
+        if let selectedDigit { return selectedDigit }
+        if let square = selectedSquare { return puzzle?.board[square] }
+        return nil
+    }
+
     /// Blanks the selected number could legally go in — every empty square, but
     /// the ones that already hold that number elsewhere in the unit are worth
     /// warning about.
