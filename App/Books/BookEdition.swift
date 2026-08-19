@@ -38,7 +38,11 @@ struct BookEdition: Identifiable, Equatable {
         shelfLabel: "Volume 1",
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
         cover: "BookProbably",
-        loop: "probably-loop",
+        // No loop yet: the clip that exists has the photograph's own desk baked
+        // into it, and playing that over this desk is exactly what read as a
+        // video pasted onto an image. A loop has to be shot of the composited
+        // scene, not of the Book alone.
+        loop: nil,
         accent: Color(hex: 0x7C8C73),
         // A relaxed Book hands you more to work with.
         bonus: .scholar,

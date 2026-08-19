@@ -170,16 +170,18 @@ private struct BookOnDesk: View {
                     if let loop = book.loop, playsLoop,
                        let url = Bundle.main.url(forResource: loop, withExtension: "mp4") {
                         LoopingVideo(url: url)
-                            .aspectRatio(968.0 / 1330.0, contentMode: .fit)
+                            .aspectRatio(983.0 / 1379.0, contentMode: .fit)
                     }
                 }
             } else {
                 UnwrittenCover(book: book)
-                    .aspectRatio(968.0 / 1330.0, contentMode: .fit)
+                    .aspectRatio(983.0 / 1379.0, contentMode: .fit)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .shadow(color: .black.opacity(0.65), radius: 28, x: 6, y: 18)
+        // The Book is cut out of its own photograph, so it needs a real
+        // shadow to lie on this desk rather than hover over it.
+        .shadow(color: .black.opacity(0.55), radius: 30, x: 10, y: 22)
+        .shadow(color: .black.opacity(0.45), radius: 6, x: 3, y: 5)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 18)
         .padding(.top, 10)
