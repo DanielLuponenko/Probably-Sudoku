@@ -19,7 +19,7 @@ struct StartBookView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            ShelfBackdrop(accent: book.accent, reduceMotion: reduceMotion)
+            ShelfBackdrop(book: book, reduceMotion: reduceMotion)
 
             TabView(selection: $index) {
                 ForEach(Array(books.enumerated()), id: \.offset) { position, edition in
@@ -91,29 +91,56 @@ private struct PageDots: View {
 /// photographed lying on one, and two desks read as a picture of a book rather
 /// than as a book. It takes a wash of whichever Book is in front of you.
 private struct ShelfBackdrop: View {
-    var accent: Color
+    var book: BookEdition
     var reduceMotion: Bool
     @State private var drifted = false
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                LinearGradient(colors: [Color(hex: 0x2A1E17), Color(hex: 0x120D0A)],
-                               startPoint: .top, endPoint: .bottom)
+                Color(hex: 0x120D0A)
+
+                // The desk continues past the Book, taken from the Book's own
+                // photograph: scaled to fill and blurred hard, so the wood and
+                // the lamp carry to the edges instead of the cover floating in
+                // black. Nothing new has to be generated for a Book to sit in
+                // a room.
+                if let cover = book.cover {
+                    Image(cover)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .scaleEffect(drifted ? 1.32 : 1.24)
+                        .blur(radius: 44, opaque: false)
+                        .saturation(1.15)
+                        .brightness(-0.07)
+                        .clipped()
+                        .id(book.id)
+                        .transition(.opacity)
+                }
 
                 RadialGradient(
-                    colors: [accent.opacity(0.20), .clear],
+                    colors: [book.accent.opacity(0.18), .clear],
                     center: .init(x: 0.14, y: 0.08),
                     startRadius: 10, endRadius: proxy.size.height * 0.75
                 )
                 .blendMode(.plusLighter)
-                .scaleEffect(drifted ? 1.06 : 1.0)
+
+                // Darkens the edges so the sharp Book reads against the blur,
+                // and gives the controls a ground to sit on.
+                RadialGradient(
+                    colors: [.clear, .black.opacity(0.55)],
+                    center: .center,
+                    startRadius: proxy.size.width * 0.28,
+                    endRadius: proxy.size.height * 0.72
+                )
 
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .clear, location: 0.58),
-                        .init(color: .black.opacity(0.62), location: 0.80),
+                        .init(color: .black.opacity(0.35), location: 0),
+                        .init(color: .clear, location: 0.18),
+                        .init(color: .clear, location: 0.60),
+                        .init(color: .black.opacity(0.72), location: 0.84),
                         .init(color: .black.opacity(0.94), location: 1),
                     ],
                     startPoint: .top, endPoint: .bottom
@@ -122,7 +149,7 @@ private struct ShelfBackdrop: View {
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)
-        .animation(.easeInOut(duration: 0.5), value: accent)
+        .animation(.easeInOut(duration: 0.45), value: book.id)
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 26).repeatForever(autoreverses: true)) {
@@ -170,9 +197,9 @@ private struct BookOnDesk: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .shadow(color: .black.opacity(0.65), radius: 28, x: 6, y: 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 14)
-        .padding(.top, 16)
-        .padding(.bottom, 128)
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 120)
         .accessibilityLabel(book.isWritten
             ? "\(book.title), \(book.shelfLabel)"
             : "\(book.title), not written yet")
