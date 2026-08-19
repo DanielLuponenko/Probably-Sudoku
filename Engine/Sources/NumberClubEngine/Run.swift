@@ -1,0 +1,190 @@
+import Foundation
+
+/// §3 — chosen once, at the start of a Book.
+public enum StartingBoard: String, Codable, CaseIterable, Sendable {
+    case scholar, merchant, oracle
+
+    public var name: String {
+        switch self {
+        case .scholar: return "Scholar's Board"
+        case .merchant: return "Merchant's Board"
+        case .oracle: return "Oracle's Board"
+        }
+    }
+    public var text: String {
+        switch self {
+        case .scholar: return "Hand size 7 for the whole Book"
+        case .merchant: return "Start with 15 coins"
+        case .oracle: return "1 Clue every Puzzle"
+        }
+    }
+}
+
+public enum Baseline {
+    public static let handSize = 6
+    public static let coins = 5
+    public static let turns = 10
+    public static let clues = 0
+    /// §5.1 — provisional; the design doc flags this number for playtesting.
+    public static let tossAllowance = 2
+    public static let interestCap = 10
+}
+
+public enum RunOutcome: String, Codable, Sendable {
+    case bookCompleted, failed
+}
+
+/// A whole attempt at a Sudoku Book: 9 Levels of 3 Puzzles.
+public struct RunState: Codable, Sendable {
+    public let seed: String
+    public var streams: SeedStreams
+    public let startingBoard: StartingBoard
+
+    public var level: Int
+    public var slot: PuzzleSlot
+    public var coins: Int
+
+    public var ads: [OwnedAd] = []
+    public var markers: [OwnedMarker] = []
+    public var buffs: [OwnedBuff] = []
+
+    /// Run-scoped scaling state, e.g. Syndication's accumulated wins. Reset
+    /// only at a new Book.
+    public var runItemState: [String: Double] = [:]
+
+    public var puzzle: PuzzleState?
+    public var shop: ShopState?
+    public var outcome: RunOutcome?
+
+    public init(seed: String, startingBoard: StartingBoard) {
+        self.seed = seed
+        self.streams = SeedStreams(seed: seed)
+        self.startingBoard = startingBoard
+        self.level = 1
+        self.slot = .easy
+        self.coins = startingBoard == .merchant ? 15 : Baseline.coins
+    }
+
+    // MARK: - Ownership queries
+
+    public func owns(ad id: String) -> Bool { ads.contains { $0.defID == id } }
+    public func owns(marker id: String) -> Bool { markers.contains { $0.defID == id } }
+
+    /// Markers whose squares include `square` — what a placement there triggers.
+    public func markers(covering square: Square) -> [OwnedMarker] {
+        markers.filter { $0.covers(square) }
+    }
+    /// Every square any Marker owns, for the grid to colour.
+    public var markedSquares: [Square: OwnedMarker] {
+        var out: [Square: OwnedMarker] = [:]
+        for marker in markers {
+            for square in marker.squares { out[square] = marker }
+        }
+        return out
+    }
+    /// Two Markers may never share a square (§11).
+    public func squareIsFree(_ square: Square) -> Bool {
+        !markers.contains { $0.covers(square) }
+    }
+
+    // MARK: - Standing modifiers
+    // Ads that are not event hooks but change the Puzzle's starting shape.
+
+    public func effectiveHandSize(boss: BossModifier?) -> Int {
+        var size = Baseline.handSize
+        if startingBoard == .scholar { size += 1 }
+        if owns(ad: Ads.helpWanted) { size += 1 }
+        size += boss?.handSizeDelta ?? 0
+        return max(1, size)
+    }
+
+    /// The Deadline replaces the base 10 with 8; Late City Final still adds its
+    /// Turn on top of whichever base applies.
+    public func effectiveTurns(boss: BossModifier?) -> Int {
+        var turns = boss?.turnsOverride ?? Baseline.turns
+        if owns(ad: Ads.lateCityFinal) { turns += 1 }
+        return max(1, turns)
+    }
+
+    public func effectiveClues(boss: BossModifier?) -> Int {
+        if boss?.disablesClues == true { return 0 }
+        var clues = Baseline.clues
+        if startingBoard == .oracle { clues += 1 }
+        if owns(ad: Ads.puzzleCorner) { clues += 1 }
+        return clues
+    }
+
+    public func effectiveTossAllowance(boss: BossModifier?) -> Int {
+        if boss?.forcesTossAllowanceToZero == true { return 0 }
+        return Baseline.tossAllowance + (owns(ad: Ads.weatherForecast) ? 2 : 0)
+    }
+
+    public var interestCap: Int {
+        owns(ad: Ads.marketWrap) ? 15 : Baseline.interestCap
+    }
+
+    // MARK: - Economy (§8)
+
+    public struct Payout: Sendable, Equatable {
+        public var base = 0
+        public var unusedTurns = 0
+        public var keepFillingBank = 0
+        public var interest = 0
+        public var paperRoute = 0
+        public var total: Int { base + unusedTurns + keepFillingBank + interest + paperRoute }
+    }
+
+    public func payout(for puzzle: PuzzleState) -> Payout {
+        var p = Payout()
+        p.base = 5
+        p.unusedTurns = min(3, max(0, puzzle.turnsMax - puzzle.turnNumber + 1))
+        p.keepFillingBank = puzzle.keepFillingCoins
+        if puzzle.boss?.cancelsInterest != true {
+            p.interest = min(interestCap, coins / 10)
+        }
+        if owns(ad: Ads.paperRoute) { p.paperRoute = 2 }
+        return p
+    }
+
+    /// §8 — selling refunds half of what you paid, rounded down, minimum 1.
+    public static func sellValue(pricePaid: Int) -> Int { max(1, pricePaid / 2) }
+
+    /// §8 — moving an already-placed Marker square.
+    public static let moveSquareCost = 2
+
+    // MARK: - Progression
+
+    public var isBossPuzzle: Bool { slot == .boss }
+    public var target: Int { Targets.target(level: level, slot: slot) }
+
+    /// Advances to the next Puzzle, rolling over into the next Level. Returns
+    /// false when the Book is finished (beating the Level 9 Boss).
+    public mutating func advance() -> Bool {
+        switch slot {
+        case .easy: slot = .medium
+        case .medium: slot = .boss
+        case .boss:
+            if level >= 9 {
+                outcome = .bookCompleted
+                return false
+            }
+            level += 1
+            slot = .easy
+            grantPendingMarkerSquares()
+        }
+        return true
+    }
+
+    /// §11 — each Marker gains one more square per Level completed while owned.
+    /// The square itself is chosen by the player in the Shop; this only records
+    /// the entitlement.
+    private mutating func grantPendingMarkerSquares() {
+        // Entitlement is derived from `level` and `boughtAtLevel`, so there is
+        // nothing to store — `pendingSquares(atLevel:)` reports the new debt.
+    }
+
+    /// Total squares the player still has to choose before play can continue.
+    public func pendingMarkerSquares() -> Int {
+        markers.reduce(0) { $0 + $1.pendingSquares(atLevel: level) }
+    }
+}

@@ -1,0 +1,315 @@
+import XCTest
+@testable import NumberClubEngine
+
+final class BossModifierTests: XCTestCase {
+
+    private var run: RunState { RunState(seed: "boss", startingBoard: .scholar) }
+
+    func testEveryModifierHasNameTextAndTarget() {
+        for boss in BossModifier.allCases {
+            XCTAssertFalse(boss.name.isEmpty)
+            XCTAssertFalse(boss.text.isEmpty)
+            XCTAssertFalse(boss.attacks.isEmpty)
+        }
+        XCTAssertEqual(BossModifier.allCases.count, 9)
+    }
+
+    func testTheEditorShrinksTheHand() {
+        XCTAssertEqual(run.effectiveHandSize(boss: nil), 7)          // Scholar's Board
+        XCTAssertEqual(run.effectiveHandSize(boss: .editor), 6)
+    }
+
+    func testTheDeadlineCutsTurnsAndLateCityFinalStillAddsOne() {
+        var r = run
+        XCTAssertEqual(r.effectiveTurns(boss: nil), 10)
+        XCTAssertEqual(r.effectiveTurns(boss: .deadline), 8)
+        r.ads.append(OwnedAd(defID: Ads.lateCityFinal, boughtAtLevel: 1, pricePaid: 7))
+        XCTAssertEqual(r.effectiveTurns(boss: .deadline), 9)
+    }
+
+    func testTheErratumRemovesTheTossAllowanceEntirely() {
+        var r = run
+        XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 2)
+        r.ads.append(OwnedAd(defID: Ads.weatherForecast, boughtAtLevel: 1, pricePaid: 4))
+        XCTAssertEqual(r.effectiveTossAllowance(boss: nil), 4)
+        XCTAssertEqual(r.effectiveTossAllowance(boss: .erratum), 0)
+    }
+
+    func testThePaywallDisablesCluesIncludingBuffGranted() throws {
+        var r = RunState(seed: "boss", startingBoard: .oracle)
+        XCTAssertEqual(r.effectiveClues(boss: nil), 1)
+        XCTAssertEqual(r.effectiveClues(boss: .paywall), 0)
+
+        // Peek's free Clue is blocked too.
+        r.slot = .boss
+        var game = Game(run: r)
+        try game.startPuzzle()
+        game.run.puzzle?.boss = .paywall
+        game.run.puzzle?.cluesRemaining = 0
+        game.give(buff: Buffs.peek)
+        _ = try game.useBuff(at: 0)
+        XCTAssertEqual(game.puzzle?.cluesRemaining, 0)
+    }
+
+    func testTheCriticDoublesTheWrongPlacementPenalty() throws {
+        var game = Game(seed: "critic", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.puzzle?.boss = .critic
+        // Bank enough that the doubled penalty is visible above the floor at 0.
+        game.give(ad: "ad_stop_the_presses")
+        game.give(ad: "ad_editorial_board")
+        _ = try game.place(handIndex: game.stackHand(with: .nine)!, at: game.blank(wanting: .nine)!)
+        let before = game.puzzle!.score
+        XCTAssertEqual(before, 810)
+
+        let square = game.blank(wanting: .one)!
+        let wrong: Digit = game.puzzle!.board.correctDigit(at: square) == .four ? .five : .four
+        let outcome = try game.place(handIndex: game.stackHand(with: wrong)!, at: square)
+        XCTAssertEqual(outcome.penalty, 50 * wrong.rawValue * 2)
+        XCTAssertEqual(game.puzzle?.score, before - outcome.penalty)
+    }
+
+    func testTheMirrorZeroesLineClearsButNotTheFullClear() throws {
+        var game = Game(seed: "mirror", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.puzzle?.boss = .mirror
+        let last = try game.setUpRowClear(row: game.emptiestRow)!
+        let digit = game.puzzle!.board.correctDigit(at: last)
+        let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
+
+        XCTAssertEqual(outcome.lineClearPoints.first, 0)
+        XCTAssertEqual(outcome.points, 10 * digit.rawValue, "the placement itself is untouched")
+    }
+
+    func testTheCensorZeroesOneNumber() throws {
+        var game = Game(seed: "censor", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.puzzle?.boss = .censor
+        game.run.puzzle?.censoredDigit = .seven
+
+        let censored = try game.place(handIndex: game.stackHand(with: .seven)!,
+                                      at: game.blank(wanting: .seven)!)
+        XCTAssertEqual(censored.points, 0)
+        XCTAssertTrue(censored.censored)
+
+        let untouched = try game.place(handIndex: game.stackHand(with: .six)!,
+                                       at: game.blank(wanting: .six)!)
+        XCTAssertEqual(untouched.points, 60)
+    }
+
+    func testTheCollectorRemovesInterestFromThePayout() throws {
+        var run = RunState(seed: "collector", startingBoard: .scholar)
+        run.coins = 100
+        var puzzle = try PuzzleState.create(run: &run)
+        puzzle.boss = nil
+        XCTAssertEqual(run.payout(for: puzzle).interest, 10)
+        puzzle.boss = .collector
+        XCTAssertEqual(run.payout(for: puzzle).interest, 0)
+    }
+
+    func testTheFogOnlyHidesMarks() {
+        // The Marker still fires; the player just cannot see where it is.
+        XCTAssertTrue(BossModifier.fog.hidesMarkedSquares)
+        XCTAssertEqual(BossModifier.fog.handSizeDelta, 0)
+        XCTAssertNil(BossModifier.fog.turnsOverride)
+    }
+
+    func testBossPuzzlesAlwaysRollAModifierAndOthersNever() throws {
+        var run = RunState(seed: "rolls", startingBoard: .scholar)
+        run.slot = .easy
+        XCTAssertNil(try PuzzleState.create(run: &run).boss)
+        run.slot = .boss
+        let puzzle = try PuzzleState.create(run: &run)
+        XCTAssertNotNil(puzzle.boss)
+        if puzzle.boss == .censor { XCTAssertNotNil(puzzle.censoredDigit) }
+    }
+}
+
+final class ShopTests: XCTestCase {
+
+    func testStockIsAlwaysTwoAdsTwoMarkersAndOneBuff() {
+        var run = RunState(seed: "shop", startingBoard: .scholar)
+        Shop.open(&run)
+        let offers = run.shop!.offers
+        XCTAssertEqual(offers.count, 5)
+        XCTAssertEqual(offers.filter { $0.def.kind == .ad }.count, 2)
+        XCTAssertEqual(offers.filter { $0.def.kind == .marker }.count, 2)
+        XCTAssertEqual(offers.filter { $0.def.kind == .buff }.count, 1)
+    }
+
+    func testAnAdYouOwnIsNeverOfferedAgain() {
+        var run = RunState(seed: "shop", startingBoard: .scholar)
+        // Own every Ad but one; that one must be what the Shop offers.
+        let allAds = Catalog.items(of: .ad)
+        for ad in allAds.dropLast(1).prefix(5) {
+            run.ads.append(OwnedAd(defID: ad.id, boughtAtLevel: 1, pricePaid: 0))
+        }
+        for _ in 0..<20 {
+            Shop.open(&run)
+            for offer in run.shop!.offers where offer.def.kind == .ad {
+                XCTAssertFalse(run.owns(ad: offer.defID), "offered an owned Ad: \(offer.defID)")
+            }
+        }
+    }
+
+    func testTheSameAdIsNeverOfferedTwiceInOneShop() {
+        var run = RunState(seed: "dupes", startingBoard: .scholar)
+        for _ in 0..<50 {
+            Shop.open(&run)
+            let ads = run.shop!.offers.filter { $0.def.kind == .ad }.map(\.defID)
+            XCTAssertEqual(Set(ads).count, ads.count)
+        }
+    }
+
+    func testPricesFallInTheBandForTheirKindAndRarity() {
+        var run = RunState(seed: "prices", startingBoard: .scholar)
+        for level in [1, 5, 9] {
+            run.level = level
+            for _ in 0..<40 {
+                Shop.open(&run)
+                for offer in run.shop!.offers {
+                    let band = Shop.priceBand(offer.def.kind, offer.def.rarity)
+                    XCTAssertTrue(band.contains(offer.price),
+                                  "\(offer.defID) priced \(offer.price), band \(band)")
+                }
+            }
+        }
+    }
+
+    func testRarityOddsShiftAsTheBookGoesOn() {
+        func rareShare(level: Int) -> Double {
+            var rng = RandomStream(seed: "odds", stream: "shop")
+            var rare = 0
+            for _ in 0..<20_000 where Shop.rollRarity(&rng, level: level) == .rare { rare += 1 }
+            return Double(rare) / 20_000
+        }
+        XCTAssertEqual(rareShare(level: 1), 0.05, accuracy: 0.01)
+        XCTAssertEqual(rareShare(level: 5), 0.12, accuracy: 0.015)
+        XCTAssertEqual(rareShare(level: 9), 0.20, accuracy: 0.02)
+    }
+
+    func testBuyingSpendsCoinsFillsASlotAndMarksTheOfferSold() throws {
+        var run = RunState(seed: "buy", startingBoard: .merchant)
+        Shop.open(&run)
+        let offer = run.shop!.offers.first { $0.price <= run.coins }!
+        let coinsBefore = run.coins
+
+        try Shop.buy(&run, slot: offer.slot)
+        XCTAssertEqual(run.coins, coinsBefore - offer.price)
+        XCTAssertTrue(run.shop!.offers.first { $0.slot == offer.slot }!.sold)
+        XCTAssertThrowsError(try Shop.buy(&run, slot: offer.slot)) {
+            XCTAssertEqual($0 as? Shop.ShopError, .alreadySold)
+        }
+    }
+
+    func testBuyingIsRefusedWithoutCoinsOrSlots() throws {
+        var run = RunState(seed: "buy", startingBoard: .scholar)
+        run.coins = 0
+        Shop.open(&run)
+        XCTAssertThrowsError(try Shop.buy(&run, slot: run.shop!.offers[0].slot)) {
+            XCTAssertEqual($0 as? Shop.ShopError, .notEnoughCoins)
+        }
+
+        run.coins = 999
+        run.buffs = [OwnedBuff(defID: Buffs.peek, pricePaid: 3),
+                     OwnedBuff(defID: Buffs.redraw, pricePaid: 3)]
+        let buffOffer = run.shop!.offers.first { $0.def.kind == .buff }!
+        XCTAssertThrowsError(try Shop.buy(&run, slot: buffOffer.slot)) {
+            XCTAssertEqual($0 as? Shop.ShopError, .slotsFull)
+        }
+    }
+
+    func testRerollCostsTwoThenClimbs() throws {
+        var run = RunState(seed: "reroll", startingBoard: .scholar)
+        run.coins = 100
+        Shop.open(&run)
+        XCTAssertEqual(run.shop?.rerollCost, 2)
+        try Shop.reroll(&run)
+        XCTAssertEqual(run.coins, 98)
+        XCTAssertEqual(run.shop?.rerollCost, 3)
+        try Shop.reroll(&run)
+        XCTAssertEqual(run.coins, 95)
+        XCTAssertEqual(run.shop?.rerollCost, 4)
+    }
+
+    func testAuctionNoticesMakesTheFirstRerollFree() throws {
+        var run = RunState(seed: "reroll", startingBoard: .scholar)
+        run.coins = 100
+        run.ads.append(OwnedAd(defID: Ads.auctionNotices, boughtAtLevel: 1, pricePaid: 6))
+        Shop.open(&run)
+        XCTAssertEqual(run.shop?.rerollCost, 0)
+        try Shop.reroll(&run)
+        XCTAssertEqual(run.coins, 100)
+    }
+
+    func testSellingRefundsHalfRoundedDownMinimumOne() {
+        XCTAssertEqual(RunState.sellValue(pricePaid: 8), 4)
+        XCTAssertEqual(RunState.sellValue(pricePaid: 7), 3)
+        XCTAssertEqual(RunState.sellValue(pricePaid: 1), 1)
+        XCTAssertEqual(RunState.sellValue(pricePaid: 0), 1)
+    }
+}
+
+final class RunAndDeterminismTests: XCTestCase {
+
+    func testABookIsNineLevelsOfThreePuzzles() {
+        var run = RunState(seed: "book", startingBoard: .scholar)
+        var puzzles = 0
+        while run.advance() { puzzles += 1 }
+        XCTAssertEqual(puzzles + 1, 27)
+        XCTAssertEqual(run.outcome, .bookCompleted)
+    }
+
+    func testStartingBoardsApplyTheirEffect() {
+        XCTAssertEqual(RunState(seed: "s", startingBoard: .scholar).effectiveHandSize(boss: nil), 7)
+        XCTAssertEqual(RunState(seed: "s", startingBoard: .merchant).coins, 15)
+        XCTAssertEqual(RunState(seed: "s", startingBoard: .oracle).effectiveClues(boss: nil), 1)
+        XCTAssertEqual(RunState(seed: "s", startingBoard: .merchant).effectiveHandSize(boss: nil), 6)
+    }
+
+    func testSameSeedAndSameChoicesReproduceTheBookExactly() throws {
+        func play(_ seed: String) throws -> Data {
+            var game = Game(seed: seed, startingBoard: .scholar)
+            try game.startPuzzle()
+            for _ in 0..<3 {
+                _ = try? game.toss([0])
+                _ = try? game.endTurn()
+            }
+            game.openShop()
+            try? game.reroll()
+            return try game.encoded()
+        }
+        XCTAssertEqual(try play("share-me"), try play("share-me"))
+        XCTAssertNotEqual(try play("share-me"), try play("other-seed"))
+    }
+
+    func testSaveAndLoadRoundTripsMidPuzzle() throws {
+        var game = Game(seed: "save", startingBoard: .oracle)
+        try game.startPuzzle()
+        game.give(ad: "ad_op_ed")
+        game.give(marker: "mk_golden", on: [game.puzzle!.board.blanks[0]])
+        _ = try game.place(handIndex: 0, at: game.blank(wanting: game.puzzle!.hand[0])!)
+        _ = try game.endTurn()
+
+        let restored = try Game(decoding: try game.encoded())
+        XCTAssertEqual(try restored.encoded(), try game.encoded())
+        XCTAssertEqual(restored.puzzle?.score, game.puzzle?.score)
+        XCTAssertEqual(restored.puzzle?.hand, game.puzzle?.hand)
+        XCTAssertEqual(restored.run.markers.first?.squares, game.run.markers.first?.squares)
+    }
+
+    func testItemCatalogueMatchesTheDesignTables() {
+        XCTAssertEqual(Catalog.items(of: .ad).count, 23)
+        XCTAssertEqual(Catalog.items(of: .marker).count, 12)
+        XCTAssertEqual(Catalog.items(of: .buff).count, 10)
+        // Ids must be unique — the catalogue is keyed by them.
+        let ids = Catalog.all.map(\.id)
+        XCTAssertEqual(Set(ids).count, ids.count)
+        for item in Catalog.all {
+            XCTAssertFalse(item.name.isEmpty)
+            XCTAssertFalse(item.text.isEmpty)
+            XCTAssertTrue(Shop.priceBand(item.kind, item.rarity).contains(item.listedPrice),
+                          "\(item.id) listed at \(item.listedPrice), outside its band")
+        }
+    }
+}

@@ -1,0 +1,223 @@
+import SwiftUI
+import NumberClubEngine
+
+struct PuzzlePageView: View {
+    @Bindable var model: GameModel
+    var puzzle: PuzzleState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            ScoreMeter(score: puzzle.score, target: puzzle.target)
+            GridView(model: model, board: puzzle.board)
+            instruction
+            Spacer(minLength: 0)
+            HandStripView(model: model, handSize: puzzle.handSize)
+            actionRow
+        }
+    }
+
+    // MARK: Header
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Puzzle \(puzzle.slot.rawValue + 1)")
+                    .pageHeading(32)
+                Spacer()
+                Text("Turn \(min(puzzle.turnNumber, puzzle.turnsMax)) of \(puzzle.turnsMax)")
+                    .font(Print.caption(13))
+                    .foregroundStyle(Paper.inkSoft)
+                    .contentTransition(.numericText())
+            }
+
+            if let boss = puzzle.boss {
+                BossStamp(boss: boss, censored: puzzle.censoredDigit)
+            } else {
+                Text(puzzle.difficulty.rawValue.capitalized)
+                    .font(Print.caption(11))
+                    .tracking(1.6)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Paper.inkFaint)
+            }
+
+            Rectangle().fill(Paper.rule).frame(height: 1)
+        }
+    }
+
+    private var instruction: some View {
+        Text("Fill the grid so each column, row and 3x3 box contains numbers 1-9.")
+            .font(Print.body(12.5))
+            .foregroundStyle(Paper.inkSoft)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: Actions
+
+    private var actionRow: some View {
+        HStack(spacing: 10) {
+            if model.isTossing {
+                PaperButton(title: "Cancel", kind: .quiet) { model.cancelToss() }
+                PaperButton(title: "Toss \(model.tossSelection.count)",
+                            kind: .primary,
+                            isEnabled: !model.tossSelection.isEmpty) { model.confirmToss() }
+            } else {
+                PaperButton(title: "Toss",
+                            subtitle: "\(puzzle.tossesRemaining) left",
+                            kind: .quiet,
+                            isEnabled: puzzle.tossesRemaining > 0 && !puzzle.hand.isEmpty) {
+                    model.beginToss()
+                }
+                PaperButton(title: "End Turn", kind: .primary) { model.endTurn() }
+            }
+        }
+    }
+}
+
+/// Score against target. This is the number the whole run is about, so it gets
+/// the weight the mockup gave the puzzle title.
+struct ScoreMeter: View {
+    var score: Int
+    var target: Int
+
+    private var fraction: Double {
+        target > 0 ? min(1, Double(score) / Double(target)) : 0
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Score")
+                        .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
+                        .foregroundStyle(Paper.inkFaint)
+                    Text(score.formatted())
+                        .font(Print.numeral(26, weight: .bold))
+                        .foregroundStyle(Paper.ink)
+                        .contentTransition(.numericText())
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("Target")
+                        .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
+                        .foregroundStyle(Paper.inkFaint)
+                    Text(target.formatted())
+                        .font(Print.numeral(20, weight: .semibold))
+                        .foregroundStyle(Paper.inkSoft)
+                }
+            }
+
+            // A pencil line filling up along a printed rule.
+            ZStack(alignment: .leading) {
+                Capsule().fill(Paper.pageEdge).frame(height: 5)
+                GeometryReader { proxy in
+                    Capsule()
+                        .fill(fraction >= 1 ? Paper.sage : Paper.ink.opacity(0.75))
+                        .frame(width: max(4, proxy.size.width * fraction), height: 5)
+                }
+                .frame(height: 5)
+            }
+            .frame(height: 5)
+        }
+        .animation(.snappy, value: score)
+    }
+}
+
+/// The Boss Modifier, stamped onto the page in red pencil.
+struct BossStamp: View {
+    var boss: BossModifier
+    var censored: Digit?
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Text(boss.name)
+                .font(Print.caption(11))
+                .tracking(1.4)
+                .textCase(.uppercase)
+                .foregroundStyle(Paper.redPencil)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(Paper.redPencil.opacity(0.7), lineWidth: 1.4)
+                }
+                .rotationEffect(.degrees(-1.5))
+
+            Text(censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text)
+                .font(Print.body(11.5))
+                .foregroundStyle(Paper.inkSoft)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Buttons
+
+struct PaperButton: View {
+    enum Kind { case primary, quiet, danger }
+
+    var title: String
+    var subtitle: String? = nil
+    var kind: Kind = .primary
+    var isEnabled: Bool = true
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 1) {
+                Text(title)
+                    .font(Print.subheading(16))
+                    .textCase(.uppercase)
+                    .tracking(0.8)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Print.caption(10))
+                        .opacity(0.8)
+                }
+            }
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background {
+                RoundedRectangle(cornerRadius: 5).fill(background)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(border, lineWidth: kind == .primary ? 0 : 1.4)
+            }
+        }
+        .buttonStyle(PressedPaperStyle())
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.45)
+    }
+
+    private var foreground: Color {
+        switch kind {
+        case .primary: return Paper.page
+        case .quiet: return Paper.ink
+        case .danger: return Paper.redPencil
+        }
+    }
+    private var background: Color {
+        switch kind {
+        case .primary: return Paper.sage
+        case .quiet: return Paper.pageWarm
+        case .danger: return Paper.pageWarm
+        }
+    }
+    private var border: Color {
+        kind == .danger ? Paper.redPencil.opacity(0.6) : Paper.rule
+    }
+}
+
+/// A button on paper does not glow; it presses in.
+struct PressedPaperStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.975 : 1)
+            .brightness(configuration.isPressed ? -0.04 : 0)
+            .animation(.snappy(duration: 0.12), value: configuration.isPressed)
+    }
+}
