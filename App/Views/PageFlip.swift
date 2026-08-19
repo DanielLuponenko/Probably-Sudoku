@@ -3,97 +3,103 @@ import SwiftUI
 import UIKit
 #endif
 
-/// Turning a page in a real book is two movements: the sheet you were working
-/// on lifts away, and the next one falls flat in its place. Driving both from
-/// one view means the content can change while the paper is edge-on, so the
-/// swap is never seen — which is the whole trick.
+/// A page turn is one continuous movement, not a rotation with a cut in the
+/// middle. The sheet that is leaving keeps its old contents and bends away,
+/// while the page it uncovers is already live underneath.
 ///
-/// The lift is led by the **top-left corner**, the way a hand actually takes a
-/// page. That means the axis is tilted off vertical and anchored at the corner
-/// rather than running down the whole edge — a page pivoting about its entire
-/// spine reads as a swinging door, not paper.
+/// Freezing the outgoing page costs nothing: `Game` is a value type all the way
+/// down, so the snapshot is a copy rather than a render.
 @Observable
 final class PageFlipper {
-    private(set) var angle: Double = 0
-    private(set) var shade: Double = 0
+    private(set) var progress: Double = 0
+    /// The page as it was, kept alive only for the length of the turn.
+    private(set) var outgoing: GameModel?
     private(set) var isFlipping = false
 
-    /// Short and physical, not cinematic: the design brief asks for paper, not
-    /// a page-curl showreel.
-    private let liftDuration = 0.17
-    private let fallDuration = 0.21
+    /// Long enough to read as paper, short enough to survive ten times a Puzzle.
+    private let duration = 0.65
 
-    /// Runs `change` at the midpoint, while the page is side-on and nothing of
-    /// it is visible.
+    #if DEBUG
+    /// Freezes a turn part-way so the curl can be looked at without racing an
+    /// animation. `-curlHold 0.35` on launch.
     @MainActor
-    func flip(reduceMotion: Bool, _ change: @escaping () -> Void) async {
+    func hold(from model: GameModel, at value: Double, _ change: @escaping () -> Void) {
+        isFlipping = true
+        outgoing = GameModel(frozen: model.game, page: model.page)
+        change()
+        progress = value
+    }
+    #endif
+
+    @MainActor
+    func flip(from model: GameModel, reduceMotion: Bool, _ change: @escaping () -> Void) async {
         guard !isFlipping else { return }
 
         guard !reduceMotion else {
-            // Reduce Motion gets the outcome without the rotation.
-            withAnimation(.easeInOut(duration: 0.12)) { shade = 0.25 }
             change()
-            withAnimation(.easeInOut(duration: 0.12)) { shade = 0 }
             return
         }
 
         isFlipping = true
+        outgoing = GameModel(frozen: model.game, page: model.page)
+        change()
         Haptics.pageTurn()
 
-        withAnimation(.easeIn(duration: liftDuration)) {
-            angle = -88
-            shade = 0.5
-        }
-        try? await Task.sleep(for: .seconds(liftDuration))
+        // The leaving sheet has to be committed flat for one frame before it
+        // starts to move. Inserting a view and animating it in the same update
+        // gives the animation no value to travel from, so it arrives already
+        // finished — which looks exactly like no animation at all.
+        try? await Task.sleep(for: .milliseconds(16))
 
-        change()
+        withAnimation(.easeInOut(duration: duration)) { progress = 1 }
+        try? await Task.sleep(for: .seconds(duration))
 
-        // Snap to the far side without animating, then let the new page fall.
         var instant = Transaction()
         instant.disablesAnimations = true
-        withTransaction(instant) { angle = 88 }
-
-        withAnimation(.easeOut(duration: fallDuration)) {
-            angle = 0
-            shade = 0
+        withTransaction(instant) {
+            progress = 0
+            outgoing = nil
         }
-        try? await Task.sleep(for: .seconds(fallDuration))
         isFlipping = false
     }
 }
 
+// MARK: - The curl
+
 extension View {
-    /// Applies a flipper's current state to a page.
-    func pageFlip(_ flipper: PageFlipper) -> some View {
-        let angle = flipper.angle
-        return self
-            .rotation3DEffect(
-                .degrees(angle),
-                // Tilted off vertical so the top-left corner leads and the
-                // foot of the page trails behind it.
-                axis: (x: 0.34, y: 1, z: 0),
-                anchor: .topLeading,
-                // Enough foreshortening to read as paper, little enough that
-                // the near edge stays inside the book.
-                perspective: 0.38
+    /// Bends this view around a cylinder that sweeps across it, showing the
+    /// back of the sheet as it comes over. See `PageCurl.metal`.
+    ///
+    /// The size is passed in rather than read from a `visualEffect` proxy:
+    /// inside `visualEffect` the shader only ever sees the final value of an
+    /// animated parameter, so the curl arrives already finished.
+    func pageCurl(progress: Double, size: CGSize) -> some View {
+        modifier(PageCurlEffect(progress: progress, size: size))
+    }
+}
+
+private struct PageCurlEffect: ViewModifier, Animatable {
+    var progress: Double
+    var size: CGSize
+
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        guard size.width > 1, size.height > 1 else { return AnyView(content) }
+        return AnyView(
+            content.layerEffect(
+                ShaderLibrary.pageCurl(
+                    .float2(size),
+                    .float(Float(progress)),
+                    // A tighter roll than this creases; a looser one is a tube.
+                    .float(Float(min(size.width, size.height) * 0.17))
+                ),
+                maxSampleOffset: size
             )
-            // A few degrees of in-plane swing, so the corner is visibly what
-            // the page is being carried by.
-            .rotationEffect(.degrees(angle * 0.05), anchor: .topLeading)
-            .overlay {
-                // Paper leaving the flat picks up shadow, and the raised corner
-                // catches the light the desk lamp throws from the upper left.
-                LinearGradient(
-                    colors: [.white.opacity(flipper.shade * 0.28),
-                             .black.opacity(flipper.shade),
-                             .black.opacity(flipper.shade * 1.15)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .allowsHitTesting(false)
-            }
-            .compositingGroup()
-            .disabled(flipper.isFlipping)
+        )
     }
 }
 
@@ -101,8 +107,7 @@ enum Haptics {
     /// The soft thump of a sheet landing.
     static func pageTurn() {
         #if canImport(UIKit)
-        let generator = UIImpactFeedbackGenerator(style: .soft)
-        generator.impactOccurred(intensity: 0.7)
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.7)
         #endif
     }
 }

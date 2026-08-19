@@ -52,9 +52,14 @@ private struct GameView: View {
                     .padding(.horizontal, 12)
                     .padding(.top, 4)
 
-                BookView(flipper: flipper) { pageContent }
-                    .padding(.leading, 8)
-                    .padding(.trailing, 10)
+                BookView(
+                    flipper: flipper,
+                    outgoing: flipper.outgoing.map { AnyView(page(of: $0)) }
+                ) {
+                    page(of: model)
+                }
+                .padding(.leading, 8)
+                .padding(.trailing, 10)
             }
             .padding(.bottom, 8)
             .overlay(alignment: .center) { wonOverlay }
@@ -69,9 +74,16 @@ private struct GameView: View {
             .task {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingQA = true }
+                let arguments = ProcessInfo.processInfo.arguments
+                if let index = arguments.firstIndex(of: "-curlHold"), index + 1 < arguments.count,
+                   let value = Double(arguments[index + 1]) {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    flipper.hold(from: model, at: value) { model.endTurn() }
+                    return
+                }
                 guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
                 try? await Task.sleep(for: .seconds(1))
-                await flipper.flip(reduceMotion: false) { model.endTurn() }
+                await flipper.flip(from: model, reduceMotion: false) { model.endTurn() }
                 #endif
             }
         }
@@ -83,17 +95,17 @@ private struct GameView: View {
     // MARK: Pages
 
     @ViewBuilder
-    private var pageContent: some View {
-        switch model.page {
+    private func page(of source: GameModel) -> some View {
+        switch source.page {
         case .puzzle:
-            if let puzzle = model.puzzle {
-                PuzzlePageView(model: model, puzzle: puzzle)
+            if let puzzle = source.puzzle {
+                PuzzlePageView(model: source, puzzle: puzzle)
             }
         case .results:
-            ResultsPageView(model: model)
+            ResultsPageView(model: source)
         case .shop:
-            if let shop = model.shop {
-                ShopPageView(model: model, shop: shop)
+            if let shop = source.shop {
+                ShopPageView(model: source, shop: shop)
             }
         }
     }

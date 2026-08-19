@@ -94,7 +94,7 @@ struct PuzzlePageView: View {
                     }
                 }
                 PaperButton(title: "End Turn", kind: .primary) {
-                    Task { await flipper.flip(reduceMotion: reduceMotion) { model.endTurn() } }
+                    Task { await flipper.flip(from: model, reduceMotion: reduceMotion) { model.endTurn() } }
                 }
             }
         }

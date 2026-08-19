@@ -20,7 +20,7 @@ struct ResultsPageView: View {
 
             if model.run.outcome == nil {
                 PaperButton(title: "Continue", subtitle: "To the Shop", kind: .primary) {
-                    Task { await flipper.flip(reduceMotion: reduceMotion) { model.openShop() } }
+                    Task { await flipper.flip(from: model, reduceMotion: reduceMotion) { model.openShop() } }
                 }
             } else {
                 PaperButton(title: "New Book", kind: .primary) { model.startNewBook() }

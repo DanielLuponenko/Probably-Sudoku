@@ -213,24 +213,39 @@ struct PageSurface<Content: View>: View {
     }
 }
 
-/// The book as one object: boards, block, binding, and the live page on top.
-struct BookView<Content: View>: View {
+/// The book as one object: boards, block, binding, and the pages on top.
+struct BookView<Live: View>: View {
     var flipper: PageFlipper
-    @ViewBuilder var content: Content
+    /// The page being turned away, drawn from a frozen copy of the game. Nil
+    /// except during a turn.
+    var outgoing: AnyView?
+    @ViewBuilder var live: Live
+    @State private var pageSize: CGSize = .zero
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             BookVolume()
 
             ZStack {
-                // The next sheet, already lying flat, so turning a page reveals
-                // paper rather than the edges of the block.
-                PageSurface { Color.clear }
-                PageSurface { content }
-                    .pageFlip(flipper)
+                // The page underneath is already the new one; the sheet on top
+                // still shows what was there, and bends away to uncover it.
+                PageSurface { live }
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { pageSize = proxy.size }
+                                .onChange(of: proxy.size) { _, size in pageSize = size }
+                        }
+                    }
+
+                if let outgoing {
+                    PageSurface { outgoing }
+                        .pageCurl(progress: flipper.progress, size: pageSize)
+                        .allowsHitTesting(false)
+                }
             }
-            // A lifting page is foreshortened towards the reader; without this
-            // it would paint over the desk and the loadout row above the book.
+            // The curl reaches beyond the sheet as it lifts; without this it
+            // would paint over the desk and the loadout row above the book.
             .clipped()
             .padding(EdgeInsets(top: Volume.head, leading: Volume.spine,
                                 bottom: Volume.tail, trailing: Volume.foreEdge))

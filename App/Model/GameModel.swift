@@ -37,6 +37,13 @@ final class GameModel {
         try? game.startPuzzle()
     }
 
+    /// A read-only copy of the game as it was, for drawing the page that is
+    /// leaving during a turn. Cheap: `Game` is a value type.
+    init(frozen game: Game, page: BookPage) {
+        self.game = game
+        self.page = page
+    }
+
     static func randomSeed() -> String {
         // The only place randomness is allowed in: choosing which Book to play.
         String(UInt32.random(in: 0..<0xFFFFFF), radix: 36, uppercase: true)

@@ -55,6 +55,7 @@ the cover every time:
 | `-selectHand 0` | start with a number picked up, to see the highlight |
 | `-autoEndTurn` | ends a Turn one second in, so the page flip can be recorded |
 | `-qa` | opens the QA panel on launch |
+| `-curlHold 0.35` | freezes a page turn part-way, to look at the curl without racing it |
 
 ## QA panel
 
@@ -135,6 +136,22 @@ page, the page-turn transition, and the Marker square picker.
 - **Prices are rolled within the §9 band**, not taken from the per-item tables in
   §10–12. Every listed price does fall inside its band — a test asserts it — so
   the tables stay accurate as documentation.
+- **The page turn is a Metal shader, not a 3D transform.** `rotation3DEffect`
+  turns a rigid rectangle, which is the Word-97 transition, not paper. Paper
+  bends: `App/Shaders/PageCurl.metal` wraps the sheet around a cylinder tangent
+  to a fold line that sweeps across it, so the far half of the roll is seen from
+  behind. Requires the Metal toolchain — `xcodebuild -downloadComponent
+  MetalToolchain`.
+
+  Two traps cost real time here, both worth knowing:
+  - **Do not call `layerEffect` inside `visualEffect`.** The proxy is convenient
+    for the view's size, but the shader then only ever sees the *final* value of
+    an animated parameter, so the curl arrives already finished and the turn
+    looks instant. Measure the size separately and call `layerEffect` directly
+    from an `Animatable` modifier.
+  - **Insert the leaving page one frame before animating it.** Inserting a view
+    and animating it in the same update gives the animation no value to travel
+    from, with the same symptom.
 - **The book is an object, not a card.** What makes something read as a book is
   thickness, so it is built as one: boards standing proud of the paper, a block
   of individually drawn page edges down the fore-edge and along the tail, a

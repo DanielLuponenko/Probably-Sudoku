@@ -34,7 +34,7 @@ struct ShopPageView: View {
             ownedSummary
             PaperButton(title: "Continue", subtitle: "Next Puzzle", kind: .primary) {
                 Task {
-                    await flipper.flip(reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
                 }
             }
         }
