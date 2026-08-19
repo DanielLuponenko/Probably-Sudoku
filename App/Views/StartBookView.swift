@@ -28,6 +28,9 @@ struct StartBookView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            // The scene is shot for the whole screen, so it has to reach past
+            // the safe area or the desk behind it shows as strips.
+            .ignoresSafeArea()
 
             controls
         }
@@ -143,49 +146,33 @@ private struct ShelfBackdrop: View {
     }
 }
 
-/// One Book lying on the desk, whole. It is a cover — cropping it to fill a
-/// phone throws away the tabs, the notes and half the title.
+/// A written Book fills the screen: it was photographed on the desk in phone
+/// format, so there is nothing to composite. An unwritten one is drawn on the
+/// bare desk instead.
 private struct BookOnDesk: View {
     var book: BookEdition
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var playsLoop: Bool {
-        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled
-    }
 
     var body: some View {
-        // The cover is width-bound on a phone, so it can never fill the height.
-        // Centring it in what is left puts the slack above and below instead of
-        // dumping all of it under the Book.
         Group {
-            if let cover = book.cover {
-                ZStack {
-                    // The still is always underneath, so the Book is painted
-                    // before any decoder has started and there is never a
-                    // black flash — and so a Book without a loop still works.
-                    Image(cover)
+            if let scene = book.cover {
+                GeometryReader { proxy in
+                    Image(scene)
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
-
-                    if let loop = book.loop, playsLoop,
-                       let url = Bundle.main.url(forResource: loop, withExtension: "mp4") {
-                        LoopingVideo(url: url)
-                            .aspectRatio(983.0 / 1379.0, contentMode: .fit)
-                    }
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
                 }
+                .ignoresSafeArea()
             } else {
                 UnwrittenCover(book: book)
                     .aspectRatio(983.0 / 1379.0, contentMode: .fit)
+                    .shadow(color: .black.opacity(0.55), radius: 30, x: 10, y: 22)
+                    .frame(maxWidth: 330)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 120)
             }
         }
-        // The Book is cut out of its own photograph, so it needs a real
-        // shadow to lie on this desk rather than hover over it.
-        .shadow(color: .black.opacity(0.55), radius: 30, x: 10, y: 22)
-        .shadow(color: .black.opacity(0.45), radius: 6, x: 3, y: 5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 18)
-        .padding(.top, 10)
-        .padding(.bottom, 120)
         .accessibilityLabel(book.isWritten
             ? "\(book.title), \(book.shelfLabel)"
             : "\(book.title), not written yet")

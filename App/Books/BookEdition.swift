@@ -10,7 +10,10 @@ struct BookEdition: Identifiable, Equatable {
     /// Printed on the shelf under the cover.
     let shelfLabel: String
     let blurb: String
-    /// Asset name of the cover photograph, or nil while a Book is unwritten.
+    /// The Book photographed on the desk, already in phone format. This is the
+    /// whole screen: no cover is composited onto a separate background, because
+    /// two woods leave a seam and cutting the Book out fragments its index
+    /// tabs. Nil while a Book is unwritten.
     let cover: String?
     /// Bundle resource for the cover's loop, when one has been made. The still
     /// stays underneath it either way, so a Book without a loop is not a Book
@@ -37,7 +40,7 @@ struct BookEdition: Identifiable, Equatable {
         title: "You\u{2019}ve Got This, Probably",
         shelfLabel: "Volume 1",
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
-        cover: "BookProbably",
+        cover: "SceneProbably",
         // No loop yet: the clip that exists has the photograph's own desk baked
         // into it, and playing that over this desk is exactly what read as a
         // video pasted onto an image. A loop has to be shot of the composited
