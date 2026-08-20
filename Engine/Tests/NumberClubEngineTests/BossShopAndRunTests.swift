@@ -114,6 +114,35 @@ final class BossModifierTests: XCTestCase {
         XCTAssertNil(BossModifier.fog.turnsOverride)
     }
 
+    #if DEBUG
+    func testQASelectorsMakeAnyLoadoutAndBossRepeatable() throws {
+        var game = Game(seed: "qa-selectors", startingBoard: .scholar)
+        try game.startPuzzle()
+
+        game.qaSetBoss(.editor)
+        XCTAssertEqual(game.puzzle?.handSize, 6)
+
+        game.qaSetBookmark(Bookmarks.helpWanted)
+        game.qaSetMarker("mk_silver", at: Square(row: 4, col: 4))
+        game.qaSetBuff(Buffs.peek)
+
+        XCTAssertEqual(game.run.bookmarks.map(\.defID), [Bookmarks.helpWanted])
+        XCTAssertEqual(game.run.markers.first?.defID, "mk_silver")
+        XCTAssertEqual(game.run.markers.first?.squares, [Square(row: 4, col: 4)])
+        XCTAssertEqual(game.run.buffs.map(\.defID), [Buffs.peek])
+        XCTAssertEqual(game.puzzle?.boss, .editor)
+        XCTAssertEqual(game.puzzle?.handSize, 7, "Help Wanted offsets The Editor")
+        XCTAssertNil(Conservation.check(board: game.puzzle!.board,
+                                        pool: game.puzzle!.pool,
+                                        hand: game.puzzle!.hand))
+
+        game.qaSetMarker("mk_copper", at: Square(row: 1, col: 1))
+        XCTAssertEqual(game.run.markers.count, 1)
+        XCTAssertEqual(game.run.markers.first?.squares, [Square(row: 1, col: 1)])
+        XCTAssertEqual(game.run.markers.first?.defID, "mk_copper")
+    }
+    #endif
+
     func testBossPuzzlesAlwaysRollAModifierAndOthersNever() throws {
         var run = RunState(seed: "rolls", startingBoard: .scholar)
         run.slot = .easy

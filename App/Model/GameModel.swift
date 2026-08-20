@@ -388,6 +388,13 @@ final class GameModel {
     func qaFailPuzzle() { game.qaFailPuzzle(); page = .results }
     func qaFillBoard() { game.qaFillBoard() }
     func qaGrantBuff(_ defID: String) { game.qaGrantBuff(defID) }
+    func qaSetBookmark(_ defID: String) { game.qaSetBookmark(defID) }
+    func qaSetMarker(_ defID: String) {
+        guard let square = puzzle?.board.blanks.first else { return }
+        game.qaSetMarker(defID, at: square)
+    }
+    func qaSetBuff(_ defID: String) { game.qaSetBuff(defID) }
+    func qaSetBoss(_ boss: BossModifier) { game.qaSetBoss(boss) }
 
     /// Fills the bookmarks, so the row can be looked at populated.
     func qaFillLoadout() {

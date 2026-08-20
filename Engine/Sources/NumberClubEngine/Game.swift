@@ -131,6 +131,62 @@ public extension Game {
         run.buffs.append(OwnedBuff(defID: defID, pricePaid: 0))
     }
 
+    /// Replaces the corresponding QA loadout slot. This makes every catalogue
+    /// entry reachable in a fresh, repeatable state without filling capacity.
+    mutating func qaSetBookmark(_ defID: String) {
+        guard Catalog.item(defID)?.kind == .bookmark else { return }
+        run.bookmarks = [OwnedBookmark(defID: defID, boughtAtLevel: run.level, pricePaid: 0)]
+        qaRefreshActivePuzzleLimits()
+    }
+
+    /// Places exactly one selected Marker on a known blank square. Replacing
+    /// the QA marker loadout keeps every Marker individually testable.
+    mutating func qaSetMarker(_ defID: String, at square: Square) {
+        guard Catalog.item(defID)?.kind == .marker else { return }
+        run.markers = [OwnedMarker(defID: defID, boughtAtLevel: run.level,
+                                   pricePaid: 0, squares: [square])]
+    }
+
+    mutating func qaSetBuff(_ defID: String) {
+        guard Catalog.item(defID)?.kind == .buff else { return }
+        run.buffs = [OwnedBuff(defID: defID, pricePaid: 0)]
+    }
+
+    /// Applies a selected Boss to the current Puzzle, including its standing
+    /// limits, while preserving the board's number-conservation invariant.
+    mutating func qaSetBoss(_ boss: BossModifier) {
+        guard var puzzle = run.puzzle else { return }
+
+        puzzle.boss = boss
+        puzzle.censoredDigit = boss.censorsARandomDigit
+            ? BossModifier.rollCensoredDigit(&run.streams.boss)
+            : nil
+        run.puzzle = puzzle
+        qaRefreshActivePuzzleLimits()
+    }
+
+    /// Reapply standing limits after a QA selection changes the active run or
+    /// Boss. Returning excess hand cards to the Pool preserves conservation.
+    private mutating func qaRefreshActivePuzzleLimits() {
+        guard var puzzle = run.puzzle else { return }
+        let boss = puzzle.boss
+
+        puzzle.turnsMax = run.effectiveTurns(boss: boss)
+        puzzle.turnNumber = min(puzzle.turnNumber, puzzle.turnsMax)
+        puzzle.tossAllowance = run.effectiveTossAllowance(boss: boss)
+        puzzle.cluesRemaining = run.effectiveClues(boss: boss)
+
+        let targetHandSize = run.effectiveHandSize(boss: boss)
+        while puzzle.hand.count > targetHandSize {
+            puzzle.pool.put(puzzle.hand.removeLast())
+        }
+        puzzle.hand.append(contentsOf: puzzle.pool.draw(&run.streams.pool,
+                                                        count: targetHandSize - puzzle.hand.count))
+        puzzle.handSize = puzzle.hand.count
+        run.puzzle = puzzle
+        puzzle.assertConservation()
+    }
+
     /// Fills one square without scoring, for setting a board up by hand.
     mutating func qaPlace(digit: Digit, at square: Square) -> Bool {
         guard var puzzle = run.puzzle, puzzle.board.isBlank(square),
