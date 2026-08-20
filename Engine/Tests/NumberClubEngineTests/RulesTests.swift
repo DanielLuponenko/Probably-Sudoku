@@ -79,6 +79,48 @@ final class RulesTests: XCTestCase {
         XCTAssertTrue(game.puzzle!.board.isFull)
     }
 
+    func testOnePlacementScoresBothItsRowAndBox() throws {
+        var game = try startedGame()
+        let puzzle = try XCTUnwrap(game.puzzle)
+
+        let candidate = try XCTUnwrap(puzzle.board.blanks.first { square in
+            Geometry.rows[square.row].filter(puzzle.board.isBlank).count >= 2
+                && Geometry.boxes[square.box].filter(puzzle.board.isBlank).count >= 2
+                && Geometry.cols[square.col].filter(puzzle.board.isBlank).count >= 2
+        })
+        let rowAndBox = Set(Geometry.rows[candidate.row] + Geometry.boxes[candidate.box])
+        for square in rowAndBox where square != candidate && game.puzzle!.board.isBlank(square) {
+            if game.puzzle!.phase == .won { try game.keepFilling() }
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
+        }
+
+        if game.puzzle!.phase == .won { try game.keepFilling() }
+        let digit = game.puzzle!.board.correctDigit(at: candidate)
+        let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: candidate)
+
+        XCTAssertEqual(outcome.lineClears, [.row, .box])
+        XCTAssertEqual(outcome.lineClearPoints, [45, 45])
+        XCTAssertEqual(outcome.totalPoints, 10 * digit.rawValue + 90)
+    }
+
+    func testOnePlacementScoresRowColumnAndBoxSeparately() throws {
+        var game = try startedGame()
+        for square in game.puzzle!.board.blanks {
+            if game.puzzle!.phase == .won { try game.keepFilling() }
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
+            guard outcome.fullClear else { continue }
+
+            XCTAssertEqual(outcome.lineClears, [.row, .col, .box])
+            XCTAssertEqual(outcome.lineClearPoints, [45, 45, 45])
+            XCTAssertEqual(outcome.fullClearPoints, 500)
+            XCTAssertEqual(outcome.totalPoints, 10 * digit.rawValue + 135 + 500)
+            return
+        }
+        XCTFail("board never reported a Full Clear")
+    }
+
     func testSecondPrintDoublesOnlyTheNextLineClear() throws {
         var game = try startedGame()
         game.give(buff: "bf_second_print")
