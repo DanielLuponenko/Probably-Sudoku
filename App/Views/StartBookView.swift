@@ -306,40 +306,99 @@ private struct ObstacleSwiper: View {
 /// The obstacle drawn as the thing it actually affects: your hand.
 ///
 /// Every obstacle so far is a change to what you hold, so the clearest picture
-/// of one is a row of Hand tiles with that change applied — a missing slot for
-/// the shorter hand, a struck-through tile for the blocked number. It uses the
-/// same shapes the Hand uses in play, so it needs no key.
+/// of one is the Hand itself with that change applied. It has to be paper —
+/// cream stock, printed numerals, laid slightly unevenly and casting a shadow
+/// on the wood. A row of flat rounded rectangles with a dashed box is
+/// interface, and it is the only thing on this screen that would be.
 private struct HandPreview: View {
     var level: Obstacle
 
-    private let slots = 7
-    private var held: Int { slots + level.handSizeDelta }
+    /// A plausible hand, fixed so the row never reshuffles itself.
+    private let numbers = [3, 7, 1, 9, 4, 2, 6]
+    private var held: Int { numbers.count + level.handSizeDelta }
 
     var body: some View {
-        HStack(spacing: 3) {
-            ForEach(0..<slots, id: \.self) { slot in
+        HStack(spacing: 4) {
+            ForEach(Array(numbers.enumerated()), id: \.offset) { slot, number in
                 if slot < held {
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Paper.page.opacity(0.82))
-                        .overlay {
-                            // The blocked number is the last one held, so the
-                            // strike does not land on the missing slot.
-                            if level.blocksANumberEachTurn && slot == held - 1 {
-                                Rectangle()
-                                    .fill(Paper.redPencil)
-                                    .frame(height: 1.6)
-                                    .rotationEffect(.degrees(-16))
-                            }
-                        }
+                    TinyNumber(
+                        number: number,
+                        tilt: tilt(slot),
+                        // The last one held is the one struck, so the mark
+                        // never lands on the slot the obstacle removed.
+                        struck: level.blocksANumberEachTurn && slot == held - 1
+                    )
                 } else {
-                    // The slot the obstacle takes away: outlined, not filled.
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .strokeBorder(Paper.page.opacity(0.28),
-                                      style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                    // The slot the obstacle takes away. Fading a whole tile
+                    // leaves its shadow behind and reads as a dark block, so
+                    // this is an outline only — the space where paper is not.
+                    MissingNumber(tilt: tilt(slot))
                 }
             }
         }
-        .frame(width: 118, height: 17)
+        .frame(height: 24)
         .accessibilityHidden(true)
+    }
+
+    /// Hand-laid, and the same every render.
+    private func tilt(_ slot: Int) -> Double {
+        [-2.0, 1.3, -0.8, 2.1, -1.5, 0.7, -1.9][slot % 7]
+    }
+}
+
+/// One number from the Hand, at a size that still has to read as paper.
+private struct TinyNumber: View {
+    var number: Int
+    var tilt: Double
+    var struck: Bool
+
+    var body: some View {
+        Text("\(number)")
+            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .foregroundStyle(Paper.ink.opacity(0.85))
+            .frame(width: 15, height: 20)
+            .background {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Paper.page)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .strokeBorder(Paper.rule.opacity(0.7), lineWidth: 0.5)
+                    }
+                    .shadow(color: .black.opacity(0.45), radius: 1.5, x: 0.5, y: 1)
+            }
+            .overlay {
+                if struck {
+                    // Struck by hand, so it wanders: a ruled line would be
+                    // printed, and nothing here is printed by the book.
+                    PencilStrike()
+                        .stroke(Paper.redPencil, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+                }
+            }
+            .rotationEffect(.degrees(tilt))
+    }
+}
+
+/// The gap where a number would have been.
+private struct MissingNumber: View {
+    var tilt: Double
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .strokeBorder(Paper.page.opacity(0.3), lineWidth: 1)
+            .frame(width: 15, height: 20)
+            .rotationEffect(.degrees(tilt))
+    }
+}
+
+private struct PencilStrike: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 3))
+        path.addCurve(
+            to: CGPoint(x: rect.maxX - 1, y: rect.minY + 3),
+            control1: CGPoint(x: rect.width * 0.35, y: rect.height * 0.75),
+            control2: CGPoint(x: rect.width * 0.6, y: rect.height * 0.18)
+        )
+        return path
     }
 }

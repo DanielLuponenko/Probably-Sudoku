@@ -108,11 +108,19 @@ pool stream, so a seed still reproduces a run exactly.
 It blocks a digit rather than a hand position: positions shift as the hand is
 played, and a block that moves is unreadable.
 
-Each level is drawn as well as described — a row of Hand tiles with the
-obstacle applied: seven tiles for I, six and an empty slot for II, and six with
-one struck through in red for III. It borrows the shapes the Hand already uses
-in play, so it needs no key, and the three descriptions are kept to one line
-each so the artwork sits at the same height on all three.
+Each level is drawn as well as described — the Hand itself with the obstacle
+applied: seven numbers for I, six and an empty slot for II, and six with one
+struck through in red pencil for III.
+
+It has to be **paper**: cream stock with printed numerals, laid unevenly and
+casting a shadow on the wood. The first attempt was flat grey rounded
+rectangles with a dashed box for the missing slot, which is interface — and the
+only thing on that screen that would have been. The missing slot is an outline
+rather than a faded tile, because fading a tile leaves its shadow behind and
+reads as a dark block.
+
+The three descriptions are kept to one line each, so the artwork sits at the
+same height on all three.
 
 ## The shelf
 
