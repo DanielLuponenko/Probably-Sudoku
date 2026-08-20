@@ -17,7 +17,8 @@ public enum Resolver {
                                unit: Unit? = nil,
                                isClue: Bool = false,
                                boardCountBefore: Int = 0,
-                               completesLine: Bool = false) -> EffectContext {
+                               completesLine: Bool = false,
+                               completedUnitCount: Int = 0) -> EffectContext {
         EffectContext(
             event: event,
             digit: digit,
@@ -30,6 +31,7 @@ public enum Resolver {
             bookmarkCount: run.bookmarks.count,
             boardCountBefore: boardCountBefore,
             completesLine: completesLine,
+            completedUnitCount: completedUnitCount,
             puzzleState: puzzle.itemState,
             runState: run.runItemState
         )

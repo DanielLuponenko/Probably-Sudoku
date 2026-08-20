@@ -100,7 +100,8 @@ public enum Actions {
         let placeContext = Resolver.context(.place, run: run, puzzle: puzzle,
                                             digit: digit, square: square, isClue: isClue,
                                             boardCountBefore: countBefore,
-                                            completesLine: !completedUnits.isEmpty)
+                                            completesLine: !completedUnits.isEmpty,
+                                            completedUnitCount: completedUnits.count)
         var placeResult = Resolver.dispatch(placeContext, run: run, puzzle: puzzle)
         placeResult.flat += Int(puzzle.itemState[Buffs.paperCraneKey(digit)] ?? 0)
 

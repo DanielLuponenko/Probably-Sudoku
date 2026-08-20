@@ -56,6 +56,10 @@ public struct EffectContext: Sendable {
     /// True when this placement also completed a row, column or box, for
     /// Copper. Only meaningful on `.place`.
     public let completesLine: Bool
+    /// Number of row, column, and box units completed by this placement. A
+    /// simultaneous row-and-box clear has a count of two, so effects such as
+    /// Copper can pay once for each qualifying unit.
+    public let completedUnitCount: Int
 
     public let puzzleState: [String: Double]
     public let runState: [String: Double]
