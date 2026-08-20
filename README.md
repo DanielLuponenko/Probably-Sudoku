@@ -25,6 +25,40 @@ The split is strict: the engine has no notion of a screen, and the app has no
 notion of a rule. Everything in the engine is a value type, so a view can hold a
 snapshot without worrying about it changing underneath.
 
+## Saving, continuing and unlocking
+
+`RunState` is Codable all the way down, so keeping a run is a matter of writing
+the bytes. `RunStore` saves after every change the model makes, and the shelf
+offers **Continue the Book** ahead of starting a new one — a Book is 27 Puzzles
+and nobody finishes one in a sitting.
+
+Continuing goes straight back to the page you were on. It deliberately does not
+replay the opening clip: the Book is already open, and opening it again would
+be a lie.
+
+A finished or abandoned Book is not saved, since there is nothing to resume
+into.
+
+Obstacles are **earned, not chosen**. Only Obstacle I is available at first and
+finishing a Book unlocks the next. Locked levels are still shown and can be
+swiped onto — you can see the ladder above you — they simply cannot be
+selected.
+
+## Performance on a real device
+
+Two things were fine on a simulator and heavy in the hand:
+
+- **Never `.blur()` a live video layer.** The opening transition blurred a
+  1604x2868 player at radius 30, which is 4.6 megapixels re-blurred every frame
+  through an offscreen pass. `.ultraThinMaterial` is the same effect done by the
+  compositor.
+- **Rasterise the page before the curl shader touches it.** Without
+  `.drawingGroup()`, the whole outgoing page — grid, hand, buttons — is laid out
+  again for every frame of the turn.
+
+The clips are 24fps, which is the generation's frame rate and normal for video;
+the interface runs at 120Hz once the plist key below is set.
+
 ## 120Hz
 
 `CADisableMinimumFrameDurationOnPhone` must be **true**, or iOS holds the app at

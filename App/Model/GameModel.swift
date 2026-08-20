@@ -16,7 +16,9 @@ enum BookPage: Equatable {
 @Observable
 final class GameModel {
 
-    private(set) var game: Game
+    private(set) var game: Game {
+        didSet { persist() }
+    }
     private(set) var page: BookPage = .puzzle
 
     /// Which of the two selections the board should be highlighting. Both a
@@ -60,6 +62,16 @@ final class GameModel {
     init(frozen game: Game, page: BookPage) {
         self.game = game
         self.page = page
+    }
+
+    /// Resumes a Book that was put down.
+    init(resuming game: Game) {
+        self.game = game
+    }
+
+    private func persist() {
+        if game.run.outcome == .bookCompleted { RunStore.recordBookCompleted() }
+        RunStore.save(game)
     }
 
     static func randomSeed() -> String {

@@ -10,6 +10,11 @@ import NumberClubEngine
 /// undecided is visible instead of implied.
 struct StartBookView: View {
     var onStart: (BookEdition, Obstacle) -> Void
+    var onContinue: () -> Void
+
+    /// A Book left part-finished. Continuing it is the first thing offered,
+    /// because it is almost always what the player came back for.
+    private let resumable = RunStore.loadRun()
 
     @State private var index = 0
     @State private var obstacle: Obstacle = StartBookView.debugObstacle()
@@ -79,7 +84,16 @@ struct StartBookView: View {
                     .foregroundStyle(Paper.page.opacity(0.82))
             }
 
-            if book.isWritten {
+            if let saved = resumable, book.isWritten {
+                VStack(spacing: 8) {
+                    PaperButton(title: "Continue the Book",
+                                subtitle: "Level \(saved.run.level), Puzzle \(saved.run.slot.rawValue + 1)",
+                                kind: .primary) { onContinue() }
+                    PaperButton(title: "Start a New Book", kind: .quiet) {
+                        onStart(book, obstacle)
+                    }
+                }
+            } else if book.isWritten {
                 PaperButton(title: "Open the Book", kind: .primary) { onStart(book, obstacle) }
             } else {
                 PaperButton(title: "Locked", kind: .quiet, isEnabled: false) {}
@@ -265,7 +279,12 @@ private struct ObstacleSwiper: View {
     private var index: Binding<Int> {
         Binding(
             get: { levels.firstIndex(of: obstacle) ?? 0 },
-            set: { obstacle = levels[$0] }
+            // Swiping onto a locked level shows it but does not select it, so
+            // the ladder above can be seen without being taken.
+            set: { position in
+                let level = levels[position]
+                if RunStore.isUnlocked(level) { obstacle = level }
+            }
         )
     }
 
@@ -274,20 +293,23 @@ private struct ObstacleSwiper: View {
             TabView(selection: index) {
                 ForEach(Array(levels.enumerated()), id: \.offset) { position, level in
                     VStack(spacing: 3) {
-                        Text(level.name)
+                        Text(RunStore.isUnlocked(level) ? level.name : "\(level.name) — Locked")
                             .font(Print.caption(10))
                             .tracking(1.8)
                             .textCase(.uppercase)
                             .foregroundStyle(Paper.page.opacity(0.55))
-                        Text(level.text)
+                        Text(RunStore.isUnlocked(level)
+                             ? level.text
+                             : "Finish a Book to unlock this.")
                             .font(Print.body(13))
-                            .foregroundStyle(Paper.page.opacity(0.88))
+                            .foregroundStyle(Paper.page.opacity(RunStore.isUnlocked(level) ? 0.88 : 0.5))
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                             .minimumScaleFactor(0.85)
                             .padding(.horizontal, 34)
                         HandPreview(level: level)
                             .padding(.top, 5)
+                            .opacity(RunStore.isUnlocked(level) ? 1 : 0.35)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .tag(position)

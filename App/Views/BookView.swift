@@ -240,6 +240,10 @@ struct BookView<Live: View>: View {
 
                 if let outgoing {
                     PageSurface { outgoing }
+                        // Rasterised once before the shader touches it. Without
+                        // this the whole page — grid, hand, buttons — is laid
+                        // out again for every frame of the curl.
+                        .drawingGroup()
                         .pageCurl(progress: flipper.progress, size: pageSize)
                         .allowsHitTesting(false)
                 }

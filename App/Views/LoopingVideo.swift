@@ -136,7 +136,7 @@ struct BookOpening: View {
     var reduceMotion: Bool
     var onFinish: () -> Void
 
-    @State private var blur: CGFloat = 0
+    @State private var frost: Double = 0
     @State private var wash: Double = 0
     @State private var finished = false
 
@@ -158,7 +158,15 @@ struct BookOpening: View {
             }
 
             OneShotVideo(url: url) { finish() }
-                .blur(radius: blur)
+                .ignoresSafeArea()
+
+            // A material rather than .blur(): blurring a live 1604x2868 layer
+            // forces a full offscreen pass every frame, which is what made the
+            // hand-over stutter. A material is the same effect done by the
+            // compositor.
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(frost)
                 .ignoresSafeArea()
 
             Paper.page.opacity(wash).ignoresSafeArea()
@@ -170,7 +178,7 @@ struct BookOpening: View {
             let total = await Self.duration(of: url) ?? 3.2
             try? await Task.sleep(for: .seconds(max(0, total - handover)))
             withAnimation(.easeIn(duration: handover)) {
-                blur = 30
+                frost = 1
                 wash = 1
             }
             try? await Task.sleep(for: .seconds(handover))

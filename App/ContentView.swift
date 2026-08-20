@@ -60,10 +60,17 @@ struct ContentView: View {
             } else {
                 StartBookView { book, obstacle in
                     chosenObstacle = obstacle
+                    RunStore.clearRun()
                     if openingClip(for: book) == nil {
                         begin(book)          // no clip: straight in
                     } else {
                         opening = book
+                    }
+                } onContinue: {
+                    // Straight back to the page you were on: the Book is
+                    // already open, so opening it again would be a lie.
+                    if let saved = RunStore.loadRun() {
+                        model = GameModel(resuming: saved)
                     }
                 }
                 .transition(.opacity)
@@ -268,5 +275,5 @@ private struct GameView: View {
 }
 
 #Preview("Start") {
-    StartBookView { _, _ in }
+    StartBookView(onStart: { _, _ in }, onContinue: {})
 }
