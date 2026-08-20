@@ -119,10 +119,12 @@ final class BossModifierTests: XCTestCase {
         var game = Game(seed: "qa-selectors", startingBoard: .scholar)
         try game.startPuzzle()
 
+        game.qaSetBoss(.editor)
+        XCTAssertEqual(game.puzzle?.handSize, 6)
+
         game.qaSetBookmark(Bookmarks.helpWanted)
         game.qaSetMarker("mk_silver", at: Square(row: 4, col: 4))
         game.qaSetBuff(Buffs.peek)
-        game.qaSetBoss(.editor)
 
         XCTAssertEqual(game.run.bookmarks.map(\.defID), [Bookmarks.helpWanted])
         XCTAssertEqual(game.run.markers.first?.defID, "mk_silver")
@@ -134,8 +136,9 @@ final class BossModifierTests: XCTestCase {
                                         pool: game.puzzle!.pool,
                                         hand: game.puzzle!.hand))
 
-        game.qaSetMarker("mk_copper", at: Square(row: 4, col: 4))
-        XCTAssertEqual(game.run.markers.filter { $0.covers(Square(row: 4, col: 4)) }.count, 1)
+        game.qaSetMarker("mk_copper", at: Square(row: 1, col: 1))
+        XCTAssertEqual(game.run.markers.count, 1)
+        XCTAssertEqual(game.run.markers.first?.squares, [Square(row: 1, col: 1)])
         XCTAssertEqual(game.run.markers.first?.defID, "mk_copper")
     }
     #endif

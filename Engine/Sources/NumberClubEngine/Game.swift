@@ -136,15 +136,15 @@ public extension Game {
     mutating func qaSetBookmark(_ defID: String) {
         guard Catalog.item(defID)?.kind == .bookmark else { return }
         run.bookmarks = [OwnedBookmark(defID: defID, boughtAtLevel: run.level, pricePaid: 0)]
+        qaRefreshActivePuzzleLimits()
     }
 
-    /// Places exactly one selected Marker on a known blank square. Replacing a
-    /// marker already on that square keeps every Marker individually testable.
+    /// Places exactly one selected Marker on a known blank square. Replacing
+    /// the QA marker loadout keeps every Marker individually testable.
     mutating func qaSetMarker(_ defID: String, at square: Square) {
         guard Catalog.item(defID)?.kind == .marker else { return }
-        run.markers.removeAll { $0.covers(square) }
-        run.markers.append(OwnedMarker(defID: defID, boughtAtLevel: run.level,
-                                       pricePaid: 0, squares: [square]))
+        run.markers = [OwnedMarker(defID: defID, boughtAtLevel: run.level,
+                                   pricePaid: 0, squares: [square])]
     }
 
     mutating func qaSetBuff(_ defID: String) {
@@ -161,6 +161,16 @@ public extension Game {
         puzzle.censoredDigit = boss.censorsARandomDigit
             ? BossModifier.rollCensoredDigit(&run.streams.boss)
             : nil
+        run.puzzle = puzzle
+        qaRefreshActivePuzzleLimits()
+    }
+
+    /// Reapply standing limits after a QA selection changes the active run or
+    /// Boss. Returning excess hand cards to the Pool preserves conservation.
+    private mutating func qaRefreshActivePuzzleLimits() {
+        guard var puzzle = run.puzzle else { return }
+        let boss = puzzle.boss
+
         puzzle.turnsMax = run.effectiveTurns(boss: boss)
         puzzle.turnNumber = min(puzzle.turnNumber, puzzle.turnsMax)
         puzzle.tossAllowance = run.effectiveTossAllowance(boss: boss)
