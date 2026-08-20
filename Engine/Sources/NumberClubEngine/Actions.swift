@@ -32,6 +32,13 @@ public enum Actions {
 
         puzzle.assertConservation()
         run.puzzle = puzzle
+        // A playable Turn with no cards has no further decision in it. Run the
+        // normal end-of-turn path exactly once so effects and refill stay in
+        // the same deterministic rules layer as a manual End Turn.
+        if outcome.correct, run.puzzle?.hand.isEmpty == true,
+           run.puzzle?.phase == .playing || run.puzzle?.phase == .keepFilling {
+            _ = try endTurn(&run)
+        }
         endBookIfPuzzleFailed(&run)
         return outcome
     }
