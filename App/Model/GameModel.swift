@@ -39,7 +39,12 @@ final class GameModel {
     struct Cleared: Equatable, Identifiable {
         let unit: NumberClubEngine.Unit
         let square: Square
-        let id: Int
+        /// A single placement can complete all three unit types. The unit must
+        /// be part of the identity or SwiftUI coalesces those overlays into one
+        /// view and only one clear is visible.
+        let ticket: Int
+
+        var id: String { "\(ticket)-\(unit.rawValue)" }
     }
     private(set) var cleared: [Cleared] = []
     private var clearTicket = 0
@@ -205,7 +210,7 @@ final class GameModel {
         guard !outcome.lineClears.isEmpty || outcome.fullClear else { return }
         clearTicket += 1
         let ticket = clearTicket
-        cleared = outcome.lineClears.map { Cleared(unit: $0, square: square, id: ticket) }
+        cleared = outcome.lineClears.map { Cleared(unit: $0, square: square, ticket: ticket) }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1100))
             if clearTicket == ticket { cleared = [] }
