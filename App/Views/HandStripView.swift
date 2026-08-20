@@ -2,8 +2,8 @@ import SwiftUI
 import NumberClubEngine
 
 /// §4 — the numbers that have arrived from the Pool. Flat printed tiles, not
-/// balls. Duplicates are possible and meaningful, so slots are addressed by
-/// position rather than by the number they hold.
+/// balls. Duplicates are possible and meaningful, so each dealt card carries
+/// a presentation identity separate from the number it shows.
 struct HandStripView: View {
     @Bindable var model: GameModel
     var handSize: Int
@@ -20,17 +20,28 @@ struct HandStripView: View {
             }
 
             HStack(spacing: 7) {
-                ForEach(0..<handSize, id: \.self) { index in
-                    if index < model.hand.count {
-                        NumberTile(
-                            digit: model.hand[index],
-                            isSelected: model.selectedHandIndex == index,
-                            isBlocked: model.isBlocked(model.hand[index])
-                        )
-                        .onTapGesture { model.tapHand(index) }
-                    } else {
-                        EmptySlot()
+                ForEach(model.handCards) { card in
+                    if let index = model.handCards.firstIndex(where: { $0.id == card.id }) {
+                        Button {
+                            model.tapHand(index)
+                        } label: {
+                            NumberTile(
+                                digit: card.digit,
+                                isSelected: model.selectedHandIndex == index,
+                                isBlocked: model.isBlocked(card.digit),
+                                arrivalOrder: card.arrivalOrder,
+                                shouldAnimateArrival: model.animatesHandArrival
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Number \(card.digit.rawValue)"
+                            + (model.isBlocked(card.digit) ? ", blocked this turn" : "")
+                            + (model.selectedHandIndex == index ? ", selected" : ""))
                     }
+                }
+
+                ForEach(0..<max(0, handSize - model.handCards.count), id: \.self) { _ in
+                    EmptySlot()
                 }
             }
         }
@@ -38,9 +49,15 @@ struct HandStripView: View {
 }
 
 private struct NumberTile: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var digit: Digit
     var isSelected: Bool
     var isBlocked: Bool
+    var arrivalOrder: Int
+    var shouldAnimateArrival: Bool
+
+    @State private var hasArrived = false
 
     var body: some View {
         Text("\(digit.rawValue)")
@@ -68,11 +85,24 @@ private struct NumberTile: View {
                                             : (isSelected ? Paper.sageDeep : Paper.rule),
                                   lineWidth: isSelected ? 2 : 1)
             }
-            .offset(y: isSelected ? -4 : 0)
             .animation(.snappy(duration: 0.18), value: isSelected)
-            .accessibilityLabel("Number \(digit.rawValue)"
-                + (isBlocked ? ", blocked this turn" : "")
-                + (isSelected ? ", selected" : ""))
+            .scaleEffect(hasArrived || reduceMotion || !shouldAnimateArrival ? 1 : 0.78)
+            .offset(y: hasArrived || reduceMotion || !shouldAnimateArrival
+                    ? (isSelected ? -4 : 0) : 10)
+            .opacity(hasArrived || reduceMotion || !shouldAnimateArrival ? 1 : 0)
+            .onAppear {
+                guard shouldAnimateArrival && !reduceMotion else {
+                    hasArrived = true
+                    return
+                }
+                withAnimation(.snappy(duration: 0.28, extraBounce: 0.16)
+                    .delay(Double(arrivalOrder) * 0.035)) {
+                    hasArrived = true
+                }
+            }
+            .onChange(of: reduceMotion) { _, isReduced in
+                if isReduced { hasArrived = true }
+            }
     }
 
 }
