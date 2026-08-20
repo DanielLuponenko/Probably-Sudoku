@@ -171,12 +171,18 @@ struct BookOpening: View {
 
             Paper.page.opacity(wash).ignoresSafeArea()
         }
+        // Tapping anywhere cuts it short. No button: an opening is a flourish,
+        // and a flourish with a Skip control on it is admitting it is in the
+        // way. Anyone who wants past it will touch the screen.
+        .contentShape(Rectangle())
+        .onTapGesture { skip() }
         .task {
             guard !reduceMotion else { finish(); return }
             Haptics.pageTurn()
 
             let total = await Self.duration(of: url) ?? 3.2
             try? await Task.sleep(for: .seconds(max(0, total - handover)))
+            guard !finished else { return }        // a tap got there first
             withAnimation(.easeIn(duration: handover)) {
                 frost = 1
                 wash = 1
@@ -185,10 +191,27 @@ struct BookOpening: View {
             finish()
         }
         .accessibilityLabel("Opening the book")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to skip")
+        .accessibilityAction { skip() }
     }
 
-    /// Guards against the clip's end notification and the timed hand-over both
-    /// firing, which would deal two Puzzles.
+    /// Cuts to the Puzzle, still through the wash rather than as a hard cut —
+    /// a skip should be quick, not jarring.
+    private func skip() {
+        guard !finished else { return }
+        withAnimation(.easeIn(duration: 0.16)) {
+            frost = 1
+            wash = 1
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(160))
+            finish()
+        }
+    }
+
+    /// Guards against the clip's end notification, the timed hand-over and a
+    /// tap all firing, which would deal two Puzzles.
     private func finish() {
         guard !finished else { return }
         finished = true

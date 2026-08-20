@@ -247,6 +247,13 @@ dealt behind the wash. Same Meshy settings as the loop; trimmed to 3.2s, which
 is where the cover has finished opening and the model starts padding out its
 five seconds.
 
+Tapping anywhere cuts it short — through the same wash rather than as a hard
+cut, so a skip is quick without being jarring. There is deliberately no Skip
+button: a flourish with a Skip control on it is admitting it is in the way, and
+anyone who wants past it will touch the screen. VoiceOver gets an explicit skip
+action, since a tap target with no visual affordance is otherwise invisible to
+it.
+
 The blur begins 0.75s **before** the clip ends so the two movements overlap.
 Waiting for the video to stop and then blurring reads as two separate things
 happening, which is the opposite of what a page turn should feel like. The
