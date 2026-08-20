@@ -25,6 +25,36 @@ The split is strict: the engine has no notion of a screen, and the app has no
 notion of a rule. Everything in the engine is a value type, so a view can hold a
 snapshot without worrying about it changing underneath.
 
+## Running it on a real iPhone
+
+Team `233268ZQDV`, bundle id `com.numberclub.app`, automatic signing. Apple
+answers, so the account and team are set up correctly — a device just has to be
+registered before a profile can exist.
+
+On the phone, once: **Settings → Privacy & Security → Developer Mode → on**,
+then restart. This is required on iOS 16 and later and is the step that is
+usually missed; without it the phone will not appear as a run destination at
+all.
+
+Then plug it in, unlock it, tap **Trust This Computer**, and:
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+xcrun devicectl list devices                       # confirm it is seen
+UDID=<the identifier from that list>
+
+xcodebuild -project NumberClub.xcodeproj -scheme NumberClub \
+  -destination "platform=iOS,id=$UDID" -configuration Debug \
+  -derivedDataPath build -allowProvisioningUpdates build
+
+xcrun devicectl device install app --device "$UDID" \
+  build/Build/Products/Debug-iphoneos/NumberClub.app
+xcrun devicectl device process launch --device "$UDID" com.numberclub.app
+```
+
+The first build registers the phone with the team and creates the profile,
+which is why it has to be connected for that step.
+
 ## Running it
 
 ```bash
