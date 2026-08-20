@@ -42,6 +42,16 @@ final class ScoringTests: XCTestCase {
         return game
     }
 
+    /// Fill all the currently blank cells in `cells` except `last`, retaining
+    /// a playable Puzzle even if setup reaches the target score.
+    private func setUpClear(_ game: inout Game, cells: [Square], leaving last: Square) throws {
+        for square in cells where square != last && game.puzzle!.board.isBlank(square) {
+            if game.puzzle!.phase == .won { try game.keepFilling() }
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
+        }
+    }
+
     // MARK: Base scoring
 
     func testCorrectPlacementScoresTenTimesTheNumber() throws {
@@ -192,6 +202,67 @@ final class ScoringTests: XCTestCase {
         game.give(marker: "mk_silver", on: [square])
         let outcome = try game.place(handIndex: game.stackHand(with: .eight)!, at: square)
         XCTAssertEqual(outcome.points, 80 + 20 * alreadyOnBoard)
+    }
+
+    func testCopperPaysThreeCoinsForOneCompletedRow() throws {
+        var game = try startedGame()
+        let row = game.emptiestRow
+        let blanks = Geometry.rows[row].filter(game.puzzle!.board.isBlank)
+        let last = try XCTUnwrap(blanks.last)
+        try setUpClear(&game, cells: Geometry.rows[row], leaving: last)
+        game.give(marker: "mk_copper", on: [last])
+        let coinsBefore = game.run.coins
+
+        let digit = game.puzzle!.board.correctDigit(at: last)
+        let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
+
+        XCTAssertEqual(outcome.lineClears, [.row])
+        XCTAssertEqual(outcome.coinsEarned, 3)
+        XCTAssertEqual(game.run.coins, coinsBefore + 3)
+    }
+
+    func testCopperPaysThreeCoinsForOneCompletedBox() throws {
+        var game = try startedGame()
+        let box = (0..<9).max { a, b in
+            Geometry.boxes[a].filter(game.puzzle!.board.isBlank).count
+                < Geometry.boxes[b].filter(game.puzzle!.board.isBlank).count
+        }!
+        let blanks = Geometry.boxes[box].filter(game.puzzle!.board.isBlank)
+        let last = try XCTUnwrap(blanks.last)
+        try setUpClear(&game, cells: Geometry.boxes[box], leaving: last)
+        game.give(marker: "mk_copper", on: [last])
+        let coinsBefore = game.run.coins
+
+        let digit = game.puzzle!.board.correctDigit(at: last)
+        let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
+
+        XCTAssertEqual(outcome.lineClears, [.box])
+        XCTAssertEqual(outcome.coinsEarned, 3)
+        XCTAssertEqual(game.run.coins, coinsBefore + 3)
+    }
+
+    func testCopperPaysForEveryUnitInASimultaneousRowAndBoxClear() throws {
+        var game = try startedGame()
+        let puzzle = try XCTUnwrap(game.puzzle)
+        let last = try XCTUnwrap(puzzle.board.blanks.first { square in
+            let rowAndBox = Set(Geometry.rows[square.row] + Geometry.boxes[square.box])
+            return Geometry.rows[square.row].filter(puzzle.board.isBlank).count >= 2
+                && Geometry.boxes[square.box].filter(puzzle.board.isBlank).count >= 2
+                && Geometry.cols[square.col].filter(puzzle.board.isBlank).contains {
+                    !rowAndBox.contains($0)
+                }
+        })
+        let rowAndBox = Array(Set(Geometry.rows[last.row] + Geometry.boxes[last.box]))
+        try setUpClear(&game, cells: rowAndBox, leaving: last)
+        game.give(marker: "mk_copper", on: [last])
+        let coinsBefore = game.run.coins
+
+        let digit = game.puzzle!.board.correctDigit(at: last)
+        let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
+
+        XCTAssertEqual(Set(outcome.lineClears), [.row, .box])
+        XCTAssertEqual(outcome.coinsEarned, 6)
+        XCTAssertEqual(game.run.coins, coinsBefore + 6)
     }
 
     func testMarkerStacksOneSquarePerLevelOwned() {

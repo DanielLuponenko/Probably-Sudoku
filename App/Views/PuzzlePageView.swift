@@ -11,7 +11,8 @@ struct PuzzlePageView: View {
             ScoreMeter(score: puzzle.score, target: puzzle.target,
                        level: puzzle.level, slot: puzzle.slot.rawValue,
                        recentPoints: model.lastOutcome?.correct == true
-                           ? model.lastOutcome?.totalPoints : nil)
+                           ? model.lastOutcome?.totalPoints : nil,
+                       recentCoins: model.lastOutcome?.coinsEarned)
 
             Spacer(minLength: 0)
             GridView(model: model, board: puzzle.board)
@@ -126,6 +127,9 @@ struct ScoreMeter: View {
     /// the engine outcome, so marker bonuses such as Silver are observable
     /// without the view attempting to recalculate any rule.
     var recentPoints: Int?
+    /// Coin effects use the engine outcome too, so a Copper payout is visible
+    /// beside the placement that triggered it rather than inferred by the UI.
+    var recentCoins: Int?
 
     private var fraction: Double {
         target > 0 ? min(1, Double(score) / Double(target)) : 0
@@ -148,6 +152,14 @@ struct ScoreMeter: View {
                         .id(recentPoints)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                         .accessibilityLabel("Last placement, plus \(recentPoints) points")
+                }
+                if let recentCoins, recentCoins > 0 {
+                    Text("+\(recentCoins) coins")
+                        .font(Print.caption(12))
+                        .foregroundStyle(Paper.coinRim)
+                        .id("coins-\(recentCoins)")
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .accessibilityLabel("Last placement, plus \(recentCoins) coins")
                 }
                 Spacer(minLength: 6)
                 Text("Level \(level)")
@@ -172,6 +184,7 @@ struct ScoreMeter: View {
         }
         .animation(.snappy, value: score)
         .animation(.snappy(duration: 0.22), value: recentPoints)
+        .animation(.snappy(duration: 0.22), value: recentCoins)
     }
 }
 
