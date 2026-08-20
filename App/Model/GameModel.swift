@@ -157,6 +157,14 @@ final class GameModel {
         }
     }
 
+    /// A Toss or Turn transition makes both selections stale. Keeping either
+    /// one tells the board to highlight state that cannot be acted on anymore.
+    private func clearSelection() {
+        selectedHandIndex = nil
+        selectedSquare = nil
+        highlightSource = nil
+    }
+
     /// Blanks the selected number could legally go in — every empty square, but
     /// the ones that already hold that number elsewhere in the unit are worth
     /// warning about.
@@ -228,7 +236,7 @@ final class GameModel {
         } catch {
             message = describe(error)
         }
-        dropHandSelection()
+        clearSelection()
     }
 
     var canToss: Bool {
@@ -244,7 +252,7 @@ final class GameModel {
         } catch {
             message = describe(error)
         }
-        dropHandSelection()
+        clearSelection()
     }
 
     func useClue(at square: Square) {
@@ -270,7 +278,7 @@ final class GameModel {
     func endTurn() {
         do {
             let result = try game.endTurn()
-            dropHandSelection()
+            clearSelection()
             if result.puzzleFailed { page = .results }
         } catch {
             message = describe(error)
