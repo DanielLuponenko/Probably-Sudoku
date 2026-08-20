@@ -58,7 +58,7 @@ public enum Resolver {
         }
 
         // 3. Bookmarks, in purchase order.
-        for ad in run.bookmarks {
+        for (index, ad) in run.bookmarks.enumerated() where index != puzzle.disabledBookmark {
             if let hook = ad.def.hooks[context.event] { hook(context, &result) }
             if context.event.isScoring, let hook = ad.def.hooks[.anyScore] { hook(context, &result) }
         }

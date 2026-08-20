@@ -74,6 +74,7 @@ final class GameModel {
         game = Game(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
         try? game.startPuzzle()
         refreshHandCards(replacing: true)
+        startClock()
     }
 
     /// A read-only copy of the game as it was, for drawing the page that is
@@ -89,6 +90,7 @@ final class GameModel {
     init(resuming game: Game) {
         self.game = game
         refreshHandCards(replacing: true)
+        startClock()
     }
 
     private func persist() {
@@ -139,6 +141,28 @@ final class GameModel {
         }
     }
 
+    /// Tik Tak's clock is presentation state, not an engine timer: a Book
+    /// must not lose while its app is in the background. Expiry still uses the
+    /// engine's production failure path.
+    private(set) var secondsLeft: Double?
+
+    func startClock() { secondsLeft = puzzle?.boss?.secondsAllowed }
+    func stopClock() { secondsLeft = nil }
+
+    /// Called by the puzzle page once a second only while Tik Tak is active.
+    func tickClock(by seconds: Double) {
+        guard var remaining = secondsLeft, puzzle?.phase == .playing else { return }
+        remaining -= seconds
+        if remaining <= 0 {
+            secondsLeft = 0
+            message = "Out of time"
+            game.failPuzzle()
+            page = .results
+        } else {
+            secondsLeft = remaining
+        }
+    }
+
     /// Which Book this is, and therefore what it says in the margins.
     var edition: BookEdition { BookEdition.edition(forBookTier: 1) }
 
@@ -162,6 +186,8 @@ final class GameModel {
         return run.markedSquares
     }
     var markersAreHidden: Bool { puzzle?.boss?.hidesMarkedSquares == true }
+    var sleepingBookmark: Int? { puzzle?.disabledBookmark }
+    func isBarred(_ square: Square) -> Bool { puzzle?.isBarred(square) ?? false }
 
     var selectedDigit: Digit? {
         guard let index = selectedHandIndex, hand.indices.contains(index) else { return nil }
@@ -232,6 +258,10 @@ final class GameModel {
 
     func tapSquare(_ square: Square) {
         guard let puzzle else { return }
+        guard !puzzle.isBarred(square) else {
+            message = "That square is barred this Turn"
+            return
+        }
         selectedSquare = square
         highlightSource = .square
 
@@ -375,6 +405,7 @@ final class GameModel {
         do {
             try game.startPuzzle()
             refreshHandCards(replacing: true)
+            startClock()
             selectedHandIndex = nil
             selectedSquare = nil
             lastOutcome = nil
@@ -426,6 +457,7 @@ final class GameModel {
         page = .puzzle
         try? game.startPuzzle()
         refreshHandCards(replacing: true)
+        startClock()
     }
 
     func clearMessage() { message = nil }
@@ -453,6 +485,7 @@ final class GameModel {
     func qaSetBoss(_ boss: BossModifier) {
         game.qaSetBoss(boss)
         refreshHandCards()
+        startClock()
     }
 
     /// Fills the bookmarks, so the row can be looked at populated.
@@ -498,6 +531,8 @@ final class GameModel {
         case PlacementError.cluesDisabled: return "The Paywall has disabled Clues"
         case PlacementError.tossAllowanceSpent: return "No Tosses left this Puzzle"
         case PlacementError.numberBlocked: return "That number is blocked this Turn"
+        case PlacementError.squareBarred: return "That square is barred this Turn"
+        case PlacementError.buffsDisabled: return "This Boss has disabled Buffs"
         case PlacementError.squareNotBlank: return "That square is already filled"
         case Shop.ShopError.notEnoughCoins: return "Not enough coins"
         case Shop.ShopError.slotsFull: return "No free slot"

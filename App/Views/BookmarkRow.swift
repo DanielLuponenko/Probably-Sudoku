@@ -21,7 +21,8 @@ struct BookmarkRow: View {
                 if slot < model.run.bookmarks.count {
                     let owned = model.run.bookmarks[slot]
                     Bookmark(def: owned.def, colour: Paper.pageWarm, slot: slot,
-                             explains: true) {}
+                             explains: true,
+                             asleep: model.sleepingBookmark == slot) {}
                 } else {
                     EmptyBookmark(slot: slot)
                 }
@@ -35,7 +36,8 @@ struct BookmarkRow: View {
                     // thing that is simply running.
                     Bookmark(def: buff.def, colour: Paper.sage.opacity(0.55),
                              slot: ItemKind.bookmark.capacity + slot,
-                             explains: false) {
+                             explains: false,
+                             asleep: false) {
                         onTapBuff(index)
                     }
                 } else {
@@ -72,6 +74,8 @@ private struct Bookmark: View {
     /// True for a Bookmark, which only ever explains itself; false for a Buff,
     /// which is spent and so opens its own slip instead.
     var explains: Bool
+    /// Unlucky Lucky has put this Bookmark to sleep for the Turn.
+    var asleep: Bool
     var action: () -> Void
     @State private var explaining = false
 
@@ -106,13 +110,24 @@ private struct Bookmark: View {
             .rotationEffect(.degrees(tilt), anchor: .bottom)
         }
         .buttonStyle(PressedPaperStyle())
+        .disabled(asleep)
+        .opacity(asleep ? 0.55 : 1)
+        .saturation(asleep ? 0.2 : 1)
+        .overlay {
+            if asleep {
+                Rectangle()
+                    .fill(Paper.redPencil.opacity(0.75))
+                    .frame(height: 1.6)
+                    .rotationEffect(.degrees(-18))
+            }
+        }
         // Anchored to this bookmark, so the arrow points at the one that was
         // tapped rather than at the middle of the row.
         .popover(isPresented: $explaining, arrowEdge: .bottom) {
             ItemDetailCard(def: def)
                 .presentationCompactAdaptation(.popover)
         }
-        .accessibilityLabel("\(def.name). \(def.text)")
+        .accessibilityLabel("\(def.name). \(def.text)" + (asleep ? ", asleep this Turn" : ""))
     }
 }
 

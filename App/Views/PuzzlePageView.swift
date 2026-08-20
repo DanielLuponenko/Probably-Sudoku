@@ -28,6 +28,14 @@ struct PuzzlePageView: View {
             actionRow
             PageNumber(level: puzzle.level, slot: puzzle.slot.rawValue)
         }
+        .task(id: puzzle.boss?.secondsAllowed) {
+            guard model.secondsLeft != nil else { return }
+            while !Task.isCancelled, model.secondsLeft != nil, model.page == .puzzle {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                model.tickClock(by: 1)
+            }
+        }
     }
 
     // MARK: Header
@@ -45,6 +53,12 @@ struct PuzzlePageView: View {
                         .foregroundStyle(Paper.inkFaint)
                 }
                 Spacer(minLength: 4)
+                if let secondsLeft = model.secondsLeft {
+                    Label(clockText(secondsLeft), systemImage: "timer")
+                        .font(Print.caption(12))
+                        .foregroundStyle(secondsLeft <= 30 ? Paper.redPencil : Paper.inkSoft)
+                        .accessibilityLabel("Time remaining, \(Int(secondsLeft.rounded(.up))) seconds")
+                }
                 Text("Turn \(min(puzzle.turnNumber, puzzle.turnsMax))/\(puzzle.turnsMax)")
                     .font(Print.caption(12))
                     .foregroundStyle(Paper.inkSoft)
@@ -57,6 +71,11 @@ struct PuzzlePageView: View {
 
             Rectangle().fill(Paper.rule).frame(height: 1)
         }
+    }
+
+    private func clockText(_ seconds: Double) -> String {
+        let whole = max(0, Int(seconds.rounded(.up)))
+        return String(format: "%d:%02d", whole / 60, whole % 60)
     }
 
     /// The Book's own handwriting, given room whether or not it speaks, so a

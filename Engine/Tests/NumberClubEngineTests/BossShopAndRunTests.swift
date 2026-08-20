@@ -11,7 +11,7 @@ final class BossModifierTests: XCTestCase {
             XCTAssertFalse(boss.text.isEmpty)
             XCTAssertFalse(boss.attacks.isEmpty)
         }
-        XCTAssertEqual(BossModifier.allCases.count, 9)
+        XCTAssertEqual(BossModifier.allCases.count, 19)
     }
 
     func testTheEditorShrinksTheHand() {
@@ -114,6 +114,110 @@ final class BossModifierTests: XCTestCase {
         XCTAssertNil(BossModifier.fog.turnsOverride)
     }
 
+    func testHeavyLifterQuadruplesTheTargetInTheQAPath() throws {
+        var game = Game(seed: "heavy", startingBoard: .scholar)
+        try game.startPuzzle()
+        let baseTarget = game.puzzle!.target
+
+        #if DEBUG
+        game.qaSetBoss(.heavyLifter)
+        XCTAssertEqual(game.puzzle?.target, baseTarget * 4)
+        #endif
+    }
+
+    func testBuffborgerAndAccountantApplyTheirResourcePressure() throws {
+        var game = Game(seed: "resources", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.give(buff: Buffs.peek)
+        game.run.puzzle?.boss = .buffborger
+        XCTAssertThrowsError(try game.useBuff(at: 0)) {
+            XCTAssertEqual($0 as? PlacementError, .buffsDisabled)
+        }
+        XCTAssertEqual(game.run.buffs.count, 1, "a blocked Buff stays held")
+
+        game.run.puzzle?.boss = .accountant
+        let coinsBefore = game.run.coins
+        let square = game.blank(wanting: .five)!
+        _ = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
+        XCTAssertEqual(game.run.coins, coinsBefore - 1)
+    }
+
+    func testSashimiHalvesTheWholeScoreMultiplier() throws {
+        var game = Game(seed: "sashimi", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.give(ad: "bm_op_ed") // normal x2
+        game.run.puzzle?.boss = .sashimi
+
+        let outcome = try game.place(handIndex: game.stackHand(with: .five)!,
+                                     at: game.blank(wanting: .five)!)
+        XCTAssertEqual(outcome.points, 50, "Sashimi takes the normal x2 back to x1")
+    }
+
+    func testHandyDandyBarsTwoHeldDigitsAndTheGrayBossesBarTheirUnits() throws {
+        var handy = Game(seed: "handy", startingBoard: .scholar)
+        try handy.startPuzzle()
+        handy.run.puzzle?.boss = .handyDandy
+        var handyPuzzle = handy.run.puzzle!
+        handyPuzzle.startBossTurn(&handy.run)
+        handy.run.puzzle = handyPuzzle
+        XCTAssertEqual(handy.puzzle?.blockedDigits.count, min(2, Set(handy.puzzle!.hand).count))
+        XCTAssertTrue(handy.puzzle!.blockedDigits.isSubset(of: Set(handy.puzzle!.hand)))
+
+        for boss in [BossModifier.grayTheGarry, .garryTheGray] {
+            var game = Game(seed: boss.rawValue, startingBoard: .scholar)
+            try game.startPuzzle()
+            game.run.puzzle?.boss = boss
+            var puzzle = game.run.puzzle!
+            puzzle.startBossTurn(&game.run)
+            game.run.puzzle = puzzle
+            let barred = try XCTUnwrap(game.puzzle?.barredSquares.first)
+            XCTAssertThrowsError(try game.place(handIndex: 0, at: barred)) {
+                XCTAssertEqual($0 as? PlacementError, .squareBarred)
+            }
+            if boss == .grayTheGarry {
+                XCTAssertEqual(Set(game.puzzle!.barredSquares.map(\.row)).count, 1)
+            } else {
+                XCTAssertEqual(Set(game.puzzle!.barredSquares.map(\.box)).count, 1)
+            }
+        }
+    }
+
+    func testOverPusherExpiresFoulsAndUnluckyLuckySleepsABookmark() throws {
+        var pusher = Game(seed: "push", startingBoard: .scholar)
+        try pusher.startPuzzle()
+        pusher.run.puzzle?.boss = .overPusher
+        var puzzle = pusher.run.puzzle!
+        let filledSquare = try XCTUnwrap(Geometry.rows.flatMap { $0 }
+            .first { !puzzle.board.isBlank($0) })
+        var previousTurn = BossTurnState()
+        previousTurn.fouled = [filledSquare: puzzle.turnNumber]
+        puzzle.bossTurn = previousTurn
+        puzzle.startBossTurn(&pusher.run)
+        XCTAssertFalse(puzzle.barredSquares.contains(filledSquare))
+        XCTAssertFalse(puzzle.barredSquares.isEmpty)
+
+        var unlucky = Game(seed: "unlucky", startingBoard: .scholar)
+        try unlucky.startPuzzle()
+        unlucky.give(ad: "bm_local_gossip")
+        unlucky.run.puzzle?.boss = .unluckyLucky
+        var sleepingTurn = BossTurnState()
+        sleepingTurn.disabledBookmark = 0
+        unlucky.run.puzzle?.bossTurn = sleepingTurn
+        let outcome = try unlucky.place(handIndex: unlucky.stackHand(with: .five)!,
+                                        at: unlucky.blank(wanting: .five)!)
+        XCTAssertEqual(outcome.points, 50, "the sleeping Bookmark cannot contribute its +30")
+    }
+
+    func testTikTakDefinesTheClockAndExpiryFailsEvenWhileKeepingFilling() throws {
+        XCTAssertEqual(BossModifier.tikTak.secondsAllowed, 180)
+        var game = Game(seed: "clock", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.puzzle?.phase = .keepFilling
+        game.failPuzzle()
+        XCTAssertEqual(game.puzzle?.phase, .failed)
+        XCTAssertEqual(game.run.outcome, .failed)
+    }
+
     #if DEBUG
     func testQASelectorsMakeAnyLoadoutAndBossRepeatable() throws {
         var game = Game(seed: "qa-selectors", startingBoard: .scholar)
@@ -121,6 +225,13 @@ final class BossModifierTests: XCTestCase {
 
         game.qaSetBoss(.editor)
         XCTAssertEqual(game.puzzle?.handSize, 6)
+
+        game.qaSetBoss(.overPusher)
+        XCTAssertFalse(game.puzzle!.barredSquares.isEmpty)
+        game.qaSetBoss(.grayTheGarry)
+        XCTAssertTrue(game.puzzle!.bossTurn!.fouled.isEmpty,
+                      "a new QA Boss starts without the old Boss's fouls")
+        game.qaSetBoss(.editor)
 
         game.qaSetBookmark(Bookmarks.helpWanted)
         game.qaSetMarker("mk_silver", at: Square(row: 4, col: 4))
