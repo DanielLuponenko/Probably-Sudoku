@@ -33,6 +33,21 @@ final class RulesTests: XCTestCase {
         return game
     }
 
+    func testPlacingTheLastHandCardEndsTheTurnAndRefills() throws {
+        var game = try startedGame()
+        let square = try XCTUnwrap(game.puzzle?.board.blanks.first)
+        let digit = game.puzzle!.board.correctDigit(at: square)
+        for held in game.puzzle!.hand { game.run.puzzle!.pool.put(held) }
+        game.run.puzzle!.hand = []
+        let index = try XCTUnwrap(game.stackHand(with: digit))
+        let turn = game.puzzle!.turnNumber
+
+        _ = try game.place(handIndex: index, at: square)
+
+        XCTAssertEqual(game.puzzle?.turnNumber, turn + 1)
+        XCTAssertEqual(game.puzzle?.hand.count, game.puzzle?.handSize)
+    }
+
     // MARK: Line Clears (§6)
 
     func testCompletingARowScoresTheLineClearBonus() throws {
