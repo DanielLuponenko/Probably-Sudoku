@@ -35,9 +35,11 @@ struct StartBookView: View {
 
             // The desk above the Book is the only bare space on the screen, and
             // choosing how hard to make it belongs next to choosing which Book.
+            // Sits midway between the Dynamic Island and the Book, which is
+            // where the eye rests before it reaches the cover.
             ObstacleSwiper(obstacle: $obstacle)
                 .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.top, 8)
+                .padding(.top, 47)
 
             controls
         }
@@ -256,7 +258,7 @@ private struct ObstacleSwiper: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 0) {
             TabView(selection: index) {
                 ForEach(Array(levels.enumerated()), id: \.offset) { position, level in
                     VStack(spacing: 3) {
@@ -279,15 +281,6 @@ private struct ObstacleSwiper: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 52)
-
-            HStack(spacing: 6) {
-                ForEach(levels, id: \.self) { level in
-                    Circle()
-                        .fill(Paper.page.opacity(level == obstacle ? 0.8 : 0.26))
-                        .frame(width: level == obstacle ? 6 : 4.5,
-                               height: level == obstacle ? 6 : 4.5)
-                }
-            }
         }
         .animation(.snappy(duration: 0.2), value: obstacle)
         .shadow(color: .black.opacity(0.7), radius: 6, y: 2)

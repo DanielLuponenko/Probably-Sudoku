@@ -151,7 +151,18 @@ final class GameModel {
     // MARK: - Actions
 
     func tapHand(_ index: Int) {
+        guard hand.indices.contains(index) else { return }
+        if isBlocked(hand[index]) {
+            message = "\(hand[index].rawValue) is blocked this Turn"
+            return
+        }
         selectedHandIndex = selectedHandIndex == index ? nil : index
+    }
+
+    /// Obstacle III bars one number a Turn. It stays in the Hand — it can be
+    /// seen and Tossed — but it cannot go on the board.
+    func isBlocked(_ digit: Digit) -> Bool {
+        puzzle?.isBlocked(digit) ?? false
     }
 
     func tapSquare(_ square: Square) {
@@ -205,6 +216,18 @@ final class GameModel {
 
     var canToss: Bool {
         selectedHandIndex != nil && (puzzle?.tossesRemaining ?? 0) > 0
+    }
+
+    /// Tossing is the one thing a blocked number can still be used for, so it
+    /// has its own path in from the Hand.
+    func tossBlocked(at index: Int) {
+        do {
+            _ = try game.toss(handIndex: index)
+            message = nil
+        } catch {
+            message = describe(error)
+        }
+        dropHandSelection()
     }
 
     func useClue(at square: Square) {
@@ -375,7 +398,8 @@ final class GameModel {
         switch error {
         case PlacementError.noCluesLeft: return "No Clues left"
         case PlacementError.cluesDisabled: return "The Paywall has disabled Clues"
-        case PlacementError.tossAllowanceSpent: return "No Tosses left this Turn"
+        case PlacementError.tossAllowanceSpent: return "No Tosses left this Puzzle"
+        case PlacementError.numberBlocked: return "That number is blocked this Turn"
         case PlacementError.squareNotBlank: return "That square is already filled"
         case Shop.ShopError.notEnoughCoins: return "Not enough coins"
         case Shop.ShopError.slotsFull: return "No free slot"

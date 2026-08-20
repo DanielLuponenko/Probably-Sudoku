@@ -338,33 +338,48 @@ final class ObstacleTests: XCTestCase {
         XCTAssertEqual(game.puzzle?.hand.count, 6)
     }
 
-    func testObstacleThreeAlsoTakesOneBackEveryTurn() throws {
+    func testObstacleThreeAlsoBarsOneNumberEachTurn() throws {
         var game = Game(seed: "obstacle", startingBoard: .scholar,
-                        obstacle: .shortHandedAndSnatched)
+                        obstacle: .shortHandedAndBlocked)
         try game.startPuzzle()
         XCTAssertEqual(game.puzzle?.handSize, 6)
 
-        // Refilled to six, then one is taken back — so a Turn starts on five.
-        let result = try game.endTurn()
-        XCTAssertNotNil(result.numberSnatched)
-        XCTAssertEqual(game.puzzle?.hand.count, 5)
-        XCTAssertNil(Conservation.check(board: game.puzzle!.board,
-                                        pool: game.puzzle!.pool,
-                                        hand: game.puzzle!.hand),
-                     "a snatched number must go back to the Pool")
+        let blocked = game.puzzle?.blockedDigit
+        XCTAssertNotNil(blocked, "a number must be barred from the first Turn")
+        XCTAssertTrue(game.puzzle!.hand.contains(blocked!),
+                      "barring a number the player does not hold is no obstacle")
+
+        // It cannot be played...
+        let index = game.puzzle!.hand.firstIndex(of: blocked!)!
+        let square = game.blank(wanting: blocked!)!
+        XCTAssertThrowsError(try game.place(handIndex: index, at: square)) {
+            XCTAssertEqual($0 as? PlacementError, .numberBlocked)
+        }
+
+        // ...but it is still in the Hand, and can still be Tossed.
+        XCTAssertTrue(game.puzzle!.hand.contains(blocked!))
+        XCTAssertEqual(try game.toss(handIndex: index), blocked!)
     }
 
-    func testTheSnatchIsSeededLikeEverythingElse() throws {
+    func testTheBlockIsSeededLikeEverythingElse() throws {
         func play() throws -> [Digit] {
             var game = Game(seed: "same-seed", startingBoard: .scholar,
-                            obstacle: .shortHandedAndSnatched)
+                            obstacle: .shortHandedAndBlocked)
             try game.startPuzzle()
-            var taken: [Digit] = []
+            var barred: [Digit] = []
             for _ in 0..<4 {
-                if let digit = try game.endTurn().numberSnatched { taken.append(digit) }
+                if let digit = try game.endTurn().blockedDigit { barred.append(digit) }
             }
-            return taken
+            return barred
         }
         XCTAssertEqual(try play(), try play())
+    }
+
+    func testOtherObstaclesBlockNothing() throws {
+        var game = Game(seed: "obstacle", startingBoard: .scholar, obstacle: .shortHanded)
+        try game.startPuzzle()
+        XCTAssertNil(game.puzzle?.blockedDigit)
+        _ = try game.endTurn()
+        XCTAssertNil(game.puzzle?.blockedDigit)
     }
 }

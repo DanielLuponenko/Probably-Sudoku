@@ -24,7 +24,8 @@ struct HandStripView: View {
                     if index < model.hand.count {
                         NumberTile(
                             digit: model.hand[index],
-                            isSelected: model.selectedHandIndex == index
+                            isSelected: model.selectedHandIndex == index,
+                            isBlocked: model.isBlocked(model.hand[index])
                         )
                         .onTapGesture { model.tapHand(index) }
                     } else {
@@ -39,11 +40,12 @@ struct HandStripView: View {
 private struct NumberTile: View {
     var digit: Digit
     var isSelected: Bool
+    var isBlocked: Bool
 
     var body: some View {
         Text("\(digit.rawValue)")
             .font(Print.numeral(27, weight: .medium))
-            .foregroundStyle(Paper.ink)
+            .foregroundStyle(isBlocked ? Paper.inkFaint : Paper.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background {
@@ -51,13 +53,26 @@ private struct NumberTile: View {
                     .fill(isSelected ? Paper.cellSelected : Paper.pageWarm)
             }
             .overlay {
+                // Struck through in red pencil: it is still yours and still
+                // Tossable, it just cannot be played this Turn.
+                if isBlocked {
+                    Rectangle()
+                        .fill(Paper.redPencil.opacity(0.75))
+                        .frame(height: 1.8)
+                        .rotationEffect(.degrees(-14))
+                }
+            }
+            .overlay {
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(isSelected ? Paper.sageDeep : Paper.rule,
+                    .strokeBorder(isBlocked ? Paper.redPencil.opacity(0.55)
+                                            : (isSelected ? Paper.sageDeep : Paper.rule),
                                   lineWidth: isSelected ? 2 : 1)
             }
             .offset(y: isSelected ? -4 : 0)
             .animation(.snappy(duration: 0.18), value: isSelected)
-            .accessibilityLabel("Number \(digit.rawValue)\(isSelected ? ", selected" : "")")
+            .accessibilityLabel("Number \(digit.rawValue)"
+                + (isBlocked ? ", blocked this turn" : "")
+                + (isSelected ? ", selected" : ""))
     }
 
 }

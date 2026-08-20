@@ -18,6 +18,9 @@ public enum Actions {
         guard puzzle.board.isBlank(square) else { throw PlacementError.squareNotBlank }
 
         let digit = puzzle.hand[handIndex]
+        // Obstacle III bars one number a Turn. It stays in the Hand and can
+        // still be Tossed; it just cannot go on the board.
+        guard !puzzle.isBlocked(digit) else { throw PlacementError.numberBlocked }
         let outcome: PlacementOutcome
         if digit == puzzle.board.correctDigit(at: square) {
             puzzle.hand.remove(at: handIndex)
@@ -276,8 +279,8 @@ public enum Actions {
         public var numbersDrawn = 0
         public var turnsExhausted = false
         public var puzzleFailed = false
-        /// Obstacle III only: the number taken back out of the Hand.
-        public var numberSnatched: Digit?
+        /// Obstacle III only: the number barred for the coming Turn.
+        public var blockedDigit: Digit?
     }
 
     /// §4 — ending a Turn refills the Hand from the Pool up to hand size;
@@ -313,13 +316,12 @@ public enum Actions {
             turn.numbersDrawn = drawn.count
         }
 
-        // Obstacle III takes one back, after the refill — before it, the refill
-        // would simply replace what was taken and the obstacle would do nothing.
-        if run.obstacle.snatchesANumberEachTurn, !puzzle.hand.isEmpty {
-            let index = run.streams.pool.int(puzzle.hand.count)
-            let snatched = puzzle.hand.remove(at: index)
-            puzzle.pool.put(snatched)
-            turn.numberSnatched = snatched
+        // Obstacle III bars a different number each Turn, chosen after the
+        // refill so it is picked from the Hand the player will actually hold.
+        if run.obstacle.blocksANumberEachTurn {
+            puzzle.blockedDigit = PuzzleState.pickBlocked(from: puzzle.hand,
+                                                          rng: &run.streams.pool)
+            turn.blockedDigit = puzzle.blockedDigit
         }
 
         if wasLastTurn {

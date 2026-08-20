@@ -34,6 +34,10 @@ public struct PuzzleState: Codable, Sendable {
 
     public var boss: BossModifier?
     public var censoredDigit: Digit?
+    /// Obstacle III — the number that cannot be played this Turn. A digit
+    /// rather than a Hand position, because positions shift as the Hand is
+    /// played and a moving block is unreadable.
+    public var blockedDigit: Digit?
 
     public var phase: PuzzlePhase
     public var keepFillingCoins: Int
@@ -47,6 +51,7 @@ public struct PuzzleState: Codable, Sendable {
     public var turnsRemaining: Int { max(0, turnsMax - turnNumber + 1) }
     public var tossesRemaining: Int { max(0, tossAllowance - tossedThisPuzzle) }
     public var canUseClue: Bool { cluesRemaining > 0 && boss?.disablesClues != true }
+    public func isBlocked(_ digit: Digit) -> Bool { blockedDigit == digit }
     /// §4 — what the player could work out for themselves. The UI must never
     /// show this; it exists for tests and for the tutorial.
     public func poolCount(of digit: Digit) -> Int { pool[digit] }
@@ -78,7 +83,7 @@ public extension PuzzleState {
         let handSize = run.effectiveHandSize(boss: boss)
         let hand = pool.draw(&run.streams.pool, count: handSize)
 
-        let puzzle = PuzzleState(
+        var puzzle = PuzzleState(
             level: run.level,
             slot: slot,
             difficulty: difficulty,
@@ -95,11 +100,24 @@ public extension PuzzleState {
             cluesRemaining: run.effectiveClues(boss: boss),
             boss: boss,
             censoredDigit: censored,
+            blockedDigit: nil,
             phase: .playing,
             keepFillingCoins: 0
         )
+        if run.obstacle.blocksANumberEachTurn {
+            puzzle.blockedDigit = Self.pickBlocked(from: puzzle.hand, rng: &run.streams.pool)
+        }
+
         puzzle.assertConservation()
         return puzzle
+    }
+
+    /// Chosen from what is actually in hand, so the block always costs
+    /// something — barring a number the player does not hold is no obstacle.
+    static func pickBlocked(from hand: [Digit], rng: inout RandomStream) -> Digit? {
+        let held = Array(Set(hand)).sorted()
+        guard !held.isEmpty else { return nil }
+        return held[rng.int(held.count)]
     }
 
     func assertConservation() {
@@ -133,5 +151,6 @@ public enum PlacementError: Error, Equatable, Sendable {
     case noCluesLeft
     case cluesDisabled
     case tossAllowanceSpent
+    case numberBlocked
     case puzzleNotPlayable
 }

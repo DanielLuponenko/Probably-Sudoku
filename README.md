@@ -96,12 +96,16 @@ work with, so the two dials move independently.
 |---|---|
 | Obstacle I | Nothing |
 | Obstacle II | One fewer number in hand |
-| Obstacle III | II, and one number taken back out of the hand every Turn |
+| Obstacle III | II, and one number blocked from being played each Turn |
 
-The snatch happens **after** the refill. Before it, the refill would simply
-replace what was taken and the obstacle would do nothing at all. It goes back
-to the Pool, so conservation still holds, and it is drawn from the seeded pool
-stream, so a seed still reproduces a run exactly.
+The blocked number stays in your hand — you can see it, and you can still Toss
+it — you simply cannot put it on the board until the Turn is over. It is chosen
+**after** the refill and **from the numbers actually held**, because barring a
+number the player does not have is no obstacle at all. It comes off the seeded
+pool stream, so a seed still reproduces a run exactly.
+
+It blocks a digit rather than a hand position: positions shift as the hand is
+played, and a block that moves is unreadable.
 
 ## The shelf
 
