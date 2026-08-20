@@ -27,17 +27,22 @@ struct GridView: View {
 
     private func cells(cell: CGFloat) -> some View {
         ForEach(Square.all, id: \.index) { square in
-            CellView(
-                square: square,
-                digit: board[square],
-                provenance: board.filledBy[square.index],
-                state: state(for: square),
-                marker: model.visibleMarkers[square],
-                size: cell
-            )
+            Button {
+                model.tapSquare(square)
+            } label: {
+                CellView(
+                    square: square,
+                    digit: board[square],
+                    provenance: board.filledBy[square.index],
+                    state: state(for: square),
+                    marker: model.visibleMarkers[square],
+                    size: cell
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(model.isBarred(square))
             .position(x: (CGFloat(square.col) + 0.5) * cell,
                       y: (CGFloat(square.row) + 0.5) * cell)
-            .onTapGesture { model.tapSquare(square) }
         }
     }
 
@@ -45,6 +50,7 @@ struct GridView: View {
         // The square you tapped is one of the matches, so it is marked the same
         // way. Giving it its own colour made it look like a different kind of
         // thing from the numbers it had just found.
+        if model.isBarred(square) { return .barred }
         if let digit = model.highlightedDigit, board[square] == digit { return .sameNumber }
         if model.selectedSquare == square { return .selected }
         return .plain
@@ -88,7 +94,21 @@ struct GridView: View {
 }
 
 enum CellState {
-    case plain, selected, sameNumber
+    case plain, selected, sameNumber, barred
+}
+
+/// Pencil hatching across a square that cannot be used this Turn.
+private struct Hatching: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        var x = rect.minX - rect.height
+        while x < rect.maxX {
+            path.move(to: CGPoint(x: x, y: rect.maxY))
+            path.addLine(to: CGPoint(x: x + rect.height, y: rect.minY))
+            x += rect.width / 3.5
+        }
+        return path
+    }
 }
 
 /// Washes the cells of a finished unit and rules a heavy line round it — the
@@ -159,6 +179,12 @@ private struct CellView: View {
                     .strokeBorder(Paper.sageDeep.opacity(0.7), lineWidth: 1.5)
             }
 
+            if state == .barred {
+                Hatching()
+                    .stroke(Paper.ink.opacity(0.30), lineWidth: 1)
+                    .clipShape(Rectangle())
+            }
+
             if let digit {
                 Text("\(digit.rawValue)")
                     .font(Print.numeral(size * 0.52, weight: numeralWeight))
@@ -182,6 +208,7 @@ private struct CellView: View {
         switch state {
         case .selected: return Paper.cellSelected
         case .sameNumber: return Paper.cellSameNumber
+        case .barred: return Paper.gridHair.opacity(0.45)
         case .plain: return provenance == .given ? Paper.cellGiven : .clear
         }
     }
@@ -202,6 +229,7 @@ private struct CellView: View {
         if provenance == .given { parts.append("given") }
         if let marker { parts.append(marker.def.name) }
         if state == .sameNumber { parts.append("matches selection") }
+        if state == .barred { parts.append("barred this turn") }
         return parts.joined(separator: ", ")
     }
 }

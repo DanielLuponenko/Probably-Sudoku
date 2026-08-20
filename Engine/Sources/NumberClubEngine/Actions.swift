@@ -16,11 +16,13 @@ public enum Actions {
         }
         guard puzzle.hand.indices.contains(handIndex) else { throw PlacementError.numberNotInHand }
         guard puzzle.board.isBlank(square) else { throw PlacementError.squareNotBlank }
+        guard !puzzle.isBarred(square) else { throw PlacementError.squareBarred }
 
         let digit = puzzle.hand[handIndex]
         // Obstacle III bars one number a Turn. It stays in the Hand and can
         // still be Tossed; it just cannot go on the board.
         guard !puzzle.isBlocked(digit) else { throw PlacementError.numberBlocked }
+        run.coins -= puzzle.boss?.coinsPerPlacement ?? 0
         let outcome: PlacementOutcome
         if digit == puzzle.board.correctDigit(at: square) {
             puzzle.hand.remove(at: handIndex)
@@ -48,6 +50,16 @@ public enum Actions {
     /// the Turns run out.
     private static func endBookIfPuzzleFailed(_ run: inout RunState) {
         if run.puzzle?.phase == .failed { run.outcome = .failed }
+    }
+
+    /// Tik Tak's clock lives in the app, but expiry still has to take the same
+    /// production failure path as every other lost Puzzle.
+    public static func failPuzzle(_ run: inout RunState) {
+        guard var puzzle = run.puzzle,
+              puzzle.phase == .playing || puzzle.phase == .keepFilling else { return }
+        puzzle.phase = .failed
+        run.puzzle = puzzle
+        run.outcome = .failed
     }
 
     /// §6 — a wrong placement subtracts `50 x the number`, doubled by The
@@ -253,6 +265,7 @@ public enum Actions {
     public static func useBuff(_ run: inout RunState, index: Int, digit: Digit? = nil) throws -> Bool {
         guard var puzzle = run.puzzle else { throw PlacementError.puzzleNotPlayable }
         guard run.buffs.indices.contains(index) else { return false }
+        guard puzzle.boss?.disablesBuffs != true else { throw PlacementError.buffsDisabled }
 
         let def = run.buffs[index].def
         guard let onUse = def.onUse else { return false }
@@ -289,6 +302,9 @@ public enum Actions {
         public var puzzleFailed = false
         /// Obstacle III only: the number barred for the coming Turn.
         public var blockedDigit: Digit?
+        /// Obstacle III and Handy Dandy together can bar up to three digits.
+        public var blockedDigits: Set<Digit> = []
+        public var barredSquares: Set<Square> = []
     }
 
     /// §4 — ending a Turn refills the Hand from the Pool up to hand size;
@@ -331,6 +347,9 @@ public enum Actions {
                                                           rng: &run.streams.pool)
             turn.blockedDigit = puzzle.blockedDigit
         }
+        puzzle.startBossTurn(&run)
+        turn.blockedDigits = puzzle.blockedDigits
+        turn.barredSquares = puzzle.barredSquares
 
         if wasLastTurn {
             turn.turnsExhausted = true

@@ -51,6 +51,9 @@ public struct Game: Sendable {
     public mutating func endTurn() throws -> Actions.TurnResult {
         try Actions.endTurn(&run)
     }
+    public mutating func failPuzzle() {
+        Actions.failPuzzle(&run)
+    }
     public mutating func cashOut() throws -> RunState.Payout {
         try Actions.cashOut(&run)
     }
@@ -161,8 +164,15 @@ public extension Game {
         puzzle.censoredDigit = boss.censorsARandomDigit
             ? BossModifier.rollCensoredDigit(&run.streams.boss)
             : nil
+        // A QA selection represents a fresh encounter. Dynamic effects from
+        // the previously selected Boss (fouls, sleeping Bookmark, barred
+        // digits) must not bleed into the one being inspected next.
+        puzzle.bossTurn = nil
         run.puzzle = puzzle
         qaRefreshActivePuzzleLimits()
+        guard var active = run.puzzle else { return }
+        active.startBossTurn(&run)
+        run.puzzle = active
     }
 
     /// Reapply standing limits after a QA selection changes the active run or
@@ -175,6 +185,8 @@ public extension Game {
         puzzle.turnNumber = min(puzzle.turnNumber, puzzle.turnsMax)
         puzzle.tossAllowance = run.effectiveTossAllowance(boss: boss)
         puzzle.cluesRemaining = run.effectiveClues(boss: boss)
+        puzzle.target = Targets.target(level: puzzle.level, slot: puzzle.slot)
+            * (boss?.targetMultiplier ?? 1)
 
         let targetHandSize = run.effectiveHandSize(boss: boss)
         while puzzle.hand.count > targetHandSize {
