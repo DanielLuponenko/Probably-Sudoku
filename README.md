@@ -25,6 +25,26 @@ The split is strict: the engine has no notion of a screen, and the app has no
 notion of a rule. Everything in the engine is a value type, so a view can hold a
 snapshot without worrying about it changing underneath.
 
+## 120Hz
+
+`CADisableMinimumFrameDurationOnPhone` must be **true**, or iOS holds the app at
+60Hz on a ProMotion phone and everything reads as slightly heavy.
+
+It cannot be set through `INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone`.
+That prefix only carries the fixed set of keys Xcode knows about; anything else
+is accepted into the project file and then silently dropped from the generated
+plist — the setting is visibly present in `project.pbxproj` and absent from the
+built `Info.plist`. The target therefore uses an explicit `info:` block in
+`project.yml`, which XcodeGen writes to `App/Info.plist` (generated, not
+committed).
+
+Check it survived, rather than assuming:
+
+```bash
+/usr/libexec/PlistBuddy -c "Print :CADisableMinimumFrameDurationOnPhone" \
+  <build>/NumberClub.app/Info.plist        # must print: true
+```
+
 ## Running it on a real iPhone
 
 Team `233268ZQDV`, bundle id `com.numberclub.app`, automatic signing. Apple
@@ -224,6 +244,11 @@ ffmpeg -i in.mp4 -filter_complex \
 
 Played forward then backward, so the loop point is the same frame and there is
 no jump — a 5s clip becomes a 10s loop with no seam.
+
+**Encode at the size it is displayed at, not the size it arrived at.** The clip
+is shown `resizeAspectFill` on a 1320x2868 screen, which scales a 1076x1924
+source by **1.49x** every frame through the runtime's bilinear scaler. Encoding
+at 1604x2868 with an offline lanczos scale removes that entirely.
 
 **Encode at the source's native size.** The first version was scaled to 720
 wide to keep it under a megabyte, which threw away a third of the linear detail

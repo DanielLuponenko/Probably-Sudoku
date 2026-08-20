@@ -54,7 +54,7 @@ struct ContentView: View {
             if let model, !model.wantsMenu {
                 GameView(model: model, reduceMotion: reduceMotion)
             } else if let book = opening, let url = openingClip(for: book) {
-                BookOpening(url: url, reduceMotion: reduceMotion) {
+                BookOpening(url: url, poster: book.cover, reduceMotion: reduceMotion) {
                     begin(book)
                 }
             } else {

@@ -94,6 +94,10 @@ struct OneShotVideo: UIViewRepresentable {
             playerLayer.videoGravity = .resizeAspectFill
             self.player = player
 
+            // Decode the opening frames before playing, so the cut from the
+            // shelf into the clip has something to show immediately.
+            player.automaticallyWaitsToMinimizeStalling = false
+
             let center = NotificationCenter.default
             observers.append(center.addObserver(
                 forName: AVPlayerItem.didPlayToEndTimeNotification,
@@ -126,6 +130,9 @@ struct OneShotVideo: UIViewRepresentable {
 /// happening, which is exactly what a page turn should not feel like.
 struct BookOpening: View {
     var url: URL
+    /// Painted underneath, so the first thing on screen is the Book the player
+    /// just tapped rather than black while the decoder gets going.
+    var poster: String?
     var reduceMotion: Bool
     var onFinish: () -> Void
 
@@ -137,7 +144,18 @@ struct BookOpening: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color(hex: 0x120D0A).ignoresSafeArea()
+
+            if let poster {
+                GeometryReader { proxy in
+                    Image(poster)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                }
+                .ignoresSafeArea()
+            }
 
             OneShotVideo(url: url) { finish() }
                 .blur(radius: blur)
