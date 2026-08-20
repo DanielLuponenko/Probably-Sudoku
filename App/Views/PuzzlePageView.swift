@@ -9,7 +9,9 @@ struct PuzzlePageView: View {
         VStack(alignment: .leading, spacing: 10) {
             header
             ScoreMeter(score: puzzle.score, target: puzzle.target,
-                       level: puzzle.level, slot: puzzle.slot.rawValue)
+                       level: puzzle.level, slot: puzzle.slot.rawValue,
+                       recentPoints: model.lastOutcome?.correct == true
+                           ? model.lastOutcome?.totalPoints : nil)
 
             Spacer(minLength: 0)
             GridView(model: model, board: puzzle.board)
@@ -120,6 +122,10 @@ struct ScoreMeter: View {
     var target: Int
     var level: Int
     var slot: Int
+    /// The last accepted placement's actual resolved score. This comes from
+    /// the engine outcome, so marker bonuses such as Silver are observable
+    /// without the view attempting to recalculate any rule.
+    var recentPoints: Int?
 
     private var fraction: Double {
         target > 0 ? min(1, Double(score) / Double(target)) : 0
@@ -135,6 +141,14 @@ struct ScoreMeter: View {
                 Text("of \(target.formatted())")
                     .font(Print.numeral(15, weight: .semibold))
                     .foregroundStyle(Paper.inkFaint)
+                if let recentPoints, recentPoints > 0 {
+                    Text("+\(recentPoints)")
+                        .font(Print.numeral(13, weight: .bold))
+                        .foregroundStyle(Paper.sageDeep)
+                        .id(recentPoints)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .accessibilityLabel("Last placement, plus \(recentPoints) points")
+                }
                 Spacer(minLength: 6)
                 Text("Level \(level)")
                     .font(Print.caption(11))
@@ -157,6 +171,7 @@ struct ScoreMeter: View {
             .frame(height: 5)
         }
         .animation(.snappy, value: score)
+        .animation(.snappy(duration: 0.22), value: recentPoints)
     }
 }
 
