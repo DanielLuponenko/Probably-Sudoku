@@ -16,9 +16,22 @@ enum BookPage: Equatable {
 @Observable
 final class GameModel {
 
+    /// A presentation identity for a Hand card. A digit is not an identity:
+    /// duplicates are valid, and a carried card must not re-enter merely
+    /// because another card with the same digit was spent.
+    struct HandCard: Identifiable {
+        let id: UUID
+        let digit: Digit
+        /// Staggers only cards introduced by the current Hand reconciliation.
+        let arrivalOrder: Int
+    }
+
     private(set) var game: Game {
         didSet { persist() }
     }
+    private(set) var handCards: [HandCard] = []
+    /// A frozen model is the page already lifting away, not a fresh deal.
+    private(set) var animatesHandArrival = true
     private(set) var page: BookPage = .puzzle
 
     /// Which of the two selections the board should be highlighting. Both a
@@ -60,6 +73,7 @@ final class GameModel {
          obstacle: Obstacle = .none) {
         game = Game(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
         try? game.startPuzzle()
+        refreshHandCards(replacing: true)
     }
 
     /// A read-only copy of the game as it was, for drawing the page that is
@@ -67,11 +81,14 @@ final class GameModel {
     init(frozen game: Game, page: BookPage) {
         self.game = game
         self.page = page
+        self.animatesHandArrival = false
+        refreshHandCards(replacing: true)
     }
 
     /// Resumes a Book that was put down.
     init(resuming game: Game) {
         self.game = game
+        refreshHandCards(replacing: true)
     }
 
     private func persist() {
@@ -98,6 +115,29 @@ final class GameModel {
         return min(1, Double(puzzle.score) / Double(puzzle.target))
     }
     var coins: Int { run.coins }
+
+    /// Reuses the identity of cards that remain in the Hand and gives each
+    /// newly dealt card an identity of its own. A full Redraw intentionally
+    /// opts out: every replacement card should arrive as new.
+    private func refreshHandCards(replacing: Bool = false) {
+        let updatedHand = hand
+        guard !replacing else {
+            handCards = updatedHand.enumerated().map {
+                HandCard(id: UUID(), digit: $0.element, arrivalOrder: $0.offset)
+            }
+            return
+        }
+
+        var remainingCards = handCards
+        var nextArrivalOrder = 0
+        handCards = updatedHand.map { digit in
+            if let index = remainingCards.firstIndex(where: { $0.digit == digit }) {
+                return remainingCards.remove(at: index)
+            }
+            defer { nextArrivalOrder += 1 }
+            return HandCard(id: UUID(), digit: digit, arrivalOrder: nextArrivalOrder)
+        }
+    }
 
     /// Which Book this is, and therefore what it says in the margins.
     var edition: BookEdition { BookEdition.edition(forBookTier: 1) }
@@ -202,6 +242,7 @@ final class GameModel {
     func place(handIndex: Int, at square: Square) {
         do {
             let outcome = try game.place(handIndex: handIndex, at: square)
+            refreshHandCards()
             lastOutcome = outcome
             lastPlacedSquare = square
             markCleared(outcome, at: square)
@@ -234,6 +275,7 @@ final class GameModel {
         guard let index = selectedHandIndex else { return }
         do {
             _ = try game.toss(handIndex: index)
+            refreshHandCards()
             message = nil
         } catch {
             message = describe(error)
@@ -250,6 +292,7 @@ final class GameModel {
     func tossBlocked(at index: Int) {
         do {
             _ = try game.toss(handIndex: index)
+            refreshHandCards()
             message = nil
         } catch {
             message = describe(error)
@@ -260,6 +303,7 @@ final class GameModel {
     func useClue(at square: Square) {
         do {
             let outcome = try game.useClue(at: square)
+            refreshHandCards()
             lastPlacedSquare = square
             markCleared(outcome, at: square)
         } catch {
@@ -269,7 +313,10 @@ final class GameModel {
 
     func useBuff(at index: Int, digit: Digit? = nil) {
         do {
+            let redrawsHand = game.run.buffs.indices.contains(index)
+                && game.run.buffs[index].defID == Buffs.redraw
             _ = try game.useBuff(at: index, digit: digit)
+            refreshHandCards(replacing: redrawsHand)
             // Redraw and Lucky Dip both reshape the Hand under the selection.
             dropHandSelection()
         } catch {
@@ -280,6 +327,7 @@ final class GameModel {
     func endTurn() {
         do {
             let result = try game.endTurn()
+            refreshHandCards()
             clearSelection()
             if result.puzzleFailed { page = .results }
         } catch {
@@ -326,6 +374,7 @@ final class GameModel {
         }
         do {
             try game.startPuzzle()
+            refreshHandCards(replacing: true)
             selectedHandIndex = nil
             selectedSquare = nil
             lastOutcome = nil
@@ -376,6 +425,7 @@ final class GameModel {
         message = nil
         page = .puzzle
         try? game.startPuzzle()
+        refreshHandCards(replacing: true)
     }
 
     func clearMessage() { message = nil }
@@ -386,15 +436,24 @@ final class GameModel {
     func qaAward(coins: Int) { game.qaAward(coins: coins) }
     func qaMeetTarget() { game.qaMeetTarget() }
     func qaFailPuzzle() { game.qaFailPuzzle(); page = .results }
-    func qaFillBoard() { game.qaFillBoard() }
+    func qaFillBoard() {
+        game.qaFillBoard()
+        refreshHandCards()
+    }
     func qaGrantBuff(_ defID: String) { game.qaGrantBuff(defID) }
-    func qaSetBookmark(_ defID: String) { game.qaSetBookmark(defID) }
+    func qaSetBookmark(_ defID: String) {
+        game.qaSetBookmark(defID)
+        refreshHandCards()
+    }
     func qaSetMarker(_ defID: String) {
         guard let square = puzzle?.board.blanks.first else { return }
         game.qaSetMarker(defID, at: square)
     }
     func qaSetBuff(_ defID: String) { game.qaSetBuff(defID) }
-    func qaSetBoss(_ boss: BossModifier) { game.qaSetBoss(boss) }
+    func qaSetBoss(_ boss: BossModifier) {
+        game.qaSetBoss(boss)
+        refreshHandCards()
+    }
 
     /// Fills the bookmarks, so the row can be looked at populated.
     func qaFillLoadout() {
