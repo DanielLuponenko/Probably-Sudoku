@@ -30,8 +30,9 @@ so and stop — do not do the work untracked and promise to file it later.
 
 ### While you work
 
-Move the ticket: `getTransitionsForJiraIssue` → `transitionJiraIssue`
-(To Do → In Progress when you start, → Done when it is finished and verified).
+Move the ticket with `getTransitionsForJiraIssue` → `transitionJiraIssue`.
+The workflow is **To Do → In Progress → In Review → Done**: In Progress when
+you start, In Review when the PR is open, Done when it is merged and verified.
 
 ### When you finish
 
