@@ -223,7 +223,18 @@ ffmpeg -i in.mp4 -filter_complex \
 ```
 
 Played forward then backward, so the loop point is the same frame and there is
-no jump — a 5s clip becomes a 10s loop with no seam, at ~690KB. Worth checking
+no jump — a 5s clip becomes a 10s loop with no seam.
+
+**Encode at the source's native size.** The first version was scaled to 720
+wide to keep it under a megabyte, which threw away a third of the linear detail
+before the phone had even started. An iPhone 16 Pro Max is 1320px wide, so the
+shipped asset is upscaled either way, and every pixel dropped here is one it has
+to invent. Native is 1076 wide at CRF 19, which costs about 5.5MB and looks like
+a photograph rather than a video of one.
+
+Some softness is left and cannot be encoded away: Kling returns 1076x1924 and
+Meshy exposes no resolution control, so the asset is still short of 1320. Fixing
+that needs a higher-resolution generation, not a better encode. Worth checking
 rather than assuming: comparing the first and last frames of the finished loop
 gives a mean difference of 0.77 out of 255, which is encoding noise.
 
