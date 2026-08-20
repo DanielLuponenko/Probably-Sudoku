@@ -27,6 +27,34 @@ struct QAPanel: View {
                 }
 
                 Section {
+                    NavigationLink("Choose Bookmark") {
+                        QAItemPicker(title: "Bookmarks", items: Catalog.items(of: .bookmark)) { item in
+                            model.qaSetBookmark(item.id)
+                        }
+                    }
+                    NavigationLink("Choose Marker at first blank") {
+                        QAItemPicker(title: "Markers", items: Catalog.items(of: .marker)) { item in
+                            model.qaSetMarker(item.id)
+                        }
+                    }
+                    NavigationLink("Choose Buff") {
+                        QAItemPicker(title: "Buffs", items: Catalog.items(of: .buff)) { item in
+                            model.qaSetBuff(item.id)
+                        }
+                    }
+                    NavigationLink("Force Boss") {
+                        List(BossModifier.allCases, id: \.rawValue) { boss in
+                            Button(boss.name) { model.qaSetBoss(boss) }
+                        }
+                        .navigationTitle("Bosses")
+                    }
+                } header: {
+                    Text("Loadout")
+                } footer: {
+                    Text("Selections are Debug-only. Each replaces its own QA slot; markers use the current board's first blank so their effect can be inspected immediately.")
+                }
+
+                Section {
                     row("Fill the board", "square.grid.3x3.fill") { model.qaFillBoard() }
                 } header: {
                     Text("Board")
@@ -75,6 +103,30 @@ struct QAPanel: View {
             Label(title, systemImage: symbol)
         }
         .foregroundStyle(destructive ? Color.red : Color.accentColor)
+    }
+}
+
+/// One Debug picker for a catalogue group. It deliberately stays open after a
+/// selection, so a tester can switch cases without reopening the QA panel.
+private struct QAItemPicker: View {
+    var title: String
+    var items: [ItemDef]
+    var grant: (ItemDef) -> Void
+
+    var body: some View {
+        List(items, id: \.id) { item in
+            Button {
+                grant(item)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                    Text(item.text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle(title)
     }
 }
 #endif
