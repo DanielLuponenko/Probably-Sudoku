@@ -63,6 +63,7 @@ the cover every time:
 | `-buffSlip` | grants Paper Crane and opens its slip |
 | `-runInfo` | opens the run information slip on launch |
 | `-loadout` | grants some Bookmarks and Buffs, to see the row populated |
+| `-obstacle 3` | opens the shelf on that obstacle level |
 
 ## Books have a personality
 
@@ -106,6 +107,12 @@ pool stream, so a seed still reproduces a run exactly.
 
 It blocks a digit rather than a hand position: positions shift as the hand is
 played, and a block that moves is unreadable.
+
+Each level is drawn as well as described — a row of Hand tiles with the
+obstacle applied: seven tiles for I, six and an empty slot for II, and six with
+one struck through in red for III. It borrows the shapes the Hand already uses
+in play, so it needs no key, and the three descriptions are kept to one line
+each so the artwork sits at the same height on all three.
 
 ## The shelf
 

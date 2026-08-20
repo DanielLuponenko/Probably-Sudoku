@@ -12,7 +12,19 @@ struct StartBookView: View {
     var onStart: (BookEdition, Obstacle) -> Void
 
     @State private var index = 0
-    @State private var obstacle: Obstacle = .none
+    @State private var obstacle: Obstacle = StartBookView.debugObstacle()
+
+    /// `-obstacle 3` opens on that level, so each one can be looked at.
+    private static func debugObstacle() -> Obstacle {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-obstacle"), index + 1 < arguments.count,
+           let raw = Int(arguments[index + 1]), let level = Obstacle(rawValue: raw) {
+            return level
+        }
+        #endif
+        return .none
+    }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var books: [BookEdition] { BookEdition.shelf }
@@ -39,7 +51,7 @@ struct StartBookView: View {
             // where the eye rests before it reaches the cover.
             ObstacleSwiper(obstacle: $obstacle)
                 .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.top, 47)
+                .padding(.top, 31)
 
             controls
         }
@@ -274,17 +286,60 @@ private struct ObstacleSwiper: View {
                             .lineLimit(2)
                             .minimumScaleFactor(0.85)
                             .padding(.horizontal, 34)
+                        HandPreview(level: level)
+                            .padding(.top, 5)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .tag(position)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 52)
+            .frame(height: 82)
         }
         .animation(.snappy(duration: 0.2), value: obstacle)
         .shadow(color: .black.opacity(0.7), radius: 6, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Obstacle level: \(obstacle.name). \(obstacle.text)")
+    }
+}
+
+/// The obstacle drawn as the thing it actually affects: your hand.
+///
+/// Every obstacle so far is a change to what you hold, so the clearest picture
+/// of one is a row of Hand tiles with that change applied — a missing slot for
+/// the shorter hand, a struck-through tile for the blocked number. It uses the
+/// same shapes the Hand uses in play, so it needs no key.
+private struct HandPreview: View {
+    var level: Obstacle
+
+    private let slots = 7
+    private var held: Int { slots + level.handSizeDelta }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<slots, id: \.self) { slot in
+                if slot < held {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(Paper.page.opacity(0.82))
+                        .overlay {
+                            // The blocked number is the last one held, so the
+                            // strike does not land on the missing slot.
+                            if level.blocksANumberEachTurn && slot == held - 1 {
+                                Rectangle()
+                                    .fill(Paper.redPencil)
+                                    .frame(height: 1.6)
+                                    .rotationEffect(.degrees(-16))
+                            }
+                        }
+                } else {
+                    // The slot the obstacle takes away: outlined, not filled.
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .strokeBorder(Paper.page.opacity(0.28),
+                                      style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                }
+            }
+        }
+        .frame(width: 118, height: 17)
+        .accessibilityHidden(true)
     }
 }

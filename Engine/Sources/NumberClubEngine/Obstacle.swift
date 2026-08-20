@@ -26,7 +26,9 @@ public enum Obstacle: Int, Codable, CaseIterable, Sendable {
         case .shortHanded:
             return "One fewer number in hand."
         case .shortHandedAndBlocked:
-            return "One fewer number in hand, and one number blocked each Turn."
+            // Kept to one line: the three levels are read as a set, and a
+            // wrapping one shifts its own artwork down out of line.
+            return "One fewer in hand, one blocked each Turn."
         }
     }
 
