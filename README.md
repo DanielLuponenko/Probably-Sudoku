@@ -36,8 +36,16 @@ Continuing goes straight back to the page you were on. It deliberately does not
 replay the opening clip: the Book is already open, and opening it again would
 be a lie.
 
-A finished or abandoned Book is not saved, since there is nothing to resume
-into.
+There are two ways out of a Book, and the difference matters:
+
+- **Leave the Book** keeps your place. This is the ordinary way to stop.
+- **Abandon Book** throws the run away and deletes the save, behind a
+  confirmation that says so.
+
+Abandon originally did neither — it returned to the shelf and left `run.json`
+on disk, so the game offered to continue a Book it had just told the player was
+gone. Leaving was not offered at all, which made a destructive button the only
+answer to "I want to stop for now".
 
 Obstacles are **earned, not chosen**. Only Obstacle I is available at first and
 finishing a Book unlocks the next. Locked levels are still shown and can be

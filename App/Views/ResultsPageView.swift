@@ -38,7 +38,7 @@ struct ResultsPageView: View {
     @ViewBuilder
     private var actions: some View {
         if model.run.outcome != nil {
-            PaperButton(title: "New Book", kind: .primary) { model.exitToMenu() }
+            PaperButton(title: "New Book", kind: .primary) { model.abandonRun() }
         } else if model.puzzle?.phase == .won {
             HStack(spacing: 10) {
                 PaperButton(title: "Keep Filling",

@@ -197,11 +197,23 @@ struct SettingsSlip: View {
                         : "Bookmarks, Markers and Buffs do not carry over, Marker stacks reset, "
                           + "and coins go back to the starting amount."
                 ) {
+                    // The ordinary way out. Without this the only exit was
+                    // Abandon, which is a destructive answer to "I want to stop
+                    // for now".
+                    if !confirmingAbandon {
+                        PaperButton(title: "Leave the Book",
+                                    subtitle: "Keeps your place",
+                                    kind: .quiet) {
+                            onClose()
+                            model.leaveToMenu()
+                        }
+                    }
+
                     if confirmingAbandon {
                         VStack(alignment: .leading, spacing: 9) {
                             Text("Abandon Level \(model.run.level), Puzzle "
-                                 + "\(model.run.slot.rawValue + 1)? Everything you have "
-                                 + "bought is lost, and you go back to the cover.")
+                                 + "\(model.run.slot.rawValue + 1)? The Book is thrown away "
+                                 + "and cannot be continued.")
                                 .font(Print.body(12.5))
                                 .foregroundStyle(Paper.redPencil)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -211,7 +223,7 @@ struct SettingsSlip: View {
                                 }
                                 PaperButton(title: "Abandon", kind: .danger) {
                                     onClose()
-                                    model.exitToMenu()
+                                    model.abandonRun()
                                 }
                             }
                         }
