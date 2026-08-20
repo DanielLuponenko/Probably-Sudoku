@@ -340,22 +340,13 @@ final class GameModel {
     /// not silently dealt.
     var wantsMenu = false
 
-    /// Put the Book down. The run is kept, and the shelf offers to continue it.
-    func leaveToMenu() {
-        RunStore.save(game)
-        wantsMenu = true
-    }
-
     /// Give the run up. This has to actually destroy the save — leaving it on
     /// disk means the shelf offers to continue a Book the player was told they
-    /// had abandoned.
+    /// had abandoned. Putting a Book down needs no button: closing the app
+    /// keeps it, and the shelf offers to continue.
     func abandonRun() {
         RunStore.clearRun()
         wantsMenu = true
-    }
-
-    func exitToMenu() {
-        leaveToMenu()
     }
 
     /// Restarts in place, without going back to the cover. Used by QA only.

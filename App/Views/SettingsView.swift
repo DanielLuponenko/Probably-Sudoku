@@ -194,21 +194,10 @@ struct SettingsSlip: View {
                     title: "This run",
                     note: confirmingAbandon
                         ? nil
-                        : "Bookmarks, Markers and Buffs do not carry over, Marker stacks reset, "
-                          + "and coins go back to the starting amount."
+                        : "Throws the Book away. Bookmarks, Markers and Buffs do not carry "
+                          + "over, Marker stacks reset, and coins go back to the starting "
+                          + "amount."
                 ) {
-                    // The ordinary way out. Without this the only exit was
-                    // Abandon, which is a destructive answer to "I want to stop
-                    // for now".
-                    if !confirmingAbandon {
-                        PaperButton(title: "Leave the Book",
-                                    subtitle: "Keeps your place",
-                                    kind: .quiet) {
-                            onClose()
-                            model.leaveToMenu()
-                        }
-                    }
-
                     if confirmingAbandon {
                         VStack(alignment: .leading, spacing: 9) {
                             Text("Abandon Level \(model.run.level), Puzzle "
