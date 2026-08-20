@@ -153,6 +153,7 @@ the cover every time:
 | `-runInfo` | opens the run information slip on launch |
 | `-loadout` | grants some Bookmarks and Buffs, to see the row populated |
 | `-obstacle 3` | opens the shelf on that obstacle level |
+| `-shelfPage 2` | opens the shelf on that Book |
 
 ## Books have a personality
 
@@ -216,6 +217,17 @@ same height on all three.
 `StartBookView` is where the app opens, and where it returns whenever a Book
 ends or is abandoned — §3 makes the Starting Board a choice you make when you
 open a Book, so one is never dealt silently.
+
+Pulling past the first Book used to drag the desk into view, which reads as a
+rendering fault rather than as the shelf running out. Behind the carousel is a
+black plate reading "Nothing to see here :)", turned on its side and held
+against the edge — a sliver is all anyone ever sees of it.
+
+It is deliberately **not a page**. As a page it could be landed on, and a
+player should never be able to sit on a black screen. It sits underneath an
+opaque carousel instead, so it exists only in the rubber-band. That also means
+every page must stay opaque: a locked Book carries its own desk rather than
+borrowing the one behind.
 
 It is a shelf, not a title screen. Five Books are swiped through as covers.
 Only the written one can be opened; the other four are shown locked rather than

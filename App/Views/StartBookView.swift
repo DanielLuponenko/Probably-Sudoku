@@ -16,7 +16,17 @@ struct StartBookView: View {
     /// because it is almost always what the player came back for.
     private let resumable = RunStore.loadRun()
 
-    @State private var index = 0
+    @State private var index = StartBookView.debugIndex()
+
+    /// `-shelfPage 5` opens on that page of the shelf.
+    private static func debugIndex() -> Int {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let at = arguments.firstIndex(of: "-shelfPage"), at + 1 < arguments.count,
+           let page = Int(arguments[at + 1]) { return page }
+        #endif
+        return 0
+    }
     @State private var obstacle: Obstacle = StartBookView.debugObstacle()
 
     /// `-obstacle 3` opens on that level, so each one can be looked at.
@@ -33,15 +43,18 @@ struct StartBookView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var books: [BookEdition] { BookEdition.shelf }
-    private var book: BookEdition { books[min(index, books.count - 1)] }
+    private var book: BookEdition { books[min(max(index, 0), books.count - 1)] }
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            ShelfBackdrop(book: book, reduceMotion: reduceMotion)
+            // Behind the carousel rather than in it. The pages are opaque, so
+            // this is only ever glimpsed in the rubber-band when someone pulls
+            // past the first Book — it cannot be landed on.
+            ShelfVoid()
 
             TabView(selection: $index) {
                 ForEach(Array(books.enumerated()), id: \.offset) { position, edition in
-                    BookOnDesk(book: edition)
+                    BookOnDesk(book: edition, reduceMotion: reduceMotion)
                         .tag(position)
                 }
             }
@@ -57,6 +70,9 @@ struct StartBookView: View {
             ObstacleSwiper(obstacle: $obstacle)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .padding(.top, 31)
+                // Nothing to set on an end plate, and nothing to set it for
+                // on a Book that is only waiting to be continued.
+                .opacity(resumable == nil ? 1 : 0)
 
             controls
         }
@@ -101,6 +117,32 @@ struct StartBookView: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 26)
+    }
+}
+
+/// What is behind the shelf. Pulling past the first Book used to drag the desk
+/// into view, which reads as a rendering fault rather than as the shelf running
+/// out.
+///
+/// It is deliberately not a page: it sits underneath an opaque carousel, so it
+/// can only ever be glimpsed in the rubber-band and never rested on. The text
+/// is turned on its side and held against the edge because a sliver is all
+/// anyone will ever see of it.
+private struct ShelfVoid: View {
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Color.black
+
+            Text("Nothing to see here :)")
+                .font(.system(size: 19, weight: .regular))
+                .foregroundStyle(.white.opacity(0.9))
+                .fixedSize()
+                .rotationEffect(.degrees(-90))
+                .frame(width: 44)
+                .padding(.leading, 34)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 }
 
@@ -186,7 +228,7 @@ private struct ShelfBackdrop: View {
 /// bare desk instead.
 private struct BookOnDesk: View {
     var book: BookEdition
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var reduceMotion: Bool
 
     /// A moving cover is a nicety, so it yields to both of the settings that
     /// ask for less of them.
@@ -217,13 +259,16 @@ private struct BookOnDesk: View {
                 }
                 .ignoresSafeArea()
             } else {
-                UnwrittenCover(book: book)
-                    .aspectRatio(983.0 / 1379.0, contentMode: .fit)
-                    .shadow(color: .black.opacity(0.55), radius: 30, x: 10, y: 22)
-                    .frame(maxWidth: 330)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 120)
+                ZStack {
+                    ShelfBackdrop(book: book, reduceMotion: reduceMotion)
+                    UnwrittenCover(book: book)
+                        .aspectRatio(983.0 / 1379.0, contentMode: .fit)
+                        .shadow(color: .black.opacity(0.55), radius: 30, x: 10, y: 22)
+                        .frame(maxWidth: 330)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 120)
+                }
             }
         }
         .accessibilityLabel(book.isWritten
