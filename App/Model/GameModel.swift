@@ -205,7 +205,9 @@ final class GameModel {
             lastOutcome = outcome
             lastPlacedSquare = square
             markCleared(outcome, at: square)
-            dropHandSelection()
+            // A placement consumes the card and changes the square, so neither
+            // side of the former selection still describes an available action.
+            clearSelection()
             message = outcome.correct ? nil : "Wrong number — \(outcome.penalty) points"
         } catch {
             message = describe(error)
