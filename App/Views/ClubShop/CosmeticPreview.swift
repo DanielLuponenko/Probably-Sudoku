@@ -67,11 +67,31 @@ struct CosmeticPreview: View {
 
         case .numbers:
             let skin = CosmeticCatalog.numbers(item.id)
-            HStack(spacing: side * 0.06) {
-                ForEach([4, 7], id: \.self) { digit in
-                    Text("\(digit)")
-                        .font(skin.font(side * 0.42, weight: .semibold))
-                        .foregroundStyle(skin.ink)
+            ZStack {
+                Canvas { context, size in
+                    let cell = size.width / 3
+                    for step in 1..<3 {
+                        let offset = CGFloat(step) * cell
+                        var vertical = Path()
+                        vertical.move(to: .init(x: offset, y: 0))
+                        vertical.addLine(to: .init(x: offset, y: size.height))
+                        var horizontal = Path()
+                        horizontal.move(to: .init(x: 0, y: offset))
+                        horizontal.addLine(to: .init(x: size.width, y: offset))
+                        context.stroke(vertical, with: .color(Paper.rule), lineWidth: 0.8)
+                        context.stroke(horizontal, with: .color(Paper.rule), lineWidth: 0.8)
+                    }
+                    context.stroke(Path(CGRect(origin: .zero, size: size)),
+                                   with: .color(Paper.gridBold), lineWidth: 1.4)
+                }
+                HStack(spacing: side * 0.14) {
+                    ForEach([6, 8], id: \.self) { digit in
+                        Text("\(digit)")
+                            .font(skin.font(side * 0.34, weight: .semibold))
+                            .foregroundStyle(skin.ink)
+                            .shadow(color: skin.motion.glow?.opacity(0.75) ?? .clear,
+                                    radius: skin.motion.glow == nil ? 0 : 2)
+                    }
                 }
             }
 

@@ -78,7 +78,7 @@ private struct NumberReturnMotion: View {
                 arrived = true
                 return
             }
-            withAnimation(.snappy(duration: 0.48, extraBounce: 0.12)) {
+            withAnimation(theme.numbers.motion.arrivalAnimation) {
                 arrived = true
             }
         }
@@ -90,8 +90,8 @@ private struct NumberReturnMotion: View {
             let end = destination(for: event, index: index)
             ReturnNumberTile(digit: digit, theme: theme, palette: palette,
                              penalty: index == 0 ? event.penalty : nil)
-                .scaleEffect(reduceMotion ? 0.9 : (arrived ? 0.52 : 1))
-                .rotationEffect(.degrees(reduceMotion ? 0 : (arrived ? -18 : 0)))
+                .scaleEffect(reduceMotion ? 0.9 : (arrived ? theme.numbers.motion.returnScale : 1))
+                .rotationEffect(.degrees(reduceMotion ? 0 : (arrived ? theme.numbers.motion.returnRotation : 0)))
                 .opacity(reduceMotion ? 0.95 : (arrived ? 0 : 1))
                 .position(reduceMotion ? end : (arrived ? end : start))
         }
@@ -179,7 +179,9 @@ private struct ReturnNumberTile: View {
         ZStack(alignment: .bottom) {
             Text("\(digit.rawValue)")
                 .font(theme.numbers.font(27, weight: .medium))
-                .foregroundStyle(palette.placed)
+                .foregroundStyle(theme.numbers.ink)
+                .shadow(color: theme.numbers.motion.glow?.opacity(0.78) ?? .clear,
+                        radius: theme.numbers.motion.glow == nil ? 0 : 3)
                 .frame(width: 46, height: 52)
                 .background(theme.paper.warm, in: RoundedRectangle(cornerRadius: 4))
                 .overlay {

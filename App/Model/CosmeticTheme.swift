@@ -51,6 +51,7 @@ struct NumberSkin: Equatable {
     let design: Font.Design
     let ink: Color
     let givenInk: Color
+    let motion: NumberMotion
     /// Some faces sit heavier than the press, so each carries its own trim.
     let weightShift: Int
 
@@ -62,6 +63,68 @@ struct NumberSkin: Equatable {
         let ladder: [Font.Weight] = [.light, .regular, .medium, .semibold, .bold, .heavy, .black]
         let at = ladder.firstIndex(of: weight) ?? 1
         return ladder[min(max(at + weightShift, 0), ladder.count - 1)]
+    }
+}
+
+/// The physical way a numeral reaches and leaves the paper. It affects only
+/// presentation transforms; the board, hit targets, and rules never change.
+enum NumberMotion: Equatable {
+    case press, typewriter, pencil, stencil, neon, handset
+
+    var arrivalAnimation: Animation {
+        switch self {
+        case .press: .snappy(duration: 0.24, extraBounce: 0.08)
+        case .typewriter: .easeOut(duration: 0.11)
+        case .pencil: .easeOut(duration: 0.30)
+        case .stencil: .easeIn(duration: 0.18)
+        case .neon: .bouncy(duration: 0.34, extraBounce: 0.22)
+        case .handset: .spring(response: 0.28, dampingFraction: 0.72)
+        }
+    }
+
+    var arrivalScale: CGFloat {
+        switch self {
+        case .press: 0.72
+        case .typewriter: 1.12
+        case .pencil: 0.92
+        case .stencil: 1.04
+        case .neon: 0.62
+        case .handset: 0.76
+        }
+    }
+
+    var arrivalOffset: CGFloat {
+        switch self {
+        case .press, .handset: 10
+        case .typewriter: -7
+        case .pencil: 5
+        case .stencil: 0
+        case .neon: 0
+        }
+    }
+
+    var returnScale: CGFloat {
+        switch self {
+        case .pencil: 0.68
+        case .stencil: 0.48
+        case .neon: 0.38
+        default: 0.52
+        }
+    }
+
+    var returnRotation: Double {
+        switch self {
+        case .typewriter: 0
+        case .pencil: 12
+        case .stencil: -4
+        case .neon: 0
+        case .handset: -10
+        case .press: -18
+        }
+    }
+
+    var glow: Color? {
+        self == .neon ? Color(hex: 0xD14E8C) : nil
     }
 }
 
@@ -132,10 +195,14 @@ enum CosmeticCatalog {
                      blurb: "The face the Book is set in."),
         CosmeticItem(id: "nb_typewriter", category: .numbers, name: "Typewriter", price: 50,
                      blurb: "Struck one at a time, by something with keys."),
-        CosmeticItem(id: "nb_schoolbook", category: .numbers, name: "Schoolbook", price: 50,
-                     blurb: "Rounded. Encouraging. A little patronising."),
-        CosmeticItem(id: "nb_oldstyle", category: .numbers, name: "Old Style", price: 70,
-                     blurb: "Serifs. For the player who owns a fountain pen."),
+        CosmeticItem(id: "nb_schoolbook", category: .numbers, name: "Pencil", price: 50,
+                     blurb: "Graphite, soft at the edge, almost erasable."),
+        CosmeticItem(id: "nb_oldstyle", category: .numbers, name: "Handset", price: 70,
+                     blurb: "Wood type, big and just a little uneven."),
+        CosmeticItem(id: "nb_stencil", category: .numbers, name: "Stencil", price: 65,
+                     blurb: "Cut out, then sprayed into the square."),
+        CosmeticItem(id: "nb_neon", category: .numbers, name: "Neon Sign", price: 90,
+                     blurb: "The one loud thing in an otherwise quiet room."),
         // Pencil
         CosmeticItem(id: "pc_graphite", category: .marker, name: "Graphite", price: 0,
                      blurb: "A pencil. It has been sharpened twice."),
@@ -248,16 +315,22 @@ enum CosmeticCatalog {
         switch id {
         case "nb_typewriter":
             return NumberSkin(id: id, design: .monospaced, ink: Paper.ink,
-                              givenInk: Paper.inkSoft, weightShift: 0)
+                              givenInk: Paper.inkSoft, motion: .typewriter, weightShift: 0)
         case "nb_schoolbook":
-            return NumberSkin(id: id, design: .rounded, ink: Paper.ink,
-                              givenInk: Paper.inkSoft, weightShift: 0)
+            return NumberSkin(id: id, design: .rounded, ink: Paper.pencil,
+                              givenInk: Paper.pencil.opacity(0.72), motion: .pencil, weightShift: -1)
         case "nb_oldstyle":
             return NumberSkin(id: id, design: .serif, ink: Color(hex: 0x241F19),
-                              givenInk: Paper.inkSoft, weightShift: -1)
+                              givenInk: Paper.inkSoft, motion: .handset, weightShift: -1)
+        case "nb_stencil":
+            return NumberSkin(id: id, design: .monospaced, ink: Color(hex: 0x313A31),
+                              givenInk: Color(hex: 0x657063), motion: .stencil, weightShift: 0)
+        case "nb_neon":
+            return NumberSkin(id: id, design: .rounded, ink: Color(hex: 0xB62F72),
+                              givenInk: Color(hex: 0x81385E), motion: .neon, weightShift: 0)
         default:
             return NumberSkin(id: "nb_press", design: .default, ink: Paper.ink,
-                              givenInk: Paper.inkSoft, weightShift: 0)
+                              givenInk: Paper.inkSoft, motion: .press, weightShift: 0)
         }
     }
 
