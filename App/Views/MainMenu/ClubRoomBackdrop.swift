@@ -1120,17 +1120,9 @@ private struct Succulent: View {
                 ContactShadow(width: size.width * 1.1, depth: max(4, 12 * scale))
                     .offset(y: max(1, 3 * scale))
 
-                // This needs to read as a small living plant at phone scale,
-                // rather than as a rosette sticker resting on the rim.  Keep
-                // the root under the pot lip, then leave a generous visible
-                // run of stem before the foliage begins.
-                SucculentStem()
-                    .frame(width: size.width * 0.52, height: size.height * 0.62)
-                    .offset(x: -size.width * 0.02, y: -potHeight * 0.98)
-
-                Rosette()
-                    .frame(width: size.width * 0.82, height: size.height * 0.58)
-                    .offset(x: size.width * 0.03, y: -potHeight * 1.22)
+                DeskPlant()
+                    .frame(width: size.width * 0.62, height: size.height * 0.62)
+                    .offset(x: size.width * 0.01, y: -potHeight * 0.96)
 
                 // A pot of unglazed stoneware, speckled.
                 UnevenRoundedRectangle(topLeadingRadius: 2 * scale,
@@ -1163,92 +1155,59 @@ private struct Succulent: View {
         }
     }
 
-    /// A stout central stem and two offshoots keep the foliage rooted in the
-    /// pot instead of reading as a leaf sticker floating above the soil.
-    private struct SucculentStem: View {
+    /// One living, stemmed desk plant. Its leaves grow in pairs directly from
+    /// the stalk, so its silhouette remains legible at phone scale.
+    private struct DeskPlant: View {
         var body: some View {
             Canvas { context, size in
-                let root = CGPoint(x: size.width * 0.45, y: size.height)
-                let crown = CGPoint(x: size.width * 0.58, y: size.height * 0.10)
+                let root = CGPoint(x: size.width * 0.48, y: size.height * 0.96)
+                let crown = CGPoint(x: size.width * 0.56, y: size.height * 0.16)
 
-                var main = Path()
-                main.move(to: root)
-                main.addCurve(to: crown,
-                              control1: CGPoint(x: size.width * 0.38, y: size.height * 0.70),
-                              control2: CGPoint(x: size.width * 0.70, y: size.height * 0.34))
-                context.stroke(main, with: .color(.black.opacity(0.42)), lineWidth: 7)
-                context.stroke(main, with: .color(Color(hex: 0x425F36)), lineWidth: 4.6)
-                context.stroke(main, with: .color(Color(hex: 0x90A866).opacity(0.72)), lineWidth: 1.3)
+                var stem = Path()
+                stem.move(to: root)
+                stem.addCurve(to: crown,
+                              control1: CGPoint(x: size.width * 0.43, y: size.height * 0.68),
+                              control2: CGPoint(x: size.width * 0.68, y: size.height * 0.37))
+                context.stroke(stem, with: .color(.black.opacity(0.42)), lineWidth: 5.2)
+                context.stroke(stem, with: .color(Color(hex: 0x456238)), lineWidth: 3.2)
+                context.stroke(stem, with: .color(Color(hex: 0x91AD6C).opacity(0.72)), lineWidth: 0.9)
 
-                var leftBranch = Path()
-                leftBranch.move(to: CGPoint(x: size.width * 0.47, y: size.height * 0.62))
-                leftBranch.addCurve(to: CGPoint(x: size.width * 0.20, y: size.height * 0.34),
-                                    control1: CGPoint(x: size.width * 0.31, y: size.height * 0.54),
-                                    control2: CGPoint(x: size.width * 0.24, y: size.height * 0.42))
-                context.stroke(leftBranch, with: .color(.black.opacity(0.35)), lineWidth: 5)
-                context.stroke(leftBranch, with: .color(Color(hex: 0x536D40)), lineWidth: 3.1)
+                let leaves: [(CGPoint, Angle, CGFloat, Color)] = [
+                    (CGPoint(x: size.width * 0.47, y: size.height * 0.73), .radians(3.65), size.width * 0.30, Color(hex: 0x587645)),
+                    (CGPoint(x: size.width * 0.49, y: size.height * 0.66), .radians(-0.36), size.width * 0.27, Color(hex: 0x709054)),
+                    (CGPoint(x: size.width * 0.50, y: size.height * 0.53), .radians(3.57), size.width * 0.32, Color(hex: 0x648348)),
+                    (CGPoint(x: size.width * 0.54, y: size.height * 0.46), .radians(-0.48), size.width * 0.30, Color(hex: 0x789A5B)),
+                    (CGPoint(x: size.width * 0.55, y: size.height * 0.34), .radians(3.72), size.width * 0.26, Color(hex: 0x6B8A50)),
+                    (CGPoint(x: size.width * 0.57, y: size.height * 0.27), .radians(-0.62), size.width * 0.23, Color(hex: 0x8DA968)),
+                    (crown, .radians(4.46), size.width * 0.21, Color(hex: 0x91AD6C)),
+                    (crown, .radians(-1.02), size.width * 0.21, Color(hex: 0x9BB778))
+                ]
 
-                var rightBranch = Path()
-                rightBranch.move(to: CGPoint(x: size.width * 0.53, y: size.height * 0.48))
-                rightBranch.addCurve(to: CGPoint(x: size.width * 0.85, y: size.height * 0.27),
-                                     control1: CGPoint(x: size.width * 0.66, y: size.height * 0.38),
-                                     control2: CGPoint(x: size.width * 0.77, y: size.height * 0.29))
-                context.stroke(rightBranch, with: .color(.black.opacity(0.32)), lineWidth: 4)
-                context.stroke(rightBranch, with: .color(Color(hex: 0x5E7948)), lineWidth: 2.3)
-            }
-            .allowsHitTesting(false)
-        }
-    }
-
-    /// Rings of fat leaves, each ring smaller and turned against the last —
-    /// which is all a succulent is, seen from slightly above.
-    private struct Rosette: View {
-        var body: some View {
-            Canvas { context, size in
-                let centreX = Double(size.width) / 2
-                let centreY = Double(size.height) * 0.62
-                let base = Double(min(size.width, size.height))
-                let radii: [Double] = [0.30, 0.19, 0.09]
-                let lengths: [Double] = [0.30, 0.24, 0.16]
-                let counts: [Int] = [8, 6, 4]
-
-                for ring in 0..<3 {
-                    let count: Int = counts[ring]
-                    let radius: Double = base * radii[ring]
-                    let length: Double = base * lengths[ring]
-                    let turn: Double = Double(ring) * 0.42
-                    let width: Double = length * 0.44
-
-                    for step in 0..<count {
-                        let angle: Double = turn + Double(step) / Double(count) * 2 * Double.pi
-                        let fromX: Double = centreX + cos(angle) * radius * 0.3
-                        let fromY: Double = centreY + sin(angle) * radius * 0.3
-                        let toX: Double = centreX + cos(angle) * (radius + length)
-                        let toY: Double = centreY + sin(angle) * (radius + length) * 0.7
-                        let normal: Double = angle + Double.pi / 2
-                        let midX: Double = (fromX + toX) / 2
-                        let midY: Double = (fromY + toY) / 2
-                        let outX: Double = cos(normal) * width
-                        let outY: Double = sin(normal) * width
+                for (anchor, angle, length, color) in leaves {
+                    context.drawLayer { layer in
+                        layer.translateBy(x: anchor.x, y: anchor.y)
+                        layer.rotate(by: angle)
 
                         var leaf = Path()
-                        leaf.move(to: CGPoint(x: fromX, y: fromY))
-                        leaf.addQuadCurve(to: CGPoint(x: toX, y: toY),
-                                          control: CGPoint(x: midX + outX, y: midY + outY))
-                        leaf.addQuadCurve(to: CGPoint(x: fromX, y: fromY),
-                                          control: CGPoint(x: midX - outX, y: midY - outY))
+                        leaf.move(to: .zero)
+                        leaf.addCurve(to: CGPoint(x: length, y: 0),
+                                      control1: CGPoint(x: length * 0.31, y: -length * 0.27),
+                                      control2: CGPoint(x: length * 0.80, y: -length * 0.25))
+                        leaf.addCurve(to: .zero,
+                                      control1: CGPoint(x: length * 0.80, y: length * 0.25),
+                                      control2: CGPoint(x: length * 0.31, y: length * 0.27))
                         leaf.closeSubpath()
 
-                        // Outer leaves are older and darker; the crown is new
-                        // growth and catches the lamp.
-                        let pale: Double = 0.18 + Double(ring) * 0.24
-                        context.fill(leaf, with: .linearGradient(
-                            Gradient(colors: [Color(hex: 0x9DB47C).opacity(0.35 + pale),
-                                              Color(hex: 0x6D8A55),
-                                              Color(hex: 0x35462C)]),
-                            startPoint: CGPoint(x: fromX, y: fromY),
-                            endPoint: CGPoint(x: toX, y: toY)))
-                        context.stroke(leaf, with: .color(.black.opacity(0.28)), lineWidth: 0.6)
+                        layer.fill(leaf, with: .linearGradient(
+                            Gradient(colors: [Color(hex: 0xB0C98A), color, Color(hex: 0x31472B)]),
+                            startPoint: .zero,
+                            endPoint: CGPoint(x: length, y: 0)))
+                        layer.stroke(leaf, with: .color(.black.opacity(0.30)), lineWidth: 0.7)
+
+                        var vein = Path()
+                        vein.move(to: .zero)
+                        vein.addLine(to: CGPoint(x: length * 0.84, y: 0))
+                        layer.stroke(vein, with: .color(.black.opacity(0.18)), lineWidth: 0.5)
                     }
                 }
             }
