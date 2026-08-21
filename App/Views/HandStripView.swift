@@ -19,6 +19,12 @@ struct HandStripView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(model.isReadingLitmus ? palette.accent : palette.ink.opacity(0.7))
                 Spacer()
+                Label("Pool", systemImage: "tray.and.arrow.down")
+                    .font(Print.caption(10))
+                    .tracking(0.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(palette.ink.opacity(0.52))
+                    .numberReturnMotionFrame(NumberReturnMotionAnchor.pool)
                 if model.isReadingLitmus {
                     Image(systemName: "eyedropper.halffull")
                         .font(.system(size: 12))
@@ -53,6 +59,7 @@ struct HandStripView: View {
                     EmptySlot()
                 }
             }
+            .numberReturnMotionFrame(NumberReturnMotionAnchor.hand)
         }
         .animation(.snappy(duration: 0.2), value: model.isReadingLitmus)
     }

@@ -26,6 +26,7 @@ struct GridView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
+        .numberReturnMotionFrame(NumberReturnMotionAnchor.grid)
     }
 
     // MARK: Cells

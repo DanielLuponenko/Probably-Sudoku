@@ -5,6 +5,7 @@ struct PuzzlePageView: View {
     @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var puzzle: PuzzleState
+    @State private var numberReturnFrames: [String: CGRect] = [:]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -28,6 +29,11 @@ struct PuzzlePageView: View {
             HandStripView(model: model, handSize: puzzle.handSize)
             actionRow
             PageNumber(level: puzzle.level, slot: puzzle.slot.rawValue)
+        }
+        .coordinateSpace(name: NumberReturnMotionAnchor.space)
+        .onPreferenceChange(NumberReturnMotionFrames.self) { numberReturnFrames = $0 }
+        .overlay {
+            NumberReturnMotionOverlay(events: model.numberReturns, frames: numberReturnFrames)
         }
         .task(id: puzzle.boss?.secondsAllowed) {
             guard model.secondsLeft != nil else { return }

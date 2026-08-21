@@ -40,6 +40,39 @@ final class GameModel {
         let arrivalOrder: Int
     }
 
+    /// A short-lived, presentation-only explanation of why a number just
+    /// moved. Rules report their outcome through `PlacementOutcome`; this
+    /// queue turns that fact into motion without making the engine know about
+    /// SwiftUI, frames, or accessibility settings.
+    struct NumberReturn: Identifiable, Equatable {
+        enum Kind: Equatable {
+            case pool
+            case hand
+            case redraw
+            case barred
+            case fouled
+        }
+
+        let id = UUID()
+        let kind: Kind
+        let digits: [Digit]
+        let square: Square?
+        let fouledSquares: [Square]
+        let penalty: Int?
+    }
+
+    private(set) var numberReturns: [NumberReturn] = []
+
+    private struct BossFeedbackSnapshot {
+        let blocked: Set<Digit>
+        let fouled: Set<Square>
+
+        init(_ puzzle: PuzzleState?) {
+            blocked = puzzle?.blockedDigits ?? []
+            fouled = puzzle.map { $0.bossTurn.map { Set($0.fouled.keys) } ?? [] } ?? []
+        }
+    }
+
     private(set) var game: Game {
         willSet {
             #if DEBUG
@@ -212,6 +245,35 @@ final class GameModel {
         }
     }
 
+    private func presentReturn(kind: NumberReturn.Kind, digits: [Digit] = [],
+                               square: Square? = nil, fouledSquares: [Square] = [],
+                               penalty: Int? = nil) {
+        let event = NumberReturn(kind: kind, digits: digits, square: square,
+                                 fouledSquares: fouledSquares, penalty: penalty)
+        numberReturns.append(event)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(850))
+            numberReturns.removeAll { $0.id == event.id }
+        }
+    }
+
+    /// Bosses change state at the start of a Turn. Compare the two public
+    /// rule-state snapshots rather than duplicating any selection logic here.
+    private func presentBossChanges(from previous: BossFeedbackSnapshot) {
+        let current = BossFeedbackSnapshot(puzzle)
+        let newlyBlocked = current.blocked.subtracting(previous.blocked).sorted()
+        if !newlyBlocked.isEmpty {
+            presentReturn(kind: .barred, digits: newlyBlocked)
+        }
+
+        let newlyFouled = current.fouled.subtracting(previous.fouled).sorted {
+            $0.index < $1.index
+        }
+        if !newlyFouled.isEmpty {
+            presentReturn(kind: .fouled, fouledSquares: newlyFouled)
+        }
+    }
+
     /// Tik Tak's clock is presentation state, not an engine timer: a Book
     /// must not lose while its app is in the background. Expiry still uses the
     /// engine's production failure path.
@@ -372,6 +434,9 @@ final class GameModel {
     }
 
     func place(handIndex: Int, at square: Square) {
+        guard hand.indices.contains(handIndex) else { return }
+        let digit = hand[handIndex]
+        let bossBefore = BossFeedbackSnapshot(puzzle)
         do {
             let outcome = try game.place(handIndex: handIndex, at: square)
             refreshHandCards()
@@ -382,6 +447,13 @@ final class GameModel {
             // side of the former selection still describes an available action.
             clearSelection()
             message = outcome.correct ? nil : "Wrong number — \(outcome.penalty) points"
+            if !outcome.correct {
+                presentReturn(kind: outcome.returnedToHand ? .hand : .pool,
+                              digits: [digit], square: square, penalty: outcome.penalty)
+            }
+            // A correct final card auto-ends a Turn in the engine. That needs
+            // the same Boss feedback as an explicit End Turn button press.
+            presentBossChanges(from: bossBefore)
         } catch {
             message = describe(error)
         }
@@ -405,10 +477,16 @@ final class GameModel {
     /// is no separate staging mode to be in.
     func tossSelected() {
         guard let index = selectedHandIndex else { return }
+        guard hand.indices.contains(index) else {
+            clearSelection()
+            return
+        }
+        let digit = hand[index]
         do {
             _ = try game.toss(handIndex: index)
             refreshHandCards()
             message = nil
+            presentReturn(kind: .pool, digits: [digit])
         } catch {
             message = describe(error)
         }
@@ -422,10 +500,13 @@ final class GameModel {
     /// Tossing is the one thing a blocked number can still be used for, so it
     /// has its own path in from the Hand.
     func tossBlocked(at index: Int) {
+        guard hand.indices.contains(index) else { return }
+        let digit = hand[index]
         do {
             _ = try game.toss(handIndex: index)
             refreshHandCards()
             message = nil
+            presentReturn(kind: .pool, digits: [digit])
         } catch {
             message = describe(error)
         }
@@ -447,8 +528,12 @@ final class GameModel {
         do {
             let redrawsHand = game.run.buffs.indices.contains(index)
                 && game.run.buffs[index].defID == Buffs.redraw
+            let redrawn = redrawsHand ? hand : []
             _ = try game.useBuff(at: index, digit: digit)
             refreshHandCards(replacing: redrawsHand)
+            if !redrawn.isEmpty {
+                presentReturn(kind: .redraw, digits: redrawn)
+            }
             // Redraw and Lucky Dip both reshape the Hand under the selection.
             dropHandSelection()
         } catch {
@@ -457,10 +542,12 @@ final class GameModel {
     }
 
     func endTurn() {
+        let bossBefore = BossFeedbackSnapshot(puzzle)
         do {
             let result = try game.endTurn()
             refreshHandCards()
             clearSelection()
+            presentBossChanges(from: bossBefore)
             if result.puzzleFailed { page = .results }
         } catch {
             message = describe(error)
@@ -524,6 +611,7 @@ final class GameModel {
             selectedSquare = nil
             lastOutcome = nil
             page = .puzzle
+            presentBossChanges(from: BossFeedbackSnapshot(nil))
         } catch {
             message = describe(error)
         }
