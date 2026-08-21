@@ -467,6 +467,7 @@ final class GameModel {
             refreshHandCards()
             lastOutcome = outcome
             lastPlacedSquare = square
+            if outcome.correct { Haptics.scored(points: outcome.points) }
             markCleared(outcome, at: square)
             // A placement consumes the card and changes the square, so neither
             // side of the former selection still describes an available action.
@@ -488,6 +489,7 @@ final class GameModel {
     /// second clear arriving mid-flash cannot cancel the first one's fade.
     private func markCleared(_ outcome: PlacementOutcome, at square: Square) {
         guard !outcome.lineClears.isEmpty || outcome.fullClear else { return }
+        Haptics.cleared(units: outcome.lineClears.count, isFullClear: outcome.fullClear)
         clearTicket += 1
         let ticket = clearTicket
         cleared = outcome.lineClears.map { Cleared(unit: $0, square: square, ticket: ticket) }
