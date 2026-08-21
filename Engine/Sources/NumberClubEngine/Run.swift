@@ -127,7 +127,33 @@ public struct RunState: Codable, Sendable {
     }
 
     public var interestCap: Int {
-        owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
+        let bookmarkCap = owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
+        return bookmarkCap + Int(runItemState["clipping.circulation"] ?? 0)
+    }
+
+    /// The offer is pure from the Book seed and position. It can therefore be
+    /// read by the pre-Puzzle page as often as needed without shifting any
+    /// gameplay RNG stream.
+    public var currentClipping: Clipping? {
+        guard slot != .boss, skipsRemaining > 0, puzzle == nil, shop == nil, outcome == nil else {
+            return nil
+        }
+        return Clipping.offer(seed: seed, level: level, slot: slot)
+    }
+
+    public var skipsUsed: Int {
+        runItemState.keys.filter { $0.hasPrefix("clipping.taken.") }.count
+    }
+
+    public var skipsRemaining: Int { max(0, 2 - skipsUsed) }
+
+    public var takenClippings: [Clipping] {
+        (1...9).flatMap { level in
+            [PuzzleSlot.easy, .medium].compactMap { slot in
+                runItemState["clipping.taken.\(level).\(slot.rawValue)"] == nil
+                    ? nil : Clipping.offer(seed: seed, level: level, slot: slot)
+            }
+        }
     }
 
     // MARK: - Economy (§8)
@@ -180,6 +206,20 @@ public struct RunState: Codable, Sendable {
             grantPendingMarkerSquares()
         }
         return true
+    }
+
+    mutating func takeCurrentClipping() throws -> Clipping {
+        guard let clipping = currentClipping else { throw ClippingError.cannotSkip }
+        runItemState["clipping.taken.\(level).\(slot.rawValue)"] = 1
+        switch clipping {
+        case .coupon:
+            coins += 8
+        case .overprint:
+            runItemState["clipping.overprint"] = (runItemState["clipping.overprint"] ?? 0) + 1
+        case .circulation:
+            runItemState["clipping.circulation"] = (runItemState["clipping.circulation"] ?? 0) + 5
+        }
+        return clipping
     }
 
     /// §11 — each Marker gains one more square per Level completed while owned.

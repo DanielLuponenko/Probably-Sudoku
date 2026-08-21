@@ -452,6 +452,36 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertNotEqual(try play("share-me"), try play("other-seed"))
     }
 
+    func testClippingsAreSeededLimitedAndNeverOfferedForBosses() throws {
+        var first = Game(seed: "clip", startingBoard: .scholar)
+        var second = Game(seed: "clip", startingBoard: .scholar)
+        XCTAssertEqual(first.run.currentClipping, second.run.currentClipping)
+        XCTAssertEqual(first.run.skipsRemaining, 2)
+
+        _ = try first.skipPuzzle()
+        _ = try second.skipPuzzle()
+        XCTAssertEqual(first.run.slot, .medium)
+        XCTAssertEqual(first.run.currentClipping, second.run.currentClipping)
+        _ = try first.skipPuzzle()
+        XCTAssertEqual(first.run.slot, .boss)
+        XCTAssertEqual(first.run.skipsRemaining, 0)
+        XCTAssertNil(first.run.currentClipping)
+        XCTAssertThrowsError(try first.skipPuzzle()) { error in
+            XCTAssertEqual(error as? ClippingError, .cannotSkip)
+        }
+    }
+
+    func testOverprintIsConsumedByTheNextPuzzle() throws {
+        let seed = try XCTUnwrap((0..<100).map(String.init).first { seed in
+            Game(seed: seed, startingBoard: .scholar).run.currentClipping == .overprint
+        })
+        var game = Game(seed: seed, startingBoard: .scholar)
+        _ = try game.skipPuzzle()
+        try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.pendingMult, 2)
+        XCTAssertNil(game.run.runItemState["clipping.overprint"])
+    }
+
     func testSaveAndLoadRoundTripsMidPuzzle() throws {
         var game = Game(seed: "save", startingBoard: .oracle)
         try game.startPuzzle()

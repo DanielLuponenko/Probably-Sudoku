@@ -206,11 +206,13 @@ private struct GameView: View {
                 }
                 if ProcessInfo.processInfo.arguments.contains("-clearLine") {
                     try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
                     model.qaCompleteARow()
                     return
                 }
                 if ProcessInfo.processInfo.arguments.contains("-winNow") {
                     try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
                     model.qaMeetTarget()
                     return
                 }
@@ -218,6 +220,7 @@ private struct GameView: View {
                 if let index = arguments.firstIndex(of: "-failBookAtLevel"), index + 1 < arguments.count,
                    let level = Int(arguments[index + 1]) {
                     try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
                     model.qaFailBook(atLevel: level)
                     return
                 }
@@ -229,6 +232,7 @@ private struct GameView: View {
                 }
                 guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
                 try? await Task.sleep(for: .seconds(1))
+                model.beginPuzzle()
                 await flipper.flip(from: model, reduceMotion: false) { model.endTurn() }
                 #endif
             }
@@ -243,6 +247,8 @@ private struct GameView: View {
     @ViewBuilder
     private func page(of source: GameModel) -> some View {
         switch source.page {
+        case .briefing:
+            PuzzleBriefingView(model: source)
         case .puzzle:
             if let puzzle = source.puzzle {
                 PuzzlePageView(model: source, puzzle: puzzle)
