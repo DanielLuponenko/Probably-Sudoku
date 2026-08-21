@@ -185,7 +185,8 @@ public extension PuzzleState {
             }
         }
 
-        let generated = try Generator.generate(&run.streams.board, difficulty: difficulty)
+        let generated = try Generator.generate(&run.streams.board, difficulty: difficulty,
+                                               givens: run.book.givens(for: difficulty))
         let board = Board(generated)
         var pool = Pool(blanksOf: board)
 
@@ -205,7 +206,7 @@ public extension PuzzleState {
             tossedThisPuzzle: 0,
             tossAllowance: run.effectiveTossAllowance(boss: boss),
             score: 0,
-            target: Targets.target(level: run.level, slot: slot)
+            target: run.book.target(level: run.level, slot: slot)
                 * (boss?.targetMultiplier ?? 1),
             cluesRemaining: run.effectiveClues(boss: boss),
             boss: boss,

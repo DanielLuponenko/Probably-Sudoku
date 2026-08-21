@@ -5,8 +5,9 @@ import Foundation
 public struct Game: Sendable {
     public internal(set) var run: RunState
 
-    public init(seed: String, startingBoard: StartingBoard, obstacle: Obstacle = .none) {
-        run = RunState(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
+    public init(seed: String, book: Book = .probably,
+                startingBoard: StartingBoard, obstacle: Obstacle = .none) {
+        run = RunState(seed: seed, book: book, startingBoard: startingBoard, obstacle: obstacle)
     }
     public init(run: RunState) { self.run = run }
 
@@ -213,7 +214,7 @@ public extension Game {
         puzzle.turnNumber = min(puzzle.turnNumber, puzzle.turnsMax)
         puzzle.tossAllowance = run.effectiveTossAllowance(boss: boss)
         puzzle.cluesRemaining = run.effectiveClues(boss: boss)
-        puzzle.target = Targets.target(level: puzzle.level, slot: puzzle.slot)
+        puzzle.target = run.book.target(level: puzzle.level, slot: puzzle.slot)
             * (boss?.targetMultiplier ?? 1)
 
         let targetHandSize = run.effectiveHandSize(boss: boss)

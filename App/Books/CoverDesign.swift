@@ -61,6 +61,29 @@ struct CoverDesign {
         isBare: false
     )
 
+    static let slightlyHarder = CoverDesign(
+        titleLines: ["Slightly", "Harder,"],
+        flourish: "Sorry",
+        banner: "A Sudoku Book",
+        strapline: "Brisk Puzzles",
+        volume: "Volume 2",
+        imprint: "The Number Club",
+        stock: Color(hex: 0xF1E6CE),
+        ink: Color(hex: 0x322A20),
+        accent: Color(hex: 0xB86628),
+        secondAccent: Color(hex: 0x4E7B78),
+        cloth: Color(hex: 0x9B5628),
+        notes: [
+            Note(lines: ["Check", "the column."],
+                 colour: Color(hex: 0xE9D78C), corner: .fore, tilt: -2),
+            Note(lines: ["Method", "beats", "momentum."],
+                 colour: Color(hex: 0xC7DBD3), corner: .headLeft, tilt: 4),
+            Note(lines: ["No guessing", "Necessary", "Today"],
+                 colour: Color(hex: 0xF4D2A4), corner: .underTheFlourish, tilt: -3, ticked: true),
+        ],
+        isBare: false
+    )
+
     static func unwritten(title: String, volume: Int, accent: Color) -> CoverDesign {
         CoverDesign(
             titleLines: title.split(separator: " ").map(String.init),

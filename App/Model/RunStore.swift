@@ -71,9 +71,11 @@ enum RunStore {
 
     static var booksCompleted: Int { progress().booksCompleted }
 
-    /// Called when a Book is finished. Failing one unlocks nothing.
-    static func recordBookCompleted() {
+    /// Called when a Book is finished. Only the next locked volume advances
+    /// progress, so replaying Book 1 cannot skip the Book 2 requirement.
+    static func recordBookCompleted(_ book: Book) {
         var value = progress()
+        guard book.volume == value.booksCompleted + 1 else { return }
         value.booksCompleted += 1
         value.unlockedObstacle = min(Obstacle.allCases.count, value.unlockedObstacle + 1)
         write(value)
