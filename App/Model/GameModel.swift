@@ -102,6 +102,13 @@ final class GameModel {
     private var usedClueThisPuzzle = false
     private var madeWrongPlacementThisPuzzle = false
     private var returnPageAfterAchievements: BookPage?
+    /// A marker chosen from the Debug QA panel while the next Puzzle is still
+    /// on the briefing page. It is applied only after that Puzzle has been
+    /// dealt, so the marker always targets a real blank without starting play
+    /// from a settings sheet.
+    #if DEBUG
+    private var pendingQAMarker: String?
+    #endif
 
     /// Which of the two selections the board should be highlighting. Both a
     /// Hand tile and a square can be selected at once, so without this the
@@ -649,6 +656,9 @@ final class GameModel {
     func beginPuzzle() {
         do {
             try game.startPuzzle()
+            #if DEBUG
+            applyPendingQAMarker()
+            #endif
             isTrackingAchievementPuzzle = true
             usedClueThisPuzzle = false
             madeWrongPlacementThisPuzzle = false
@@ -853,8 +863,18 @@ final class GameModel {
         refreshHandCards()
     }
     func qaSetMarker(_ defID: String) {
-        guard let square = puzzle?.board.blanks.first else { return }
+        if let square = puzzle?.board.blanks.first {
+            game.qaSetMarker(defID, at: square)
+        } else {
+            pendingQAMarker = defID
+        }
+    }
+
+    private func applyPendingQAMarker() {
+        guard let defID = pendingQAMarker,
+              let square = puzzle?.board.blanks.first else { return }
         game.qaSetMarker(defID, at: square)
+        pendingQAMarker = nil
     }
     func qaSetBuff(_ defID: String) { game.qaSetBuff(defID) }
     func qaSetSubscription(_ defID: String) {

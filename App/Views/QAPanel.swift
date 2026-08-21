@@ -56,7 +56,7 @@ struct QAPanel: View {
                 } header: {
                     Text("Loadout")
                 } footer: {
-                    Text("Selections are Debug-only. Each replaces its own QA slot; markers use the current board's first blank so their effect can be inspected immediately.")
+                    Text("Selections are Debug-only. Each replaces its own QA slot; a marker picked before play is placed on the upcoming board's first blank.")
                 }
 
                 Section("Achievements") {
