@@ -98,7 +98,7 @@ struct BossBoardUnderprint: View {
             }
         case .editor:
             Canvas { context, size in
-                let blue = GraphicsContext.Shading.color(Color(hex: 0x53688C).opacity(0.28))
+                let blue = GraphicsContext.Shading.color(Paper.editorBlue.opacity(0.28))
                 for offset in stride(from: size.height * 0.12, through: size.height * 0.92, by: size.height * 0.16) {
                     var line = Path()
                     line.move(to: .init(x: size.width * 0.06, y: offset))

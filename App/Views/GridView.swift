@@ -5,6 +5,7 @@ import ProbablySudokuEngine
 /// the washes, the marks. Only the paper underneath is artwork.
 struct GridView: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var board: Board
 
@@ -50,6 +51,7 @@ struct GridView: View {
                     fouled: fouledSquares.contains(square),
                     greyed: greyedSquares.contains(square),
                     theme: theme,
+                    palette: palette,
                     size: cell
                 )
             }
@@ -129,7 +131,8 @@ struct GridView: View {
     private func clears(side: CGFloat, cell: CGFloat) -> some View {
         ForEach(model.cleared) { clear in
             ClearedUnitMark(cells: Geometry.cells(of: clear.unit, through: clear.square),
-                            cell: cell)
+                            cell: cell,
+                            palette: palette)
         }
         .allowsHitTesting(false)
     }
@@ -186,6 +189,7 @@ private struct Hatching: Shape {
 private struct ClearedUnitMark: View {
     var cells: [Square]
     var cell: CGFloat
+    var palette: LevelPalette
     @State private var shown = false
 
     private var bounds: CGRect {
@@ -204,13 +208,13 @@ private struct ClearedUnitMark: View {
             // the point of it, and an opaque wash hides them.
             ForEach(cells, id: \.index) { square in
                 Rectangle()
-                    .fill(Paper.cellCleared)
+                    .fill(palette.target.opacity(0.22))
                     .blendMode(.multiply)
                     .frame(width: cell, height: cell)
                     .offset(x: CGFloat(square.col) * cell, y: CGFloat(square.row) * cell)
             }
             Rectangle()
-                .strokeBorder(Paper.sageDeep, lineWidth: 3)
+                .strokeBorder(palette.target, lineWidth: 3)
                 .frame(width: bounds.width, height: bounds.height)
                 .offset(x: bounds.minX, y: bounds.minY)
         }
@@ -232,6 +236,7 @@ private struct CellView: View {
     var fouled: Bool
     var greyed: Bool
     var theme: CosmeticTheme
+    var palette: LevelPalette
     var size: CGFloat
 
     var body: some View {
@@ -242,19 +247,19 @@ private struct CellView: View {
                 // A Marker tints the square it owns, so its bonus is visible
                 // before you decide what to play there (§11).
                 Rectangle()
-                    .fill(Paper.markerColor(marker.defID).opacity(0.34))
+                    .fill(Paper.markerColor(marker.defID).opacity(0.28))
                 Rectangle()
-                    .strokeBorder(Paper.markerColor(marker.defID).opacity(0.85), lineWidth: 1.5)
+                    .strokeBorder(palette.marked.opacity(0.9), lineWidth: 1.5)
             }
 
             if state == .sameNumber {
                 Rectangle()
-                    .strokeBorder(Paper.sageDeep.opacity(0.7), lineWidth: 1.5)
+                    .strokeBorder(palette.accent.opacity(0.8), lineWidth: 1.5)
             }
 
             if state == .barred {
                 Hatching()
-                    .stroke(Paper.ink.opacity(0.30), lineWidth: 1)
+                    .stroke(palette.ink.opacity(0.30), lineWidth: 1)
                     .clipShape(Rectangle())
             }
 
@@ -263,17 +268,17 @@ private struct CellView: View {
                 // printing fault used by the Garrys. The shape is inset so a
                 // barred square remains readable as a square.
                 Circle()
-                    .fill(Paper.ink.opacity(0.18))
+                    .fill(palette.ink.opacity(0.18))
                     .frame(width: size * 0.72, height: size * 0.46)
                     .rotationEffect(.degrees(-17))
             }
 
             if greyed {
                 Rectangle()
-                    .fill(Paper.ink.opacity(0.09))
+                    .fill(palette.rule.opacity(0.14))
                     .overlay {
                         Rectangle()
-                            .strokeBorder(Paper.ink.opacity(0.24), lineWidth: 1)
+                            .strokeBorder(palette.rule.opacity(0.38), lineWidth: 1)
                     }
             }
 
@@ -298,11 +303,11 @@ private struct CellView: View {
     private var background: Color {
         switch state {
         case .selected: return theme.board.selected
-        case .sameNumber: return theme.board.sameNumber
+        case .sameNumber: return palette.accent.opacity(0.28)
         case .barred: return theme.board.hair.opacity(0.45)
-        case .rightHere: return theme.board.sameNumber
-        case .wrongHere: return Paper.cellWrong
-        case .plain: return provenance == .given ? theme.board.given : .clear
+        case .rightHere: return palette.accent.opacity(0.28)
+        case .wrongHere: return palette.danger.opacity(0.24)
+        case .plain: return provenance == .given ? palette.given : .clear
         }
     }
 
@@ -310,9 +315,9 @@ private struct CellView: View {
     /// someone else, so it sits lighter on the page.
     private var inkColor: Color {
         switch provenance {
-        case .given: return theme.numbers.givenInk
-        case .clue: return Paper.inkFaint
-        default: return theme.numbers.ink.opacity(0.92)
+        case .given: return palette.ink.opacity(0.78)
+        case .clue: return palette.placed.opacity(0.66)
+        default: return palette.placed.opacity(0.92)
         }
     }
 

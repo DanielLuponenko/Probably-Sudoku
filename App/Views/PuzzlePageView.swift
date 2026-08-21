@@ -2,6 +2,7 @@ import SwiftUI
 import ProbablySudokuEngine
 
 struct PuzzlePageView: View {
+    @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var puzzle: PuzzleState
 
@@ -50,18 +51,18 @@ struct PuzzlePageView: View {
                         .font(Print.caption(10))
                         .tracking(1.4)
                         .textCase(.uppercase)
-                        .foregroundStyle(Paper.inkFaint)
+                        .foregroundStyle(palette.ink.opacity(0.52))
                 }
                 Spacer(minLength: 4)
                 if let secondsLeft = model.secondsLeft {
                     Label(clockText(secondsLeft), systemImage: "timer")
                         .font(Print.caption(12))
-                        .foregroundStyle(secondsLeft <= 30 ? Paper.redPencil : Paper.inkSoft)
+                        .foregroundStyle(secondsLeft <= 30 ? palette.danger : palette.ink.opacity(0.72))
                         .accessibilityLabel("Time remaining, \(Int(secondsLeft.rounded(.up))) seconds")
                 }
                 Text("Turn \(min(puzzle.turnNumber, puzzle.turnsMax))/\(puzzle.turnsMax)")
                     .font(Print.caption(12))
-                    .foregroundStyle(Paper.inkSoft)
+                    .foregroundStyle(palette.ink.opacity(0.72))
                     .contentTransition(.numericText())
             }
 
@@ -69,7 +70,7 @@ struct PuzzlePageView: View {
                 BossStamp(boss: boss, censored: puzzle.censoredDigit)
             }
 
-            Rectangle().fill(Paper.rule).frame(height: 1)
+            Rectangle().fill(palette.rule).frame(height: 1)
         }
     }
 
@@ -100,7 +101,7 @@ struct PuzzlePageView: View {
     private var instruction: some View {
         Text("Fill the grid so each column, row and 3x3 box contains numbers 1-9.")
             .font(Print.body(11.5))
-            .foregroundStyle(Paper.inkSoft)
+            .foregroundStyle(palette.ink.opacity(0.72))
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -138,6 +139,7 @@ struct PuzzlePageView: View {
 /// Score against target. This is the number the whole run is about, so it gets
 /// the weight the mockup gave the puzzle title.
 struct ScoreMeter: View {
+    @Environment(\.levelPalette) private var palette
     var score: Int
     var target: Int
     var level: Int
@@ -162,15 +164,15 @@ struct ScoreMeter: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("Score")
                     .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
-                    .foregroundStyle(Paper.inkFaint)
-                RollingNumber(value: score, size: 25, weight: .bold, color: Paper.ink)
+                    .foregroundStyle(palette.ink.opacity(0.52))
+                RollingNumber(value: score, size: 25, weight: .bold, color: palette.ink)
                 Text("of \(target.formatted())")
                     .font(Print.numeral(15, weight: .semibold))
-                    .foregroundStyle(Paper.inkFaint)
+                    .foregroundStyle(palette.ink.opacity(0.52))
                 if queuedBase > 0 {
                     Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
                         .font(Print.caption(11))
-                        .foregroundStyle(Paper.sageDeep)
+                        .foregroundStyle(palette.accent)
                         .accessibilityLabel("\(queued) points queued until end turn")
                 }
                 if let recentCoins, recentCoins > 0 {
@@ -184,7 +186,7 @@ struct ScoreMeter: View {
                 Spacer(minLength: 6)
                 Text("Level \(level)")
                     .font(Print.caption(11))
-                    .foregroundStyle(Paper.inkSoft)
+                    .foregroundStyle(palette.ink.opacity(0.72))
                 ProgressDots(index: slot, count: 3)
             }
             .lineLimit(1)
@@ -192,14 +194,14 @@ struct ScoreMeter: View {
 
             // A pencil line filling up along a printed rule.
             ZStack(alignment: .leading) {
-                Capsule().fill(Paper.pageEdge).frame(height: 5)
+                Capsule().fill(palette.rule.opacity(0.45)).frame(height: 5)
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(Paper.sage.opacity(0.45))
+                            .fill(palette.target.opacity(0.45))
                             .frame(width: max(4, proxy.size.width * reach), height: 5)
                         Capsule()
-                            .fill(fraction >= 1 ? Paper.sage : Paper.ink.opacity(0.75))
+                            .fill(fraction >= 1 ? palette.target : palette.ink.opacity(0.75))
                             .frame(width: max(4, proxy.size.width * fraction), height: 5)
                     }
                 }
@@ -216,6 +218,7 @@ struct ScoreMeter: View {
 
 /// The Boss Modifier, stamped onto the page in red pencil.
 struct BossStamp: View {
+    @Environment(\.levelPalette) private var palette
     var boss: BossModifier
     var censored: Digit?
 
@@ -238,7 +241,7 @@ struct BossStamp: View {
 
             Text(censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text)
                 .font(Print.body(11.5))
-                .foregroundStyle(Paper.inkSoft)
+                .foregroundStyle(palette.ink.opacity(0.72))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -249,6 +252,7 @@ struct BossStamp: View {
 // MARK: - Buttons
 
 struct PaperButton: View {
+    @Environment(\.levelPalette) private var palette
     enum Kind { case primary, quiet, danger }
 
     var title: String
@@ -288,20 +292,20 @@ struct PaperButton: View {
 
     private var foreground: Color {
         switch kind {
-        case .primary: return Paper.page
-        case .quiet: return Paper.ink
-        case .danger: return Paper.redPencil
+        case .primary: return palette.paper
+        case .quiet: return palette.ink
+        case .danger: return palette.danger
         }
     }
     private var background: Color {
         switch kind {
-        case .primary: return Paper.sage
-        case .quiet: return Paper.pageWarm
-        case .danger: return Paper.pageWarm
+        case .primary: return palette.target
+        case .quiet: return palette.paper.opacity(0.68)
+        case .danger: return palette.paper.opacity(0.68)
         }
     }
     private var border: Color {
-        kind == .danger ? Paper.redPencil.opacity(0.6) : Paper.rule
+        kind == .danger ? palette.danger.opacity(0.6) : palette.rule
     }
 }
 
@@ -317,6 +321,7 @@ struct PressedPaperStyle: ButtonStyle {
 
 /// Printed at the foot of every page, the way a puzzle book numbers itself.
 struct PageNumber: View {
+    @Environment(\.levelPalette) private var palette
     var level: Int
     var slot: Int
 
@@ -325,11 +330,11 @@ struct PageNumber: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Rectangle().fill(Paper.rule.opacity(0.45)).frame(width: 14, height: 0.75)
+            Rectangle().fill(palette.rule.opacity(0.45)).frame(width: 14, height: 0.75)
             Text("\(page)")
                 .font(Print.body(10.5))
-                .foregroundStyle(Paper.inkFaint)
-            Rectangle().fill(Paper.rule.opacity(0.45)).frame(width: 14, height: 0.75)
+                .foregroundStyle(palette.ink.opacity(0.52))
+            Rectangle().fill(palette.rule.opacity(0.45)).frame(width: 14, height: 0.75)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .accessibilityHidden(true)
