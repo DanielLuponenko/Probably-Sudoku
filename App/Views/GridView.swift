@@ -28,24 +28,79 @@ struct GridView: View {
 
     private func cells(cell: CGFloat) -> some View {
         ForEach(Square.all, id: \.index) { square in
+            let digit = board[square]
+            let provenance = board.filledBy[square.index]
+            let cellState = state(for: square)
+            let marker = model.visibleMarkers[square]
             Button {
                 model.tapSquare(square)
             } label: {
                 CellView(
                     square: square,
-                    digit: board[square],
-                    provenance: board.filledBy[square.index],
-                    state: state(for: square),
-                    marker: model.visibleMarkers[square],
+                    digit: digit,
+                    provenance: provenance,
+                    state: cellState,
+                    marker: marker,
                     theme: theme,
                     size: cell
                 )
             }
             .buttonStyle(.plain)
-            .disabled(model.isBarred(square))
+            .disabled(cellState == .barred)
+            .accessibilityLabel(accessibilityLabel(for: square, digit: digit,
+                                                    provenance: provenance,
+                                                    marker: marker))
+            .accessibilityValue(accessibilityValue(for: square, digit: digit,
+                                                    provenance: provenance,
+                                                    state: cellState))
+            .accessibilityHint(accessibilityHint(for: square, digit: digit,
+                                                  state: cellState))
+            .accessibilityAddTraits(model.selectedSquare == square ? .isSelected : [])
             .position(x: (CGFloat(square.col) + 0.5) * cell,
                       y: (CGFloat(square.row) + 0.5) * cell)
         }
+    }
+
+    private func accessibilityLabel(for square: Square, digit: Digit?,
+                                    provenance: Provenance?, marker: OwnedMarker?) -> String {
+        var parts = ["Row \(square.row + 1), column \(square.col + 1)"]
+        if let digit { parts.append("number \(digit.rawValue)") } else { parts.append("empty") }
+        switch provenance {
+        case .given: parts.append("given")
+        case .player: parts.append("placed")
+        case .clue: parts.append("clue")
+        case nil: break
+        }
+        if let marker { parts.append(marker.def.name) }
+        return parts.joined(separator: ", ")
+    }
+
+    private func accessibilityValue(for square: Square, digit: Digit?,
+                                    provenance: Provenance?, state: CellState) -> String {
+        if state == .barred { return "Unavailable this turn" }
+        if model.selectedSquare == square { return "Selected" }
+        if state == .rightHere { return "Litmus match" }
+        if state == .wrongHere { return "Litmus mismatch" }
+        if state == .sameNumber { return "Matches selected number" }
+        if digit == nil { return "Available" }
+        switch provenance {
+        case .given: return "Given number"
+        case .player: return "Placed number"
+        case .clue: return "Clue number"
+        case nil: return "Number"
+        }
+    }
+
+    private func accessibilityHint(for square: Square, digit: Digit?, state: CellState) -> String {
+        if state == .barred { return "This square cannot be used this turn." }
+        if let selected = model.selectedDigit, digit == nil {
+            let warning = model.wouldConflict(square, with: selected)
+                ? " This placement conflicts with the row, column, or box."
+                : ""
+            return "Places number \(selected.rawValue).\(warning)"
+        }
+        if let digit { return "Select to inspect number \(digit.rawValue)." }
+        return "Select a number from the hand, then activate to place it here."
     }
 
     private func state(for square: Square) -> CellState {
@@ -204,7 +259,6 @@ private struct CellView: View {
         .contentShape(Rectangle())
         .animation(.snappy(duration: 0.2), value: digit)
         .animation(.snappy(duration: 0.16), value: state)
-        .accessibilityLabel(accessibilityLabel)
     }
 
     private var numeralWeight: Font.Weight {
@@ -233,15 +287,4 @@ private struct CellView: View {
         }
     }
 
-    private var accessibilityLabel: String {
-        var parts = [square.description]
-        if let digit { parts.append("\(digit.rawValue)") } else { parts.append("empty") }
-        if provenance == .given { parts.append("given") }
-        if let marker { parts.append(marker.def.name) }
-        if state == .sameNumber { parts.append("matches selection") }
-        if state == .barred { parts.append("barred this turn") }
-        if state == .rightHere { parts.append("Litmus says this number belongs here") }
-        if state == .wrongHere { parts.append("Litmus says this number does not belong here") }
-        return parts.joined(separator: ", ")
-    }
 }
