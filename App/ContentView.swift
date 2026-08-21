@@ -12,6 +12,7 @@ struct ContentView: View {
     /// two never show a hard cut between them.
     @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(GameCenterService.self) private var gameCenter
     @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
     @State private var pendingRunConflict: RunStore.Conflict?
     @State private var showingRunConflict = false
@@ -143,6 +144,15 @@ struct ContentView: View {
             guard wasShowing, !isShowing, pendingRunConflict != nil else { return }
             withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
         }
+        .onChange(of: isShowingBook, initial: true) { _, isShowingBook in
+            gameCenter.setAccessPointVisible(!isShowingBook)
+        }
+    }
+
+    /// Game Center belongs to the club room and shelf, never on an open Book.
+    private var isShowingBook: Bool {
+        guard let model else { return false }
+        return !model.wantsMenu
     }
 
     /// Deals the first Puzzle behind the veil, then lifts it.

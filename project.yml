@@ -18,6 +18,7 @@ targets:
     entitlements:
       path: App/ProbablySudoku.entitlements
       properties:
+        com.apple.developer.game-center: true
         com.apple.developer.ubiquity-kvstore-identifier: "$(TeamIdentifierPrefix)$(CFBundleIdentifier)"
     dependencies:
       - package: ProbablySudokuEngine

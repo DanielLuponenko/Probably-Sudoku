@@ -173,6 +173,7 @@ final class GameModel {
         case .bookCompleted:
             let isFirstEver = RunStore.booksCompleted == 0
             RunStore.recordBookCompleted(game.run.book)
+            report(RunStore.booksCompleted, to: .booksCompleted)
             let rewards = CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
                                                              isFirstEver: isFirstEver)
             stampsEarned = PlayerProfileStore.shared.earn(rewards)
@@ -290,7 +291,7 @@ final class GameModel {
             secondsLeft = 0
             message = "Out of time"
             game.failPuzzle()
-            page = .results
+            showResults()
         } else {
             secondsLeft = remaining
         }
@@ -548,7 +549,7 @@ final class GameModel {
             refreshHandCards()
             clearSelection()
             presentBossChanges(from: bossBefore)
-            if result.puzzleFailed { page = .results }
+            if result.puzzleFailed { showResults() }
         } catch {
             message = describe(error)
         }
@@ -565,6 +566,10 @@ final class GameModel {
 
     /// Finishing a Puzzle turns the page rather than throwing up a panel.
     func showResults() {
+        if let puzzle {
+            report(puzzle.score, to: .highestPuzzleScore)
+            report(puzzle.level, to: .highestLevelReached)
+        }
         page = .results
     }
 
@@ -604,6 +609,9 @@ final class GameModel {
     func beginPuzzle() {
         do {
             try game.startPuzzle()
+            if let level = puzzle?.level {
+                report(level, to: .highestLevelReached)
+            }
             if isTeachingFirstRun { PlayerProfileStore.shared.startFirstRunTutorial() }
             refreshHandCards(replacing: true)
             startClock()
@@ -688,6 +696,15 @@ final class GameModel {
     }
 
     func clearMessage() { message = nil }
+
+    /// GameKit is an optional reporter, not part of the rules. Deferring onto
+    /// the main actor keeps its system API out of every gameplay action's
+    /// critical path and leaves the engine entirely platform-independent.
+    private func report(_ value: Int, to leaderboard: GameCenterService.Leaderboard) {
+        Task { @MainActor in
+            GameCenterService.shared.record(value, for: leaderboard)
+        }
+    }
 
     #if DEBUG
     // QA shortcuts. Compiled out of release builds, as are the engine calls.
