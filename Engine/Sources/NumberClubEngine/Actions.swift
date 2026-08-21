@@ -5,6 +5,24 @@ import Foundation
 /// board all move together.
 public enum Actions {
 
+    /// Keeps square multipliers on their own placement while leaving held
+    /// multipliers for the Turn bank.
+    private static func queued(_ whole: EffectResult, square: EffectResult) -> EffectResult {
+        var result = whole
+        result.multAdd = square.multAdd
+        result.multX = square.multX
+        return result
+    }
+
+    private static func collectHeldMultiplier(_ whole: EffectResult,
+                                              minus square: EffectResult,
+                                              into puzzle: inout PuzzleState) {
+        guard !whole.zeroed else { return }
+        let heldAdd = 1 + whole.multAdd - square.multAdd
+        let heldX = square.multX == 0 ? 1 : whole.multX / square.multX
+        puzzle.pendingMult = max(puzzle.pendingMult, heldAdd * heldX)
+    }
+
     // MARK: - Place
 
     /// Put a number from the Hand on a Blank. Correct scores; wrong is penalised.
@@ -76,7 +94,9 @@ public enum Actions {
 
         let doubled = puzzle.boss?.doublesWrongPenalty == true
         let penalty = cancelled ? 0 : 50 * digit.rawValue * (doubled ? 2 : 1)
-        puzzle.score = max(0, puzzle.score - penalty)
+        let fromQueue = min(puzzle.pendingBase, penalty)
+        puzzle.pendingBase -= fromQueue
+        puzzle.score = max(0, puzzle.score - (penalty - fromQueue))
 
         if result.wrongReturnsToHand {
             puzzle.hand.append(digit)
@@ -106,16 +126,16 @@ public enum Actions {
         let countBefore = puzzle.board.count(of: digit)
         puzzle.board.fill(square, with: digit, by: isClue ? .clue : .player)
         let completedUnits = puzzle.board.unitsCompleted(at: square)
-        let globalAdditive = Resolver.globalAdditive(puzzle)
-
         // --- The placement itself -------------------------------------------
         let placeContext = Resolver.context(.place, run: run, puzzle: puzzle,
                                             digit: digit, square: square, isClue: isClue,
                                             boardCountBefore: countBefore,
                                             completesLine: !completedUnits.isEmpty,
                                             completedUnitCount: completedUnits.count)
-        var placeResult = Resolver.dispatch(placeContext, run: run, puzzle: puzzle)
-        placeResult.flat += Int(puzzle.itemState[Buffs.paperCraneKey(digit)] ?? 0)
+        var placeSquare = Resolver.square(placeContext, run: run, puzzle: puzzle)
+        placeSquare.flat += Int(puzzle.itemState[Buffs.paperCraneKey(digit)] ?? 0)
+        var placeResult = placeSquare
+        Resolver.holdings(placeContext, run: run, puzzle: puzzle, into: &placeResult)
 
         // A Clue scores nothing unless an Onyx Marker on that square restores it.
         let clueEarnsPoints = !isClue || placeResult.clueScoresPlacement
@@ -123,11 +143,14 @@ public enum Actions {
         let base = 10 * (placeResult.baseOverride ?? digit).rawValue
 
         outcome.points = clueEarnsPoints
-            ? Resolver.points(base: base, result: placeResult,
-                              globalAdditive: globalAdditive, oneShotDoubler: doubleDown)
+            ? Resolver.points(base: base, result: queued(placeResult, square: placeSquare),
+                              globalAdditive: 0, oneShotDoubler: doubleDown)
             : 0
         outcome.censored = placeResult.zeroed
-        if puzzle.phase != .keepFilling { puzzle.score += outcome.points }
+        if puzzle.phase != .keepFilling {
+            puzzle.pendingBase += outcome.points
+            collectHeldMultiplier(placeResult, minus: placeSquare, into: &puzzle)
+        }
         apply(placeResult, &run, &puzzle, into: &outcome)
 
         // --- Each completed row, column and box ------------------------------
@@ -135,20 +158,23 @@ public enum Actions {
             let context = Resolver.context(.lineClear, run: run, puzzle: puzzle,
                                            digit: digit, square: square, unit: unit, isClue: isClue,
                                            boardCountBefore: countBefore, completesLine: true)
-            let result = Resolver.dispatch(context, run: run, puzzle: puzzle)
+            let lineSquare = Resolver.square(context, run: run, puzzle: puzzle)
+            var result = lineSquare
+            Resolver.holdings(context, run: run, puzzle: puzzle, into: &result)
             let secondPrint = puzzle.consume(.secondPrint)
 
             // A Line Clear caused by a Clue always scores 0, even under Onyx.
             let lineScore = isClue ? 0 : Resolver.points(
-                base: 45, result: result,
-                globalAdditive: Resolver.globalAdditive(puzzle), oneShotDoubler: secondPrint)
+                base: 45, result: queued(result, square: lineSquare),
+                globalAdditive: 0, oneShotDoubler: secondPrint)
 
             outcome.lineClears.append(unit)
             outcome.lineClearPoints.append(lineScore)
             if puzzle.phase == .keepFilling {
                 puzzle.keepFillingCoins += 1     // §7 — the greed mechanic
             } else {
-                puzzle.score += lineScore
+                puzzle.pendingBase += lineScore
+                collectHeldMultiplier(result, minus: lineSquare, into: &puzzle)
             }
             apply(result, &run, &puzzle, into: &outcome)
         }
@@ -158,17 +184,20 @@ public enum Actions {
             let context = Resolver.context(.fullClear, run: run, puzzle: puzzle,
                                            digit: digit, square: square, isClue: isClue,
                                            boardCountBefore: countBefore)
-            let result = Resolver.dispatch(context, run: run, puzzle: puzzle)
+            let fullSquare = Resolver.square(context, run: run, puzzle: puzzle)
+            var result = fullSquare
+            Resolver.holdings(context, run: run, puzzle: puzzle, into: &result)
             let fullScore = isClue ? 0 : Resolver.points(
-                base: 500, result: result,
-                globalAdditive: Resolver.globalAdditive(puzzle), oneShotDoubler: false)
+                base: 500, result: queued(result, square: fullSquare),
+                globalAdditive: 0, oneShotDoubler: false)
 
             outcome.fullClear = true
             outcome.fullClearPoints = fullScore
             if puzzle.phase == .keepFilling {
                 puzzle.keepFillingCoins += 3
             } else {
-                puzzle.score += fullScore
+                puzzle.pendingBase += fullScore
+                collectHeldMultiplier(result, minus: fullSquare, into: &puzzle)
             }
             apply(result, &run, &puzzle, into: &outcome)
         }
@@ -322,8 +351,9 @@ public enum Actions {
         let context = Resolver.context(.turnEnd, run: run, puzzle: puzzle)
         let result = Resolver.dispatch(context, run: run, puzzle: puzzle)
         if puzzle.phase != .keepFilling {
-            puzzle.score += result.directScore
-            turn.pointsGained = result.directScore
+            puzzle.pendingBase += result.directScore
+            turn.pointsGained = puzzle.pendingScore
+            puzzle.bankPending()
         }
         run.absorb(result)
         puzzle.absorb(result)
@@ -376,6 +406,10 @@ public enum Actions {
     // MARK: - Ending a Puzzle (§7)
 
     static func updatePhase(_ puzzle: inout PuzzleState) {
+        // A correct placement is not a banked score until its Turn ends.
+        // Leaving the phase playable lets an empty Hand use that same end-Turn
+        // path instead of stranding the queued points.
+        guard puzzle.pendingBase == 0 else { return }
         if puzzle.phase == .playing && puzzle.score >= puzzle.target {
             puzzle.phase = .won
         }

@@ -43,6 +43,11 @@ public struct PuzzleState: Codable, Sendable {
     public var score: Int
     public var target: Int
     public var cluesRemaining: Int
+    /// Correct-play points held until the Turn closes.
+    public var pendingBase: Int = 0
+    /// The best held-item multiplier earned this Turn. Square-local
+    /// multipliers are folded into the queued base score instead.
+    public var pendingMult: Double = 1
 
     public var boss: BossModifier?
     public var censoredDigit: Digit?
@@ -61,7 +66,86 @@ public struct PuzzleState: Codable, Sendable {
     public var itemState: [String: Double] = [:]
     public var armedFlags: Set<OneShotFlag> = []
 
+    private enum CodingKeys: String, CodingKey {
+        case level, slot, difficulty, board, pool, hand, handSize, turnNumber,
+             turnsMax, tossedThisPuzzle, tossAllowance, score, target,
+             cluesRemaining, pendingBase, pendingMult, boss,
+             censoredDigit, blockedDigit, bossTurn, phase, keepFillingCoins,
+             itemState, armedFlags
+    }
+
+    init(level: Int, slot: PuzzleSlot, difficulty: Difficulty, board: Board,
+         pool: Pool, hand: [Digit], handSize: Int, turnNumber: Int,
+         turnsMax: Int, tossedThisPuzzle: Int, tossAllowance: Int, score: Int,
+         target: Int, cluesRemaining: Int, boss: BossModifier?,
+         censoredDigit: Digit?, blockedDigit: Digit?, bossTurn: BossTurnState?,
+         phase: PuzzlePhase, keepFillingCoins: Int) {
+        self.level = level
+        self.slot = slot
+        self.difficulty = difficulty
+        self.board = board
+        self.pool = pool
+        self.hand = hand
+        self.handSize = handSize
+        self.turnNumber = turnNumber
+        self.turnsMax = turnsMax
+        self.tossedThisPuzzle = tossedThisPuzzle
+        self.tossAllowance = tossAllowance
+        self.score = score
+        self.target = target
+        self.cluesRemaining = cluesRemaining
+        self.boss = boss
+        self.censoredDigit = censoredDigit
+        self.blockedDigit = blockedDigit
+        self.bossTurn = bossTurn
+        self.phase = phase
+        self.keepFillingCoins = keepFillingCoins
+    }
+
+    /// Books saved before KAN-47 have no queued-score fields. They represent
+    /// completed app state, so restore them with an empty queue.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        level = try c.decode(Int.self, forKey: .level)
+        slot = try c.decode(PuzzleSlot.self, forKey: .slot)
+        difficulty = try c.decode(Difficulty.self, forKey: .difficulty)
+        board = try c.decode(Board.self, forKey: .board)
+        pool = try c.decode(Pool.self, forKey: .pool)
+        hand = try c.decode([Digit].self, forKey: .hand)
+        handSize = try c.decode(Int.self, forKey: .handSize)
+        turnNumber = try c.decode(Int.self, forKey: .turnNumber)
+        turnsMax = try c.decode(Int.self, forKey: .turnsMax)
+        tossedThisPuzzle = try c.decode(Int.self, forKey: .tossedThisPuzzle)
+        tossAllowance = try c.decode(Int.self, forKey: .tossAllowance)
+        score = try c.decode(Int.self, forKey: .score)
+        target = try c.decode(Int.self, forKey: .target)
+        cluesRemaining = try c.decode(Int.self, forKey: .cluesRemaining)
+        pendingBase = try c.decodeIfPresent(Int.self, forKey: .pendingBase) ?? 0
+        pendingMult = try c.decodeIfPresent(Double.self, forKey: .pendingMult) ?? 1
+        boss = try c.decodeIfPresent(BossModifier.self, forKey: .boss)
+        censoredDigit = try c.decodeIfPresent(Digit.self, forKey: .censoredDigit)
+        blockedDigit = try c.decodeIfPresent(Digit.self, forKey: .blockedDigit)
+        bossTurn = try c.decodeIfPresent(BossTurnState.self, forKey: .bossTurn)
+        phase = try c.decode(PuzzlePhase.self, forKey: .phase)
+        keepFillingCoins = try c.decode(Int.self, forKey: .keepFillingCoins)
+        itemState = try c.decodeIfPresent([String: Double].self, forKey: .itemState) ?? [:]
+        armedFlags = try c.decodeIfPresent(Set<OneShotFlag>.self, forKey: .armedFlags) ?? []
+    }
+
     public var isBoss: Bool { slot == .boss }
+    public var pendingMultiplier: Double {
+        let puzzleAdditive = Resolver.globalAdditive(self)
+        let bossMultiplier = boss?.halvesScoreMultiplier == true ? 0.5 : 1
+        return (pendingMult + puzzleAdditive) * bossMultiplier
+    }
+    public var pendingScore: Int {
+        Int((Double(pendingBase) * pendingMultiplier).rounded(.down))
+    }
+    mutating func bankPending() {
+        score += pendingScore
+        pendingBase = 0
+        pendingMult = 1
+    }
     public var turnsRemaining: Int { max(0, turnsMax - turnNumber + 1) }
     public var tossesRemaining: Int { max(0, tossAllowance - tossedThisPuzzle) }
     public var canUseClue: Bool { cluesRemaining > 0 && boss?.disablesClues != true }

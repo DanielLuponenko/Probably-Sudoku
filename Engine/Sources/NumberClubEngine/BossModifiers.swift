@@ -115,7 +115,8 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
             // Line Clear bonuses score 0; the Full Clear is unaffected.
             if context.event == .lineClear { result.zeroed = true }
         case .sashimi:
-            if context.event.isScoring { result.multX *= 0.5 }
+            // KAN-47 applies this after the Turn's held multipliers are known.
+            break
         default:
             break
         }

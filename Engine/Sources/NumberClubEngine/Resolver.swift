@@ -40,6 +40,15 @@ public enum Resolver {
     public static func dispatch(_ context: EffectContext,
                                 run: RunState,
                                 puzzle: PuzzleState) -> EffectResult {
+        var result = square(context, run: run, puzzle: puzzle)
+        holdings(context, run: run, puzzle: puzzle, into: &result)
+        return result
+    }
+
+    /// Bosses and Markers belong to the square being resolved.
+    public static func square(_ context: EffectContext,
+                              run: RunState,
+                              puzzle: PuzzleState) -> EffectResult {
         var result = EffectResult()
 
         // 1. Boss Modifier.
@@ -57,6 +66,15 @@ public enum Resolver {
             }
         }
 
+        return result
+    }
+
+    /// Bookmarks and Buffs are held by the player, so their multiplier is
+    /// collected once for the Turn rather than spent per event.
+    public static func holdings(_ context: EffectContext,
+                                run: RunState,
+                                puzzle: PuzzleState,
+                                into result: inout EffectResult) {
         // 3. Bookmarks, in purchase order.
         for (index, ad) in run.bookmarks.enumerated() where index != puzzle.disabledBookmark {
             if let hook = ad.def.hooks[context.event] { hook(context, &result) }
@@ -68,6 +86,13 @@ public enum Resolver {
             if let hook = buff.def.hooks[context.event] { hook(context, &result) }
         }
 
+    }
+
+    public static func holdings(_ context: EffectContext,
+                                run: RunState,
+                                puzzle: PuzzleState) -> EffectResult {
+        var result = EffectResult()
+        holdings(context, run: run, puzzle: puzzle, into: &result)
         return result
     }
 

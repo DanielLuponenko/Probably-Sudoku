@@ -62,6 +62,9 @@ final class ScoringTests: XCTestCase {
 
         XCTAssertTrue(outcome.correct)
         XCTAssertEqual(outcome.points, 70)
+        XCTAssertEqual(game.puzzle?.pendingBase, 70)
+        XCTAssertEqual(game.puzzle?.score, 0)
+        _ = try game.endTurn()
         XCTAssertEqual(game.puzzle?.score, 70)
     }
 
@@ -71,6 +74,7 @@ final class ScoringTests: XCTestCase {
         game.give(ad: "bm_stop_the_presses")            // x3
         let good = game.blank(wanting: .nine)!
         _ = try game.place(handIndex: game.stackHand(with: .nine)!, at: good)
+        _ = try game.endTurn()
         let before = game.puzzle!.score
         XCTAssertEqual(before, 270)
 
@@ -103,7 +107,10 @@ final class ScoringTests: XCTestCase {
         game.give(ad: "bm_op_ed")
         let square = game.blank(wanting: .five)!
         let outcome = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
-        XCTAssertEqual(outcome.points, 50 * 3)
+        XCTAssertEqual(outcome.points, 50)
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 3)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, 50 * 3)
     }
 
     func testMultiplicativeMultMultipliesWithTheAdditiveTotal() throws {
@@ -112,7 +119,10 @@ final class ScoringTests: XCTestCase {
         game.give(ad: "bm_stop_the_presses")  // x3 multiplicative
         let square = game.blank(wanting: .five)!
         let outcome = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
-        XCTAssertEqual(outcome.points, 50 * 2 * 3)
+        XCTAssertEqual(outcome.points, 50)
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 6)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, 50 * 2 * 3)
     }
 
     func testFlatBonusesAddBeforeMultiplication() throws {
@@ -121,7 +131,9 @@ final class ScoringTests: XCTestCase {
         game.give(ad: "bm_op_ed")          // x2
         let square = game.blank(wanting: .four)!
         let outcome = try game.place(handIndex: game.stackHand(with: .four)!, at: square)
-        XCTAssertEqual(outcome.points, (40 + 30) * 2)
+        XCTAssertEqual(outcome.points, 40 + 30)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, (40 + 30) * 2)
     }
 
     func testFrontPageSplashCountsItself() throws {
@@ -130,7 +142,39 @@ final class ScoringTests: XCTestCase {
         game.give(ad: "bm_front_page_splash")   // +1 mult per Bookmark owned = +2
         let square = game.blank(wanting: .one)!
         let outcome = try game.place(handIndex: game.stackHand(with: .one)!, at: square)
-        XCTAssertEqual(outcome.points, (10 + 30) * 3)
+        XCTAssertEqual(outcome.points, 10 + 30)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, (10 + 30) * 3)
+    }
+
+    func testTurnBankComposesFreshInkHeldMultAndSashimi() throws {
+        var game = try startedGame()
+        game.give(ad: "bm_op_ed")             // +1 additive
+        game.give(ad: "bm_stop_the_presses")  // x3 multiplicative
+        game.give(buff: Buffs.freshInk)         // +2 additive for this Puzzle
+        _ = try game.useBuff(at: 0)
+        game.run.puzzle?.boss = .sashimi
+
+        let square = game.blank(wanting: .five)!
+        _ = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
+        // Held items collect as x6; Fresh Ink adds +2 and Sashimi halves the
+        // completed Turn, making the displayed and banked multiplier x4.
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 4)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, 50 * 4)
+    }
+
+    func testWrongPlacementDrainsQueuedWorkBeforeBankedScore() throws {
+        var game = try startedGame()
+        _ = try game.place(handIndex: game.stackHand(with: .five)!,
+                           at: game.blank(wanting: .five)!)
+        XCTAssertEqual(game.puzzle?.pendingBase, 50)
+
+        let square = game.blank(wanting: .one)!
+        let wrong: Digit = game.puzzle!.board.correctDigit(at: square) == .four ? .five : .four
+        _ = try game.place(handIndex: game.stackHand(with: wrong)!, at: square)
+        XCTAssertEqual(game.puzzle?.pendingBase, 0)
+        XCTAssertEqual(game.puzzle?.score, 0)
     }
 
     // MARK: Markers are positional (§11)
