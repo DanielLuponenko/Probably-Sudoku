@@ -709,8 +709,8 @@ private struct BookRow: View {
         Color(hex: 0x3B4F33), Color(hex: 0x25302A), Color(hex: 0x5A4526),
         Color(hex: 0x44523B), Color(hex: 0x6A5730), Color(hex: 0x2C3A2E),
     ]
-    private static let titles = [["NO", "2X"], ["GRID", "PANIC"], ["9", "LIVES"],
-                                 ["MAYBE", "4"], ["SUDOKU?"]]
+    private static let titles = [["NO", "2X"], ["GRID", "RAGE"], ["9", "LIFE"],
+                                 ["MAY", "4"], ["SUD", "OK?"]]
 
     var body: some View {
         GeometryReader { proxy in
@@ -721,7 +721,7 @@ private struct BookRow: View {
                     ForEach(0..<5, id: \.self) { index in
                         Spine(scale: scale, index: index,
                               cloth: Self.cloth[index % Self.cloth.count],
-                              width: size.width * (0.15 + Self.roll(index).0 * 0.055),
+                              width: size.width * (0.135 + Self.roll(index).0 * 0.035),
                               height: size.height * (0.64 + Self.roll(index).1 * 0.36))
                     }
                 }
@@ -806,13 +806,13 @@ private struct BookRow: View {
                     ForEach(BookRow.titles[index], id: \.self) { word in
                         Text(word)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.58)
+                            .minimumScaleFactor(0.70)
                     }
                 }
-                .font(.system(size: max(4.3, 6.5 * scale), weight: .black, design: .rounded))
-                .tracking(max(0.08, 0.16 * scale))
+                .font(.system(size: max(6.8, 11 * scale), weight: .black, design: .rounded))
+                .tracking(max(0.04, 0.08 * scale))
                 .foregroundStyle(Paper.pageEdge.opacity(0.92))
-                .frame(width: width * 0.74)
+                .frame(width: width * 0.86)
                 .offset(y: height * 0.10)
                 .shadow(color: .black.opacity(0.56), radius: max(0.3, 0.8 * scale), y: 0.6)
             }
