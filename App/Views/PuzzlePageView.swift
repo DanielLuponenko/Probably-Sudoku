@@ -10,8 +10,8 @@ struct PuzzlePageView: View {
             header
             ScoreMeter(score: puzzle.score, target: puzzle.target,
                        level: puzzle.level, slot: puzzle.slot.rawValue,
-                       recentPoints: model.lastOutcome?.correct == true
-                           ? model.lastOutcome?.totalPoints : nil,
+                       queuedBase: puzzle.pendingBase,
+                       queuedMultiplier: puzzle.pendingMultiplier,
                        recentCoins: model.lastOutcome?.coinsEarned)
 
             Spacer(minLength: 0)
@@ -142,16 +142,19 @@ struct ScoreMeter: View {
     var target: Int
     var level: Int
     var slot: Int
-    /// The last accepted placement's actual resolved score. This comes from
-    /// the engine outcome, so marker bonuses such as Silver are observable
-    /// without the view attempting to recalculate any rule.
-    var recentPoints: Int?
+    /// Correct-play points waiting to be banked at the end of this Turn.
+    var queuedBase: Int = 0
+    var queuedMultiplier: Double = 1
     /// Coin effects use the engine outcome too, so a Copper payout is visible
     /// beside the placement that triggered it rather than inferred by the UI.
     var recentCoins: Int?
 
     private var fraction: Double {
         target > 0 ? min(1, Double(score) / Double(target)) : 0
+    }
+    private var queued: Int { Int((Double(queuedBase) * queuedMultiplier).rounded(.down)) }
+    private var reach: Double {
+        target > 0 ? min(1, Double(score + queued) / Double(target)) : 0
     }
 
     var body: some View {
@@ -164,13 +167,11 @@ struct ScoreMeter: View {
                 Text("of \(target.formatted())")
                     .font(Print.numeral(15, weight: .semibold))
                     .foregroundStyle(Paper.inkFaint)
-                if let recentPoints, recentPoints > 0 {
-                    Text("+\(recentPoints)")
-                        .font(Print.numeral(13, weight: .bold))
+                if queuedBase > 0 {
+                    Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
+                        .font(Print.caption(11))
                         .foregroundStyle(Paper.sageDeep)
-                        .id(recentPoints)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .accessibilityLabel("Last placement, plus \(recentPoints) points")
+                        .accessibilityLabel("\(queued) points queued until end turn")
                 }
                 if let recentCoins, recentCoins > 0 {
                     Text("+\(recentCoins) coins")
@@ -193,16 +194,22 @@ struct ScoreMeter: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Paper.pageEdge).frame(height: 5)
                 GeometryReader { proxy in
-                    Capsule()
-                        .fill(fraction >= 1 ? Paper.sage : Paper.ink.opacity(0.75))
-                        .frame(width: max(4, proxy.size.width * fraction), height: 5)
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Paper.sage.opacity(0.45))
+                            .frame(width: max(4, proxy.size.width * reach), height: 5)
+                        Capsule()
+                            .fill(fraction >= 1 ? Paper.sage : Paper.ink.opacity(0.75))
+                            .frame(width: max(4, proxy.size.width * fraction), height: 5)
+                    }
                 }
                 .frame(height: 5)
             }
             .frame(height: 5)
         }
         .animation(.snappy, value: score)
-        .animation(.snappy(duration: 0.22), value: recentPoints)
+        .animation(.snappy(duration: 0.22), value: queuedBase)
+        .animation(.snappy(duration: 0.22), value: queuedMultiplier)
         .animation(.snappy(duration: 0.22), value: recentCoins)
     }
 }

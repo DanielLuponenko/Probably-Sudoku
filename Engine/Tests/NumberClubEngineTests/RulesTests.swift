@@ -71,8 +71,12 @@ final class RulesTests: XCTestCase {
         let digit = game.puzzle!.board.correctDigit(at: last)
 
         let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
-        XCTAssertEqual(outcome.lineClearPoints.first, (45 + 25) * 2)
-        XCTAssertEqual(outcome.points, 10 * digit.rawValue * 2)
+        XCTAssertEqual(outcome.lineClearPoints.first, 45 + 25)
+        XCTAssertEqual(outcome.points, 10 * digit.rawValue)
+        let queued = game.puzzle!.pendingBase
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 2)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, queued * 2)
     }
 
     func testFillingTheWholeBoardScoresEveryUnitThenTheFullClear() throws {

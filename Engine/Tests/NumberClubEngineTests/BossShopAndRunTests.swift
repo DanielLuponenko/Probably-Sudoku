@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import NumberClubEngine
 
@@ -59,6 +60,7 @@ final class BossModifierTests: XCTestCase {
         game.give(ad: "bm_stop_the_presses")
         game.give(ad: "bm_editorial_board")
         _ = try game.place(handIndex: game.stackHand(with: .nine)!, at: game.blank(wanting: .nine)!)
+        _ = try game.endTurn()
         let before = game.puzzle!.score
         XCTAssertEqual(before, 810)
 
@@ -436,6 +438,22 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertEqual(restored.puzzle?.score, game.puzzle?.score)
         XCTAssertEqual(restored.puzzle?.hand, game.puzzle?.hand)
         XCTAssertEqual(restored.run.markers.first?.squares, game.run.markers.first?.squares)
+    }
+
+    func testPreTurnBankSaveStillLoadsWithAnEmptyQueue() throws {
+        var game = Game(seed: "legacy-queue", startingBoard: .scholar)
+        try game.startPuzzle()
+        let encoded = try game.encoded()
+        var root = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var puzzle = try XCTUnwrap(root["puzzle"] as? [String: Any])
+        puzzle.removeValue(forKey: "pendingBase")
+        puzzle.removeValue(forKey: "pendingMult")
+        root["puzzle"] = puzzle
+
+        let oldSave = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+        let restored = try Game(decoding: oldSave)
+        XCTAssertEqual(restored.puzzle?.pendingBase, 0)
+        XCTAssertEqual(restored.puzzle?.pendingMultiplier, 1)
     }
 
     func testItemCatalogueMatchesTheDesignTables() {
