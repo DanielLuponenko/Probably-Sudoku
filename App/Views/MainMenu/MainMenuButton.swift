@@ -143,8 +143,7 @@ struct MainMenuButton: View {
     private var label: some View {
         VStack(spacing: 2 * scale) {
             Image(systemName: symbol)
-                .font(.system(size: max(18, kind == .play ? 78 * scale : 62 * scale),
-                              weight: .black))
+                .font(.system(size: symbolSize, weight: .black))
                 .foregroundStyle(inkColor)
             Text(title)
                 .font(Print.menuAction(max(16, kind == .play ? 72 * scale : 62 * scale)))
@@ -186,6 +185,10 @@ struct MainMenuButton: View {
 
     private var inkColor: Color {
         kind == .play ? Paper.page : Paper.ink
+    }
+
+    private var symbolSize: CGFloat {
+        max(18, (kind == .play ? 78 : 52) * scale)
     }
 }
 /// The gear, in a cream square screwed to the wall. Same two-layer press as
