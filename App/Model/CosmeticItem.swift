@@ -87,7 +87,7 @@ struct EquippedCosmetics: Codable, Equatable {
 /// Its own file on disk rather than more fields on `RunStore.Progress`: that
 /// struct is decoded from a file written by older builds, and a new
 /// non-optional field there would throw the player's unlocks away.
-struct PlayerProfile: Codable {
+struct PlayerProfile: Codable, Equatable {
     var cosmeticCurrency: Int = 0
     var ownedCosmeticIDs: Set<String> = CosmeticCatalog.startingOwnedIDs
     var equipped: EquippedCosmetics = .starting
@@ -96,11 +96,15 @@ struct PlayerProfile: Codable {
     var rewardedCompletionIDs: Set<String> = []
     /// Set as soon as the opening lesson starts, so Continue never repeats it.
     var hasStartedFirstRunTutorial = false
+    /// The whole equipped loadout is one player decision. It is deliberately
+    /// timestamped separately from earned inventory so sync can union progress
+    /// while taking the latest intentional appearance choice.
+    var lastModifiedAt: Date = .distantPast
 
     // Decoded leniently, so a profile written by an earlier build still opens.
     enum CodingKeys: String, CodingKey {
         case cosmeticCurrency, ownedCosmeticIDs, equipped, rewardedCompletionIDs,
-             hasStartedFirstRunTutorial
+             hasStartedFirstRunTutorial, lastModifiedAt
     }
 
     init() {}
@@ -115,8 +119,19 @@ struct PlayerProfile: Codable {
             .decodeIfPresent(Set<String>.self, forKey: .rewardedCompletionIDs) ?? []
         hasStartedFirstRunTutorial = try container
             .decodeIfPresent(Bool.self, forKey: .hasStartedFirstRunTutorial) ?? false
+        lastModifiedAt = try container.decodeIfPresent(Date.self, forKey: .lastModifiedAt) ?? .distantPast
         // A profile written before a category existed still has to wear
         // something in it.
+        normalize()
+    }
+
+    mutating func merge(remote: PlayerProfile) {
+        cosmeticCurrency = max(cosmeticCurrency, remote.cosmeticCurrency)
+        ownedCosmeticIDs.formUnion(remote.ownedCosmeticIDs)
+        rewardedCompletionIDs.formUnion(remote.rewardedCompletionIDs)
+        hasStartedFirstRunTutorial = hasStartedFirstRunTutorial || remote.hasStartedFirstRunTutorial
+        if remote.lastModifiedAt > lastModifiedAt { equipped = remote.equipped }
+        lastModifiedAt = max(lastModifiedAt, remote.lastModifiedAt)
         normalize()
     }
 
