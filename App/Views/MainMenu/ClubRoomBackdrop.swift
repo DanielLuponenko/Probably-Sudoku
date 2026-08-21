@@ -700,9 +700,8 @@ private struct ShelfBox: View {
     }
 }
 
-/// A row of books standing on the desk. Blank, banded, and muted — they are
-/// wallpaper with depth, and a legible title on one would turn it into
-/// something to tap.
+/// A row of books standing on the desk. Their tiny titles reward a closer look
+/// without making the shelf read as another set of controls.
 private struct BookRow: View {
     var scale: CGFloat
 
@@ -710,6 +709,8 @@ private struct BookRow: View {
         Color(hex: 0x3B4F33), Color(hex: 0x25302A), Color(hex: 0x5A4526),
         Color(hex: 0x44523B), Color(hex: 0x6A5730), Color(hex: 0x2C3A2E),
     ]
+    private static let titles = [["NO", "2X"], ["GRID", "PANIC"], ["9", "LIVES"],
+                                 ["MAYBE", "4"], ["SUDOKU?"]]
 
     var body: some View {
         GeometryReader { proxy in
@@ -800,6 +801,20 @@ private struct BookRow: View {
                 }
                 .padding(.horizontal, max(1, 3 * scale))
                 .padding(.top, height * 0.16)
+
+                VStack(spacing: max(0.4, 1.2 * scale)) {
+                    ForEach(BookRow.titles[index], id: \.self) { word in
+                        Text(word)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.58)
+                    }
+                }
+                .font(.system(size: max(4.3, 6.5 * scale), weight: .black, design: .rounded))
+                .tracking(max(0.08, 0.16 * scale))
+                .foregroundStyle(Paper.pageEdge.opacity(0.92))
+                .frame(width: width * 0.74)
+                .offset(y: height * 0.10)
+                .shadow(color: .black.opacity(0.56), radius: max(0.3, 0.8 * scale), y: 0.6)
             }
             .frame(width: width, height: height)
             .rotationEffect(.degrees(lean), anchor: .bottomLeading)
