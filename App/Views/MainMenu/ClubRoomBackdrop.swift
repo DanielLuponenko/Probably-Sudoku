@@ -999,6 +999,7 @@ private struct PencilCup: View {
         Color(hex: 0x46543E), Color(hex: 0x8E6B3F), Color(hex: 0x6B7A62),
         Color(hex: 0x7A5A42), Color(hex: 0x3A4237),
     ]
+    private static let pencilHeights: [CGFloat] = [0.63, 0.76, 0.69, 0.78, 0.66]
 
     var body: some View {
         GeometryReader { proxy in
@@ -1010,57 +1011,61 @@ private struct PencilCup: View {
                 ContactShadow(width: size.width * 1.15, depth: max(4, 14 * scale))
                     .offset(y: max(1, 3 * scale))
 
-                // Pencils, standing at slightly different angles inside it.
-                ForEach(0..<5, id: \.self) { index in
-                    Pencil(colour: Self.leads[index])
-                        .frame(width: max(3, 12 * scale), height: size.height * 0.74)
-                        .rotationEffect(.degrees(Double(index - 2) * 6), anchor: .bottom)
-                        // Sink each barrel through the dark opening and into
-                        // the body of the cup.  The rim then occludes its
-                        // lower end, making the pencils read as contained.
-                        .offset(x: CGFloat(index - 2) * size.width * 0.11,
-                                y: potHeight * 0.04)
-                }
+                // Back wall of the holder and the dark cavity sit behind the
+                // pencils.  The front wall is added afterwards to hide their
+                // lower halves exactly as a real cup's near rim would.
+                CupBody(cornerRadius: potHeight * 0.28)
+                    .fill(LinearGradient(colors: [Color(hex: 0x6C7A5A),
+                                                  Color(hex: 0x44503A),
+                                                  Color(hex: 0x1E241A)],
+                                         startPoint: .topLeading,
+                                         endPoint: .bottomTrailing))
+                    .frame(height: potHeight)
+                    .shadow(color: .black.opacity(0.55), radius: max(2, 7 * scale),
+                            x: max(1, 2 * scale), y: max(1, 4 * scale))
 
-                // The pot.
-                ZStack(alignment: .top) {
-                    UnevenRoundedRectangle(topLeadingRadius: rim * 0.2,
-                                           bottomLeadingRadius: potHeight * 0.28,
-                                           bottomTrailingRadius: potHeight * 0.28,
-                                           topTrailingRadius: rim * 0.2)
-                        .fill(LinearGradient(colors: [Color(hex: 0x6C7A5A),
-                                                      Color(hex: 0x44503A),
-                                                      Color(hex: 0x1E241A)],
-                                             startPoint: .topLeading,
-                                             endPoint: .bottomTrailing))
-                        // Glaze: a hard highlight down the lamp's side.
-                        .overlay(alignment: .leading) {
-                            Capsule()
-                                .fill(LinearGradient(colors: [.white.opacity(0.30), .clear],
-                                                     startPoint: .top, endPoint: .bottom))
-                                .frame(width: max(1.5, 5 * scale))
-                                .padding(.vertical, potHeight * 0.16)
-                                .padding(.leading, max(2, 7 * scale))
-                                .blur(radius: max(0.5, 1.5 * scale))
-                        }
+                Ellipse()
+                    .fill(RadialGradient(colors: [.black, Color(hex: 0x20261B)],
+                                         center: .init(x: 0.5, y: 0.78),
+                                         startRadius: 0, endRadius: rim))
+                    .frame(height: rim)
+                    .offset(y: -potHeight + rim * 0.95)
 
-                    // The opening, and the shadow inside it.
-                    Ellipse()
-                        .fill(RadialGradient(colors: [.black, Color(hex: 0x20261B)],
-                                             center: .init(x: 0.5, y: 0.9),
-                                             startRadius: 0, endRadius: rim))
-                        .frame(height: rim)
-                        .overlay {
-                            Ellipse().strokeBorder(
-                                LinearGradient(colors: [.white.opacity(0.35), .clear],
-                                               startPoint: .top, endPoint: .bottom),
-                                lineWidth: max(0.6, 1.6 * scale))
-                        }
-                        .offset(y: -rim * 0.42)
+                ZStack(alignment: .bottom) {
+                    ForEach(0..<5, id: \.self) { index in
+                        Pencil(colour: Self.leads[index])
+                            .frame(width: max(4, 13 * scale),
+                                   height: size.height * Self.pencilHeights[index])
+                            .rotationEffect(.degrees(Double(index - 2) * 4), anchor: .bottom)
+                            .offset(x: CGFloat(index - 2) * size.width * 0.115,
+                                    y: -potHeight * 0.10)
+                    }
                 }
-                .frame(height: potHeight)
-                .shadow(color: .black.opacity(0.55), radius: max(2, 7 * scale),
-                        x: max(1, 2 * scale), y: max(1, 4 * scale))
+                .frame(width: size.width, height: size.height, alignment: .bottom)
+                .clipped()
+
+                PencilCupFront(rimY: rim * 0.45, cornerRadius: potHeight * 0.28)
+                    .fill(LinearGradient(colors: [Color(hex: 0x6C7A5A),
+                                                  Color(hex: 0x44503A),
+                                                  Color(hex: 0x1E241A)],
+                                         startPoint: .topLeading,
+                                         endPoint: .bottomTrailing))
+                    .frame(height: potHeight)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(LinearGradient(colors: [.white.opacity(0.30), .clear],
+                                                 startPoint: .top, endPoint: .bottom))
+                            .frame(width: max(1.5, 5 * scale))
+                            .padding(.vertical, potHeight * 0.22)
+                            .padding(.leading, max(2, 7 * scale))
+                            .blur(radius: max(0.5, 1.5 * scale))
+                    }
+
+                PencilCupFrontEdge(rimY: rim * 0.45)
+                    .stroke(LinearGradient(colors: [.white.opacity(0.33), .black.opacity(0.44)],
+                                           startPoint: .leading, endPoint: .trailing),
+                            lineWidth: max(0.8, 1.7 * scale))
+                    .frame(height: potHeight)
             }
             // Pinned to the floor of the reader. Without this the stack sizes
             // itself to its own content and floats at the top of the frame,
@@ -1068,30 +1073,85 @@ private struct PencilCup: View {
             .frame(width: size.width, height: size.height, alignment: .bottom)
         }
     }
+
+    private struct CupBody: Shape {
+        var cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            UnevenRoundedRectangle(topLeadingRadius: cornerRadius * 0.18,
+                                   bottomLeadingRadius: cornerRadius,
+                                   bottomTrailingRadius: cornerRadius,
+                                   topTrailingRadius: cornerRadius * 0.18)
+                .path(in: rect)
+        }
+    }
+
+    /// The near wall begins at the lower half of the opening and covers the
+    /// lower pencil shafts, giving the cup a real front rim.
+    private struct PencilCupFront: Shape {
+        var rimY: CGFloat
+        var cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            let rim = rect.minY + rimY
+            let bottom = rect.maxY - cornerRadius
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rim))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
+                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.86))
+            path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
+                              control: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
+            path.addQuadCurve(to: CGPoint(x: rect.minX, y: bottom),
+                              control: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+            return path
+        }
+    }
+
+    private struct PencilCupFrontEdge: Shape {
+        var rimY: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            let rim = rect.minY + rimY
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rim))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
+                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.86))
+            return path
+        }
+    }
 }
 
-/// Hexagonal, sharpened, and never quite vertical.
+/// An upside-up pencil: eraser and ferrule show above the holder while the
+/// barrel continues down into it.
 private struct Pencil: View {
     var colour: Color
 
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let tip = size.height * 0.10
+            let eraser = size.height * 0.10
+            let ferrule = size.height * 0.09
 
             VStack(spacing: 0) {
-                // The sharpened end: bare wood, with the lead at the point.
-                Triangle()
-                    .fill(LinearGradient(colors: [Color(hex: 0xE0CBA4), Color(hex: 0xA98D63)],
+                Capsule(style: .continuous)
+                    .fill(LinearGradient(colors: [Color(hex: 0xC58081), Color(hex: 0x9A4D59)],
                                          startPoint: .leading, endPoint: .trailing))
-                    .frame(height: tip)
-                    .overlay(alignment: .top) {
-                        Triangle()
-                            .fill(Color(hex: 0x2A2723))
-                            .frame(width: size.width * 0.34, height: tip * 0.34)
+                    .frame(height: eraser)
+
+                Rectangle()
+                    .fill(LinearGradient(colors: [Color(hex: 0xD5B06B), Color(hex: 0x806030)],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .frame(height: ferrule)
+                    .overlay {
+                        VStack(spacing: ferrule * 0.18) {
+                            Rectangle().fill(.white.opacity(0.33)).frame(height: max(0.4, ferrule * 0.08))
+                            Rectangle().fill(.black.opacity(0.20)).frame(height: max(0.4, ferrule * 0.08))
+                        }
                     }
 
-                // The barrel, with the facets a hexagonal pencil shows.
                 Rectangle()
                     .fill(LinearGradient(colors: [colour.mixed(with: .white, by: 0.28),
                                                   colour,
