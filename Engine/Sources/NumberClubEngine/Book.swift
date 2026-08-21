@@ -7,12 +7,14 @@ public enum Book: String, Codable, CaseIterable, Sendable {
     case probably
     case slightlyHarder
     case noPressure
+    case bites
 
     public var volume: Int {
         switch self {
         case .probably: return 1
         case .slightlyHarder: return 2
         case .noPressure: return 3
+        case .bites: return 4
         }
     }
 
@@ -25,6 +27,7 @@ public enum Book: String, Codable, CaseIterable, Sendable {
         case .probably: reduction = 0
         case .slightlyHarder: reduction = 3
         case .noPressure: reduction = 3
+        case .bites: reduction = 6
         }
         return max(17, difficulty.givens - reduction)
     }
@@ -34,9 +37,15 @@ public enum Book: String, Codable, CaseIterable, Sendable {
         switch self {
         case .probably, .slightlyHarder: multiplier = 1
         case .noPressure: multiplier = 1.25
+        case .bites: multiplier = 1.5
         }
         return Int((Double(Targets.target(level: level, slot: slot)) * multiplier).rounded(.down))
     }
 
-    public var startingCoins: Int { Baseline.coins }
+    public var startingCoins: Int {
+        switch self {
+        case .bites: return 3
+        case .probably, .slightlyHarder, .noPressure: return Baseline.coins
+        }
+    }
 }
