@@ -295,7 +295,9 @@ private struct GameView: View {
                 let arguments = ProcessInfo.processInfo.arguments
                 if let index = arguments.firstIndex(of: "-qaBoss"), index + 1 < arguments.count,
                    let boss = BossModifier(rawValue: arguments[index + 1]) {
-                    try? await Task.sleep(for: .milliseconds(400))
+                    // This debug route is used by launch-time screenshot QA.  It must
+                    // configure the board in the first rendered state instead of
+                    // leaving a timing window that exposes the briefing page.
                     model.beginPuzzle()
                     model.qaSetBoss(boss)
                     return
