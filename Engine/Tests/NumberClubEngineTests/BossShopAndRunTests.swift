@@ -486,7 +486,7 @@ final class RunAndDeterminismTests: XCTestCase {
     func testItemCatalogueMatchesTheDesignTables() {
         XCTAssertEqual(Catalog.items(of: .bookmark).count, 23)
         XCTAssertEqual(Catalog.items(of: .marker).count, 12)
-        XCTAssertEqual(Catalog.items(of: .buff).count, 10)
+        XCTAssertEqual(Catalog.items(of: .buff).count, 11)
         // Ids must be unique — the catalogue is keyed by them.
         let ids = Catalog.all.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count)

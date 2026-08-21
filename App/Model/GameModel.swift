@@ -194,6 +194,19 @@ final class GameModel {
         return hand[index]
     }
 
+    /// Litmus is deliberately usable with the normal semantic controls: select
+    /// a number, inspect each labelled blank, then activate the intended
+    /// square. A drag is not required for the feedback.
+    var isReadingLitmus: Bool {
+        puzzle?.armedFlags.contains(.litmus) ?? false
+    }
+
+    func litmusReading(at square: Square) -> Bool? {
+        guard isReadingLitmus, let puzzle, let digit = selectedDigit,
+              puzzle.board.isBlank(square), !puzzle.isBarred(square) else { return nil }
+        return puzzle.board.correctDigit(at: square) == digit
+    }
+
     /// The number the board should be highlighting. Scanning for every 7 is the
     /// core reading motion of a sudoku, so it is worth making free — but only
     /// one number at a time, and it is always the one you touched last.
