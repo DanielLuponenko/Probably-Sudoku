@@ -1120,6 +1120,12 @@ private struct Succulent: View {
                 ContactShadow(width: size.width * 1.1, depth: max(4, 12 * scale))
                     .offset(y: max(1, 3 * scale))
 
+                // The crown needs to grow out of the soil.  The pot is drawn
+                // afterwards, so this short stem disappears naturally into it.
+                SucculentStem()
+                    .frame(width: size.width * 0.36, height: size.height * 0.38)
+                    .offset(x: -size.width * 0.02, y: -potHeight * 0.88)
+
                 Rosette()
                     .frame(width: size.width * 0.86, height: size.height * 0.62)
                     .offset(y: -potHeight * 0.82)
@@ -1152,6 +1158,33 @@ private struct Succulent: View {
                             x: max(1, 2 * scale), y: max(1, 3 * scale))
             }
             .frame(width: size.width, height: size.height, alignment: .bottom)
+        }
+    }
+
+    /// Two short, slightly irregular stems keep the foliage rooted in the pot
+    /// instead of reading as a leaf sticker floating above the soil.
+    private struct SucculentStem: View {
+        var body: some View {
+            Canvas { context, size in
+                let root = CGPoint(x: size.width * 0.48, y: size.height)
+                let crown = CGPoint(x: size.width * 0.58, y: size.height * 0.14)
+
+                var main = Path()
+                main.move(to: root)
+                main.addCurve(to: crown,
+                              control1: CGPoint(x: size.width * 0.42, y: size.height * 0.66),
+                              control2: CGPoint(x: size.width * 0.68, y: size.height * 0.38))
+                context.stroke(main, with: .color(.black.opacity(0.34)), lineWidth: 4)
+                context.stroke(main, with: .color(Color(hex: 0x4D633C)), lineWidth: 2.1)
+
+                var branch = Path()
+                branch.move(to: CGPoint(x: size.width * 0.50, y: size.height * 0.64))
+                branch.addCurve(to: CGPoint(x: size.width * 0.22, y: size.height * 0.34),
+                                control1: CGPoint(x: size.width * 0.36, y: size.height * 0.55),
+                                control2: CGPoint(x: size.width * 0.27, y: size.height * 0.43))
+                context.stroke(branch, with: .color(Color(hex: 0x607B49)), lineWidth: 1.5)
+            }
+            .allowsHitTesting(false)
         }
     }
 
