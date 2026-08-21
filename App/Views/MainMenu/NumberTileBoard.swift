@@ -52,8 +52,9 @@ struct NumberTileBoard: View {
 
                             slot(side: board.tile, pocket: board.slot).position(centre)
 
-                            PhysicalNumberTile(number: index + 1, side: board.tile,
-                                               tilt: Self.tilt(of: index))
+                            PlayfulNumberTile(number: index + 1, side: board.tile,
+                                              tilt: Self.tilt(of: index),
+                                              reduceMotion: reduceMotion)
                                 .modifier(TileMotion(phase: phase, entrance: entrance,
                                                      index: index, side: board.tile,
                                                      reduceMotion: reduceMotion))
@@ -84,9 +85,6 @@ struct NumberTileBoard: View {
                         x: size.width * 0.012, y: size.width * 0.018)
             }
         }
-        // An object on the desk, not a control. VoiceOver goes straight from
-        // the club's name to Play.
-        .accessibilityHidden(true)
     }
 
     // MARK: The object
@@ -197,6 +195,69 @@ struct NumberTileBoard: View {
         state = state &* 6364136223846793005 &+ 1442695040888963407
         let unit = Double(state >> 11) / Double(UInt64(1) << 53)
         return -0.35 + unit * 0.7
+    }
+}
+
+/// The face of one menu tile. Each tap uses the next stable entry in the
+/// sequence, so it feels playful without making tests or accessibility output
+/// depend on runtime randomness.
+private struct PlayfulNumberTile: View {
+    private static let glyphs = ["9×9", "✓", "×", "□", "↔", "?", "3×3", "#1", "!"]
+    private static let descriptions = [
+        "nine by nine", "correct", "not allowed", "a Sudoku box",
+        "swap", "a missing clue", "three by three", "number one", "surprise"
+    ]
+
+    var number: Int
+    var side: CGFloat
+    var tilt: Double
+    var reduceMotion: Bool
+
+    @State private var glyphIndex = 0
+    @State private var isShowingGlyph = false
+    @State private var resetTask: Task<Void, Never>?
+
+    private var glyph: String { Self.glyphs[glyphIndex] }
+    private var glyphDescription: String { Self.descriptions[glyphIndex] }
+
+    var body: some View {
+        Button(action: reveal) {
+            ZStack {
+                PhysicalNumberTile(number: number, side: side, glyph: nil, tilt: tilt)
+                    .opacity(isShowingGlyph ? 0 : 1)
+                    .rotation3DEffect(.degrees(isShowingGlyph ? 90 : 0),
+                                      axis: (x: 0, y: 1, z: 0), perspective: 0.65)
+
+                PhysicalNumberTile(number: number, side: side, glyph: glyph, tilt: tilt)
+                    .opacity(isShowingGlyph ? 1 : 0)
+                    .rotation3DEffect(.degrees(isShowingGlyph ? 0 : -90),
+                                      axis: (x: 0, y: 1, z: 0), perspective: 0.65)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Number \(number)")
+        .accessibilityValue(isShowingGlyph ? glyphDescription : "\(number)")
+        .accessibilityHint("Double tap to reveal a Sudoku surprise")
+        .onDisappear { resetTask?.cancel() }
+    }
+
+    private func reveal() {
+        resetTask?.cancel()
+        glyphIndex = (glyphIndex + number) % Self.glyphs.count
+
+        withAnimation(reduceMotion ? .linear(duration: 0.01) : .snappy(duration: 0.28)) {
+            isShowingGlyph = true
+        }
+
+        resetTask = Task {
+            try? await Task.sleep(for: .seconds(reduceMotion ? 0.5 : 1.45))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(reduceMotion ? .linear(duration: 0.01) : .snappy(duration: 0.24)) {
+                    isShowingGlyph = false
+                }
+            }
+        }
     }
 }
 /// Every measurement of the board, worked out once from its frame.

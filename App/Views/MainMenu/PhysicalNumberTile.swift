@@ -14,10 +14,22 @@ import SwiftUI
 struct PhysicalNumberTile: View {
     var number: Int
     var side: CGFloat
+    /// A short reverse-side mark used by the opening board's playful tiles.
+    /// Keeping it on the same physical slab preserves the tile's material
+    /// while only the face changes during a flip.
+    var glyph: String?
 
     /// Never more than a third of a degree: a tile that is visibly crooked
     /// reads as broken, and a tile that is perfectly square reads as printed.
     var tilt: Double
+
+    private var faceText: String { glyph ?? "\(number)" }
+
+    private var faceFont: Font {
+        glyph == nil
+            ? Print.numeral(side * 0.60, weight: .semibold)
+            : .system(size: side * 0.31, weight: .black, design: .rounded)
+    }
 
     var body: some View {
         let corner = side * 0.085
@@ -49,13 +61,13 @@ struct PhysicalNumberTile: View {
                         .padding(max(0.7, side * 0.045))
                 }
 
-            Text("\(number)")
-                .font(Print.numeral(side * 0.60, weight: .semibold))
+            Text(faceText)
+                .font(faceFont)
                 .foregroundStyle(Color(hex: 0x4A4235))
                 // Pressed in: one dark line under, one light line over.
                 .background {
-                    Text("\(number)")
-                        .font(Print.numeral(side * 0.60, weight: .semibold))
+                    Text(faceText)
+                        .font(faceFont)
                         .foregroundStyle(.white.opacity(0.55))
                         .offset(y: -0.7)
                 }
