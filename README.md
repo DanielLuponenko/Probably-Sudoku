@@ -400,6 +400,7 @@ Engine work needs no Xcode project at all, and is much faster without one:
 ```bash
 cd Engine
 swift test                     # 80 tests
+WRITE_REFERENCE=1 swift test --filter GenerateReference  # refresh REFERENCE.md
 swift run -c release simulate 200   # 200 Books, asserts conservation throughout
 swift run -c release genbench       # per-difficulty generation timing
 ```
@@ -418,7 +419,7 @@ swift run -c release genbench       # per-difficulty generation timing
 - The conservation rule (§4) is asserted after every action: Pool + Hand always
   equals exactly what the remaining Blanks need. 2,449 simulated puzzles, zero
   breaks.
-- All 23 Bookmarks, 12 Markers, 10 Buffs, 9 Boss Modifiers, with the §6 scoring formula
+- All 23 Bookmarks, 12 Markers, 11 Buffs, 7 Subscriptions, 19 Boss Modifiers, with the §6 scoring formula
   and the §14 resolution order.
 - Shop with §9 stock, rarity odds, price bands and reroll pricing.
 - Save/load round-trips mid-Puzzle.
