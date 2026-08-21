@@ -76,6 +76,8 @@ struct QAPanel: View {
                 }
 
                 Section("State") {
+                    row("Undo last action", "arrow.uturn.backward",
+                        isEnabled: model.qaCanUndo) { model.qaUndoLastAction() }
                     LabeledContent("Seed", value: model.run.seed)
                     LabeledContent("Level", value: "\(model.run.level)")
                     LabeledContent("Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
@@ -103,6 +105,7 @@ struct QAPanel: View {
 
     private func row(_ title: String, _ symbol: String,
                      destructive: Bool = false,
+                     isEnabled: Bool = true,
                      action: @escaping () -> Void) -> some View {
         Button {
             action()
@@ -111,6 +114,7 @@ struct QAPanel: View {
             Label(title, systemImage: symbol)
         }
         .foregroundStyle(destructive ? Color.red : Color.accentColor)
+        .disabled(!isEnabled)
     }
 }
 
