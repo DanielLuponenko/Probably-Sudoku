@@ -310,7 +310,11 @@ private struct GameView: View {
                 if let index = arguments.firstIndex(of: "-curlHold"), index + 1 < arguments.count,
                    let value = Double(arguments[index + 1]) {
                     try? await Task.sleep(for: .milliseconds(400))
-                    flipper.hold(from: model, at: value) { model.endTurn() }
+                    // A new Game opens on its briefing page. Use the existing
+                    // deterministic completion shortcut so this QA route
+                    // always freezes a real outgoing/incoming page pair,
+                    // rather than a curl over an unchanged briefing.
+                    flipper.hold(from: model, at: value) { model.qaCompleteBook() }
                     return
                 }
                 guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
