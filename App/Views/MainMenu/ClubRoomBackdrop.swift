@@ -1015,10 +1015,11 @@ private struct PencilCup: View {
                     Pencil(colour: Self.leads[index])
                         .frame(width: max(3, 12 * scale), height: size.height * 0.74)
                         .rotationEffect(.degrees(Double(index - 2) * 6), anchor: .bottom)
-                        // Sink the barrel well below the lip.  It must read as
-                        // held by the cup, not balanced on its rim.
+                        // Sink each barrel through the dark opening and into
+                        // the body of the cup.  The rim then occludes its
+                        // lower end, making the pencils read as contained.
                         .offset(x: CGFloat(index - 2) * size.width * 0.11,
-                                y: -potHeight * 0.20)
+                                y: potHeight * 0.04)
                 }
 
                 // The pot.
