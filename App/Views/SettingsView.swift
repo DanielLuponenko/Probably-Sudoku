@@ -338,29 +338,44 @@ struct HelpSlip: View {
                   subtitle: "Probably Sudoku, in the order you meet it.",
                   onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 7) {
-                        ForEach(Topic.allCases) { topic in
-                            Button(topic.heading) { selectedTopic = topic }
-                                .font(Print.caption(10))
-                                .textCase(.uppercase)
-                                .tracking(0.7)
-                                .foregroundStyle(selectedTopic == topic ? Paper.page : Paper.inkSoft)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 7)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(selectedTopic == topic ? Paper.ink : Paper.pageWarm)
-                                }
-                                .accessibilityAddTraits(selectedTopic == topic ? .isSelected : [])
-                        }
-                    }
+                HStack(spacing: 8) {
+                    Text(selectedTopic.heading)
+                        .font(Print.caption(10))
+                        .textCase(.uppercase)
+                        .tracking(0.9)
+                        .foregroundStyle(Paper.page)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .background(Paper.ink, in: RoundedRectangle(cornerRadius: 3))
+                        .accessibilityLabel("How to play topic")
+                        .accessibilityValue("\(selectedTopic.heading), \(selectedIndex + 1) of \(Topic.allCases.count)")
                 }
                 .padding(.bottom, 12)
 
                 HelpTopicPage(topic: selectedTopic)
+
+                HStack(spacing: 10) {
+                    if selectedIndex > 0 {
+                        PaperButton(title: "Previous", kind: .quiet) {
+                            select(Topic.allCases[selectedIndex - 1])
+                        }
+                    }
+                    if selectedIndex < Topic.allCases.count - 1 {
+                        PaperButton(title: "Next", kind: .quiet) {
+                            select(Topic.allCases[selectedIndex + 1])
+                        }
+                    }
+                }
+                .padding(.top, 14)
             }
         }
+    }
+
+    private var selectedIndex: Int {
+        Topic.allCases.firstIndex(of: selectedTopic) ?? 0
+    }
+
+    private func select(_ topic: Topic) {
+        withAnimation(.snappy(duration: 0.18)) { selectedTopic = topic }
     }
 }
 
