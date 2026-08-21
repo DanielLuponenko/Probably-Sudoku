@@ -1,5 +1,5 @@
 import Foundation
-import NumberClubEngine
+import ProbablySudokuEngine
 
 for difficulty in Difficulty.allCases {
     var rng = RandomStream(seed: "bench", stream: "board")

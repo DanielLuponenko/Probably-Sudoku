@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The obstacles, as the ribbons sewn into the Book.
 ///

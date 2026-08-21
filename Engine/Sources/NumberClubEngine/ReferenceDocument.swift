@@ -7,7 +7,7 @@ public enum ReferenceDocument {
         var lines = [
             "# Probably Sudoku Reference",
             "",
-            "Generated from the NumberClubEngine catalogue. Do not edit by hand.",
+            "Generated from the ProbablySudokuEngine catalogue. Do not edit by hand.",
             "",
             "## Shop and run items",
             "",

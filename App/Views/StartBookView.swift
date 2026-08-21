@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The shelf. You arrive here on launch, and come back whenever a Book ends or
 /// is abandoned — §3 makes the Starting Board a choice you make when you open a

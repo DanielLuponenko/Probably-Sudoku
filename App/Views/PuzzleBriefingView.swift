@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The loose page before a Puzzle begins. It makes the Clipping visible before
 /// the player commits, while still keeping Bosses free of any skip control.

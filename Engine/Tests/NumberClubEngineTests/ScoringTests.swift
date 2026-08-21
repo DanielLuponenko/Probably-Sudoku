@@ -1,5 +1,5 @@
 import XCTest
-@testable import NumberClubEngine
+@testable import ProbablySudokuEngine
 
 /// Helpers for driving a Puzzle deterministically without going through the
 /// random Hand, so a test can assert on one placement in isolation.

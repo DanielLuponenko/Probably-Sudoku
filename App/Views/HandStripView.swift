@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// §4 — the numbers that have arrived from the Pool. Flat printed tiles, not
 /// balls. Duplicates are possible and meaningful, so each dealt card carries

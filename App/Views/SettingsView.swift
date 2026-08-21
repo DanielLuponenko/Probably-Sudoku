@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Anything that is about the run rather than in it is printed on a slip and
 /// laid on the desk over the book. A system settings list would be the one

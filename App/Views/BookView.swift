@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The desk the book lies on.
 struct DeskView<Content: View>: View {

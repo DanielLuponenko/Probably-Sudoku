@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import NumberClubEngine
+@testable import ProbablySudokuEngine
 
 final class BossModifierTests: XCTestCase {
 

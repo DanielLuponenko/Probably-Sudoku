@@ -1,4 +1,4 @@
-# The Number Club
+# Probably Sudoku
 
 A roguelike sudoku for iOS. Native SwiftUI — no game engine.
 
@@ -8,10 +8,10 @@ numbers in code comments refer to it.
 ## Layout
 
 ```
-NumberClub/
+ProbablySudoku/
 ├── project.yml              XcodeGen source of truth — never edit the .xcodeproj
 ├── Engine/                  Pure Swift package. No UIKit, no SwiftUI, no I/O.
-│   ├── Sources/NumberClubEngine/
+│   ├── Sources/ProbablySudokuEngine/
 │   ├── Sources/simulate/    Bot soak test
 │   ├── Sources/genbench/    Generation benchmark
 │   └── Tests/
@@ -81,7 +81,7 @@ Check it survived, rather than assuming:
 
 ```bash
 /usr/libexec/PlistBuddy -c "Print :CADisableMinimumFrameDurationOnPhone" \
-  <build>/NumberClub.app/Info.plist        # must print: true
+  <build>/ProbablySudoku.app/Info.plist        # must print: true
 ```
 
 ## Running it on a real iPhone
@@ -102,12 +102,12 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 xcrun devicectl list devices                       # confirm it is seen
 UDID=<the identifier from that list>
 
-xcodebuild -project NumberClub.xcodeproj -scheme NumberClub \
+xcodebuild -project ProbablySudoku.xcodeproj -scheme ProbablySudoku \
   -destination "platform=iOS,id=$UDID" -configuration Debug \
   -derivedDataPath build -allowProvisioningUpdates build
 
 xcrun devicectl device install app --device "$UDID" \
-  build/Build/Products/Debug-iphoneos/NumberClub.app
+  build/Build/Products/Debug-iphoneos/ProbablySudoku.app
 xcrun devicectl device process launch --device "$UDID" com.numberclub.app
 ```
 
@@ -117,8 +117,8 @@ which is why it has to be connected for that step.
 ## Running it
 
 ```bash
-cd NumberClub && xcodegen generate
-xcodebuild -project NumberClub.xcodeproj -scheme NumberClub \
+cd ProbablySudoku && xcodegen generate
+xcodebuild -project ProbablySudoku.xcodeproj -scheme ProbablySudoku \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
@@ -130,7 +130,7 @@ first time it happens:
 SIM=$(xcrun simctl list devices available | grep -m1 'iPhone 17 Pro' | grep -o '[0-9A-F-]\{36\}')
 xcrun simctl boot "$SIM"; open -a Simulator
 xcrun simctl uninstall "$SIM" com.numberclub.app
-xcrun simctl install "$SIM" <DerivedData>/Build/Products/Debug-iphonesimulator/NumberClub.app
+xcrun simctl install "$SIM" <DerivedData>/Build/Products/Debug-iphonesimulator/ProbablySudoku.app
 xcrun simctl launch "$SIM" com.numberclub.app
 ```
 
@@ -371,7 +371,7 @@ cannot reach a player. Verified rather than assumed — a release build contains
 none of the panel's strings and no debug dylib:
 
 ```bash
-strings <Release>/NumberClub.app/NumberClub | grep -c 'Add 1,000 points'   # 0
+strings <Release>/ProbablySudoku.app/ProbablySudoku | grep -c 'Add 1,000 points'   # 0
 ```
 
 Awards go through the same phase check a real placement does, so a QA win
@@ -392,7 +392,7 @@ ffmpeg -i flip.mp4 -vf fps=30 frame%03d.png
 Xcode 26.2. The project is generated, so after adding files:
 
 ```bash
-cd NumberClub && xcodegen generate
+cd ProbablySudoku && xcodegen generate
 ```
 
 Engine work needs no Xcode project at all, and is much faster without one:

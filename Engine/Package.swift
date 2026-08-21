@@ -2,15 +2,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "NumberClubEngine",
+    name: "ProbablySudokuEngine",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "NumberClubEngine", targets: ["NumberClubEngine"]),
+        .library(name: "ProbablySudokuEngine", targets: ["ProbablySudokuEngine"]),
     ],
     targets: [
-        .target(name: "NumberClubEngine"),
-        .testTarget(name: "NumberClubEngineTests", dependencies: ["NumberClubEngine"]),
-        .executableTarget(name: "genbench", dependencies: ["NumberClubEngine"]),
-        .executableTarget(name: "simulate", dependencies: ["NumberClubEngine"]),
+        .target(name: "ProbablySudokuEngine", path: "Sources/NumberClubEngine"),
+        .testTarget(name: "ProbablySudokuEngineTests", dependencies: ["ProbablySudokuEngine"],
+                    path: "Tests/NumberClubEngineTests"),
+        .executableTarget(name: "genbench", dependencies: ["ProbablySudokuEngine"]),
+        .executableTarget(name: "simulate", dependencies: ["ProbablySudokuEngine"]),
     ]
 )

@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// §11 — a Marker marks a square, and the square is chosen the moment the
 /// Marker is gained. Asked on a blank grid, because the board is regenerated

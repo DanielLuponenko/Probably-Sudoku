@@ -1,6 +1,6 @@
 #if DEBUG
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Shortcuts for exercising the game by hand. Debug builds only — the whole
 /// file is compiled out of a release build, as are the engine calls behind it.

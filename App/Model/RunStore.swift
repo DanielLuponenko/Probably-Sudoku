@@ -1,5 +1,5 @@
 import Foundation
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Where a run lives between launches, and what the player has unlocked.
 ///
