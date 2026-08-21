@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The page between a Puzzle and the Shop: what you scored, what it paid, and
 /// where the Book goes next.

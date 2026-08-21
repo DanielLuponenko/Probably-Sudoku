@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 struct ContentView: View {
     @State private var model: GameModel? = ContentView.debugModel()

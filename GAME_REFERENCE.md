@@ -1,4 +1,4 @@
-# Number Club gameplay reference
+# Probably Sudoku gameplay reference
 
 ## 2. Book ladder
 

@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Which page of the book is showing. The active puzzle and the shop are
 /// separate pages, and you only ever get between them by turning one.
@@ -59,7 +59,7 @@ final class GameModel {
     /// A row, column or box that has just been completed, held long enough to
     /// be marked on the board and then dropped.
     struct Cleared: Equatable, Identifiable {
-        let unit: NumberClubEngine.Unit
+        let unit: ProbablySudokuEngine.Unit
         let square: Square
         /// A single placement can complete all three unit types. The unit must
         /// be part of the identity or SwiftUI coalesces those overlays into one

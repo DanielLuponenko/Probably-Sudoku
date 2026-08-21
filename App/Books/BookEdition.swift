@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// A Book is a published thing with a personality, not just a difficulty tier.
 /// The first one is cheerful and faintly unsure of itself, and it talks to the

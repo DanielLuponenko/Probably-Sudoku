@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The paper strip that sits above the book on every page. It carries the coin
 /// count, where you are in the Book, and the page's controls. Refresh only ever

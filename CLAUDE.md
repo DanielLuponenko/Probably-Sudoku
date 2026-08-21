@@ -1,7 +1,7 @@
 # Probably Sudoku — project instructions
 
-(Formerly *The Number Club*; the rename is tracked in KAN-34 and is not done in
-the code yet, so the target, module and bundle id still say `NumberClub`.)
+(Formerly *Probably Sudoku*; the rename is tracked in KAN-34 and is not done in
+the code yet, so the target, module and bundle id still say `ProbablySudoku`.)
 
 ## This project is Jira-managed. This rule is non-negotiable.
 
@@ -74,7 +74,7 @@ or `Blocks`), and mention it.
 ## Version control — also non-negotiable
 
 **Remote** `https://github.com/DanielLuponenko/Probably-Sudoku.git`
-(The game is being renamed from The Number Club to **Probably Sudoku** — KAN-34.)
+(The game is being renamed from Probably Sudoku to **Probably Sudoku** — KAN-34.)
 
 Not everything goes on `main`. The model, defined in **KAN-35**:
 

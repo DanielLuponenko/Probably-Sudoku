@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The printed grid. Everything here is drawn rather than exported: the rules,
 /// the washes, the marks. Only the paper underneath is artwork.

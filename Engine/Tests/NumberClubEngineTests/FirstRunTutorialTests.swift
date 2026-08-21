@@ -1,5 +1,5 @@
 import XCTest
-@testable import NumberClubEngine
+@testable import ProbablySudokuEngine
 
 final class FirstRunTutorialTests: XCTestCase {
     func testFirstPuzzleMapsTheFirstSixTurnsToTeachingBeats() {

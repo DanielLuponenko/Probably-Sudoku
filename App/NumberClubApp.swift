@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct NumberClubApp: App {
+struct ProbablySudokuApp: App {
     @State private var profile = PlayerProfileStore.shared
 
     var body: some Scene {

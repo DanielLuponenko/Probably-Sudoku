@@ -1,5 +1,5 @@
 import XCTest
-@testable import NumberClubEngine
+@testable import ProbablySudokuEngine
 
 extension Game {
     /// Fills every Blank of a row except the last one, then returns that last

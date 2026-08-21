@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// §9 — the Shop is its own page of the book, reached by turning one. Stock is
 /// always two Bookmarks, two Markers and one Buff.

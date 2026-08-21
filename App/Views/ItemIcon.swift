@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Book-illustration icons, drawn from SF Symbols so they scale, respect the
 /// text weight, and come with VoiceOver descriptions for free.

@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 struct PuzzlePageView: View {
     @Bindable var model: GameModel
