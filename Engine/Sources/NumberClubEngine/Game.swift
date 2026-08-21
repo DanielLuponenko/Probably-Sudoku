@@ -121,6 +121,14 @@ public extension Game {
         run.outcome = .failed
     }
 
+    /// Moves a debug Book to a specific reached level, then fails it. The
+    /// puzzle state is intentionally left alone because the failure reward is
+    /// based on cleared levels and Bosses, not a synthetic board result.
+    mutating func qaFailBook(atLevel level: Int) {
+        run.level = min(max(1, level), 9)
+        qaFailPuzzle()
+    }
+
     /// Fills every Blank with its solution digit, taking each number from the
     /// Pool or the Hand so the conservation rule still holds. Nothing is
     /// scored — this is for reaching the Full Clear and the results page, not

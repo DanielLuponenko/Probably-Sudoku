@@ -33,9 +33,10 @@ final class GameModel {
     /// A frozen model is the page already lifting away, not a fresh deal.
     private(set) var animatesHandArrival = true
     private(set) var page: BookPage = .puzzle
-    /// A completed book can cause more than one presentation update. Record
-    /// its permanent consequences once, at the model boundary.
-    private var didRecordCompletion = false
+    /// A terminal Book outcome can cause more than one presentation update.
+    /// Record permanent consequences once, at the model boundary.
+    private var didRecordTerminalOutcome = false
+    private(set) var stampsEarned = 0
 
     /// Which of the two selections the board should be highlighting. Both a
     /// Hand tile and a square can be selected at once, so without this the
@@ -97,14 +98,28 @@ final class GameModel {
     }
 
     private func persist() {
-        if game.run.outcome == .bookCompleted, !didRecordCompletion {
-            didRecordCompletion = true
+        guard let outcome = game.run.outcome else {
+            RunStore.save(game)
+            return
+        }
+
+        guard !didRecordTerminalOutcome else {
+            RunStore.save(game)
+            return
+        }
+
+        didRecordTerminalOutcome = true
+        switch outcome {
+        case .bookCompleted:
             let isFirstEver = RunStore.booksCompleted == 0
             RunStore.recordBookCompleted()
-            PlayerProfileStore.shared.earn(
-                CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
-                                                   isFirstEver: isFirstEver)
-            )
+            let rewards = CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
+                                                             isFirstEver: isFirstEver)
+            stampsEarned = PlayerProfileStore.shared.earn(rewards)
+        case .failed:
+            let reward = CosmeticRewardPolicy.bookFailed(seed: game.run.seed,
+                                                         currentLevel: game.run.level)
+            stampsEarned = PlayerProfileStore.shared.earn(reward) ? reward.amount : 0
         }
         RunStore.save(game)
     }
@@ -490,6 +505,7 @@ final class GameModel {
         selectedSquare = nil
         lastOutcome = nil
         lastPayout = nil
+        stampsEarned = 0
         message = nil
         page = .puzzle
         try? game.startPuzzle()
@@ -505,6 +521,10 @@ final class GameModel {
     func qaAward(coins: Int) { game.qaAward(coins: coins) }
     func qaMeetTarget() { game.qaMeetTarget() }
     func qaFailPuzzle() { game.qaFailPuzzle(); page = .results }
+    func qaFailBook(atLevel level: Int) {
+        game.qaFailBook(atLevel: level)
+        page = .results
+    }
     func qaFillBoard() {
         game.qaFillBoard()
         refreshHandCards()
