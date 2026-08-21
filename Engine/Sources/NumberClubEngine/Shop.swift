@@ -1,7 +1,7 @@
 import Foundation
 
-/// §9 — the Shop opens after every Puzzle. Its normal stock is five items;
-/// a rare Subscription is printed separately when the Book qualifies.
+/// §9 — the Shop opens after every Puzzle with five items: two Bookmarks,
+/// two Markers, and one Buff.
 public struct ShopOffer: Codable, Sendable, Identifiable {
     /// Which of the five slots this offer sits in. Two offers in one Shop can
     /// share a `defID` — a second Golden Marker is a real purchase — so the
@@ -116,13 +116,6 @@ public enum Shop {
                 // Do not offer the same Bookmark twice in one Shop.
                 if kind == .bookmark { taken.insert(offer.defID) }
             }
-        }
-        // One in four eligible Shops contains one run-wide Subscription. Its
-        // distinct card is rendered after normal stock, never as a sixth row item.
-        if run.level >= 3, run.streams.shop.next() < 0.25,
-           let offer = rollOffer(&run.streams.shop, slot: offers.count, kind: .subscription,
-                                 level: run.level, excluding: taken) {
-            offers.append(offer)
         }
         if run.owns(subscription: Subscriptions.clippingService),
            let offer = rollOffer(&run.streams.shop, slot: offers.count, kind: .buff,

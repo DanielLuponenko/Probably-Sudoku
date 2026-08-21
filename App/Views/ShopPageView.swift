@@ -18,28 +18,9 @@ struct ShopPageView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
-                    ForEach(standardOffers) { offer in
-                        OfferCard(offer: offer,
-                                  affordable: model.coins >= offer.price,
-                                  hasSlot: hasSlot(for: offer.def.kind)) {
-                            inspectedOffer = offer
-                        }
-                    }
-                    if !subscriptionOffers.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("SUBSCRIPTIONS")
-                                .font(Print.caption(11)).tracking(1.4)
-                                .foregroundStyle(Paper.redPencil)
-                            ForEach(subscriptionOffers) { offer in
-                                OfferCard(offer: offer,
-                                          affordable: model.coins >= offer.price,
-                                          hasSlot: true) { inspectedOffer = offer }
-                            }
-                        }
-                        .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm))
-                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.redPencil.opacity(0.55), lineWidth: 1))
-                    }
+                    offerSection(title: "Bookmarks", kind: .bookmark)
+                    offerSection(title: "Markers", kind: .marker)
+                    offerSection(title: "Buffs", kind: .buff)
                 }
                 .padding(.bottom, 4)
             }
@@ -79,7 +60,7 @@ struct ShopPageView: View {
             Button("Keep it", role: .cancel) { sellCandidate = nil }
         } message: {
             if let candidate = sellCandidate {
-                Text("This returns \(candidate.sellValue) coins. Markers and subscriptions cannot be sold.")
+                Text("This returns \(candidate.sellValue) coins. Markers cannot be sold.")
             }
         }
     }
@@ -117,28 +98,48 @@ struct ShopPageView: View {
         }
     }
 
-    private var standardOffers: [ShopOffer] { shop.offers.filter { $0.def.kind != .subscription } }
-    private var subscriptionOffers: [ShopOffer] { shop.offers.filter { $0.def.kind == .subscription } }
+    @ViewBuilder private func offerSection(title: String, kind: ItemKind) -> some View {
+        let offers = shop.offers.filter { $0.def.kind == kind }
+        if !offers.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title)
+                    .font(Print.caption(11))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Paper.inkSoft)
+                ForEach(offers) { offer in
+                    OfferCard(offer: offer,
+                              affordable: model.coins >= offer.price,
+                              hasSlot: hasSlot(for: kind)) {
+                        inspectedOffer = offer
+                    }
+                }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm.opacity(0.6)))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.rule.opacity(0.75), lineWidth: 1))
+        }
+    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 7) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Classifieds").pageHeading(30)
+                    Text("Between Puzzles").pageHeading(30)
                     Spacer(minLength: 6)
                     coinCount
                     rerollButton
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Classifieds").pageHeading(30)
+                        Text("Between Puzzles").pageHeading(30)
                         Spacer()
                         coinCount
                     }
                     rerollButton
                 }
             }
-            Text("Circle something worth taking into the next puzzle.")
+            Text("Choose an item to take into the next puzzle.")
                 .font(Print.body(13))
                 .foregroundStyle(Paper.inkSoft)
             Rectangle().fill(Paper.rule).frame(height: 1)
@@ -213,7 +214,7 @@ struct ShopPageView: View {
     private var ownedSummary: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 10) {
-                Text("Your classified clippings")
+                Text("Your loadout")
                     .font(Print.caption(11)).tracking(1.4).textCase(.uppercase)
                     .foregroundStyle(Paper.inkSoft)
                 Rectangle().fill(Paper.rule.opacity(0.6)).frame(height: 1)
@@ -224,10 +225,6 @@ struct ShopPageView: View {
                         sellCandidate: $sellCandidate)
             LoadoutBand(title: "Buffs", items: buffs, capacity: ItemKind.buff.capacity,
                         sellCandidate: $sellCandidate)
-            if !subscriptions.isEmpty {
-                LoadoutBand(title: "Subscriptions", items: subscriptions, capacity: nil,
-                            sellCandidate: $sellCandidate)
-            }
         }
     }
 
@@ -252,12 +249,6 @@ struct ShopPageView: View {
         }
     }
 
-    private var subscriptions: [LoadoutItem] {
-        model.run.subscriptions.enumerated().map {
-            LoadoutItem(kind: .subscription, index: $0.offset, def: $0.element.def,
-                        sellValue: model.sellPrice($0.element.pricePaid), canSell: false)
-        }
-    }
 }
 
 // MARK: - Offer
@@ -310,7 +301,7 @@ private struct OfferCard: View {
         }
         .buttonStyle(PressedPaperStyle())
         .accessibilityLabel("\(def.name), \(def.rarity.rawValue), \(offer.price) coins, \(def.text), \(availability)")
-        .accessibilityHint("Opens the full classified ad")
+        .accessibilityHint("Opens item details")
         .accessibilityAddTraits(.isButton)
     }
 
@@ -425,7 +416,7 @@ private struct OfferSlip: View {
     }
 
     private var availability: String {
-        if currentOffer.sold { return "This ad has already been circled." }
+        if currentOffer.sold { return "This item has already been purchased." }
         if !hasSlot { return "There is no open \(currentOffer.def.kind.rawValue) slot." }
         if model.coins < currentOffer.price { return "You need \(currentOffer.price - model.coins) more coins." }
         return "You have \(model.coins) coins on hand."
@@ -457,7 +448,7 @@ private struct OfferSlip: View {
                     .font(Print.body(13))
                     .foregroundStyle(canBuy ? Paper.sageDeep : Paper.redPencil)
                 Spacer(minLength: 0)
-                PaperButton(title: "Circle this ad", subtitle: "Buy for \(currentOffer.price) coins",
+                PaperButton(title: "Buy this item", subtitle: "For \(currentOffer.price) coins",
                             kind: .primary, isEnabled: canBuy) {
                     let before = model.run.markers.count
                     model.buy(slot: currentOffer.slot)
@@ -472,7 +463,7 @@ private struct OfferSlip: View {
             }
             .padding(22)
             .background(Paper.page)
-            .navigationTitle("Classified ad")
+            .navigationTitle("Item details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

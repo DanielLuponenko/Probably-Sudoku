@@ -443,18 +443,16 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertEqual(restored.run.subscriptions.map(\.defID), run.subscriptions.map(\.defID))
     }
 
-    func testSubscriptionStockIsOneOfferAtMostAndOnlyFromLevelThree() {
-        for level in 1...2 {
-            var run = RunState(seed: "early-\(level)", startingBoard: .scholar)
-            run.level = level
-            Shop.open(&run)
-            XCTAssertFalse(run.shop!.offers.contains { $0.def.kind == .subscription })
-        }
+    func testStockContainsOnlyBookmarksMarkersAndBuffs() {
         for seed in 0..<100 {
             var run = RunState(seed: "sub-\(seed)", startingBoard: .scholar)
             run.level = 3
             Shop.open(&run)
-            XCTAssertLessThanOrEqual(run.shop!.offers.filter { $0.def.kind == .subscription }.count, 1)
+            XCTAssertEqual(run.shop!.offers.count, 5)
+            XCTAssertEqual(run.shop!.offers.filter { $0.def.kind == .bookmark }.count, 2)
+            XCTAssertEqual(run.shop!.offers.filter { $0.def.kind == .marker }.count, 2)
+            XCTAssertEqual(run.shop!.offers.filter { $0.def.kind == .buff }.count, 1)
+            XCTAssertFalse(run.shop!.offers.contains { $0.def.kind == .subscription })
         }
     }
 
