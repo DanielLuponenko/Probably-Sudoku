@@ -142,9 +142,14 @@ struct MainMenuButton: View {
 
     private var label: some View {
         VStack(spacing: 2 * scale) {
-            Image(systemName: symbol)
-                .font(.system(size: symbolSize, weight: .black))
-                .foregroundStyle(inkColor)
+            if kind == .shop {
+                ShopBasketGlyph(color: inkColor)
+                    .frame(width: max(20, 52 * scale), height: max(18, 44 * scale))
+            } else {
+                Image(systemName: symbol)
+                    .font(.system(size: symbolSize, weight: .black))
+                    .foregroundStyle(inkColor)
+            }
             Text(title)
                 .font(Print.menuAction(max(16, kind == .play ? 72 * scale : 62 * scale)))
                 .textCase(.uppercase)
@@ -191,6 +196,80 @@ struct MainMenuButton: View {
         max(18, (kind == .play ? 78 : 42) * scale)
     }
 }
+
+/// A deliberately drawn shop mark. The SF Symbol's straight handle terminals
+/// read as clipped at this scale; these two curved strokes visibly meet the
+/// rim, so the basket remains legible without enlarging its button.
+private struct ShopBasketGlyph: View {
+    var color: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+
+            ZStack {
+                BasketBody()
+                    .fill(color)
+
+                HStack(spacing: size.width * 0.095) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Capsule()
+                            .fill(Paper.pageWarm)
+                            .frame(width: max(1, size.width * 0.075),
+                                   height: size.height * 0.26)
+                    }
+                }
+                .frame(width: size.width * 0.46, height: size.height * 0.26)
+                .offset(y: size.height * 0.22)
+
+                BasketHandle(side: .left)
+                    .stroke(color, style: StrokeStyle(lineWidth: max(1.3, size.width * 0.105),
+                                                       lineCap: .round))
+                BasketHandle(side: .right)
+                    .stroke(color, style: StrokeStyle(lineWidth: max(1.3, size.width * 0.105),
+                                                       lineCap: .round))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private struct BasketBody: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.move(to: CGPoint(x: rect.width * 0.10, y: rect.height * 0.48))
+            path.addLine(to: CGPoint(x: rect.width * 0.90, y: rect.height * 0.48))
+            path.addLine(to: CGPoint(x: rect.width * 0.77, y: rect.height * 0.91))
+            path.addQuadCurve(to: CGPoint(x: rect.width * 0.23, y: rect.height * 0.91),
+                              control: CGPoint(x: rect.width * 0.50, y: rect.height * 1.03))
+            path.closeSubpath()
+            return path
+        }
+    }
+
+    private enum HandleSide { case left, right }
+
+    private struct BasketHandle: Shape {
+        var side: HandleSide
+
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            switch side {
+            case .left:
+                path.move(to: CGPoint(x: rect.width * 0.28, y: rect.height * 0.50))
+                path.addCurve(to: CGPoint(x: rect.width * 0.50, y: rect.height * 0.18),
+                              control1: CGPoint(x: rect.width * 0.24, y: rect.height * 0.28),
+                              control2: CGPoint(x: rect.width * 0.35, y: rect.height * 0.12))
+            case .right:
+                path.move(to: CGPoint(x: rect.width * 0.72, y: rect.height * 0.50))
+                path.addCurve(to: CGPoint(x: rect.width * 0.50, y: rect.height * 0.18),
+                              control1: CGPoint(x: rect.width * 0.76, y: rect.height * 0.28),
+                              control2: CGPoint(x: rect.width * 0.65, y: rect.height * 0.12))
+            }
+            return path
+        }
+    }
+}
+
 /// The gear, in a cream square screwed to the wall. Same two-layer press as
 /// the panels, at a quarter of the size.
 struct SettingsButton: View {
