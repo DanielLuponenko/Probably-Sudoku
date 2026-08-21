@@ -230,6 +230,7 @@ struct SettingsSlip: View {
                 #endif
             }
         }
+        .accessibilityAddTraits(.isModal)
         #if DEBUG
         .sheet(isPresented: $showingQA) { QAPanel(model: model) }
         .overlay {

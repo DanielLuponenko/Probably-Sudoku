@@ -248,6 +248,9 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
+            // A paper slip covers the whole desk. Keep its obscured controls
+            // out of VoiceOver navigation until the slip is closed.
+            .accessibilityHidden(isPresentingSlip)
             .overlay {
                 // In-world, on the desk — not a system sheet sliding up over it.
                 if showingSettings {
@@ -343,6 +346,10 @@ private struct GameView: View {
         .environment(flipper)
         .preferredColorScheme(.dark)
         .statusBarHidden()
+    }
+
+    private var isPresentingSlip: Bool {
+        showingSettings || showingRunInfo || usingBuff != nil
     }
 
     // MARK: Pages
