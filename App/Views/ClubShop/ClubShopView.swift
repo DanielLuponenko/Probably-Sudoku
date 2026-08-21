@@ -111,7 +111,10 @@ struct ClubShopView: View {
     private var tabs: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(CosmeticCategory.allCases) { option in
+                // Markers are part of the game, not a Club Shop cosmetic. Keep
+                // them out of this player-facing catalogue until they have a
+                // real use here.
+                ForEach(CosmeticCategory.allCases.filter { $0 != .marker }) { option in
                     let selected = option == category
                     Button {
                         withAnimation(.snappy(duration: 0.2)) { category = option }
