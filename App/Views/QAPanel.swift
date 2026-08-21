@@ -70,6 +70,9 @@ struct QAPanel: View {
 
                 Section("Run") {
                     row("New Book", "book.closed") { model.startNewBook() }
+                    row("Reset tutorial and start Book 1", "text.book.closed") {
+                        model.qaResetFirstRunTutorial()
+                    }
                 }
 
                 Section("State") {

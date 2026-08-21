@@ -94,10 +94,13 @@ struct PlayerProfile: Codable {
     /// Every reward already paid, by event id. This is what makes earning
     /// idempotent — a results page that appears twice pays once.
     var rewardedCompletionIDs: Set<String> = []
+    /// Set as soon as the opening lesson starts, so Continue never repeats it.
+    var hasStartedFirstRunTutorial = false
 
     // Decoded leniently, so a profile written by an earlier build still opens.
     enum CodingKeys: String, CodingKey {
-        case cosmeticCurrency, ownedCosmeticIDs, equipped, rewardedCompletionIDs
+        case cosmeticCurrency, ownedCosmeticIDs, equipped, rewardedCompletionIDs,
+             hasStartedFirstRunTutorial
     }
 
     init() {}
@@ -110,6 +113,8 @@ struct PlayerProfile: Codable {
         equipped = try container.decodeIfPresent(EquippedCosmetics.self, forKey: .equipped) ?? .starting
         rewardedCompletionIDs = try container
             .decodeIfPresent(Set<String>.self, forKey: .rewardedCompletionIDs) ?? []
+        hasStartedFirstRunTutorial = try container
+            .decodeIfPresent(Bool.self, forKey: .hasStartedFirstRunTutorial) ?? false
         // A profile written before a category existed still has to wear
         // something in it.
         normalize()

@@ -38,6 +38,10 @@ final class GameModel {
     /// Record permanent consequences once, at the model boundary.
     private var didRecordTerminalOutcome = false
     private(set) var stampsEarned = 0
+    /// Captured before the profile is updated. The profile records that the
+    /// lesson started, while this model keeps its six lines visible for the
+    /// current first Puzzle.
+    private var isTeachingFirstRun = false
 
     /// Which of the two selections the board should be highlighting. Both a
     /// Hand tile and a square can be selected at once, so without this the
@@ -78,6 +82,7 @@ final class GameModel {
          startingBoard: StartingBoard = .scholar,
          obstacle: Obstacle = .none) {
         game = Game(seed: seed, book: book, startingBoard: startingBoard, obstacle: obstacle)
+        armFirstRunTutorialIfEligible()
     }
 
     /// A read-only copy of the game as it was, for drawing the page that is
@@ -203,11 +208,21 @@ final class GameModel {
         guard let puzzle, puzzle.phase == .playing || puzzle.phase == .keepFilling else {
             return nil
         }
+        if isTeachingFirstRun,
+           let index = FirstRunTutorial.lineIndex(book: run.book, level: puzzle.level,
+                                                  slot: puzzle.slot, turn: puzzle.turnNumber) {
+            return MarginNote.firstRunTeachingLine(at: index)
+        }
         return MarginNote.roll(seed: run.seed,
                                level: puzzle.level,
                                slot: puzzle.slot.rawValue,
                                turn: puzzle.turnNumber,
                                from: edition)
+    }
+
+    private func armFirstRunTutorialIfEligible() {
+        isTeachingFirstRun = game.run.book == .probably
+            && PlayerProfileStore.shared.needsFirstRunTutorial
     }
 
     /// Squares carrying a Marker, unless The Fog is hiding them (§13).
@@ -458,6 +473,7 @@ final class GameModel {
     func beginPuzzle() {
         do {
             try game.startPuzzle()
+            if isTeachingFirstRun { PlayerProfileStore.shared.startFirstRunTutorial() }
             refreshHandCards(replacing: true)
             startClock()
             selectedHandIndex = nil
@@ -525,8 +541,8 @@ final class GameModel {
     }
 
     /// Restarts in place, without going back to the cover. Used by QA only.
-    func startNewBook(startingBoard: StartingBoard? = nil) {
-        game = Game(seed: Self.randomSeed(), book: game.run.book,
+    func startNewBook(book: Book? = nil, startingBoard: StartingBoard? = nil) {
+        game = Game(seed: Self.randomSeed(), book: book ?? game.run.book,
                     startingBoard: startingBoard ?? game.run.startingBoard,
                     obstacle: game.run.obstacle)
         selectedHandIndex = nil
@@ -535,6 +551,7 @@ final class GameModel {
         lastPayout = nil
         stampsEarned = 0
         message = nil
+        armFirstRunTutorialIfEligible()
         page = .briefing
     }
 
@@ -572,6 +589,10 @@ final class GameModel {
         game.qaSetBoss(boss)
         refreshHandCards()
         startClock()
+    }
+    func qaResetFirstRunTutorial() {
+        PlayerProfileStore.shared.resetFirstRunTutorial()
+        startNewBook(book: .probably)
     }
 
     /// Fills the bookmarks, so the row can be looked at populated.

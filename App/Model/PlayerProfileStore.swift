@@ -45,6 +45,8 @@ final class PlayerProfileStore {
 
     var currency: Int { profile.cosmeticCurrency }
 
+    var needsFirstRunTutorial: Bool { !profile.hasStartedFirstRunTutorial }
+
     var theme: CosmeticTheme { CosmeticCatalog.theme(for: profile.equipped) }
 
     func owns(_ item: CosmeticItem) -> Bool {
@@ -106,6 +108,12 @@ final class PlayerProfileStore {
         save()
     }
 
+    func startFirstRunTutorial() {
+        guard !profile.hasStartedFirstRunTutorial else { return }
+        profile.hasStartedFirstRunTutorial = true
+        save()
+    }
+
     private func save() {
         guard let data = try? JSONEncoder().encode(profile) else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
@@ -139,4 +147,11 @@ final class PlayerProfileStore {
         // would quietly become the player's real balance.
         #endif
     }
+
+    #if DEBUG
+    func resetFirstRunTutorial() {
+        profile.hasStartedFirstRunTutorial = false
+        save()
+    }
+    #endif
 }
