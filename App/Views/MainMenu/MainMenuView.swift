@@ -97,7 +97,10 @@ struct MainMenuView: View {
                     ClubRoomMaterial.lampWarm.opacity(0.07)
                         .ignoresSafeArea()
                         .transition(.opacity)
-                    AppSettingsSlip {
+                    AppSettingsSlip(onOpenShop: {
+                        withAnimation(.snappy(duration: 0.2)) { showingSettings = false }
+                        onShop()
+                    }) {
                         withAnimation(.snappy(duration: 0.2)) { showingSettings = false }
                     }
                 }
