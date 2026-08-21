@@ -17,7 +17,11 @@ public struct Game: Sendable {
     /// Deals the current Level and slot's board.
     public mutating func startPuzzle() throws {
         run.shop = nil
-        run.puzzle = try PuzzleState.create(run: &run)
+        var puzzle = try PuzzleState.create(run: &run)
+        if let overprint = run.runItemState.removeValue(forKey: "clipping.overprint"), overprint > 0 {
+            puzzle.pendingMult += overprint
+        }
+        run.puzzle = puzzle
     }
 
     /// §9 — a Shop opens after every Puzzle.
@@ -31,6 +35,12 @@ public struct Game: Sendable {
     @discardableResult
     public mutating func advance() -> Bool {
         run.advance()
+    }
+    @discardableResult
+    public mutating func skipPuzzle() throws -> Clipping {
+        let clipping = try run.takeCurrentClipping()
+        _ = run.advance()
+        return clipping
     }
 
     // Pass-throughs, so callers never have to reach for `Actions` and `Shop`

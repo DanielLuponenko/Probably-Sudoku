@@ -5,6 +5,7 @@ import NumberClubEngine
 /// Which page of the book is showing. The active puzzle and the shop are
 /// separate pages, and you only ever get between them by turning one.
 enum BookPage: Equatable {
+    case briefing
     case puzzle
     case shop
     case results
@@ -32,7 +33,7 @@ final class GameModel {
     private(set) var handCards: [HandCard] = []
     /// A frozen model is the page already lifting away, not a fresh deal.
     private(set) var animatesHandArrival = true
-    private(set) var page: BookPage = .puzzle
+    private(set) var page: BookPage = .briefing
     /// A terminal Book outcome can cause more than one presentation update.
     /// Record permanent consequences once, at the model boundary.
     private var didRecordTerminalOutcome = false
@@ -76,9 +77,6 @@ final class GameModel {
          startingBoard: StartingBoard = .scholar,
          obstacle: Obstacle = .none) {
         game = Game(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
-        try? game.startPuzzle()
-        refreshHandCards(replacing: true)
-        startClock()
     }
 
     /// A read-only copy of the game as it was, for drawing the page that is
@@ -93,8 +91,13 @@ final class GameModel {
     /// Resumes a Book that was put down.
     init(resuming game: Game) {
         self.game = game
-        refreshHandCards(replacing: true)
-        startClock()
+        if game.puzzle != nil {
+            page = .puzzle
+            refreshHandCards(replacing: true)
+            startClock()
+        } else if game.shop != nil {
+            page = .shop
+        }
     }
 
     private func persist() {
@@ -441,6 +444,17 @@ final class GameModel {
             page = .results
             return
         }
+        selectedHandIndex = nil
+        selectedSquare = nil
+        lastOutcome = nil
+        lastPayout = nil
+        page = .briefing
+    }
+
+    /// Dealing starts only after the player accepts this Puzzle. That keeps a
+    /// Clipping an actual choice rather than something revealed after the
+    /// board, pool, and Boss have already been rolled.
+    func beginPuzzle() {
         do {
             try game.startPuzzle()
             refreshHandCards(replacing: true)
@@ -449,6 +463,19 @@ final class GameModel {
             selectedSquare = nil
             lastOutcome = nil
             page = .puzzle
+        } catch {
+            message = describe(error)
+        }
+    }
+
+    func skipCurrentPuzzle() {
+        do {
+            _ = try game.skipPuzzle()
+            selectedHandIndex = nil
+            selectedSquare = nil
+            lastOutcome = nil
+            lastPayout = nil
+            page = .briefing
         } catch {
             message = describe(error)
         }
@@ -507,10 +534,7 @@ final class GameModel {
         lastPayout = nil
         stampsEarned = 0
         message = nil
-        page = .puzzle
-        try? game.startPuzzle()
-        refreshHandCards(replacing: true)
-        startClock()
+        page = .briefing
     }
 
     func clearMessage() { message = nil }
