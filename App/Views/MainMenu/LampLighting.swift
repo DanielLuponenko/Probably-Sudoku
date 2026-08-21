@@ -104,6 +104,7 @@ struct BulbGlow: View, Animatable {
     /// A filament does not pulse. This is the room breathing, and if it is
     /// ever visible as an animation it is too strong.
     private var swell: Double { 1 + 0.02 * sin(phase * 2 * .pi) }
+    private var swayX: CGFloat { CGFloat(sin(phase * 2 * .pi)) * 5 * scale }
 
     var body: some View {
         let halo = max(56, 150 * scale)
@@ -123,7 +124,7 @@ struct BulbGlow: View, Animatable {
                 .frame(width: max(8, 26 * scale), height: max(8, 26 * scale))
                 .blur(radius: max(2, 4 * scale))
         }
-        .position(centre)
+        .position(x: centre.x + swayX, y: centre.y)
         .blendMode(.plusLighter)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -244,13 +245,16 @@ struct MaterialLightTrace: ViewModifier, Animatable {
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0),
-                            .init(color: .white.opacity(0.40 * strength * visible),
+                            .init(color: .white.opacity(0.10 * strength * visible),
+                                  location: 0.24),
+                            .init(color: .white.opacity(0.38 * strength * visible),
                                   location: 0.5),
+                            .init(color: .white.opacity(0.10 * strength * visible),
+                                  location: 0.76),
                             .init(color: .clear, location: 1),
                         ],
                         startPoint: .leading, endPoint: .trailing)
-                        .frame(width: proxy.size.width * 0.34)
-                        .blur(radius: 5)
+                        .frame(width: proxy.size.width * 0.42)
                         .rotationEffect(.degrees(16))
                         .offset(x: (through * 1.6 - 0.4) * proxy.size.width)
                         .frame(width: proxy.size.width, height: proxy.size.height,
@@ -261,6 +265,26 @@ struct MaterialLightTrace: ViewModifier, Animatable {
             .clipShape(shape)
             .allowsHitTesting(false)
         }
+    }
+}
+
+/// The fixture moves as one inexpensive transform. The room's wall, grain,
+/// desk and props never enter this animated subtree.
+struct LampSway: ViewModifier, Animatable {
+    var phase: Double
+    var amount: Double
+
+    var animatableData: Double {
+        get { phase }
+        set { phase = newValue }
+    }
+
+    private var swing: Double { sin(phase * 2 * .pi) * amount }
+
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.degrees(swing), anchor: .top)
+            .offset(x: CGFloat(swing) * 0.7)
     }
 }
 

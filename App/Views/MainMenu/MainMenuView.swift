@@ -59,13 +59,10 @@ struct MainMenuView: View {
                 // Drawn here — between the surface and the objects — so their
                 // top edges are the contact plane itself.
                 deskContactShadows(metrics: metrics)
-                    .opacity(leaving ? 0 : 1)
 
                 // 08–15: the interface, which leaves as one thing when Play is
                 // pressed.
                 interface(metrics: metrics)
-                    .offset(y: leaving ? -6 : 0)
-                    .opacity(leaving ? 0 : 1)
 
                 // 17: the lamp again, this time falling across the plaque, the
                 // board and the controls, so the room and the interface are
@@ -298,15 +295,14 @@ struct MainMenuView: View {
     private func startPlaying() {
         guard !leaving else { return }
         controlsEnabled = false
+        // Keep the panel visibly held while the destination crossfades in.
+        // The room itself stays present until the route transition owns it.
+        leaving = true
         stopRoomClock()
 
         Task { @MainActor in
             // The press is seen before anything routes.
             try? await Task.sleep(for: .milliseconds(120))
-            withAnimation(.easeInOut(duration: reduceMotion ? 0.15 : 0.30)) {
-                leaving = true
-            }
-            try? await Task.sleep(for: .milliseconds(reduceMotion ? 160 : 300))
             onPlay()
         }
     }

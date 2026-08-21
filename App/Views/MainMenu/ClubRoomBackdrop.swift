@@ -200,6 +200,7 @@ struct ClubRoomBackdrop: View {
                          ceilingDrop: max(0, metrics.lampFrame.minY - metrics.wallPlane.minY))
                 .frame(width: metrics.lampFrame.width, height: metrics.lampFrame.height)
                 .position(x: metrics.lampFrame.midX, y: metrics.lampFrame.midY)
+                .modifier(LampSway(phase: phase, amount: reduceMotion ? 0 : 1.35))
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
