@@ -11,6 +11,9 @@ struct CosmeticCard: View {
     var owned: Bool
     var equipped: Bool
     var affordable: Bool
+    /// This is temporary feedback from `ClubShopView`, but it deliberately
+    /// renders inside this card's paper bounds instead of above the shelf.
+    var refusalVisible: Bool = false
     var action: () -> Void
 
     var body: some View {
@@ -44,10 +47,34 @@ struct CosmeticCard: View {
                     .strokeBorder(equipped ? Paper.sageDeep : Paper.rule,
                                   lineWidth: equipped ? 1.6 : 1)
             }
+            .overlay(alignment: .bottomLeading) {
+                if refusalVisible {
+                    Text("Not enough \(ClubCurrency.name)")
+                        .font(Print.caption(10))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .foregroundStyle(Paper.redPencil)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Paper.pageWarm)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .strokeBorder(Paper.redPencil.opacity(0.35), lineWidth: 1)
+                                }
+                        }
+                        .padding(8)
+                        .transition(.opacity)
+                        .accessibilityHidden(true)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 4))
             .contentShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(PressedPaperStyle())
         .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel(item.name)
         .accessibilityValue(spokenState)
         .accessibilityHint(spokenHint)
