@@ -335,7 +335,7 @@ struct HelpSlip: View {
 
     var body: some View {
         PaperSlip(title: "How to play",
-                  subtitle: "The Number Club, in the order you meet it.",
+                  subtitle: "Probably Sudoku, in the order you meet it.",
                   onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {

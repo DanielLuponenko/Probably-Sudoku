@@ -63,7 +63,7 @@ struct ClubTitlePlaque: View {
                 x: 2.5 * scale, y: 3.5 * scale)
         .frame(width: metrics.titlePlaqueFrame.width, height: metrics.titlePlaqueFrame.height)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("The Number Club")
+        .accessibilityLabel("Probably Sudoku")
         .accessibilityAddTraits(.isHeader)
     }
 
@@ -80,9 +80,9 @@ struct ClubTitlePlaque: View {
                 .padding(.horizontal, 40 * scale)
                 .padding(.top, 4 * scale)
 
-            LetterpressText(text: "THE", size: 48 * scale)
+            LetterpressText(text: "PROBABLY", size: 44 * scale)
                 .padding(.top, 12 * scale)
-            LetterpressText(text: "NUMBER CLUB", size: 64 * scale)
+            LetterpressText(text: "SUDOKU", size: 64 * scale)
                 .padding(.top, 2 * scale)
         }
     }

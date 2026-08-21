@@ -44,7 +44,7 @@ struct CoverDesign {
         banner: "A Sudoku Book",
         strapline: "Relaxed Puzzles",
         volume: "Volume 1",
-        imprint: "The Number Club",
+        imprint: "Probably Sudoku",
         stock: Color(hex: 0xEFE9D8),
         ink: Color(hex: 0x33322D),
         accent: Color(hex: 0x6E8560),
@@ -67,7 +67,7 @@ struct CoverDesign {
         banner: "A Sudoku Book",
         strapline: "Brisk Puzzles",
         volume: "Volume 2",
-        imprint: "The Number Club",
+        imprint: "Probably Sudoku",
         stock: Color(hex: 0xF1E6CE),
         ink: Color(hex: 0x322A20),
         accent: Color(hex: 0xB86628),
@@ -90,7 +90,7 @@ struct CoverDesign {
         banner: "A Sudoku Book",
         strapline: "Editorial Puzzles",
         volume: "Volume 3",
-        imprint: "The Number Club",
+        imprint: "Probably Sudoku",
         stock: Color(hex: 0xE7EDF1), ink: Color(hex: 0x263747),
         accent: Color(hex: 0x3E779F), secondAccent: Color(hex: 0xB34D4A),
         cloth: Color(hex: 0x385E79),
@@ -103,7 +103,7 @@ struct CoverDesign {
 
     static let bites = CoverDesign(
         titleLines: ["This One"], flourish: "Bites", banner: "A Sudoku Book",
-        strapline: "Cold Puzzles", volume: "Volume 4", imprint: "The Number Club",
+        strapline: "Cold Puzzles", volume: "Volume 4", imprint: "Probably Sudoku",
         stock: Color(hex: 0xE7DFDE), ink: Color(hex: 0x352323),
         accent: Color(hex: 0x9E3F3C), secondAccent: Color(hex: 0x565B72), cloth: Color(hex: 0x642D2C),
         notes: [
@@ -120,7 +120,7 @@ struct CoverDesign {
             banner: "",
             strapline: "",
             volume: "Volume \(volume)",
-            imprint: "The Number Club",
+            imprint: "Probably Sudoku",
             // Bound but not printed: cloth boards, and the little that is on
             // them blocked in foil. Nothing that would promise a cover which
             // has not been designed yet.
