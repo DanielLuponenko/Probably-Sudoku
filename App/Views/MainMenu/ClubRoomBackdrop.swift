@@ -200,7 +200,7 @@ struct ClubRoomBackdrop: View {
                          ceilingDrop: max(0, metrics.lampFrame.minY - metrics.wallPlane.minY))
                 .frame(width: metrics.lampFrame.width, height: metrics.lampFrame.height)
                 .position(x: metrics.lampFrame.midX, y: metrics.lampFrame.midY)
-                .modifier(LampSway(phase: phase, amount: reduceMotion ? 0 : 1.35))
+                .modifier(LampSway(phase: phase, amount: reduceMotion ? 0 : 2.1))
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -1279,8 +1279,11 @@ struct LampFixture: View {
         GeometryReader { proxy in
             let size = proxy.size
             let shadeWidth = size.width * 0.94
-            let shadeHeight = size.height * 0.50
-            let top = size.height * 0.30
+            // Leave enough visible flex to read as a ceiling lamp.  The
+            // previous shallow drop made the cable look like it stopped in
+            // mid-air just above the shade.
+            let shadeHeight = size.height * 0.44
+            let top = size.height * 0.42
 
             ZStack(alignment: .top) {
                 // A ceiling rose anchors the flex at the room's top edge. The
