@@ -1,7 +1,7 @@
 import Foundation
 
-/// §9 — the Shop opens after every Puzzle. Stock is always five items:
-/// 2 Bookmarks, 2 Markers, 1 Buff.
+/// §9 — the Shop opens after every Puzzle. Its normal stock is five items;
+/// a rare Subscription is printed separately when the Book qualifies.
 public struct ShopOffer: Codable, Sendable, Identifiable {
     /// Which of the five slots this offer sits in. Two offers in one Shop can
     /// share a `defID` — a second Golden Marker is a real purchase — so the
@@ -51,13 +51,20 @@ public enum Shop {
         case (.buff, .common): return 3...3
         case (.buff, .uncommon): return 4...4
         case (.buff, .rare): return 4...4
+        case (.subscription, _): return 12...20
         }
     }
 
-    static func rollRarity(_ rng: inout RandomStream, level: Int) -> Rarity {
+    static func rollRarity(_ rng: inout RandomStream, level: Int, tradeJournal: Bool = false) -> Rarity {
         let roll = rng.next()
         var cumulative = 0.0
-        for (rarity, weight) in rarityOdds(level: level) {
+        var odds = rarityOdds(level: level)
+        if tradeJournal, let common = odds.firstIndex(where: { $0.0 == .common }),
+           let rare = odds.firstIndex(where: { $0.0 == .rare }) {
+            odds[common].1 -= 0.10
+            odds[rare].1 += 0.10
+        }
+        for (rarity, weight) in odds {
             cumulative += weight
             if roll < cumulative { return rarity }
         }
@@ -70,8 +77,9 @@ public enum Shop {
                           slot: Int,
                           kind: ItemKind,
                           level: Int,
+                          tradeJournal: Bool = false,
                           excluding taken: Set<String>) -> ShopOffer? {
-        let rolled = rollRarity(&rng, level: level)
+        let rolled = kind == .subscription ? .rare : rollRarity(&rng, level: level, tradeJournal: tradeJournal)
         // Drop one tier at a time: rare -> uncommon -> common.
         let ladder: [Rarity]
         switch rolled {
@@ -83,8 +91,8 @@ public enum Shop {
         for rarity in ladder {
             let pool = Catalog.items(of: kind, rarity: rarity).filter { !taken.contains($0.id) }
             guard let pick = rng.pick(pool) else { continue }
-            return ShopOffer(slot: slot, defID: pick.id,
-                             price: rng.int(in: priceBand(kind, rarity)))
+            let price = kind == .subscription ? pick.listedPrice : rng.int(in: priceBand(kind, rarity))
+            return ShopOffer(slot: slot, defID: pick.id, price: price)
         }
         return nil
     }
@@ -92,7 +100,7 @@ public enum Shop {
     /// Bookmarks the player already owns are never offered again (§9). Markers and
     /// Buffs can repeat — a second Golden Marker is a real purchase.
     static func excluded(for run: RunState) -> Set<String> {
-        Set(run.bookmarks.map(\.defID))
+        Set(run.bookmarks.map(\.defID) + run.subscriptions.map(\.defID))
     }
 
     public static func stock(_ run: inout RunState) -> ShopState {
@@ -101,11 +109,27 @@ public enum Shop {
         for (kind, count) in composition {
             for _ in 0..<count {
                 guard let offer = rollOffer(&run.streams.shop, slot: offers.count, kind: kind,
-                                            level: run.level, excluding: taken) else { continue }
+                                            level: run.level,
+                                            tradeJournal: run.owns(subscription: Subscriptions.tradeJournal),
+                                            excluding: taken) else { continue }
                 offers.append(offer)
                 // Do not offer the same Bookmark twice in one Shop.
                 if kind == .bookmark { taken.insert(offer.defID) }
             }
+        }
+        // One in four eligible Shops contains one run-wide Subscription. Its
+        // distinct card is rendered after normal stock, never as a sixth row item.
+        if run.level >= 3, run.streams.shop.next() < 0.25,
+           let offer = rollOffer(&run.streams.shop, slot: offers.count, kind: .subscription,
+                                 level: run.level, excluding: taken) {
+            offers.append(offer)
+        }
+        if run.owns(subscription: Subscriptions.clippingService),
+           let offer = rollOffer(&run.streams.shop, slot: offers.count, kind: .buff,
+                                 level: run.level,
+                                 tradeJournal: run.owns(subscription: Subscriptions.tradeJournal),
+                                 excluding: taken) {
+            offers.append(offer)
         }
         return ShopState(offers: offers,
                          rerollCost: firstRerollCost(for: run),
@@ -154,11 +178,13 @@ public enum Shop {
             guard run.bookmarks.count < ItemKind.bookmark.capacity else { throw ShopError.slotsFull }
             run.bookmarks.append(OwnedBookmark(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
         case .marker:
-            guard run.markers.count < ItemKind.marker.capacity else { throw ShopError.slotsFull }
+            guard run.markers.count < run.markerCapacity else { throw ShopError.slotsFull }
             run.markers.append(OwnedMarker(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
         case .buff:
             guard run.buffs.count < ItemKind.buff.capacity else { throw ShopError.slotsFull }
             run.buffs.append(OwnedBuff(defID: def.id, pricePaid: offer.price))
+        case .subscription:
+            run.subscriptions.append(OwnedSubscription(defID: def.id, pricePaid: offer.price))
         }
 
         run.coins -= offer.price
@@ -189,6 +215,8 @@ public enum Shop {
             price = sellPrice(run.buffs[index].pricePaid)
             run.buffs.remove(at: index)
         case .marker:
+            throw ShopError.cannotBeSold
+        case .subscription:
             throw ShopError.cannotBeSold
         }
         run.coins += price

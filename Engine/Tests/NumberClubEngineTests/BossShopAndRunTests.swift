@@ -421,6 +421,59 @@ final class ShopTests: XCTestCase {
 
 final class RunAndDeterminismTests: XCTestCase {
 
+    func testSubscriptionsStackPersistAndDoNotUseHeldSlots() throws {
+        var run = RunState(seed: "subscriptions", startingBoard: .scholar)
+        run.subscriptions = [
+            OwnedSubscription(defID: Subscriptions.homeDelivery, pricePaid: 12),
+            OwnedSubscription(defID: Subscriptions.weekendEdition, pricePaid: 14),
+            OwnedSubscription(defID: Subscriptions.wireService, pricePaid: 14),
+            OwnedSubscription(defID: Subscriptions.annualRate, pricePaid: 18),
+            OwnedSubscription(defID: Subscriptions.overseasEdition, pricePaid: 20),
+        ]
+        run.bookmarks.append(OwnedBookmark(defID: Bookmarks.helpWanted, boughtAtLevel: 1, pricePaid: 0))
+        XCTAssertEqual(run.effectiveHandSize(boss: nil), 9)
+        XCTAssertEqual(run.effectiveTurns(boss: nil), 11)
+        XCTAssertEqual(run.effectiveTossAllowance(boss: nil), 6)
+        XCTAssertEqual(run.interestCap, 20)
+        XCTAssertEqual(run.markerCapacity, 4)
+        XCTAssertTrue(run.bookmarks.count < ItemKind.bookmark.capacity)
+        XCTAssertTrue(run.buffs.count < ItemKind.buff.capacity)
+
+        let restored = try Game(decoding: try Game(run: run).encoded())
+        XCTAssertEqual(restored.run.subscriptions.map(\.defID), run.subscriptions.map(\.defID))
+    }
+
+    func testSubscriptionStockIsOneOfferAtMostAndOnlyFromLevelThree() {
+        for level in 1...2 {
+            var run = RunState(seed: "early-\(level)", startingBoard: .scholar)
+            run.level = level
+            Shop.open(&run)
+            XCTAssertFalse(run.shop!.offers.contains { $0.def.kind == .subscription })
+        }
+        for seed in 0..<100 {
+            var run = RunState(seed: "sub-\(seed)", startingBoard: .scholar)
+            run.level = 3
+            Shop.open(&run)
+            XCTAssertLessThanOrEqual(run.shop!.offers.filter { $0.def.kind == .subscription }.count, 1)
+        }
+    }
+
+    func testBuyingSubscriptionUsesCoinsButNoHeldSlotAndCannotBeSold() throws {
+        var run = RunState(seed: "buy-subscription", startingBoard: .scholar)
+        run.coins = 20
+        run.shop = ShopState(offers: [ShopOffer(slot: 0, defID: Subscriptions.homeDelivery, price: 12)],
+                             rerollCost: 2, rerollsUsed: 0)
+        try Shop.buy(&run, slot: 0)
+        XCTAssertEqual(run.coins, 8)
+        XCTAssertEqual(run.subscriptions.map(\.defID), [Subscriptions.homeDelivery])
+        XCTAssertTrue(run.bookmarks.isEmpty)
+        XCTAssertTrue(run.markers.isEmpty)
+        XCTAssertTrue(run.buffs.isEmpty)
+        XCTAssertThrowsError(try Shop.sell(&run, kind: .subscription, index: 0)) { error in
+            XCTAssertEqual(error as? Shop.ShopError, .cannotBeSold)
+        }
+    }
+
     func testABookIsNineLevelsOfThreePuzzles() {
         var run = RunState(seed: "book", startingBoard: .scholar)
         var puzzles = 0
@@ -513,10 +566,19 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertEqual(restored.puzzle?.pendingMultiplier, 1)
     }
 
+    func testPreSubscriptionSaveLoadsWithNoSubscriptions() throws {
+        let game = Game(seed: "legacy-subscription", startingBoard: .scholar)
+        var root = try XCTUnwrap(try JSONSerialization.jsonObject(with: game.encoded()) as? [String: Any])
+        root.removeValue(forKey: "subscriptions")
+        let legacy = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+        XCTAssertTrue(try Game(decoding: legacy).run.subscriptions.isEmpty)
+    }
+
     func testItemCatalogueMatchesTheDesignTables() {
         XCTAssertEqual(Catalog.items(of: .bookmark).count, 23)
         XCTAssertEqual(Catalog.items(of: .marker).count, 12)
         XCTAssertEqual(Catalog.items(of: .buff).count, 11)
+        XCTAssertEqual(Catalog.items(of: .subscription).count, 7)
         // Ids must be unique — the catalogue is keyed by them.
         let ids = Catalog.all.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count)

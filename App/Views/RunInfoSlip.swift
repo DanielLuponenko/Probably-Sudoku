@@ -79,6 +79,14 @@ struct RunInfoSlip: View {
                         }
                     }
                 }
+
+                if !model.run.subscriptions.isEmpty {
+                    SlipSection(title: "Subscriptions") {
+                        ForEach(model.run.subscriptions) { subscription in
+                            OwnedLine(name: subscription.def.name, detail: subscription.def.text)
+                        }
+                    }
+                }
             }
         }
     }

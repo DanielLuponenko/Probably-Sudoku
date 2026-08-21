@@ -16,12 +16,27 @@ struct ShopPageView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
-                    ForEach(shop.offers) { offer in
+                    ForEach(standardOffers) { offer in
                         OfferCard(offer: offer,
                                   affordable: model.coins >= offer.price,
                                   hasSlot: hasSlot(for: offer.def.kind)) {
                             buy(offer)
                         }
+                    }
+                    if !subscriptionOffers.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("SUBSCRIPTIONS")
+                                .font(Print.caption(11)).tracking(1.4)
+                                .foregroundStyle(Paper.redPencil)
+                            ForEach(subscriptionOffers) { offer in
+                                OfferCard(offer: offer,
+                                          affordable: model.coins >= offer.price,
+                                          hasSlot: true) { buy(offer) }
+                            }
+                        }
+                        .padding(10)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.redPencil.opacity(0.55), lineWidth: 1))
                     }
                 }
                 .padding(.bottom, 4)
@@ -65,10 +80,14 @@ struct ShopPageView: View {
     private func hasSlot(for kind: ItemKind) -> Bool {
         switch kind {
         case .bookmark: return model.run.bookmarks.count < kind.capacity
-        case .marker: return model.run.markers.count < kind.capacity
+        case .marker: return model.run.markers.count < model.run.markerCapacity
         case .buff: return model.run.buffs.count < kind.capacity
+        case .subscription: return true
         }
     }
+
+    private var standardOffers: [ShopOffer] { shop.offers.filter { $0.def.kind != .subscription } }
+    private var subscriptionOffers: [ShopOffer] { shop.offers.filter { $0.def.kind == .subscription } }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {

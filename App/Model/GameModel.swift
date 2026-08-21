@@ -563,6 +563,10 @@ final class GameModel {
         game.qaSetMarker(defID, at: square)
     }
     func qaSetBuff(_ defID: String) { game.qaSetBuff(defID) }
+    func qaSetSubscription(_ defID: String) {
+        game.qaSetSubscription(defID)
+        refreshHandCards()
+    }
     func qaSetBoss(_ boss: BossModifier) {
         game.qaSetBoss(boss)
         refreshHandCards()
