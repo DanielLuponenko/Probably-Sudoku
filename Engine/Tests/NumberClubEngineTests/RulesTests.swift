@@ -353,7 +353,7 @@ final class RulesTests: XCTestCase {
         XCTAssertGreaterThan(game.puzzle!.keepFillingCoins, clears, "Full Clear banks 3, each clear 1")
     }
 
-    func testPayoutAddsBaseUnusedTurnsInterestAndPaperRoute() throws {
+    func testPayoutAddsBaseUnusedHandInterestAndPaperRoute() throws {
         var game = try startedGame()
         game.run.coins = 60          // 10% interest = 6
         game.give(ad: Bookmarks.paperRoute)
@@ -365,10 +365,20 @@ final class RulesTests: XCTestCase {
         }
         let payout = try game.cashOut()
         XCTAssertEqual(payout.base, 5)
-        XCTAssertEqual(payout.unusedTurns, 3, "capped at 3")
+        XCTAssertEqual(payout.unusedHand, 1, "the final unplayed Hand card pays one coin")
         XCTAssertEqual(payout.interest, 6)
         XCTAssertEqual(payout.paperRoute, 2)
         XCTAssertEqual(game.run.coins, 60 + payout.total)
+    }
+
+    func testUnusedHandPayoutMatchesEveryPossibleRemainingHandCount() throws {
+        for count in 0...7 {
+            var run = RunState(seed: "unused-hand-\(count)", startingBoard: .scholar)
+            var puzzle = try PuzzleState.create(run: &run)
+            puzzle.hand = Array(repeating: .one, count: count)
+            XCTAssertEqual(run.payout(for: puzzle).unusedHand, count)
+            XCTAssertEqual(run.payout(for: puzzle).total, 5 + count)
+        }
     }
 
     func testInterestIsCappedAndRaisedByMarketWrap() throws {
