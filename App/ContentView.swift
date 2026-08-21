@@ -31,6 +31,11 @@ struct ContentView: View {
             seed = arguments[index + 1]
         }
         let model = GameModel(seed: seed, startingBoard: .scholar)
+        // The normal route deliberately pauses at the briefing page so a
+        // player can choose whether to spend a Clipping. This debug route is
+        // specifically for exercising a live grid, so it must make that
+        // choice before applying its selection fixtures.
+        model.beginPuzzle()
         if let index = arguments.firstIndex(of: "-selectHand"), index + 1 < arguments.count,
            let handIndex = Int(arguments[index + 1]) {
             model.selectedHandIndex = handIndex
