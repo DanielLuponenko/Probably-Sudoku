@@ -17,6 +17,7 @@ struct ClubShopView: View {
     @State private var justBought: String?
     @State private var successfulChoice = false
     @State private var refusedChoice = false
+    @State private var previewedItem: CosmeticItem?
 
     var body: some View {
         ZStack {
@@ -29,6 +30,22 @@ struct ClubShopView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 14)
+
+            if let item = previewedItem {
+                Color.black.opacity(0.58)
+                    .ignoresSafeArea()
+                    .onTapGesture { previewedItem = nil }
+                    .accessibilityHidden(true)
+
+                CosmeticInPlayPreview(item: item,
+                                      theme: previewTheme(for: item),
+                                      owned: profile.owns(item),
+                                      equipped: profile.isEquipped(item),
+                                      stamps: profile.currency,
+                                      onClose: { previewedItem = nil },
+                                      onPurchase: { buyFromPreview(item) })
+                    .padding(18)
+            }
         }
         .background(Paper.deskDark)
         .preferredColorScheme(.dark)
@@ -141,6 +158,8 @@ struct ClubShopView: View {
                                  affordable: profile.currency >= item.price,
                                  refusalVisible: refused == item.id) {
                         choose(item)
+                    } onPreview: {
+                        previewedItem = item
                     }
                 }
             }
@@ -153,12 +172,20 @@ struct ClubShopView: View {
     /// One tap, and the card decides what that means: buy it if it is not
     /// owned, wear it if it is, and nothing at all if it is already on.
     private func choose(_ item: CosmeticItem) {
-        if profile.isEquipped(item) { return }
+        _ = buyOrEquip(item)
+    }
+
+    /// Returns whether the item became equipped. Previewing never calls this,
+    /// which keeps the real loadout unchanged until the player asks to buy or
+    /// equip from the slip itself.
+    @discardableResult
+    private func buyOrEquip(_ item: CosmeticItem) -> Bool {
+        if profile.isEquipped(item) { return false }
 
         if profile.owns(item) {
             profile.equip(item)
             successfulChoice.toggle()
-            return
+            return true
         }
 
         do {
@@ -166,6 +193,7 @@ struct ClubShopView: View {
             profile.equip(item)
             justBought = item.id
             successfulChoice.toggle()
+            return true
         } catch {
             refused = item.id
             refusedChoice.toggle()
@@ -173,7 +201,18 @@ struct ClubShopView: View {
                 try? await Task.sleep(for: .seconds(1.8))
                 if refused == item.id { refused = nil }
             }
+            return false
         }
+    }
+
+    private func buyFromPreview(_ item: CosmeticItem) {
+        if buyOrEquip(item) { previewedItem = nil }
+    }
+
+    private func previewTheme(for item: CosmeticItem) -> CosmeticTheme {
+        var loadout = profile.profile.equipped
+        loadout[item.category] = item.id
+        return CosmeticCatalog.theme(for: loadout)
     }
 }
 
