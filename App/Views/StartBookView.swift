@@ -11,12 +11,20 @@ import NumberClubEngine
 struct StartBookView: View {
     var onStart: (BookEdition, Obstacle) -> Void
     var onContinue: () -> Void
+    /// Back to the club room. Optional so the shelf still stands on its own in
+    /// a preview, and so nothing about the Books themselves changed.
+    var onBack: (() -> Void)? = nil
 
     /// A Book left part-finished. Continuing it is the first thing offered,
     /// because it is almost always what the player came back for.
     private let resumable = RunStore.loadRun()
 
     @State private var index = StartBookView.debugIndex()
+    /// One clock for the whole desk, so nothing moves against anything else.
+    @State private var phase: Double = 0
+    /// A slower one, counted in whole turns, for the boxes at the head of the
+    /// desk: each turn is one of them solving itself.
+    @State private var solve: Double = 0
 
     /// `-shelfPage 5` opens on that page of the shelf.
     private static func debugIndex() -> Int {
@@ -42,63 +50,104 @@ struct StartBookView: View {
     }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// The hardest obstacle that can be taken, held as state rather than read
+    /// from the store on every render — so a QA unlock redraws the strip
+    /// instead of waiting for the next launch.
+    @State private var unlockedThrough = StartBookView.unlockCeiling()
+
+    private static func unlockCeiling() -> Int {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-unlockAll") {
+            return Obstacle.allCases.count
+        }
+        #endif
+        return RunStore.unlockedObstacle.rawValue
+    }
+
     private var books: [BookEdition] { BookEdition.shelf }
     private var book: BookEdition { books[min(max(index, 0), books.count - 1)] }
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Behind the carousel rather than in it. The pages are opaque, so
-            // this is only ever glimpsed in the rubber-band when someone pulls
-            // past the first Book — it cannot be landed on.
-            ShelfVoid()
+            // The desk stays put. Only the Books move across it, which is the
+            // whole reason they are built rather than photographed: a
+            // photographed Book is welded to the desk it was shot on, so
+            // browsing the shelf could only slide the entire picture.
+            ShelfBackdrop(book: book)
 
-            TabView(selection: $index) {
-                ForEach(Array(books.enumerated()), id: \.offset) { position, edition in
-                    BookOnDesk(book: edition, reduceMotion: reduceMotion)
-                        .tag(position)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            // The scene is shot for the whole screen, so it has to reach past
-            // the safe area or the desk behind it shows as strips.
-            .ignoresSafeArea()
+            BookShelf(books: books, index: $index, phase: phase,
+                      obstacle: $obstacle, unlockedThrough: unlockedThrough)
 
-            // The desk above the Book is the only bare space on the screen, and
-            // choosing how hard to make it belongs next to choosing which Book.
-            // Sits midway between the Dynamic Island and the Book, which is
-            // where the eye rests before it reaches the cover.
-            ObstacleSwiper(obstacle: $obstacle)
+            // The bare wood above the Book, given something to do.
+            SolvingBoxes(phase: solve)
                 .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.top, 31)
-                // Nothing to set on an end plate, and nothing to set it for
-                // on a Book that is only waiting to be continued.
-                .opacity(resumable == nil ? 1 : 0)
+                .padding(.top, 44)
+
+            if let onBack {
+                backToTheRoom(onBack)
+            }
 
             controls
         }
         .background(Paper.deskDark)
         .preferredColorScheme(.dark)
         .statusBarHidden()
-        .animation(.easeInOut(duration: 0.35), value: index)
+        .onAppear {
+            guard !reduceMotion else { return }
+            // Linear, and never reversed: everything takes its movement from
+            // a sine of this, so the turn has to happen in the maths rather
+            // than in the animation, or it stalls at both ends of every cycle.
+            withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
+                phase = 1
+            }
+            // Nine turns before it repeats, so the boxes are not solving the
+            // same three arrangements over and over.
+            withAnimation(.linear(duration: 63).repeatForever(autoreverses: false)) {
+                solve = 9
+            }
+        }
+    }
+
+    /// The way out of the shelf. Small, at the top corner, and quiet — the
+    /// Books are what this screen is for.
+    private func backToTheRoom(_ action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.menuOpen()
+            action()
+        } label: {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Paper.page.opacity(0.8))
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(.black.opacity(0.28)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressedPaperStyle())
+        .padding(.leading, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityLabel("Back to the main menu")
     }
 
     private var controls: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             PageDots(count: books.count, index: index)
 
             // What the Book gives you. §3's boards are not a separate choice
             // — the Book you pick up is the board you play on.
-            VStack(spacing: 3) {
+            HStack(spacing: 8) {
                 Text(book.isWritten ? book.shelfLabel : "Not written yet")
                     .font(Print.caption(10))
                     .tracking(1.8)
                     .textCase(.uppercase)
                     .foregroundStyle(Paper.page.opacity(0.5))
-
+                Text("·")
+                    .foregroundStyle(Paper.page.opacity(0.3))
                 Text(book.bonusText)
                     .font(Print.body(13))
                     .foregroundStyle(Paper.page.opacity(0.82))
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
 
             if let saved = resumable, book.isWritten {
                 VStack(spacing: 8) {
@@ -116,33 +165,155 @@ struct StartBookView: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.bottom, 26)
+        .padding(.bottom, 18)
     }
 }
 
-/// What is behind the shelf. Pulling past the first Book used to drag the desk
-/// into view, which reads as a rendering fault rather than as the shelf running
-/// out.
+/// The Books, laid along the desk and slid across it.
 ///
-/// It is deliberately not a page: it sits underneath an opaque carousel, so it
-/// can only ever be glimpsed in the rubber-band and never rested on. The text
-/// is turned on its side and held against the edge because a sliver is all
-/// anyone will ever see of it.
-private struct ShelfVoid: View {
-    var body: some View {
-        ZStack(alignment: .leading) {
-            Color.black
+/// Deliberately not a paging TabView: that moves a whole screen at a time,
+/// which is what made the desk travel with the Book. Here the desk is behind
+/// and still, and only this row of Books moves — so the shelf reads as objects
+/// on a surface rather than as a slideshow of pictures.
+private struct BookShelf: View {
+    var books: [BookEdition]
+    @Binding var index: Int
+    var phase: Double
+    @Binding var obstacle: Obstacle
+    var unlockedThrough: Int
 
-            Text("Nothing to see here :)")
-                .font(.system(size: 19, weight: .regular))
-                .foregroundStyle(.white.opacity(0.9))
-                .fixedSize()
-                .rotationEffect(.degrees(-90))
-                .frame(width: 44)
-                .padding(.leading, 34)
+    @State private var drag: CGFloat = 0
+    /// The Book that has just been picked up, and how far off the desk it is.
+    @State private var lifted: Int?
+    @State private var lift: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // Full screen, not the safe area: the notch is deeper than the home
+        // indicator, so centring inside the insets puts the Book off-centre.
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let bookWidth = width * 0.84
+            let bookHeight = bookWidth * 1.4
+            let step = width * 0.98          // neighbours peek in at both edges
+
+            HStack(spacing: step - bookWidth) {
+                ForEach(Array(books.enumerated()), id: \.offset) { position, edition in
+                    LiveBook(edition: edition, phase: phase,
+                             ribbons: ribbons(for: edition, at: position))
+                        .frame(width: bookWidth)
+                        // The Book in hand is full size and lit; the others are
+                        // further off along the desk.
+                        .scaleEffect(scale(for: position, step: step))
+                        .opacity(opacity(for: position, step: step))
+                        // Picked up and set down again.
+                        .offset(y: position == lifted ? -14 * lift : 0)
+                        .scaleEffect(position == lifted ? 1 + 0.028 * lift : 1)
+                        .contentShape(Rectangle())
+                        .onTapGesture { pickUp(position) }
+                }
+            }
+            .frame(width: width, alignment: .leading)
+            // A hair left of centre: the bookmarks stand out past the
+            // fore-edge, so the Book's own middle is not where its weight is.
+            .offset(x: (width - bookWidth) / 2 - width * 0.018
+                       - CGFloat(index) * step + drag)
+            .frame(width: width, height: bookHeight)
+            .frame(width: width, height: proxy.size.height)
+            // A hair above centre. Dead centre reads as low, because the
+            // controls weigh the bottom of the screen down.
+            .offset(y: -proxy.size.height * 0.022)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture()
+                    .onChanged { value in drag = resisted(value.translation.width) }
+                    .onEnded { value in
+                        // Predicted end, so a flick carries further than a drag.
+                        let pages = (-value.predictedEndTranslation.width / step).rounded()
+                        let target = min(max(index + Int(pages), 0), books.count - 1)
+                        let settle: Animation = reduceMotion
+                            ? .linear(duration: 0.01)
+                            : .interactiveSpring(response: 0.26, dampingFraction: 0.86,
+                                                 blendDuration: 0.1)
+                        withAnimation(settle) {
+                            index = target
+                            drag = 0
+                        }
+                    }
+            )
+            #if DEBUG
+            // `-tapBook N` picks one up on launch, so the movement itself can
+            // be watched without a finger on the glass.
+            .task {
+                let arguments = ProcessInfo.processInfo.arguments
+                guard let at = arguments.firstIndex(of: "-tapBook"), at + 1 < arguments.count,
+                      let position = Int(arguments[at + 1]) else { return }
+                try? await Task.sleep(for: .milliseconds(700))
+                pickUp(position)
+            }
+            #endif
         }
         .ignoresSafeArea()
-        .accessibilityHidden(true)
+    }
+
+    /// Touching a Book lifts it off the desk and drops it back.
+    ///
+    /// It does not open it — that is what the button under it is for. This is
+    /// only the object answering: everything else on this screen moves when it
+    /// is touched, and a Book that did nothing felt painted on.
+    private func pickUp(_ position: Int) {
+        guard !reduceMotion else {
+            if position != index { withAnimation(.snappy(duration: 0.2)) { index = position } }
+            return
+        }
+        Haptics.lift()
+
+        // A Book off to the side comes forward as well: reaching for one and
+        // watching it hop where it stands would be the wrong answer.
+        if position != index {
+            withAnimation(.interactiveSpring(response: 0.26, dampingFraction: 0.86)) {
+                index = position
+            }
+        }
+
+        lifted = position
+        withAnimation(.spring(response: 0.16, dampingFraction: 0.5)) { lift = 1 }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(110))
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.55)) { lift = 0 }
+        }
+    }
+
+    /// A Book only carries ribbons when it is the one in hand, and only a
+    /// written one can be started at all.
+    private func ribbons(for edition: BookEdition, at position: Int) -> LiveBook.RibbonStrip? {
+        guard edition.isWritten, position == index else { return nil }
+        return LiveBook.RibbonStrip(
+            levels: Obstacle.allCases,
+            selected: obstacle,
+            isUnlocked: { $0.rawValue <= unlockedThrough },
+            onPick: { obstacle = $0 }
+        )
+    }
+
+    /// Past either end the row still gives, but grudgingly — the resistance is
+    /// what says the shelf has run out, so nothing has to be shown behind it.
+    private func resisted(_ translation: CGFloat) -> CGFloat {
+        let atStart = index == 0 && translation > 0
+        let atEnd = index == books.count - 1 && translation < 0
+        return (atStart || atEnd) ? translation * 0.3 : translation
+    }
+
+    private func distance(for position: Int, step: CGFloat) -> CGFloat {
+        abs(CGFloat(position - index) - drag / step)
+    }
+
+    private func scale(for position: Int, step: CGFloat) -> CGFloat {
+        max(0.82, 1 - distance(for: position, step: step) * 0.14)
+    }
+
+    private func opacity(for position: Int, step: CGFloat) -> Double {
+        max(0.32, 1 - distance(for: position, step: step) * 0.58)
     }
 }
 
@@ -167,13 +338,13 @@ private struct PageDots: View {
 
 // MARK: - Backdrop
 
-/// Deliberately not a photograph of a desk: the covers are already
-/// photographed lying on one, and two desks read as a picture of a book rather
-/// than as a book. It takes a wash of whichever Book is in front of you.
-private struct ShelfBackdrop: View {
+/// The desk. It never moves: it is the fixed thing the Books are slid across,
+/// and the moment it drifts the shelf stops reading as objects on a surface.
+/// It takes a wash of whichever Book is in front of you.
+/// Shared with the opening: it has to be the *same* desk, or the cut from the
+/// shelf to the Book opening is visible.
+struct ShelfBackdrop: View {
     var book: BookEdition
-    var reduceMotion: Bool
-    @State private var drifted = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -187,7 +358,6 @@ private struct ShelfBackdrop: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: proxy.size.width, height: proxy.size.height)
-                    .scaleEffect(drifted ? 1.05 : 1.0)
                     .clipped()
 
                 // The Book in front tints the light falling on the desk.
@@ -203,9 +373,9 @@ private struct ShelfBackdrop: View {
                     stops: [
                         .init(color: .black.opacity(0.30), location: 0),
                         .init(color: .clear, location: 0.16),
-                        .init(color: .clear, location: 0.62),
-                        .init(color: .black.opacity(0.62), location: 0.85),
-                        .init(color: .black.opacity(0.88), location: 1),
+                        .init(color: .clear, location: 0.66),
+                        .init(color: .black.opacity(0.42), location: 0.86),
+                        .init(color: .black.opacity(0.70), location: 1),
                     ],
                     startPoint: .top, endPoint: .bottom
                 )
@@ -214,258 +384,5 @@ private struct ShelfBackdrop: View {
         .ignoresSafeArea()
         .accessibilityHidden(true)
         .animation(.easeInOut(duration: 0.45), value: book.id)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 26).repeatForever(autoreverses: true)) {
-                drifted = true
-            }
-        }
-    }
-}
-
-/// A written Book fills the screen: it was photographed on the desk in phone
-/// format, so there is nothing to composite. An unwritten one is drawn on the
-/// bare desk instead.
-private struct BookOnDesk: View {
-    var book: BookEdition
-    var reduceMotion: Bool
-
-    /// A moving cover is a nicety, so it yields to both of the settings that
-    /// ask for less of them.
-    private var playsLoop: Bool {
-        !reduceMotion && !ProcessInfo.processInfo.isLowPowerModeEnabled
-    }
-
-    var body: some View {
-        Group {
-            if let scene = book.cover {
-                GeometryReader { proxy in
-                    ZStack {
-                        // The still is always underneath, so the scene is
-                        // painted before any decoder has started, a Book
-                        // without a loop still works, and Reduce Motion and
-                        // Low Power Mode simply fall back to it.
-                        Image(scene)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-
-                        if let loop = book.loop, playsLoop,
-                           let url = Bundle.main.url(forResource: loop, withExtension: "mp4") {
-                            LoopingVideo(url: url)
-                        }
-                    }
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .clipped()
-                }
-                .ignoresSafeArea()
-            } else {
-                ZStack {
-                    ShelfBackdrop(book: book, reduceMotion: reduceMotion)
-                    UnwrittenCover(book: book)
-                        .aspectRatio(983.0 / 1379.0, contentMode: .fit)
-                        .shadow(color: .black.opacity(0.55), radius: 30, x: 10, y: 22)
-                        .frame(maxWidth: 330)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 120)
-                }
-            }
-        }
-        .accessibilityLabel(book.isWritten
-            ? "\(book.title), \(book.shelfLabel)"
-            : "\(book.title), not written yet")
-    }
-}
-
-/// A Book that has not been written: cloth, a blocked title, a lock, and
-/// nothing else that would promise something which does not exist.
-private struct UnwrittenCover: View {
-    var book: BookEdition
-
-    var body: some View {
-        ZStack {
-            LinearGradient(colors: [book.accent.opacity(0.55), Color(hex: 0x221E1A)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-
-            // Blind-stamped rules, the way a plain cloth binding is finished.
-            RoundedRectangle(cornerRadius: 2)
-                .strokeBorder(.white.opacity(0.10), lineWidth: 1)
-                .padding(18)
-
-            VStack(spacing: 14) {
-                Image(systemName: "lock")
-                    .font(.system(size: 24, weight: .light))
-                    .foregroundStyle(Paper.page.opacity(0.45))
-                Text(book.title)
-                    .font(Print.heading(27))
-                    .foregroundStyle(Paper.page.opacity(0.78))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 26)
-                Text(book.shelfLabel)
-                    .font(Print.caption(10))
-                    .tracking(1.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Paper.page.opacity(0.35))
-            }
-        }
-    }
-}
-
-// MARK: - Obstacle
-
-/// How hard to make the Book, swiped through in the band above it.
-///
-/// Set like the volume line below the Book, because it is the same kind of
-/// statement — a label on the thing you are about to pick up, not a control.
-private struct ObstacleSwiper: View {
-    @Binding var obstacle: Obstacle
-
-    private var levels: [Obstacle] { Obstacle.allCases }
-    private var index: Binding<Int> {
-        Binding(
-            get: { levels.firstIndex(of: obstacle) ?? 0 },
-            // Swiping onto a locked level shows it but does not select it, so
-            // the ladder above can be seen without being taken.
-            set: { position in
-                let level = levels[position]
-                if RunStore.isUnlocked(level) { obstacle = level }
-            }
-        )
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            TabView(selection: index) {
-                ForEach(Array(levels.enumerated()), id: \.offset) { position, level in
-                    VStack(spacing: 3) {
-                        Text(RunStore.isUnlocked(level) ? level.name : "\(level.name) — Locked")
-                            .font(Print.caption(10))
-                            .tracking(1.8)
-                            .textCase(.uppercase)
-                            .foregroundStyle(Paper.page.opacity(0.55))
-                        Text(RunStore.isUnlocked(level)
-                             ? level.text
-                             : "Finish a Book to unlock this.")
-                            .font(Print.body(13))
-                            .foregroundStyle(Paper.page.opacity(RunStore.isUnlocked(level) ? 0.88 : 0.5))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                            .padding(.horizontal, 34)
-                        HandPreview(level: level)
-                            .padding(.top, 5)
-                            .opacity(RunStore.isUnlocked(level) ? 1 : 0.35)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .tag(position)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 82)
-        }
-        .animation(.snappy(duration: 0.2), value: obstacle)
-        .shadow(color: .black.opacity(0.7), radius: 6, y: 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Obstacle level: \(obstacle.name). \(obstacle.text)")
-    }
-}
-
-/// The obstacle drawn as the thing it actually affects: your hand.
-///
-/// Every obstacle so far is a change to what you hold, so the clearest picture
-/// of one is the Hand itself with that change applied. It has to be paper —
-/// cream stock, printed numerals, laid slightly unevenly and casting a shadow
-/// on the wood. A row of flat rounded rectangles with a dashed box is
-/// interface, and it is the only thing on this screen that would be.
-private struct HandPreview: View {
-    var level: Obstacle
-
-    /// A plausible hand, fixed so the row never reshuffles itself.
-    private let numbers = [3, 7, 1, 9, 4, 2, 6]
-    private var held: Int { numbers.count + level.handSizeDelta }
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(Array(numbers.enumerated()), id: \.offset) { slot, number in
-                if slot < held {
-                    TinyNumber(
-                        number: number,
-                        tilt: tilt(slot),
-                        // The last one held is the one struck, so the mark
-                        // never lands on the slot the obstacle removed.
-                        struck: level.blocksANumberEachTurn && slot == held - 1
-                    )
-                } else {
-                    // The slot the obstacle takes away. Fading a whole tile
-                    // leaves its shadow behind and reads as a dark block, so
-                    // this is an outline only — the space where paper is not.
-                    MissingNumber(tilt: tilt(slot))
-                }
-            }
-        }
-        .frame(height: 24)
-        .accessibilityHidden(true)
-    }
-
-    /// Hand-laid, and the same every render.
-    private func tilt(_ slot: Int) -> Double {
-        [-2.0, 1.3, -0.8, 2.1, -1.5, 0.7, -1.9][slot % 7]
-    }
-}
-
-/// One number from the Hand, at a size that still has to read as paper.
-private struct TinyNumber: View {
-    var number: Int
-    var tilt: Double
-    var struck: Bool
-
-    var body: some View {
-        Text("\(number)")
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
-            .foregroundStyle(Paper.ink.opacity(0.85))
-            .frame(width: 15, height: 20)
-            .background {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Paper.page)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .strokeBorder(Paper.rule.opacity(0.7), lineWidth: 0.5)
-                    }
-                    .shadow(color: .black.opacity(0.45), radius: 1.5, x: 0.5, y: 1)
-            }
-            .overlay {
-                if struck {
-                    // Struck by hand, so it wanders: a ruled line would be
-                    // printed, and nothing here is printed by the book.
-                    PencilStrike()
-                        .stroke(Paper.redPencil, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
-                }
-            }
-            .rotationEffect(.degrees(tilt))
-    }
-}
-
-/// The gap where a number would have been.
-private struct MissingNumber: View {
-    var tilt: Double
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 1.5)
-            .strokeBorder(Paper.page.opacity(0.3), lineWidth: 1)
-            .frame(width: 15, height: 20)
-            .rotationEffect(.degrees(tilt))
-    }
-}
-
-private struct PencilStrike: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 3))
-        path.addCurve(
-            to: CGPoint(x: rect.maxX - 1, y: rect.minY + 3),
-            control1: CGPoint(x: rect.width * 0.35, y: rect.height * 0.75),
-            control2: CGPoint(x: rect.width * 0.6, y: rect.height * 0.18)
-        )
-        return path
     }
 }
