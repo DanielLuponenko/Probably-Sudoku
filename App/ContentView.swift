@@ -13,6 +13,8 @@ struct ContentView: View {
     @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
+    @State private var pendingRunConflict: RunStore.Conflict?
+    @State private var showingRunConflict = false
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
@@ -63,7 +65,7 @@ struct ContentView: View {
                 case .mainMenu:
                     MainMenuView(
                         onPlay: {
-                            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+                            showBookShelfOrAskAboutConflict()
                         },
                         onShop: {
                             withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .cosmeticShop }
@@ -79,7 +81,7 @@ struct ContentView: View {
                             opening = book
                         },
                         onContinue: {
-                            if let saved = RunStore.loadRun() {
+                            if let saved = RunStore.resumeRun() {
                                 model = GameModel(resuming: saved)
                             }
                         },
@@ -103,6 +105,28 @@ struct ContentView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
         }
+        .confirmationDialog("Two unfinished Books", isPresented: $showingRunConflict) {
+            if let conflict = pendingRunConflict {
+                Button("Use this device’s \(conflict.label(for: .local))") {
+                    resume(.local, from: conflict)
+                }
+                Button("Use the other device’s \(conflict.label(for: .remote))") {
+                    resume(.remote, from: conflict)
+                }
+            }
+            Button("Decide later", role: .cancel) {}
+        } message: {
+            if let conflict = pendingRunConflict {
+                Text("This device has \(conflict.label(for: .local)). The other device has \(conflict.label(for: .remote)). Both are kept until you choose one.")
+            }
+        }
+        .onChange(of: showingRunConflict) { wasShowing, isShowing in
+            // The club-room Play animation has already finished by this point.
+            // If the player defers, land them on the shelf rather than leaving
+            // an invisible, disabled main-menu button behind the dialog.
+            guard wasShowing, !isShowing, pendingRunConflict != nil else { return }
+            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+        }
     }
 
     /// Deals the first Puzzle behind the veil, then lifts it.
@@ -116,6 +140,22 @@ struct ContentView: View {
             try? await Task.sleep(for: .milliseconds(16))
             withAnimation(.easeOut(duration: 0.65)) { veil = 0 }
         }
+    }
+
+    private func showBookShelfOrAskAboutConflict() {
+        if let conflict = RunStore.conflict() {
+            pendingRunConflict = conflict
+            showingRunConflict = true
+        } else {
+            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+        }
+    }
+
+    private func resume(_ choice: RunStore.Conflict.Choice, from conflict: RunStore.Conflict) {
+        _ = RunStore.choose(choice, from: conflict)
+        pendingRunConflict = nil
+        showingRunConflict = false
+        withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
     }
 }
 
