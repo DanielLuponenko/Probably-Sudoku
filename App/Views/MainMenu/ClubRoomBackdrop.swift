@@ -1218,6 +1218,7 @@ private struct Succulent: View {
                                          center: .init(x: 0.5, y: 0.78),
                                          startRadius: 0, endRadius: rim))
                     .frame(height: rim)
+                    .padding(.horizontal, potHeight * 0.08)
                     .offset(y: -potHeight + rim * 0.95)
 
                 DeskPlant()
@@ -1235,6 +1236,10 @@ private struct Succulent: View {
                         PaperGrain(opacity: 0.14, seed: 22)
                             .clipShape(PlantPotFront(rimY: frontRimY,
                                                      cornerRadius: potHeight * 0.22))
+                    }
+                    .overlay {
+                        PlantPotFrontEdge(rimY: frontRimY, cornerRadius: potHeight * 0.22)
+                            .stroke(.black.opacity(0.28), lineWidth: max(0.7, 1.2 * scale))
                     }
                     .frame(height: potHeight)
 
@@ -1328,10 +1333,10 @@ private struct Succulent: View {
         var cornerRadius: CGFloat
 
         func path(in rect: CGRect) -> Path {
-            UnevenRoundedRectangle(topLeadingRadius: cornerRadius * 0.12,
+            UnevenRoundedRectangle(topLeadingRadius: cornerRadius * 0.55,
                                    bottomLeadingRadius: cornerRadius,
                                    bottomTrailingRadius: cornerRadius,
-                                   topTrailingRadius: cornerRadius * 0.12)
+                                   topTrailingRadius: cornerRadius * 0.55)
                 .path(in: rect)
         }
     }
@@ -1343,16 +1348,22 @@ private struct Succulent: View {
         func path(in rect: CGRect) -> Path {
             let rim = rect.minY + rimY
             let bottom = rect.maxY - cornerRadius
+            let shoulder = min(cornerRadius * 0.55, rect.width * 0.16)
+            let sideStart = rim + shoulder * 0.45
             var path = Path()
-            path.move(to: CGPoint(x: rect.minX, y: rim))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
+            path.move(to: CGPoint(x: rect.minX + shoulder, y: rim))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX - shoulder, y: rim),
                               control: CGPoint(x: rect.midX, y: rim + rect.height * 0.075))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: sideStart),
+                              control: CGPoint(x: rect.maxX, y: rim))
             path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
             path.addQuadCurve(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
                               control: CGPoint(x: rect.maxX, y: rect.maxY))
             path.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
             path.addQuadCurve(to: CGPoint(x: rect.minX, y: bottom),
                               control: CGPoint(x: rect.minX, y: rect.maxY))
+            path.addQuadCurve(to: CGPoint(x: rect.minX + shoulder, y: rim),
+                              control: CGPoint(x: rect.minX, y: rim))
             path.closeSubpath()
             return path
         }
@@ -1360,12 +1371,14 @@ private struct Succulent: View {
 
     private struct PlantPotFrontEdge: Shape {
         var rimY: CGFloat
+        var cornerRadius: CGFloat
 
         func path(in rect: CGRect) -> Path {
             let rim = rect.minY + rimY
+            let shoulder = min(cornerRadius * 0.55, rect.width * 0.16)
             var path = Path()
-            path.move(to: CGPoint(x: rect.minX, y: rim))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
+            path.move(to: CGPoint(x: rect.minX + shoulder, y: rim))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX - shoulder, y: rim),
                               control: CGPoint(x: rect.midX, y: rim + rect.height * 0.075))
             return path
         }
