@@ -6,11 +6,13 @@ import Foundation
 public enum Book: String, Codable, CaseIterable, Sendable {
     case probably
     case slightlyHarder
+    case noPressure
 
     public var volume: Int {
         switch self {
         case .probably: return 1
         case .slightlyHarder: return 2
+        case .noPressure: return 3
         }
     }
 
@@ -22,12 +24,18 @@ public enum Book: String, Codable, CaseIterable, Sendable {
         switch self {
         case .probably: reduction = 0
         case .slightlyHarder: reduction = 3
+        case .noPressure: reduction = 3
         }
         return max(17, difficulty.givens - reduction)
     }
 
     public func target(level: Int, slot: PuzzleSlot) -> Int {
-        Targets.target(level: level, slot: slot)
+        let multiplier: Double
+        switch self {
+        case .probably, .slightlyHarder: multiplier = 1
+        case .noPressure: multiplier = 1.25
+        }
+        return Int((Double(Targets.target(level: level, slot: slot)) * multiplier).rounded(.down))
     }
 
     public var startingCoins: Int { Baseline.coins }

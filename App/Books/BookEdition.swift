@@ -31,6 +31,7 @@ struct BookEdition: Identifiable, Equatable {
         switch rule {
         case .probably: return .probably
         case .slightlyHarder: return .slightlyHarder
+        case .noPressure: return .noPressure
         }
     }
     /// A written Book can be opened; a future volume stays visibly shelved.
@@ -75,11 +76,21 @@ struct BookEdition: Identifiable, Equatable {
         marginalia: secondBookLines
     )
 
+    static let third = BookEdition(
+        id: "pressure",
+        rule: .noPressure,
+        title: "No Pressure, Obviously",
+        shelfLabel: "Volume 3",
+        blurb: "Editorial puzzles. The board has notes.",
+        cover: "ScenePressure",
+        accent: Color(hex: 0x6F9EC4),
+        bonus: .scholar,
+        marginalia: thirdBookLines
+    )
+
     /// The remaining unwritten volumes still show their place in the ladder,
     /// but do not claim rules or voices that belong to their own tickets.
     static let unwritten: [BookEdition] = [
-        unwritten(id: "pressure", title: "No Pressure, Obviously",
-                  volume: 3, accent: Color(hex: 0x6F9EC4), bonus: .oracle),
         unwritten(id: "bites", title: "This One Bites",
                   volume: 4, accent: Color(hex: 0xB4544A), bonus: .merchant),
         unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
@@ -101,11 +112,27 @@ struct BookEdition: Identifiable, Equatable {
         )
     }
 
-    static let shelf: [BookEdition] = [first, second] + unwritten
+    static let shelf: [BookEdition] = [first, second, third] + unwritten
 
     static func edition(for book: Book) -> BookEdition {
         shelf.first { $0.rule == book && $0.isWritten } ?? first
     }
+}
+
+private let thirdBookLines: [String] = (1...100).map { note in
+    let openings = [
+        "Editorial note:", "For the record:", "A small correction:", "As expected:",
+        "Let us be precise:", "Unsurprisingly:", "A reminder:", "In brief:",
+        "The evidence says:", "Please observe:"
+    ]
+    let observations = [
+        "the row already rules that out.", "the column has made its position clear.",
+        "this box has only one credible option.", "the candidate list is not decorative.",
+        "the 7 cannot be everywhere at once.", "the givens are sufficient.",
+        "a guess would add nothing useful.", "the intersection resolves this neatly.",
+        "the remaining square is constrained.", "the board prefers a defensible move."
+    ]
+    return "\(openings[(note - 1) / 10]) \(observations[(note - 1) % 10])"
 }
 
 private let secondBookLines: [String] = [

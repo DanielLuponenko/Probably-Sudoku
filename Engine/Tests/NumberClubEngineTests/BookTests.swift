@@ -16,9 +16,22 @@ final class BookTests: XCTestCase {
         }
     }
 
+    func testBookThreeHasBookTwoGivensAndOnePointTwoFiveTargets() throws {
+        for slot in PuzzleSlot.allCases {
+            var run = RunState(seed: "book-three-\(slot.rawValue)", book: .noPressure,
+                               startingBoard: .scholar)
+            run.slot = slot
+            let puzzle = try PuzzleState.create(run: &run)
+            XCTAssertEqual(puzzle.board.isGiven.filter { $0 }.count, slot.difficulty.givens - 3)
+            XCTAssertEqual(puzzle.target, Int(Double(Targets.target(level: 1, slot: slot)) * 1.25))
+        }
+    }
+
     func testBookPersistsAndOldSaveDefaultsToBookOne() throws {
         let bookTwo = Game(seed: "book-save", book: .slightlyHarder, startingBoard: .scholar)
         XCTAssertEqual(try Game(decoding: bookTwo.encoded()).run.book, .slightlyHarder)
+        let bookThree = Game(seed: "book-three-save", book: .noPressure, startingBoard: .scholar)
+        XCTAssertEqual(try Game(decoding: bookThree.encoded()).run.book, .noPressure)
 
         let bookOne = Game(seed: "old-book-save", startingBoard: .scholar)
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: bookOne.encoded()) as? [String: Any])
