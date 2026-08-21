@@ -75,7 +75,7 @@ struct ContentView: View {
             } else {
                 switch frontDoor {
                 case .studioIntro:
-                    StudioIntroView {
+                    StudioSplashView(reduceMotion: reduceMotion) {
                         withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                     }
                     .transition(.opacity)
