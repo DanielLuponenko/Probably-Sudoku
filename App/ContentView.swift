@@ -69,6 +69,12 @@ struct ContentView: View {
                 }
             } else {
                 switch frontDoor {
+                case .studioIntro:
+                    StudioIntroView {
+                        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
+                    }
+                    .transition(.opacity)
+
                 case .mainMenu:
                     MainMenuView(
                         onPlay: {

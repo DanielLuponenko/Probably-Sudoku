@@ -7,6 +7,8 @@ import Foundation
 /// stops being one. Nothing in here knows about the run — the moment a Book is
 /// open, `ContentView` stops consulting this at all.
 enum FrontDoorRoute: Equatable {
+    /// A brief studio credit before the room becomes interactive.
+    case studioIntro
     /// The club room. Where the app opens.
     case mainMenu
     /// The existing shelf, unchanged.
@@ -26,6 +28,6 @@ enum FrontDoorRoute: Equatable {
             return .bookShelf
         }
         #endif
-        return .mainMenu
+        return .studioIntro
     }
 }
