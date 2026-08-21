@@ -22,6 +22,7 @@ final class GameCenterService {
 
     private enum StorageKey {
         static let pendingScores = "game-center.pending-scores.v1"
+        static let pendingAchievements = "game-center.pending-achievements.v1"
     }
 
     private(set) var isAuthenticated = false
@@ -30,10 +31,13 @@ final class GameCenterService {
     private var wantsAccessPoint = true
     private var isFlushing = false
     private var pendingScores: [String: Int]
+    private var pendingAchievementIDs: Set<String>
+    private var isFlushingAchievements = false
 
     private init() {
         pendingScores = UserDefaults.standard.dictionary(forKey: StorageKey.pendingScores)
             as? [String: Int] ?? [:]
+        pendingAchievementIDs = Set(UserDefaults.standard.stringArray(forKey: StorageKey.pendingAchievements) ?? [])
     }
 
     /// Starts GameKit after the first frame has been composed. We deliberately
@@ -72,10 +76,21 @@ final class GameCenterService {
         flushPendingScores()
     }
 
+    /// Game Center is a delivery target, not achievement truth. Local profile
+    /// state earns first; the identifier remains queued while signed out or
+    /// while App Store Connect has not yet been configured.
+    func recordAchievement(_ identifier: String) {
+        guard !identifier.isEmpty else { return }
+        pendingAchievementIDs.insert(identifier)
+        persistPendingAchievements()
+        flushPendingAchievements()
+    }
+
     private func refreshAuthentication() {
         isAuthenticated = GKLocalPlayer.local.isAuthenticated
         updateAccessPoint()
         flushPendingScores()
+        flushPendingAchievements()
     }
 
     private func updateAccessPoint() {
@@ -125,5 +140,37 @@ final class GameCenterService {
 
     private func persistPendingScores() {
         UserDefaults.standard.set(pendingScores, forKey: StorageKey.pendingScores)
+    }
+
+    private func flushPendingAchievements() {
+        guard GKLocalPlayer.local.isAuthenticated,
+              !pendingAchievementIDs.isEmpty,
+              !isFlushingAchievements else { return }
+
+        isFlushingAchievements = true
+        let snapshot = pendingAchievementIDs
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let achievements = snapshot.sorted().map { identifier in
+                let achievement = GKAchievement(identifier: identifier)
+                achievement.percentComplete = 100
+                return achievement
+            }
+            do {
+                try await GKAchievement.report(achievements)
+                self.pendingAchievementIDs.subtract(snapshot)
+                self.persistPendingAchievements()
+            } catch {
+                // Keep queued; outage and incomplete App Store Connect setup
+                // must never change the local achievement page.
+            }
+            let hasNewerAchievements = !self.pendingAchievementIDs.isSubset(of: snapshot)
+            self.isFlushingAchievements = false
+            if hasNewerAchievements { self.flushPendingAchievements() }
+        }
+    }
+
+    private func persistPendingAchievements() {
+        UserDefaults.standard.set(pendingAchievementIDs.sorted(), forKey: StorageKey.pendingAchievements)
     }
 }

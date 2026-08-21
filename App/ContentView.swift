@@ -273,6 +273,10 @@ private struct GameView: View {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
                 if ProcessInfo.processInfo.arguments.contains("-runInfo") { showingRunInfo = true }
+                if ProcessInfo.processInfo.arguments.contains("-achievements") {
+                    model.openAchievements()
+                    return
+                }
                 if ProcessInfo.processInfo.arguments.contains("-loadout") {
                     model.qaFillLoadout()
                     return
@@ -359,6 +363,8 @@ private struct GameView: View {
             if let shop = source.shop {
                 ShopPageView(model: source, shop: shop)
             }
+        case .achievements:
+            AchievementsPageView { source.closeAchievements() }
         }
     }
 
@@ -368,6 +374,13 @@ private struct GameView: View {
     /// Puzzle page and Reroll onto the Shop page, because both act on a page.
     private var controls: [StripControl] {
         [
+            StripControl(systemImage: "rosette", label: "Achievements") {
+                Task {
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.openAchievements()
+                    }
+                }
+            },
             StripControl(systemImage: "questionmark", label: "Run information") {
                 withAnimation(.snappy(duration: 0.22)) { showingRunInfo = true }
             },

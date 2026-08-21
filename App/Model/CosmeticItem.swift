@@ -96,6 +96,10 @@ struct PlayerProfile: Codable, Equatable {
     var rewardedCompletionIDs: Set<String> = []
     /// Set as soon as the opening lesson starts, so Continue never repeats it.
     var hasStartedFirstRunTutorial = false
+    /// Local-first achievement truth. Game Center is only a mirror of this
+    /// set, never a prerequisite for earning an achievement.
+    var earnedAchievementIDs: Set<String> = []
+    var achievementProgress = AchievementProgress()
     /// The whole equipped loadout is one player decision. It is deliberately
     /// timestamped separately from earned inventory so sync can union progress
     /// while taking the latest intentional appearance choice.
@@ -104,7 +108,8 @@ struct PlayerProfile: Codable, Equatable {
     // Decoded leniently, so a profile written by an earlier build still opens.
     enum CodingKeys: String, CodingKey {
         case cosmeticCurrency, ownedCosmeticIDs, equipped, rewardedCompletionIDs,
-             hasStartedFirstRunTutorial, lastModifiedAt
+             hasStartedFirstRunTutorial, earnedAchievementIDs, achievementProgress,
+             lastModifiedAt
     }
 
     init() {}
@@ -119,6 +124,10 @@ struct PlayerProfile: Codable, Equatable {
             .decodeIfPresent(Set<String>.self, forKey: .rewardedCompletionIDs) ?? []
         hasStartedFirstRunTutorial = try container
             .decodeIfPresent(Bool.self, forKey: .hasStartedFirstRunTutorial) ?? false
+        earnedAchievementIDs = try container
+            .decodeIfPresent(Set<String>.self, forKey: .earnedAchievementIDs) ?? []
+        achievementProgress = try container
+            .decodeIfPresent(AchievementProgress.self, forKey: .achievementProgress) ?? AchievementProgress()
         lastModifiedAt = try container.decodeIfPresent(Date.self, forKey: .lastModifiedAt) ?? .distantPast
         // A profile written before a category existed still has to wear
         // something in it.
@@ -130,6 +139,8 @@ struct PlayerProfile: Codable, Equatable {
         ownedCosmeticIDs.formUnion(remote.ownedCosmeticIDs)
         rewardedCompletionIDs.formUnion(remote.rewardedCompletionIDs)
         hasStartedFirstRunTutorial = hasStartedFirstRunTutorial || remote.hasStartedFirstRunTutorial
+        earnedAchievementIDs.formUnion(remote.earnedAchievementIDs)
+        achievementProgress.merge(remote: remote.achievementProgress)
         if remote.lastModifiedAt > lastModifiedAt { equipped = remote.equipped }
         lastModifiedAt = max(lastModifiedAt, remote.lastModifiedAt)
         normalize()

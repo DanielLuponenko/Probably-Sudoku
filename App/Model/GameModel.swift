@@ -9,11 +9,13 @@ enum BookPage: Equatable {
     case puzzle
     case shop
     case results
+    case achievements
 }
 
 /// Everything the views need that is not part of the rules: what is selected,
 /// which page is showing, and the last thing that happened so it can be
 /// animated. The rules themselves stay in the engine.
+@MainActor
 @Observable
 final class GameModel {
 
@@ -93,6 +95,13 @@ final class GameModel {
     /// lesson started, while this model keeps its six lines visible for the
     /// current first Puzzle.
     private var isTeachingFirstRun = false
+    /// These facts belong to one dealt Puzzle. A resumed run lacks the earlier
+    /// action history, so it deliberately cannot mint a flawless/no-clue award
+    /// from an incomplete snapshot.
+    private var isTrackingAchievementPuzzle = false
+    private var usedClueThisPuzzle = false
+    private var madeWrongPlacementThisPuzzle = false
+    private var returnPageAfterAchievements: BookPage?
 
     /// Which of the two selections the board should be highlighting. Both a
     /// Hand tile and a square can be selected at once, so without this the
@@ -158,6 +167,7 @@ final class GameModel {
     }
 
     private func persist() {
+        PlayerProfileStore.shared.recordCoinBalance(game.run.coins)
         guard let outcome = game.run.outcome else {
             RunStore.save(game)
             return
@@ -173,6 +183,8 @@ final class GameModel {
         case .bookCompleted:
             let isFirstEver = RunStore.booksCompleted == 0
             RunStore.recordBookCompleted(game.run.book)
+            PlayerProfileStore.shared.recordBookCompleted(volume: game.run.book.volume,
+                                                          obstacle: game.run.obstacle)
             report(RunStore.booksCompleted, to: .booksCompleted)
             let rewards = CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
                                                              isFirstEver: isFirstEver)
@@ -185,7 +197,7 @@ final class GameModel {
         RunStore.save(game)
     }
 
-    static func randomSeed() -> String {
+    nonisolated static func randomSeed() -> String {
         // The only place randomness is allowed in: choosing which Book to play.
         String(UInt32.random(in: 0..<0xFFFFFF), radix: 36, uppercase: true)
     }
@@ -437,9 +449,14 @@ final class GameModel {
     func place(handIndex: Int, at square: Square) {
         guard hand.indices.contains(handIndex) else { return }
         let digit = hand[handIndex]
+        let wasKeepingFilling = puzzle?.phase == .keepFilling
         let bossBefore = BossFeedbackSnapshot(puzzle)
         do {
             let outcome = try game.place(handIndex: handIndex, at: square)
+            if isTrackingAchievementPuzzle {
+                madeWrongPlacementThisPuzzle = madeWrongPlacementThisPuzzle || !outcome.correct
+                PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: wasKeepingFilling)
+            }
             refreshHandCards()
             lastOutcome = outcome
             lastPlacedSquare = square
@@ -517,6 +534,10 @@ final class GameModel {
     func useClue(at square: Square) {
         do {
             let outcome = try game.useClue(at: square)
+            if isTrackingAchievementPuzzle {
+                usedClueThisPuzzle = true
+                PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: false)
+            }
             refreshHandCards()
             lastPlacedSquare = square
             markCleared(outcome, at: square)
@@ -574,7 +595,25 @@ final class GameModel {
     }
 
     func cashOut() {
-        do { lastPayout = try game.cashOut() }
+        let finishedPuzzle = puzzle
+        do {
+            lastPayout = try game.cashOut()
+            if let puzzle = finishedPuzzle, isTrackingAchievementPuzzle {
+                PlayerProfileStore.shared.recordPuzzleFinished(
+                    score: puzzle.score,
+                    wasBoss: puzzle.isBoss,
+                    hadWrongPlacement: madeWrongPlacementThisPuzzle,
+                    usedClue: usedClueThisPuzzle,
+                    wasLastTurn: puzzle.turnsRemaining == 1
+                )
+                if puzzle.isBoss, let boss = puzzle.boss {
+                    PlayerProfileStore.shared.recordBossDefeated(
+                        encounterID: "\(game.run.seed):\(puzzle.level):\(boss.rawValue)"
+                    )
+                }
+                isTrackingAchievementPuzzle = false
+            }
+        }
         catch { message = describe(error) }
     }
 
@@ -593,6 +632,7 @@ final class GameModel {
     /// Shop → the next puzzle, the second page turn.
     func continueToNextPuzzle() {
         guard game.advance() else {
+            isTrackingAchievementPuzzle = false
             page = .results
             return
         }
@@ -609,8 +649,12 @@ final class GameModel {
     func beginPuzzle() {
         do {
             try game.startPuzzle()
+            isTrackingAchievementPuzzle = true
+            usedClueThisPuzzle = false
+            madeWrongPlacementThisPuzzle = false
             if let level = puzzle?.level {
                 report(level, to: .highestLevelReached)
+                PlayerProfileStore.shared.recordReachedLevel(level)
             }
             if isTeachingFirstRun { PlayerProfileStore.shared.startFirstRunTutorial() }
             refreshHandCards(replacing: true)
@@ -628,6 +672,8 @@ final class GameModel {
     func skipCurrentPuzzle() {
         do {
             _ = try game.skipPuzzle()
+            PlayerProfileStore.shared.recordSkipsUsed(game.run.skipsUsed)
+            isTrackingAchievementPuzzle = false
             selectedHandIndex = nil
             selectedSquare = nil
             lastOutcome = nil
@@ -639,7 +685,14 @@ final class GameModel {
     }
 
     func buy(slot: Int) {
-        do { try game.buy(slot: slot) }
+        let kind = shop?.offers.first(where: { $0.slot == slot })?.def.kind
+        do {
+            try game.buy(slot: slot)
+            if let kind {
+                PlayerProfileStore.shared.recordPurchase(kind: kind,
+                                                         bookmarkCount: game.run.bookmarks.count)
+            }
+        }
         catch { message = describe(error) }
     }
 
@@ -650,8 +703,16 @@ final class GameModel {
 
     /// §10 — sell a Bookmark or Buff for its deterministic partial refund.
     func sell(kind: ItemKind, index: Int) {
+        let boughtAtLevel: Int?
+        switch kind {
+        case .bookmark: boughtAtLevel = game.run.bookmarks.indices.contains(index)
+                ? game.run.bookmarks[index].boughtAtLevel : nil
+        case .buff, .marker, .subscription: boughtAtLevel = nil
+        }
         do {
             let coins = try game.sell(kind: kind, index: index)
+            PlayerProfileStore.shared.recordSale(boughtAtLevel: boughtAtLevel,
+                                                 currentLevel: game.run.level)
             message = "Sold for \(coins) \(coins == 1 ? "coin" : "coins")"
             dropHandSelection()
         } catch {
@@ -660,6 +721,20 @@ final class GameModel {
     }
 
     func sellPrice(_ pricePaid: Int) -> Int { Shop.sellPrice(pricePaid) }
+
+    /// The achievement page is a page in the current Book. Keep the origin so
+    /// closing it returns to the exact puzzle, results, or shop page the
+    /// player was reading rather than inventing a navigation reset.
+    func openAchievements() {
+        guard page != .achievements else { return }
+        returnPageAfterAchievements = page
+        page = .achievements
+    }
+
+    func closeAchievements() {
+        page = returnPageAfterAchievements ?? .puzzle
+        returnPageAfterAchievements = nil
+    }
 
     func claimSquare(markerIndex: Int, square: Square) {
         do { try game.claimSquare(markerIndex: markerIndex, square: square) }
@@ -688,6 +763,9 @@ final class GameModel {
         selectedHandIndex = nil
         selectedSquare = nil
         lastOutcome = nil
+        isTrackingAchievementPuzzle = false
+        usedClueThisPuzzle = false
+        madeWrongPlacementThisPuzzle = false
         lastPayout = nil
         stampsEarned = 0
         message = nil
@@ -787,6 +865,9 @@ final class GameModel {
         game.qaSetBoss(boss)
         refreshHandCards()
         startClock()
+    }
+    func qaEarnAchievement(_ id: String) {
+        PlayerProfileStore.shared.qaEarnAchievement(id)
     }
     func qaResetFirstRunTutorial() {
         PlayerProfileStore.shared.resetFirstRunTutorial()

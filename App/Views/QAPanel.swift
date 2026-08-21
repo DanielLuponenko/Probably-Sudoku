@@ -59,6 +59,24 @@ struct QAPanel: View {
                     Text("Selections are Debug-only. Each replaces its own QA slot; markers use the current board's first blank so their effect can be inspected immediately.")
                 }
 
+                Section("Achievements") {
+                    NavigationLink("Award achievement") {
+                        List(AchievementCatalog.all) { achievement in
+                            Button {
+                                model.qaEarnAchievement(achievement.id)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(achievement.title)
+                                    Text(achievement.detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .navigationTitle("Achievements")
+                    }
+                }
+
                 Section {
                     row("Fill the board", "square.grid.3x3.fill") { model.qaFillBoard() }
                 } header: {
