@@ -140,6 +140,26 @@ public extension Game {
         qaFailPuzzle()
     }
 
+    /// Reaches the exact terminal Book state through the same cash-out and
+    /// advance rules as live play. It exists solely to inspect the closing
+    /// sequence without playing twenty-seven Puzzles.
+    mutating func qaCompleteBook() {
+        guard run.outcome == nil else { return }
+        run.level = 9
+        run.slot = .boss
+        run.puzzle = nil
+        run.shop = nil
+        do {
+            try startPuzzle()
+        } catch {
+            return
+        }
+        qaMeetTarget()
+        guard (try? cashOut()) != nil else { return }
+        openShop()
+        _ = advance()
+    }
+
     /// Fills every Blank with its solution digit, taking each number from the
     /// Pool or the Hand so the conservation rule still holds. Nothing is
     /// scored — this is for reaching the Full Clear and the results page, not

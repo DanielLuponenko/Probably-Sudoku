@@ -438,6 +438,7 @@ public enum Actions {
         }
         let payout = run.payout(for: puzzle)
         run.coins += payout.total
+        run.bestPuzzleScore = max(run.bestPuzzleScore, puzzle.score)
 
         // Syndication grows only on a Puzzle you win (§10).
         if run.owns(bookmark: Bookmarks.syndication) {

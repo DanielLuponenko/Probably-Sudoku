@@ -49,6 +49,9 @@ public struct RunState: Codable, Sendable {
     public var level: Int
     public var slot: PuzzleSlot
     public var coins: Int
+    /// Kept for the completed-Book record. It is updated only when a Puzzle
+    /// is banked, so an unfinished score is never presented as an achievement.
+    public var bestPuzzleScore: Int
 
     public var bookmarks: [OwnedBookmark] = []
     public var markers: [OwnedMarker] = []
@@ -74,11 +77,13 @@ public struct RunState: Codable, Sendable {
         self.level = 1
         self.slot = .easy
         self.coins = startingBoard == .merchant ? 15 : book.startingCoins
+        self.bestPuzzleScore = 0
     }
 
     private enum CodingKeys: String, CodingKey {
         case seed, streams, book, startingBoard, obstacle, level, slot, coins
         case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, outcome
+        case bestPuzzleScore
     }
 
     /// Subscriptions arrived after saved Books existed. Decode their absence as
@@ -93,6 +98,7 @@ public struct RunState: Codable, Sendable {
         level = try c.decode(Int.self, forKey: .level)
         slot = try c.decode(PuzzleSlot.self, forKey: .slot)
         coins = try c.decode(Int.self, forKey: .coins)
+        bestPuzzleScore = try c.decodeIfPresent(Int.self, forKey: .bestPuzzleScore) ?? 0
         bookmarks = try c.decodeIfPresent([OwnedBookmark].self, forKey: .bookmarks) ?? []
         markers = try c.decodeIfPresent([OwnedMarker].self, forKey: .markers) ?? []
         buffs = try c.decodeIfPresent([OwnedBuff].self, forKey: .buffs) ?? []

@@ -5,6 +5,7 @@ import ProbablySudokuEngine
 /// where the Book goes next.
 struct ResultsPageView: View {
     @Bindable var model: GameModel
+    var onBookCompletion: () -> Void
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -40,7 +41,10 @@ struct ResultsPageView: View {
     /// §7 — target met means a choice: bank it, or play on for coins.
     @ViewBuilder
     private var actions: some View {
-        if model.run.outcome != nil {
+        if model.run.outcome == .bookCompleted {
+            PaperButton(title: "Close the Book", subtitle: "See your finished volume", kind: .primary,
+                        action: onBookCompletion)
+        } else if model.run.outcome != nil {
             PaperButton(title: "New Book", kind: .primary) { model.abandonRun() }
         } else if model.puzzle?.phase == .won {
             HStack(spacing: 10) {

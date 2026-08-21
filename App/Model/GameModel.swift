@@ -17,6 +17,19 @@ enum BookPage: Equatable {
 @Observable
 final class GameModel {
 
+    /// A value snapshot held across the book-closing animation. The run is
+    /// deliberately discarded when the shelf returns, so the congratulations
+    /// page cannot depend on a live, resumable game.
+    struct BookCompletionSummary {
+        let edition: BookEdition
+        let levelsCleared: Int
+        let bossesBeaten: Int
+        let bestPuzzleScore: Int
+        let stampsEarned: Int
+        let loadout: [String]
+        let nextBook: BookEdition?
+    }
+
     /// A presentation identity for a Hand card. A digit is not an identity:
     /// duplicates are valid, and a carried card must not re-enter merely
     /// because another card with the same digit was spent.
@@ -157,6 +170,24 @@ final class GameModel {
         return min(1, Double(puzzle.score) / Double(puzzle.target))
     }
     var coins: Int { run.coins }
+
+    var bookCompletionSummary: BookCompletionSummary? {
+        guard run.outcome == .bookCompleted else { return nil }
+        let loadout = run.bookmarks.map { $0.def.name }
+            + run.markers.map { $0.def.name }
+            + run.buffs.map { $0.def.name }
+            + run.subscriptions.map { $0.def.name }
+        let nextBook = BookEdition.shelf.first { $0.rule.volume == run.book.volume + 1 }
+        return BookCompletionSummary(
+            edition: edition,
+            levelsCleared: 9,
+            bossesBeaten: 9,
+            bestPuzzleScore: run.bestPuzzleScore,
+            stampsEarned: stampsEarned,
+            loadout: loadout,
+            nextBook: nextBook
+        )
+    }
 
     /// Reuses the identity of cards that remain in the Hand and gives each
     /// newly dealt card an identity of its own. A full Redraw intentionally
@@ -612,6 +643,10 @@ final class GameModel {
     func qaAward(points: Int) { game.qaAward(points: points) }
     func qaAward(coins: Int) { game.qaAward(coins: coins) }
     func qaMeetTarget() { game.qaMeetTarget() }
+    func qaCompleteBook() {
+        game.qaCompleteBook()
+        page = .results
+    }
     func qaFailPuzzle() { game.qaFailPuzzle(); page = .results }
     func qaFailBook(atLevel level: Int) {
         game.qaFailBook(atLevel: level)
