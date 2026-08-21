@@ -40,6 +40,7 @@ struct CosmeticPreview: View {
             let skin = CosmeticCatalog.paper(item.id)
             Rectangle().fill(skin.page)
                 .overlay { PaperGrain(opacity: skin.grain, seed: 5) }
+                .overlay { PaperStockOverlay(treatment: skin.treatment) }
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(skin.edge).frame(height: side * 0.12)
                 }

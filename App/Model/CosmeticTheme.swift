@@ -26,6 +26,13 @@ struct PaperSkin: Equatable {
     let warm: Color
     let edge: Color
     let grain: Double
+    let treatment: PaperTreatment
+}
+
+/// A material treatment, not a gameplay state. It is shared by the live page
+/// and shop preview so a purchased sheet never promises something it cannot do.
+enum PaperTreatment: Equatable {
+    case plain, graph, ledger, onionSkin, carbon, telegram
 }
 
 struct BoardSkin: Equatable {
@@ -103,6 +110,14 @@ enum CosmeticCatalog {
                      blurb: "Filed, not published."),
         CosmeticItem(id: "pp_ledger", category: .paper, name: "Ledger Blue", price: 85,
                      blurb: "Accountancy paper. It expects you to add up."),
+        CosmeticItem(id: "pp_graph", category: .paper, name: "Graph", price: 55,
+                     blurb: "Engineer’s stock. Every square is already squared."),
+        CosmeticItem(id: "pp_onion", category: .paper, name: "Onion Skin", price: 70,
+                     blurb: "Thin enough for yesterday’s puzzle to show through."),
+        CosmeticItem(id: "pp_carbon", category: .paper, name: "Carbon", price: 80,
+                     blurb: "A second impression, slightly out of register."),
+        CosmeticItem(id: "pp_telegram", category: .paper, name: "Telegram", price: 95,
+                     blurb: "Yellow tape from a machine that never sleeps."),
         // Grid
         CosmeticItem(id: "bd_printed", category: .board, name: "Printed Rule", price: 0,
                      blurb: "Hairlines inside, heavy lines round the boxes."),
@@ -179,16 +194,28 @@ enum CosmeticCatalog {
         switch id {
         case "pp_ivory":
             return PaperSkin(id: id, page: Color(hex: 0xF4EFE2), warm: Color(hex: 0xEDE7D6),
-                             edge: Color(hex: 0xDED6C1), grain: 0.04)
+                             edge: Color(hex: 0xDED6C1), grain: 0.04, treatment: .plain)
         case "pp_manila":
             return PaperSkin(id: id, page: Color(hex: 0xE4D3AE), warm: Color(hex: 0xDCCAA3),
-                             edge: Color(hex: 0xC9B78E), grain: 0.07)
+                             edge: Color(hex: 0xC9B78E), grain: 0.07, treatment: .plain)
         case "pp_ledger":
             return PaperSkin(id: id, page: Color(hex: 0xE2E6E2), warm: Color(hex: 0xD8DDDA),
-                             edge: Color(hex: 0xC4CCC8), grain: 0.05)
+                             edge: Color(hex: 0xC4CCC8), grain: 0.05, treatment: .ledger)
+        case "pp_graph":
+            return PaperSkin(id: id, page: Color(hex: 0xE5EDF0), warm: Color(hex: 0xD8E4E8),
+                             edge: Color(hex: 0xC5D5DA), grain: 0.035, treatment: .graph)
+        case "pp_onion":
+            return PaperSkin(id: id, page: Color(hex: 0xF0E8D7), warm: Color(hex: 0xE7DCC5),
+                             edge: Color(hex: 0xD9CDB5), grain: 0.025, treatment: .onionSkin)
+        case "pp_carbon":
+            return PaperSkin(id: id, page: Color(hex: 0xE5DFE8), warm: Color(hex: 0xDCD3E1),
+                             edge: Color(hex: 0xC9BED0), grain: 0.06, treatment: .carbon)
+        case "pp_telegram":
+            return PaperSkin(id: id, page: Color(hex: 0xEFE0A7), warm: Color(hex: 0xE5D397),
+                             edge: Color(hex: 0xCEBD7B), grain: 0.045, treatment: .telegram)
         default:
             return PaperSkin(id: "pp_newsprint", page: Paper.page, warm: Paper.pageWarm,
-                             edge: Paper.pageEdge, grain: 0.055)
+                             edge: Paper.pageEdge, grain: 0.055, treatment: .plain)
         }
     }
 

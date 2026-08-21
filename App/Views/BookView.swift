@@ -178,6 +178,7 @@ struct PageSurface<Content: View>: View {
             Rectangle()
                 .fill(theme.paper.page)
                 .overlay { PaperGrain(opacity: theme.paper.grain) }
+                .overlay { PaperStockOverlay(treatment: theme.paper.treatment) }
                 .overlay { gutter }
                 .overlay { bow }
 
@@ -214,6 +215,95 @@ struct PageSurface<Content: View>: View {
         )
         .blendMode(.multiply)
         .allowsHitTesting(false)
+    }
+}
+
+/// Stock-specific printing that sits below the page's content. Its only motion
+/// is a nearly imperceptible opacity/transform pulse, and that is suppressed by
+/// Reduce Motion. It never affects layout, hit targets or a Line Clear.
+struct PaperStockOverlay: View {
+    var treatment: PaperTreatment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var idlePhase: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            switch treatment {
+            case .plain:
+                EmptyView()
+            case .graph:
+                Canvas { context, _ in
+                    let step: CGFloat = 18
+                    for position in stride(from: step, through: size.width, by: step) {
+                        var path = Path()
+                        path.move(to: .init(x: position, y: 0))
+                        path.addLine(to: .init(x: position, y: size.height))
+                        context.stroke(path, with: .color(Paper.editorBlue.opacity(0.16)), lineWidth: 0.5)
+                    }
+                    for position in stride(from: step, through: size.height, by: step) {
+                        var path = Path()
+                        path.move(to: .init(x: 0, y: position))
+                        path.addLine(to: .init(x: size.width, y: position))
+                        context.stroke(path, with: .color(Paper.editorBlue.opacity(0.16)), lineWidth: 0.5)
+                    }
+                }
+            case .ledger:
+                Canvas { context, _ in
+                    for position in stride(from: CGFloat(34), through: size.height, by: 25) {
+                        var path = Path()
+                        path.move(to: .init(x: 0, y: position))
+                        path.addLine(to: .init(x: size.width, y: position))
+                        context.stroke(path, with: .color(Paper.sage.opacity(0.16)), lineWidth: 0.7)
+                    }
+                    var margin = Path()
+                    margin.move(to: .init(x: 28, y: 0))
+                    margin.addLine(to: .init(x: 28, y: size.height))
+                    context.stroke(margin, with: .color(Paper.redPencil.opacity(0.28)), lineWidth: 1)
+                }
+            case .onionSkin:
+                Text("YESTERDAY’S PUZZLE")
+                    .font(Print.heading(26))
+                    .tracking(3)
+                    .foregroundStyle(Paper.ink.opacity(0.035))
+                    .rotationEffect(.degrees(180))
+                    .frame(width: size.width, height: size.height)
+            case .carbon:
+                Text("CARBON COPY")
+                    .font(Print.heading(25))
+                    .tracking(2)
+                    .foregroundStyle(Color(hex: 0x6B557D).opacity(0.08))
+                    .offset(x: 2, y: 1)
+                    .frame(width: size.width, height: size.height)
+            case .telegram:
+                VStack(spacing: 18) {
+                    ForEach(0..<8, id: \.self) { _ in
+                        Rectangle().fill(Paper.ink.opacity(0.08)).frame(height: 1)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .frame(width: size.width, height: size.height)
+            }
+        }
+        .opacity(1 - Double(idlePhase) * 0.035)
+        .offset(x: treatment == .carbon ? idlePhase : 0,
+                y: treatment == .onionSkin ? -idlePhase : 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { updateIdleMotion() }
+        .onChange(of: reduceMotion) { _, _ in updateIdleMotion() }
+    }
+
+    private func updateIdleMotion() {
+        guard !reduceMotion, treatment != .plain else {
+            idlePhase = 0
+            return
+        }
+        idlePhase = 0
+        withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+            idlePhase = 1
+        }
     }
 }
 

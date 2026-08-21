@@ -10,6 +10,7 @@ import SwiftUI
 /// Nothing here is a switch that does nothing. If the game gains music, the
 /// music row arrives with it.
 struct AppSettingsSlip: View {
+    var onOpenShop: () -> Void
     var onClose: () -> Void
 
     @AppStorage(AppPreferences.Key.haptics) private var haptics = true
@@ -43,6 +44,11 @@ struct AppSettingsSlip: View {
                     }
                 }
 
+                SlipSection(title: "Paper themes",
+                            note: "Owned paper can be changed here between Books. Locked stock opens the Club Shop.") {
+                    PaperThemePicker(onOpenShop: onOpenShop)
+                }
+
                 SlipSection(title: "The rules") {
                     PaperButton(title: "How to play", kind: .quiet) { showingHelp = true }
                 }
@@ -71,6 +77,81 @@ struct AppSettingsSlip: View {
     private static var version: String {
         let marketing = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
         return marketing ?? "0.1"
+    }
+}
+
+/// The theme chooser belongs at the front door: it changes the next Book, not
+/// the one currently being played. Each sample is the real paper treatment,
+/// so stock, ownership and selection can be judged without entering a run.
+private struct PaperThemePicker: View {
+    var onOpenShop: () -> Void
+
+    @Environment(PlayerProfileStore.self) private var profile
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(CosmeticCatalog.items(in: .paper)) { item in
+                    PaperThemeOption(item: item,
+                                     owned: profile.owns(item),
+                                     selected: profile.isEquipped(item),
+                                     onChoose: {
+                                         if profile.owns(item) {
+                                             profile.equip(item)
+                                         } else {
+                                             onOpenShop()
+                                         }
+                                     })
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+}
+
+private struct PaperThemeOption: View {
+    let item: CosmeticItem
+    let owned: Bool
+    let selected: Bool
+    let onChoose: () -> Void
+
+    var body: some View {
+        Button(action: onChoose) {
+            VStack(alignment: .leading, spacing: 5) {
+                CosmeticPreview(item: item, side: 72)
+                    .overlay(alignment: .topTrailing) {
+                        if !owned {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(Paper.page)
+                                .padding(5)
+                                .background(Paper.ink.opacity(0.78), in: Circle())
+                                .padding(4)
+                        }
+                    }
+                Text(item.name)
+                    .font(Print.caption(10.5))
+                    .foregroundStyle(Paper.ink)
+                    .lineLimit(1)
+                Text(owned ? (selected ? "Using" : "Owned") : "\(item.price) Stamps")
+                    .font(Print.caption(9.5))
+                    .foregroundStyle(selected ? Paper.sageDeep : Paper.inkFaint)
+            }
+            .frame(width: 72, alignment: .leading)
+            .padding(4)
+            .background(selected ? Paper.sage.opacity(0.13) : .clear,
+                        in: RoundedRectangle(cornerRadius: 5))
+            .overlay {
+                RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(selected ? Paper.sageDeep : Paper.rule.opacity(0.55),
+                                  lineWidth: selected ? 1.5 : 1)
+            }
+        }
+        .buttonStyle(PressedPaperStyle())
+        .accessibilityLabel(item.name)
+        .accessibilityValue(selected ? "Equipped" : owned ? "Owned" : "Locked, \(item.price) Stamps")
+        .accessibilityHint(owned ? "Double tap to equip for the next Book." : "Double tap to open the Club Shop.")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }
 /// A printed checkbox with a pencil tick in it. A system `Toggle` here would

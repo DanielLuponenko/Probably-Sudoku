@@ -153,6 +153,10 @@ final class PlayerProfileStore {
                 profile.ownedCosmeticIDs.insert(item.id)
                 profile.equipped[item.category] = item.id
             }
+            // Cloud data may arrive after this store is created. Keep this
+            // launch-only selection long enough to inspect it; the override is
+            // never written to disk, so it cannot become a player preference.
+            profile.lastModifiedAt = .distantFuture
         }
         // Deliberately not saved: a QA grant that survived the next launch
         // would quietly become the player's real balance.
