@@ -1122,7 +1122,9 @@ private struct Succulent: View {
 
                 DeskPlant()
                     .frame(width: size.width * 0.62, height: size.height * 0.62)
-                    .offset(x: size.width * 0.01, y: -potHeight * 0.96)
+                    // The plant's root extends below the rim and is covered by
+                    // the soil overlay, so there is no daylight gap above pot.
+                    .offset(x: size.width * 0.01, y: -potHeight * 0.80)
 
                 // A pot of unglazed stoneware, speckled.
                 UnevenRoundedRectangle(topLeadingRadius: 2 * scale,
