@@ -288,6 +288,30 @@ struct LampSway: ViewModifier, Animatable {
     }
 }
 
+/// The only continuously animated front-door layer. Its local state keeps
+/// the room, its paper grain and all controls out of the display-link update.
+struct SwayingLampFixture: View {
+    var ceilingDrop: CGFloat
+    var isEnabled: Bool
+
+    @State private var phase = 0.0
+
+    var body: some View {
+        LampFixture(glow: 1, ceilingDrop: ceilingDrop)
+            .modifier(LampSway(phase: phase, amount: isEnabled ? 2.1 : 0))
+            .task(id: isEnabled) {
+                guard isEnabled else {
+                    phase = 0
+                    return
+                }
+                phase = 0
+                withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
 // MARK: - Ambient drift
 
 /// A point or two of movement, applied as a transform.

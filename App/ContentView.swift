@@ -89,7 +89,7 @@ struct ContentView: View {
                             withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .cosmeticShop }
                         }
                     )
-                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    .transition(.opacity)
 
                 case .bookShelf:
                     StartBookView(
@@ -110,7 +110,7 @@ struct ContentView: View {
                             BookEdition.shelf.firstIndex(of: edition) ?? 0
                         }
                     )
-                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    .transition(.opacity)
 
                 case .cosmeticShop:
                     ClubShopView {

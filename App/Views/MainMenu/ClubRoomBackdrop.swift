@@ -143,7 +143,6 @@ extension View {
 /// plaque and the board, which are drawn above this.
 struct ClubRoomBackdrop: View {
     var metrics: MainMenuSceneMetrics
-    var phase: Double
     var reduceMotion: Bool
 
     private var scale: CGFloat { metrics.scale }
@@ -196,11 +195,11 @@ struct ClubRoomBackdrop: View {
             // 04 — the fixture itself. Its own sheen does not move: what the
             // eye reads as the lamp breathing is the halo above it, which is
             // drawn by `BulbGlow` and is animatable.
-            LampFixture(glow: 1,
-                         ceilingDrop: max(0, metrics.lampFrame.minY - metrics.wallPlane.minY))
+            SwayingLampFixture(
+                ceilingDrop: max(0, metrics.lampFrame.minY - metrics.wallPlane.minY),
+                isEnabled: !reduceMotion)
                 .frame(width: metrics.lampFrame.width, height: metrics.lampFrame.height)
                 .position(x: metrics.lampFrame.midX, y: metrics.lampFrame.midY)
-                .modifier(LampSway(phase: phase, amount: reduceMotion ? 0 : 2.1))
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -241,7 +240,7 @@ struct ClubRoomBackdrop: View {
     @ViewBuilder
     private var rightProps: some View {
         let rect = metrics.rightPropsFrame
-        RightShelf(scale: scale, phase: phase, reduceMotion: reduceMotion,
+        RightShelf(scale: scale, reduceMotion: reduceMotion,
                    showBooks: !metrics.isVeryCompact)
             .frame(width: rect.width, height: rect.height)
             .position(x: rect.midX, y: rect.midY)
@@ -255,7 +254,6 @@ struct ClubRoomBackdrop: View {
 /// picture together. All of it is depth, and none of it can be touched.
 struct ClubRoomForeground: View {
     var metrics: MainMenuSceneMetrics
-    var phase: Double
     var reduceMotion: Bool
 
     var body: some View {
@@ -267,9 +265,6 @@ struct ClubRoomForeground: View {
                             y: metrics.height - metrics.width * 0.34)
                     // Nearest the camera, so it travels furthest — and still
                     // only by two and a half points.
-                    .modifier(AmbientDrift(phase: phase,
-                                           amount: reduceMotion ? 0 : 2.4,
-                                           offsetBy: 1.1))
             }
 
             RugEdge()
@@ -635,7 +630,6 @@ private struct DrawerPull: View {
 /// Book you could open, and none of the spines says anything.
 private struct RightShelf: View {
     var scale: CGFloat
-    var phase: Double
     var reduceMotion: Bool
     var showBooks: Bool
 
@@ -655,8 +649,6 @@ private struct RightShelf: View {
                 PothosSpray(leaves: 14, seed: 3, hang: true)
                     .frame(width: size.width * 0.92, height: size.height * 0.34)
                     .offset(x: size.width * 0.10, y: -size.height * 0.02)
-                    .modifier(AmbientDrift(phase: phase,
-                                           amount: reduceMotion ? 0 : 1.6))
 
                 if showBooks {
                     BookRow(scale: scale)
