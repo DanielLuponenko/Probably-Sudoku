@@ -81,7 +81,9 @@ private struct NumberTile: View {
     var body: some View {
         Text("\(digit.rawValue)")
             .font(theme.numbers.font(27, weight: .medium))
-            .foregroundStyle(isBlocked ? palette.ink.opacity(0.48) : palette.placed)
+            .foregroundStyle(isBlocked ? palette.ink.opacity(0.48) : theme.numbers.ink)
+            .shadow(color: theme.numbers.motion.glow?.opacity(0.78) ?? .clear,
+                    radius: theme.numbers.motion.glow == nil ? 0 : 3)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background {
@@ -105,16 +107,17 @@ private struct NumberTile: View {
                                   lineWidth: isSelected ? 2 : 1)
             }
             .animation(.snappy(duration: 0.18), value: isSelected)
-            .scaleEffect(hasArrived || reduceMotion || !shouldAnimateArrival ? 1 : 0.78)
+            .scaleEffect(hasArrived || reduceMotion || !shouldAnimateArrival
+                         ? 1 : theme.numbers.motion.arrivalScale)
             .offset(y: hasArrived || reduceMotion || !shouldAnimateArrival
-                    ? (isSelected ? -4 : 0) : 10)
+                    ? (isSelected ? -4 : 0) : theme.numbers.motion.arrivalOffset)
             .opacity(hasArrived || reduceMotion || !shouldAnimateArrival ? 1 : 0)
             .onAppear {
                 guard shouldAnimateArrival && !reduceMotion else {
                     hasArrived = true
                     return
                 }
-                withAnimation(.snappy(duration: 0.28, extraBounce: 0.16)
+                withAnimation(theme.numbers.motion.arrivalAnimation
                     .delay(Double(arrivalOrder) * 0.035)) {
                     hasArrived = true
                 }

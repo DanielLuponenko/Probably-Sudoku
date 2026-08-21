@@ -229,6 +229,7 @@ private struct ClearedUnitMark: View {
 }
 
 private struct CellView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var square: Square
     var digit: Digit?
     var provenance: Provenance?
@@ -287,12 +288,14 @@ private struct CellView: View {
                 Text("\(digit.rawValue)")
                     .font(theme.numbers.font(size * 0.52, weight: numeralWeight))
                     .foregroundStyle(inkColor)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .shadow(color: theme.numbers.motion.glow?.opacity(0.75) ?? .clear,
+                            radius: theme.numbers.motion.glow == nil ? 0 : 3)
+                    .transition(reduceMotion ? .identity : placementTransition)
             }
         }
         .frame(width: size, height: size)
         .contentShape(Rectangle())
-        .animation(.snappy(duration: 0.2), value: digit)
+        .animation(reduceMotion ? nil : theme.numbers.motion.arrivalAnimation, value: digit)
         .animation(.snappy(duration: 0.16), value: state)
     }
 
@@ -316,9 +319,20 @@ private struct CellView: View {
     /// someone else, so it sits lighter on the page.
     private var inkColor: Color {
         switch provenance {
-        case .given: return palette.ink.opacity(0.78)
-        case .clue: return palette.placed.opacity(0.66)
-        default: return palette.placed.opacity(0.92)
+        case .given: return theme.numbers.givenInk.opacity(0.88)
+        case .clue: return theme.numbers.ink.opacity(0.64)
+        default: return theme.numbers.ink.opacity(0.94)
+        }
+    }
+
+    private var placementTransition: AnyTransition {
+        switch theme.numbers.motion {
+        case .press: return .scale(scale: 0.72).combined(with: .opacity)
+        case .typewriter: return .scale(scale: 1.14).combined(with: .opacity)
+        case .pencil: return .opacity.combined(with: .scale(scale: 0.90, anchor: .leading))
+        case .stencil: return .opacity.combined(with: .scale(scale: 1.05))
+        case .neon: return .scale(scale: 0.60).combined(with: .opacity)
+        case .handset: return .scale(scale: 0.78).combined(with: .opacity)
         }
     }
 
