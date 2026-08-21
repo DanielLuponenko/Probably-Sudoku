@@ -15,6 +15,8 @@ targets:
     platform: iOS
     sources:
       - path: App
+      - path: Artwork/studio-logo-horizontal.png
+        buildPhase: resources
     entitlements:
       path: App/ProbablySudoku.entitlements
       properties:
