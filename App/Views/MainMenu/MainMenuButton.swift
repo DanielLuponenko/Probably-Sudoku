@@ -232,7 +232,7 @@ struct SettingsButton: View {
         )
         .animation(.snappy(duration: 0.14), value: isPressing)
         .accessibilityLabel("Settings")
-        .accessibilityHint("Sound, haptics and how to play")
+        .accessibilityHint("Haptics, room settings, paper themes and how to play")
     }
 }
 
