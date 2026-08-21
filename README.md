@@ -117,7 +117,7 @@ which is why it has to be connected for that step.
 ## Running it
 
 ```bash
-cd ProbablySudoku && xcodegen generate
+cd NumberClub && xcodegen generate
 xcodebuild -project ProbablySudoku.xcodeproj -scheme ProbablySudoku \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
