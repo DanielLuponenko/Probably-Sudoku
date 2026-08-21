@@ -28,6 +28,11 @@ final class GameModel {
     }
 
     private(set) var game: Game {
+        willSet {
+            #if DEBUG
+            recordQAUndoSnapshot()
+            #endif
+        }
         didSet { persist() }
     }
     private(set) var handCards: [HandCard] = []
@@ -559,6 +564,51 @@ final class GameModel {
 
     #if DEBUG
     // QA shortcuts. Compiled out of release builds, as are the engine calls.
+    private static let qaUndoLimit = 20
+    private var qaUndoStack: [Game] = []
+    private var isRestoringQAUndo = false
+
+    var qaCanUndo: Bool { !qaUndoStack.isEmpty }
+
+    /// `Game` owns the entire value-type run state, including the seeded RNG
+    /// streams. Capturing it at the write boundary keeps the QA escape hatch
+    /// exact without teaching production rules about inverse operations.
+    private func recordQAUndoSnapshot() {
+        guard !isRestoringQAUndo else { return }
+        if qaUndoStack.count == Self.qaUndoLimit { qaUndoStack.removeFirst() }
+        qaUndoStack.append(game)
+    }
+
+    func qaUndoLastAction() {
+        guard let snapshot = qaUndoStack.popLast() else { return }
+        isRestoringQAUndo = true
+        game = snapshot
+        isRestoringQAUndo = false
+
+        selectedHandIndex = nil
+        selectedSquare = nil
+        highlightSource = nil
+        cleared = []
+        lastOutcome = nil
+        lastPlacedSquare = nil
+        lastPayout = nil
+        message = nil
+        if game.puzzle != nil {
+            page = .puzzle
+            refreshHandCards(replacing: true)
+            startClock()
+        } else if game.shop != nil {
+            page = .shop
+            stopClock()
+        } else if game.run.outcome != nil {
+            page = .results
+            stopClock()
+        } else {
+            page = .briefing
+            stopClock()
+        }
+    }
+
     func qaAward(points: Int) { game.qaAward(points: points) }
     func qaAward(coins: Int) { game.qaAward(coins: coins) }
     func qaMeetTarget() { game.qaMeetTarget() }
