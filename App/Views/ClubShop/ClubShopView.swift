@@ -138,23 +138,9 @@ struct ClubShopView: View {
                     CosmeticCard(item: item,
                                  owned: profile.owns(item),
                                  equipped: profile.isEquipped(item),
-                                 affordable: profile.currency >= item.price) {
+                                 affordable: profile.currency >= item.price,
+                                 refusalVisible: refused == item.id) {
                         choose(item)
-                    }
-                    // The one thing the counter says back to you, and only
-                    // while it is worth saying.
-                    .overlay(alignment: .trailing) {
-                        if refused == item.id {
-                            Text("Not enough \(ClubCurrency.name)")
-                                .font(Print.caption(10))
-                                .foregroundStyle(Paper.redPencil)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
-                                .background(RoundedRectangle(cornerRadius: 3)
-                                    .fill(Paper.page))
-                                .offset(x: -6)
-                                .transition(.opacity)
-                        }
                     }
                 }
             }
