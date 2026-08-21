@@ -44,6 +44,7 @@ struct MarginNote: Equatable {
 /// nothing printed on it and nothing to tap, so a note can never cover a
 /// square, a number or a button, and can never fall off the page.
 struct MarginNoteView: View {
+    @Environment(\.cosmeticTheme) private var theme
     var note: MarginNote
 
     /// The note is offset from the left by at most a quarter of the free width
@@ -71,7 +72,7 @@ struct MarginNoteView: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(note.text)
                 .font(MarginNote.font(16))
-                .foregroundStyle(Paper.pencil)
+                .foregroundStyle(theme.marker.tint)
                 // Two lines, shrinking rather than wrapping to a third: the
                 // band is fixed, and a third line runs into the Hand below it.
                 .lineLimit(2)
@@ -80,7 +81,7 @@ struct MarginNoteView: View {
             if note.underlined {
                 // A wobbly underline, drawn the way a hand draws one.
                 Underline()
-                    .stroke(Paper.pencil.opacity(0.55), lineWidth: 1.2)
+                    .stroke(theme.marker.tint.opacity(0.55), lineWidth: 1.2)
                     .frame(height: 3)
             }
         }

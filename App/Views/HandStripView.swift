@@ -5,6 +5,7 @@ import NumberClubEngine
 /// balls. Duplicates are possible and meaningful, so each dealt card carries
 /// a presentation identity separate from the number it shows.
 struct HandStripView: View {
+    @Environment(\.cosmeticTheme) private var theme
     @Bindable var model: GameModel
     var handSize: Int
 
@@ -35,7 +36,8 @@ struct HandStripView: View {
                                 isSelected: model.selectedHandIndex == index,
                                 isBlocked: model.isBlocked(card.digit),
                                 arrivalOrder: card.arrivalOrder,
-                                shouldAnimateArrival: model.animatesHandArrival
+                                shouldAnimateArrival: model.animatesHandArrival,
+                                theme: theme
                             )
                         }
                         .buttonStyle(.plain)
@@ -62,18 +64,19 @@ private struct NumberTile: View {
     var isBlocked: Bool
     var arrivalOrder: Int
     var shouldAnimateArrival: Bool
+    var theme: CosmeticTheme
 
     @State private var hasArrived = false
 
     var body: some View {
         Text("\(digit.rawValue)")
-            .font(Print.numeral(27, weight: .medium))
-            .foregroundStyle(isBlocked ? Paper.inkFaint : Paper.ink)
+            .font(theme.numbers.font(27, weight: .medium))
+            .foregroundStyle(isBlocked ? Paper.inkFaint : theme.numbers.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background {
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(isSelected ? Paper.cellSelected : Paper.pageWarm)
+                    .fill(isSelected ? theme.board.selected : theme.paper.warm)
             }
             .overlay {
                 // Struck through in red pencil: it is still yours and still
@@ -88,7 +91,7 @@ private struct NumberTile: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 4)
                     .strokeBorder(isBlocked ? Paper.redPencil.opacity(0.55)
-                                            : (isSelected ? Paper.sageDeep : Paper.rule),
+                                            : (isSelected ? Paper.sageDeep : theme.board.hair),
                                   lineWidth: isSelected ? 2 : 1)
             }
             .animation(.snappy(duration: 0.18), value: isSelected)

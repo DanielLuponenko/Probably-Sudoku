@@ -33,6 +33,9 @@ final class GameModel {
     /// A frozen model is the page already lifting away, not a fresh deal.
     private(set) var animatesHandArrival = true
     private(set) var page: BookPage = .puzzle
+    /// A completed book can cause more than one presentation update. Record
+    /// its permanent consequences once, at the model boundary.
+    private var didRecordCompletion = false
 
     /// Which of the two selections the board should be highlighting. Both a
     /// Hand tile and a square can be selected at once, so without this the
@@ -94,7 +97,15 @@ final class GameModel {
     }
 
     private func persist() {
-        if game.run.outcome == .bookCompleted { RunStore.recordBookCompleted() }
+        if game.run.outcome == .bookCompleted, !didRecordCompletion {
+            didRecordCompletion = true
+            let isFirstEver = RunStore.booksCompleted == 0
+            RunStore.recordBookCompleted()
+            PlayerProfileStore.shared.earn(
+                CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
+                                                   isFirstEver: isFirstEver)
+            )
+        }
         RunStore.save(game)
     }
 

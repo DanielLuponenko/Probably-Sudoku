@@ -102,6 +102,7 @@ enum Print {
     static func numeral(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
         .system(size: size, weight: weight).monospacedDigit()
     }
+    static func handwritten(_ size: CGFloat) -> Font { .custom("Bradley Hand", size: size) }
 }
 
 extension View {
