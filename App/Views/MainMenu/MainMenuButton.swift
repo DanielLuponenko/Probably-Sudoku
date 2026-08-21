@@ -188,7 +188,7 @@ struct MainMenuButton: View {
     }
 
     private var symbolSize: CGFloat {
-        max(18, (kind == .play ? 78 : 52) * scale)
+        max(18, (kind == .play ? 78 : 42) * scale)
     }
 }
 /// The gear, in a cream square screwed to the wall. Same two-layer press as
