@@ -63,16 +63,15 @@ struct ShopPageView: View {
             }
         }
         .sheet(item: $inspectedOffer) { offer in
-            OfferSlip(model: model, offer: offer,
-                      hasSlot: hasSlot(for: offer.def.kind)) { boughtOffer in
-                beginMarkerPlacement(afterBuying: boughtOffer)
+            OfferSlip(model: model, offer: offer) { markerIndex in
+                setClaimingMarker(markerIndex)
             }
         }
         .confirmationDialog("Sell \(sellCandidate?.def.name ?? "item")?",
                             isPresented: sellDialogPresented,
                             titleVisibility: .visible) {
             if let candidate = sellCandidate {
-                Button("Sell for \(model.sellPrice(candidate.pricePaid)) coins", role: .destructive) {
+                Button("Sell for \(candidate.sellValue) coins", role: .destructive) {
                     model.sell(kind: candidate.kind, index: candidate.index)
                     sellCandidate = nil
                 }
@@ -80,7 +79,7 @@ struct ShopPageView: View {
             Button("Keep it", role: .cancel) { sellCandidate = nil }
         } message: {
             if let candidate = sellCandidate {
-                Text("This returns \(model.sellPrice(candidate.pricePaid)) coins. Markers and subscriptions cannot be sold.")
+                Text("This returns \(candidate.sellValue) coins. Markers and subscriptions cannot be sold.")
             }
         }
     }
@@ -89,7 +88,7 @@ struct ShopPageView: View {
         let kind: ItemKind
         let index: Int
         let def: ItemDef
-        let pricePaid: Int
+        let sellValue: Int
         let canSell: Bool
 
         var id: String { "\(kind.rawValue)-\(def.id)-\(index)" }
@@ -97,11 +96,6 @@ struct ShopPageView: View {
 
     private var sellDialogPresented: Binding<Bool> {
         Binding(get: { sellCandidate != nil }, set: { if !$0 { sellCandidate = nil } })
-    }
-
-    private func beginMarkerPlacement(afterBuying offer: ShopOffer) {
-        guard offer.def.kind == .marker else { return }
-        setClaimingMarker(model.run.markers.count - 1)
     }
 
     private func setClaimingMarker(_ markerIndex: Int?) {
@@ -158,7 +152,7 @@ struct ShopPageView: View {
             .accessibilityLabel("\(model.coins) coins on hand")
     }
 
-    /// §9 — rerolling is the Shop's own action, so it lives on the Shop's page.
+    /// Rerolling is the Shop's own action, so it lives on the Shop's page.
     private var rerollButton: some View {
         Button { model.reroll() } label: {
             HStack(spacing: 5) {
@@ -177,7 +171,7 @@ struct ShopPageView: View {
         .disabled(model.coins < shop.rerollCost)
         .opacity(model.coins < shop.rerollCost ? 0.45 : 1)
         .accessibilityLabel(shop.rerollCost == 0 ? "Reroll the shop for free"
-                                                   : "Reroll the shop for \(shop.rerollCost) coins")
+                                                   : "Reroll the shop for \(shop.rerollCost) \(shop.rerollCost == 1 ? "coin" : "coins")")
     }
 
     /// §11 — a Marker gains a square per Level, and the player chooses it here.
@@ -231,7 +225,7 @@ struct ShopPageView: View {
             LoadoutBand(title: "Buffs", items: buffs, capacity: ItemKind.buff.capacity,
                         sellCandidate: $sellCandidate)
             if !subscriptions.isEmpty {
-                LoadoutBand(title: "Subscriptions", items: subscriptions, capacity: subscriptions.count,
+                LoadoutBand(title: "Subscriptions", items: subscriptions, capacity: nil,
                             sellCandidate: $sellCandidate)
             }
         }
@@ -240,28 +234,28 @@ struct ShopPageView: View {
     private var bookmarks: [LoadoutItem] {
         model.run.bookmarks.enumerated().map {
             LoadoutItem(kind: .bookmark, index: $0.offset, def: $0.element.def,
-                        pricePaid: $0.element.pricePaid, canSell: true)
+                        sellValue: model.sellPrice($0.element.pricePaid), canSell: true)
         }
     }
 
     private var markers: [LoadoutItem] {
         model.run.markers.enumerated().map {
             LoadoutItem(kind: .marker, index: $0.offset, def: $0.element.def,
-                        pricePaid: $0.element.pricePaid, canSell: false)
+                        sellValue: model.sellPrice($0.element.pricePaid), canSell: false)
         }
     }
 
     private var buffs: [LoadoutItem] {
         model.run.buffs.enumerated().map {
             LoadoutItem(kind: .buff, index: $0.offset, def: $0.element.def,
-                        pricePaid: $0.element.pricePaid, canSell: true)
+                        sellValue: model.sellPrice($0.element.pricePaid), canSell: true)
         }
     }
 
     private var subscriptions: [LoadoutItem] {
         model.run.subscriptions.enumerated().map {
             LoadoutItem(kind: .subscription, index: $0.offset, def: $0.element.def,
-                        pricePaid: $0.element.pricePaid, canSell: false)
+                        sellValue: model.sellPrice($0.element.pricePaid), canSell: false)
         }
     }
 }
@@ -411,17 +405,29 @@ private struct OfferSlip: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var model: GameModel
     let offer: ShopOffer
-    let hasSlot: Bool
-    let markerBought: (ShopOffer) -> Void
+    let markerBought: (Int) -> Void
+
+    private var currentOffer: ShopOffer {
+        model.run.shop?.offers.first(where: { $0.slot == offer.slot }) ?? offer
+    }
+
+    private var hasSlot: Bool {
+        switch currentOffer.def.kind {
+        case .bookmark: return model.run.bookmarks.count < ItemKind.bookmark.capacity
+        case .marker: return model.run.markers.count < model.run.markerCapacity
+        case .buff: return model.run.buffs.count < ItemKind.buff.capacity
+        case .subscription: return true
+        }
+    }
 
     private var canBuy: Bool {
-        !offer.sold && hasSlot && model.coins >= offer.price
+        !currentOffer.sold && hasSlot && model.coins >= currentOffer.price
     }
 
     private var availability: String {
-        if offer.sold { return "This ad has already been circled." }
-        if !hasSlot { return "There is no open \(offer.def.kind.rawValue) slot." }
-        if model.coins < offer.price { return "You need \(offer.price - model.coins) more coins." }
+        if currentOffer.sold { return "This ad has already been circled." }
+        if !hasSlot { return "There is no open \(currentOffer.def.kind.rawValue) slot." }
+        if model.coins < currentOffer.price { return "You need \(currentOffer.price - model.coins) more coins." }
         return "You have \(model.coins) coins on hand."
     }
 
@@ -429,34 +435,37 @@ private struct OfferSlip: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: ItemIcon.symbol(for: offer.defID))
+                    Image(systemName: ItemIcon.symbol(for: currentOffer.defID))
                         .font(.system(size: 32, weight: .light))
                         .foregroundStyle(Paper.ink)
                         .frame(width: 52, height: 52)
                         .overlay { Rectangle().strokeBorder(Paper.rule, lineWidth: 1) }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(offer.def.name).pageHeading(24)
-                        RarityImprint(rarity: offer.def.rarity)
+                        Text(currentOffer.def.name).pageHeading(24)
+                        RarityImprint(rarity: currentOffer.def.rarity)
                     }
                 }
-                Text(offer.def.text)
+                Text(currentOffer.def.text)
                     .font(Print.body(16))
                     .foregroundStyle(Paper.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
                 Rectangle().fill(Paper.rule).frame(height: 1)
-                Label("\(offer.price) coins", systemImage: "circle.inset.filled")
+                Label("\(currentOffer.price) coins", systemImage: "circle.inset.filled")
                     .font(Print.numeral(18, weight: .bold))
                     .foregroundStyle(Paper.coinRim)
                 Text(availability)
                     .font(Print.body(13))
                     .foregroundStyle(canBuy ? Paper.sageDeep : Paper.redPencil)
                 Spacer(minLength: 0)
-                PaperButton(title: "Circle this ad", subtitle: "Buy for \(offer.price) coins",
+                PaperButton(title: "Circle this ad", subtitle: "Buy for \(currentOffer.price) coins",
                             kind: .primary, isEnabled: canBuy) {
                     let before = model.run.markers.count
-                    model.buy(slot: offer.slot)
-                    if offer.def.kind == .marker, model.run.markers.count > before {
-                        markerBought(offer)
+                    model.buy(slot: currentOffer.slot)
+                    guard model.run.shop?.offers.first(where: { $0.slot == currentOffer.slot })?.sold == true else {
+                        return
+                    }
+                    if model.run.markers.count > before {
+                        markerBought(model.run.markers.count - 1)
                     }
                     dismiss()
                 }
@@ -478,7 +487,7 @@ private struct OfferSlip: View {
 private struct LoadoutBand: View {
     let title: String
     let items: [ShopPageView.LoadoutItem]
-    let capacity: Int
+    let capacity: Int?
     @Binding var sellCandidate: ShopPageView.LoadoutItem?
 
     var body: some View {
@@ -500,20 +509,20 @@ private struct LoadoutBand: View {
             if item.canSell {
                 Button { sellCandidate = item } label: { itemLabel(item, sellable: true) }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(item.def.name), sell for \(max(1, item.pricePaid / 2)) coins")
+                    .accessibilityLabel("\(item.def.name), sell for \(item.sellValue) coins")
             } else {
                 itemLabel(item, sellable: false)
                     .accessibilityLabel("\(item.def.name), not sellable")
             }
         }
-        if capacity > items.count {
+        if let capacity, capacity > items.count {
             Text("\(capacity - items.count) open")
                 .font(Print.caption(10))
                 .foregroundStyle(Paper.inkFaint)
                 .padding(.horizontal, 6).padding(.vertical, 4)
                 .overlay { Rectangle().strokeBorder(Paper.rule.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [2, 2])) }
                 .accessibilityLabel("\(capacity - items.count) open \(title) slots")
-        } else {
+        } else if capacity != nil {
             Text("Full")
                 .font(Print.caption(10))
                 .foregroundStyle(Paper.redPencil)
@@ -531,7 +540,7 @@ private struct LoadoutBand: View {
                 .font(Print.caption(10))
                 .lineLimit(1)
             if sellable {
-                Text("−\(max(1, item.pricePaid / 2))")
+                Text("−\(item.sellValue)")
                     .font(Print.caption(9))
                     .foregroundStyle(Paper.redPencil)
             }
