@@ -324,6 +324,12 @@ struct BookView<Live: View>: View {
                 // The page underneath is already the new one; the sheet on top
                 // still shows what was there, and bends away to uncover it.
                 PageSurface { live }
+                    // The next leaf is already there below the moving sheet.
+                    // It rises the final fraction after being uncovered, which
+                    // gives the page a small paper settle rather than a cut.
+                    .scaleEffect(0.994 + 0.006 * flipper.progress,
+                                 anchor: .leading)
+                    .opacity(0.96 + 0.04 * flipper.progress)
                     .background {
                         GeometryReader { proxy in
                             Color.clear
@@ -334,11 +340,11 @@ struct BookView<Live: View>: View {
 
                 if let outgoing {
                     PageSurface { outgoing }
-                        // Rasterised once before the shader touches it. Without
-                        // this the whole page — grid, hand, buttons — is laid
-                        // out again for every frame of the curl.
+                        // Rasterise the old page once, then let the compositor
+                        // transform that single leaf. The live grid underneath
+                        // is never re-laid-out while a page is turning.
                         .drawingGroup()
-                        .pageCurl(progress: flipper.progress, size: pageSize)
+                        .pageLeafTurn(progress: flipper.progress, size: pageSize)
                         .allowsHitTesting(false)
                 }
             }
