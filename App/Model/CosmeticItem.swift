@@ -135,6 +135,7 @@ struct PlayerProfile: Codable {
 /// different reasons never collapse into one event id.
 enum CosmeticRewardReason: String, Codable {
     case bookCompleted
+    case bookFailed
     case obstacleMilestone
     case firstBookCompletion
 }
@@ -161,6 +162,19 @@ enum CosmeticRewardPolicy {
                                               reason: .firstBookCompletion))
         }
         return events
+    }
+
+    /// A failed Book pays for the progress the player actually made, but never
+    /// approaches the completion reward. Reaching level `n` means the first
+    /// `n - 1` levels and their Bosses were beaten.
+    static func bookFailed(seed: String, currentLevel: Int) -> CosmeticRewardEvent {
+        let levelsCleared = max(0, currentLevel - 1)
+        let bossesBeaten = levelsCleared
+        return CosmeticRewardEvent(
+            id: "book-failed:\(seed)",
+            amount: levelsCleared * 2 + bossesBeaten,
+            reason: .bookFailed
+        )
     }
 }
 
