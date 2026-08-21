@@ -14,12 +14,26 @@ struct StartBookView: View {
     /// Back to the club room. Optional so the shelf still stands on its own in
     /// a preview, and so nothing about the Books themselves changed.
     var onBack: (() -> Void)? = nil
+    /// A finished Book returns the shelf focused on the newly unlocked volume.
+    /// Normal shelf entry retains its existing debug/default position.
+    private let initialIndex: Int
+
+    init(onStart: @escaping (BookEdition, Obstacle) -> Void,
+         onContinue: @escaping () -> Void,
+         onBack: (() -> Void)? = nil,
+         initialIndex: Int? = nil) {
+        self.onStart = onStart
+        self.onContinue = onContinue
+        self.onBack = onBack
+        self.initialIndex = initialIndex ?? Self.debugIndex()
+        _index = State(initialValue: self.initialIndex)
+    }
 
     /// A Book left part-finished. Continuing it is the first thing offered,
     /// because it is almost always what the player came back for.
     private let resumable = RunStore.displayedRun()
 
-    @State private var index = StartBookView.debugIndex()
+    @State private var index: Int
     /// One clock for the whole desk, so nothing moves against anything else.
     @State private var phase: Double = 0
     /// A slower one, counted in whole turns, for the boxes at the head of the

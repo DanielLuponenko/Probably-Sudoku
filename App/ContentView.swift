@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
     @State private var pendingRunConflict: RunStore.Conflict?
     @State private var showingRunConflict = false
+    @State private var closingBook: BookEdition?
+    @State private var completionSummary: GameModel.BookCompletionSummary?
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
@@ -54,8 +56,12 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if let model, !model.wantsMenu {
-                GameView(model: model, reduceMotion: reduceMotion)
+            if let closingBook {
+                LiveBookClosing(edition: closingBook, reduceMotion: reduceMotion,
+                                onFinish: finishBookClosing)
+            } else if let model, !model.wantsMenu {
+                GameView(model: model, reduceMotion: reduceMotion,
+                         onBookCompletion: beginBookClosing)
             } else if let book = opening {
                 LiveBookOpening(edition: book, reduceMotion: reduceMotion) {
                     begin(book)
@@ -87,6 +93,9 @@ struct ContentView: View {
                         },
                         onBack: {
                             withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
+                        },
+                        initialIndex: completionSummary?.nextBook.map { edition in
+                            BookEdition.shelf.firstIndex(of: edition) ?? 0
                         }
                     )
                     .transition(.opacity)
@@ -104,6 +113,13 @@ struct ContentView: View {
                 .opacity(veil)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+
+            if let completionSummary {
+                BookCompletionView(summary: completionSummary) {
+                    withAnimation(.easeInOut(duration: 0.22)) { self.completionSummary = nil }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
         }
         .confirmationDialog("Two unfinished Books", isPresented: $showingRunConflict) {
             if let conflict = pendingRunConflict {
@@ -142,6 +158,18 @@ struct ContentView: View {
         }
     }
 
+    private func beginBookClosing(_ model: GameModel) {
+        guard let summary = model.bookCompletionSummary else { return }
+        completionSummary = summary
+        closingBook = summary.edition
+    }
+
+    private func finishBookClosing() {
+        closingBook = nil
+        model?.abandonRun()
+        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .bookShelf }
+    }
+
     private func showBookShelfOrAskAboutConflict() {
         if let conflict = RunStore.conflict() {
             pendingRunConflict = conflict
@@ -162,6 +190,7 @@ struct ContentView: View {
 private struct GameView: View {
     @Bindable var model: GameModel
     var reduceMotion: Bool
+    var onBookCompletion: (GameModel) -> Void
     @State private var flipper = PageFlipper()
     @State private var showingSettings = false
     @State private var showingRunInfo = false
@@ -256,6 +285,13 @@ private struct GameView: View {
                     model.qaMeetTarget()
                     return
                 }
+                if ProcessInfo.processInfo.arguments.contains("-completeBookNow") {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.qaCompleteBook()
+                    }
+                    return
+                }
                 let arguments = ProcessInfo.processInfo.arguments
                 if let index = arguments.firstIndex(of: "-failBookAtLevel"), index + 1 < arguments.count,
                    let level = Int(arguments[index + 1]) {
@@ -294,7 +330,7 @@ private struct GameView: View {
                 PuzzlePageView(model: source, puzzle: puzzle)
             }
         case .results:
-            ResultsPageView(model: source)
+            ResultsPageView(model: source) { onBookCompletion(model) }
         case .shop:
             if let shop = source.shop {
                 ShopPageView(model: source, shop: shop)
@@ -338,7 +374,8 @@ private struct GameView: View {
 }
 
 #Preview("Puzzle") {
-    GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false)
+    GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false,
+             onBookCompletion: { _ in })
         .environment(PageFlipper())
 }
 
