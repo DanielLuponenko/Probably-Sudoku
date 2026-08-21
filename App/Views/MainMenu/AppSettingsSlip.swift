@@ -20,7 +20,7 @@ struct AppSettingsSlip: View {
 
     var body: some View {
         PaperSlip(title: "Settings",
-                  subtitle: "The Number Club, everywhere — not just this Book.",
+                  subtitle: "Probably Sudoku, everywhere — not just this Book.",
                   onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
                 SlipSection(title: "The room") {
