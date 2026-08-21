@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import ProbablySudokuEngine
 
 /// The whole game is one physical object: a sudoku book lying open on a desk.
 /// Every colour here is a real material — stained wood, cream paper, printing
@@ -57,6 +58,9 @@ enum Paper {
     static let coin = Color(hex: 0xE0B33C)
     static let coinRim = Color(hex: 0xA9801E)
     static let redPencil = Color(hex: 0xB4544A)
+    /// Editorial blue stays a named ink rather than becoming an anonymous
+    /// literal in a board treatment.
+    static let editorBlue = Color(hex: 0x53688C)
     /// Graphite, for anything written by hand rather than printed.
     static let pencil = Color(hex: 0x5A5750)
     /// The first Book's accents: soft green and a warm orange.
@@ -88,6 +92,85 @@ enum Paper {
         default: return inkFaint
         }
     }
+}
+
+// MARK: - Level palettes
+
+/// Semantic inks for a Puzzle slot. Cosmetic themes choose the physical paper,
+/// desk, typeface, and rule furniture; this palette is the Level's temperature
+/// on top of those materials. The values are immutable so a page only updates
+/// when it moves to another slot.
+struct LevelPalette: Equatable {
+    let id: String
+    let paper: Color
+    let ink: Color
+    let rule: Color
+    let accent: Color
+    let danger: Color
+    let given: Color
+    let placed: Color
+    let marked: Color
+    let target: Color
+
+    static let easy = LevelPalette(id: "easy",
+                                   paper: Paper.page,
+                                   ink: Paper.ink,
+                                   rule: Paper.rule,
+                                   accent: Paper.sageDeep,
+                                   danger: Paper.redPencil,
+                                   given: Paper.cellGiven,
+                                   placed: Paper.ink,
+                                   marked: Paper.sage,
+                                   target: Paper.sage)
+    static let medium = LevelPalette(id: "medium",
+                                     paper: Color(hex: 0xE7DDC9),
+                                     ink: Color(hex: 0x332A25),
+                                     rule: Color(hex: 0xA99B85),
+                                     accent: Color(hex: 0x87613B),
+                                     danger: Paper.redPencil,
+                                     given: Color(hex: 0xDDD0B4),
+                                     placed: Color(hex: 0x332A25),
+                                     marked: Color(hex: 0xA56B3A),
+                                     target: Color(hex: 0x785538))
+    static let boss = LevelPalette(id: "boss",
+                                   paper: Color(hex: 0xE7E1D4),
+                                   ink: Color(hex: 0x29302C),
+                                   rule: Color(hex: 0x938B7C),
+                                   accent: Color(hex: 0x65765D),
+                                   danger: Paper.redPencil,
+                                   given: Color(hex: 0xD7D5B8),
+                                   placed: Color(hex: 0x29302C),
+                                   marked: Color(hex: 0x6E825F),
+                                   target: Color(hex: 0x5A6B52))
+
+    static func forSlot(_ slot: PuzzleSlot) -> LevelPalette {
+        switch slot {
+        case .easy: return .easy
+        case .medium: return .medium
+        case .boss: return .boss
+        }
+    }
+
+    /// Lets the local screenshot harness compare the three Level treatments on
+    /// the same puzzle. It is compiled out of Release builds.
+    static func forDisplay(slot: PuzzleSlot) -> LevelPalette {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-qaPalette"), index + 1 < arguments.count {
+            switch arguments[index + 1] {
+            case "easy": return .easy
+            case "medium": return .medium
+            case "boss": return .boss
+            default: break
+            }
+        }
+        #endif
+        return forSlot(slot)
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var levelPalette: LevelPalette = .easy
 }
 
 // MARK: - Type

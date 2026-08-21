@@ -6,6 +6,7 @@ import ProbablySudokuEngine
 /// a presentation identity separate from the number it shows.
 struct HandStripView: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var handSize: Int
 
@@ -16,12 +17,12 @@ struct HandStripView: View {
                     .font(Print.caption(12))
                     .tracking(1.4)
                     .textCase(.uppercase)
-                    .foregroundStyle(model.isReadingLitmus ? Paper.sageDeep : Paper.inkSoft)
+                    .foregroundStyle(model.isReadingLitmus ? palette.accent : palette.ink.opacity(0.7))
                 Spacer()
                 if model.isReadingLitmus {
                     Image(systemName: "eyedropper.halffull")
                         .font(.system(size: 12))
-                        .foregroundStyle(Paper.sageDeep)
+                        .foregroundStyle(palette.accent)
                 }
             }
 
@@ -37,7 +38,8 @@ struct HandStripView: View {
                                 isBlocked: model.isBlocked(card.digit),
                                 arrivalOrder: card.arrivalOrder,
                                 shouldAnimateArrival: model.animatesHandArrival,
-                                theme: theme
+                                theme: theme,
+                                palette: palette
                             )
                         }
                         .buttonStyle(.plain)
@@ -65,13 +67,14 @@ private struct NumberTile: View {
     var arrivalOrder: Int
     var shouldAnimateArrival: Bool
     var theme: CosmeticTheme
+    var palette: LevelPalette
 
     @State private var hasArrived = false
 
     var body: some View {
         Text("\(digit.rawValue)")
             .font(theme.numbers.font(27, weight: .medium))
-            .foregroundStyle(isBlocked ? Paper.inkFaint : theme.numbers.ink)
+            .foregroundStyle(isBlocked ? palette.ink.opacity(0.48) : palette.placed)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background {
@@ -83,15 +86,15 @@ private struct NumberTile: View {
                 // Tossable, it just cannot be played this Turn.
                 if isBlocked {
                     Rectangle()
-                        .fill(Paper.redPencil.opacity(0.75))
+                        .fill(palette.danger.opacity(0.75))
                         .frame(height: 1.8)
                         .rotationEffect(.degrees(-14))
                 }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(isBlocked ? Paper.redPencil.opacity(0.55)
-                                            : (isSelected ? Paper.sageDeep : theme.board.hair),
+                    .strokeBorder(isBlocked ? palette.danger.opacity(0.55)
+                                            : (isSelected ? palette.accent : theme.board.hair),
                                   lineWidth: isSelected ? 2 : 1)
             }
             .animation(.snappy(duration: 0.18), value: isSelected)
@@ -117,9 +120,11 @@ private struct NumberTile: View {
 }
 
 private struct EmptySlot: View {
+    @Environment(\.levelPalette) private var palette
+
     var body: some View {
         RoundedRectangle(cornerRadius: 4)
-            .strokeBorder(Paper.rule.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            .strokeBorder(palette.rule.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .accessibilityLabel("Empty slot")

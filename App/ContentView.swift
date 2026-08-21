@@ -335,6 +335,7 @@ private struct GameView: View {
         case .puzzle:
             if let puzzle = source.puzzle {
                 PuzzlePageView(model: source, puzzle: puzzle)
+                    .environment(\.levelPalette, .forDisplay(slot: puzzle.slot))
             }
         case .results:
             ResultsPageView(model: source) { onBookCompletion(model) }
