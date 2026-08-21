@@ -115,11 +115,11 @@ struct PuzzlePageView: View {
 
     private var actionRow: some View {
         HStack(spacing: 10) {
-            PaperButton(title: "Toss",
-                        subtitle: "\(puzzle.tossesRemaining) left this puzzle",
+            PaperButton(title: model.tossButtonTitle,
+                        subtitle: model.tossButtonSubtitle,
                         kind: .quiet,
                         isEnabled: model.canToss) {
-                model.tossSelected()
+                model.toggleTossMode()
             }
 
             if puzzle.canUseClue {
