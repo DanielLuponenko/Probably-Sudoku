@@ -25,6 +25,7 @@ enum RunStore {
         guard game.run.outcome == nil else { clearRun(); return }
         guard let data = try? game.encoded() else { return }
         try? data.write(to: runURL, options: .atomic)
+        CloudSync.shared.publish(run: data)
     }
 
     static func loadRun() -> Game? {
@@ -38,6 +39,7 @@ enum RunStore {
 
     static func clearRun() {
         try? FileManager.default.removeItem(at: runURL)
+        CloudSync.shared.publish(run: nil)
     }
 
     // MARK: - What is unlocked

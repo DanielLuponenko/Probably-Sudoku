@@ -15,6 +15,11 @@ struct ProbablySudokuApp: App {
             }
             .environment(profile)
             .environment(\.cosmeticTheme, profile.theme)
+            .task {
+                CloudSync.shared.start { remote in
+                    PlayerProfileStore.shared.merge(remote: remote)
+                }
+            }
         }
     }
 }

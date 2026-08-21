@@ -15,6 +15,10 @@ targets:
     platform: iOS
     sources:
       - path: App
+    entitlements:
+      path: App/ProbablySudoku.entitlements
+      properties:
+        com.apple.developer.ubiquity-kvstore-identifier: "$(TeamIdentifierPrefix)$(CFBundleIdentifier)"
     dependencies:
       - package: ProbablySudokuEngine
     info:

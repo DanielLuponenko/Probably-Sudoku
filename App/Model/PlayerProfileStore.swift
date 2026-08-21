@@ -114,9 +114,20 @@ final class PlayerProfileStore {
         save()
     }
 
+    /// Remote profile data is merged, never blindly assigned. An unavailable,
+    /// corrupt, or newer-schema cloud value therefore leaves local play alone.
+    func merge(remote: PlayerProfile) {
+        let before = profile
+        profile.merge(remote: remote)
+        guard profile != before else { return }
+        save()
+    }
+
     private func save() {
+        profile.lastModifiedAt = Date()
         guard let data = try? JSONEncoder().encode(profile) else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
+        CloudSync.shared.publish(profile: profile)
     }
 
     // MARK: QA
