@@ -1006,6 +1006,7 @@ private struct PencilCup: View {
             let size = proxy.size
             let potHeight = size.height * 0.44
             let rim = potHeight * 0.30
+            let frontRimY = rim * 0.25
 
             ZStack(alignment: .bottom) {
                 ContactShadow(width: size.width * 1.15, depth: max(4, 14 * scale))
@@ -1044,7 +1045,7 @@ private struct PencilCup: View {
                 .frame(width: size.width, height: size.height, alignment: .bottom)
                 .clipped()
 
-                PencilCupFront(rimY: rim * 0.45, cornerRadius: potHeight * 0.28)
+                PencilCupFront(rimY: frontRimY, cornerRadius: potHeight * 0.28)
                     .fill(LinearGradient(colors: [Color(hex: 0x6C7A5A),
                                                   Color(hex: 0x44503A),
                                                   Color(hex: 0x1E241A)],
@@ -1061,11 +1062,6 @@ private struct PencilCup: View {
                             .blur(radius: max(0.5, 1.5 * scale))
                     }
 
-                PencilCupFrontEdge(rimY: rim * 0.45)
-                    .stroke(LinearGradient(colors: [.white.opacity(0.33), .black.opacity(0.44)],
-                                           startPoint: .leading, endPoint: .trailing),
-                            lineWidth: max(0.8, 1.7 * scale))
-                    .frame(height: potHeight)
             }
             // Pinned to the floor of the reader. Without this the stack sizes
             // itself to its own content and floats at the top of the frame,
@@ -1098,7 +1094,7 @@ private struct PencilCup: View {
             var path = Path()
             path.move(to: CGPoint(x: rect.minX, y: rim))
             path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
-                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.86))
+                              control: CGPoint(x: rect.midX, y: rim + rect.height * 0.075))
             path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
             path.addQuadCurve(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
                               control: CGPoint(x: rect.maxX, y: rect.maxY))
