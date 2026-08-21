@@ -91,7 +91,8 @@ struct StartBookView: View {
             ShelfBackdrop(book: book)
 
             BookShelf(books: books, index: $index, phase: phase,
-                      obstacle: $obstacle, unlockedThrough: unlockedThrough)
+                      obstacle: $obstacle, unlockedThrough: unlockedThrough,
+                      needsContinuationClearance: showsContinuationControls)
 
             // The bare wood above the Book, given something to do.
             SolvingBoxes(phase: solve)
@@ -194,6 +195,14 @@ struct StartBookView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 18)
     }
+
+    /// A resumed Book adds a second primary action below its cover. Leave a
+    /// deliberate gap so the cover's printed metadata never reads as part of
+    /// the action stack on a phone-height viewport.
+    private var showsContinuationControls: Bool {
+        guard let saved = resumable else { return false }
+        return book.isWritten && book.isUnlocked && saved.run.book == book.rule
+    }
 }
 
 /// The Books, laid along the desk and slid across it.
@@ -208,6 +217,7 @@ private struct BookShelf: View {
     var phase: Double
     @Binding var obstacle: Obstacle
     var unlockedThrough: Int
+    var needsContinuationClearance: Bool
 
     @State private var drag: CGFloat = 0
     /// The Book that has just been picked up, and how far off the desk it is.
@@ -247,9 +257,10 @@ private struct BookShelf: View {
                        - CGFloat(index) * step + drag)
             .frame(width: width, height: bookHeight)
             .frame(width: width, height: proxy.size.height)
-            // A hair above centre. Dead centre reads as low, because the
-            // controls weigh the bottom of the screen down.
-            .offset(y: -proxy.size.height * 0.022)
+            // A hair above centre. When resuming, the shelf grows a second
+            // primary action; lift the Book proportionally to preserve a
+            // readable gap between its printed metadata and those controls.
+            .offset(y: -proxy.size.height * (needsContinuationClearance ? 0.08 : 0.022))
             .contentShape(Rectangle())
             .gesture(
                 DragGesture()
