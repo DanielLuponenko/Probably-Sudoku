@@ -66,6 +66,10 @@ public struct Game: Sendable {
     public mutating func reroll() throws {
         try Shop.reroll(&run)
     }
+    @discardableResult
+    public mutating func sell(kind: ItemKind, index: Int) throws -> Int {
+        try Shop.sell(&run, kind: kind, index: index)
+    }
     public mutating func claimSquare(markerIndex: Int, square: Square) throws {
         try Shop.claimSquare(&run, markerIndex: markerIndex, square: square)
     }
