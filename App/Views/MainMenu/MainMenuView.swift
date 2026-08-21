@@ -276,7 +276,9 @@ struct MainMenuView: View {
     private func startRoomClock() {
         guard allowsAmbientMotion, !leaving else { return }
         roomPhase = 0
-        withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
+        // A full, restrained swing every twelve seconds reads as a hanging
+        // lamp, while still being slow enough not to distract from Play.
+        withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
             roomPhase = 1
         }
     }
