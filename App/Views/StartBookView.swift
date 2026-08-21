@@ -17,7 +17,7 @@ struct StartBookView: View {
 
     /// A Book left part-finished. Continuing it is the first thing offered,
     /// because it is almost always what the player came back for.
-    private let resumable = RunStore.loadRun()
+    private let resumable = RunStore.displayedRun()
 
     @State private var index = StartBookView.debugIndex()
     /// One clock for the whole desk, so nothing moves against anything else.
