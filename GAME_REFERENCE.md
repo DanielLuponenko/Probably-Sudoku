@@ -13,5 +13,5 @@ Nothing carries between Books except the persistent sequential unlock.
 | 3 — No Pressure, Obviously | 38 / 32 / 26 | 1.25× | 5 |
 | 4 — This One Bites | 35 / 29 / 23 | 1.50× | 3 |
 
-Book 2 is the first published step of this ladder. Books 3 and 4 are specified
-here but remain locked until their dedicated implementation tickets land.
+Books 2 and 3 are published. Book 4 remains locked until its dedicated
+implementation ticket lands.

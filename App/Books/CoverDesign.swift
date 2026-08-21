@@ -84,6 +84,23 @@ struct CoverDesign {
         isBare: false
     )
 
+    static let noPressure = CoverDesign(
+        titleLines: ["No Pressure,"],
+        flourish: "Obviously",
+        banner: "A Sudoku Book",
+        strapline: "Editorial Puzzles",
+        volume: "Volume 3",
+        imprint: "The Number Club",
+        stock: Color(hex: 0xE7EDF1), ink: Color(hex: 0x263747),
+        accent: Color(hex: 0x3E779F), secondAccent: Color(hex: 0xB34D4A),
+        cloth: Color(hex: 0x385E79),
+        notes: [
+            Note(lines: ["Evidence", "first."], colour: Color(hex: 0xEFD694), corner: .fore, tilt: 1),
+            Note(lines: ["This row", "requires", "editing."], colour: Color(hex: 0xD0E1E5), corner: .headLeft, tilt: -4),
+            Note(lines: ["No", "speculation", "please."], colour: Color(hex: 0xF1C8BE), corner: .underTheFlourish, tilt: 3, ticked: true),
+        ], isBare: false
+    )
+
     static func unwritten(title: String, volume: Int, accent: Color) -> CoverDesign {
         CoverDesign(
             titleLines: title.split(separator: " ").map(String.init),
