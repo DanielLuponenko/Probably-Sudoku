@@ -5,6 +5,10 @@ import Foundation
 /// transport layer: choosing between two live Books belongs to KAN-61.
 final class CloudSync {
     static let shared = CloudSync()
+    /// Posted on the main queue after iCloud has supplied (or refreshed) its
+    /// key-value snapshot. Views can re-read their local/remote presentation
+    /// state without making launch wait for the network.
+    static let didReceiveExternalChange = Notification.Name("CloudSync.didReceiveExternalChange")
 
     private enum Key {
         static let profile = "sync.profile.v1"
@@ -34,11 +38,11 @@ final class CloudSync {
                 object: store,
                 queue: .main
             ) { [weak self] _ in
-                self?.deliverRemoteProfile()
+                self?.receiveExternalChange()
             }
         }
         store.synchronize()
-        deliverRemoteProfile()
+        receiveExternalChange()
     }
 
     func publish(profile: PlayerProfile) {
@@ -72,6 +76,11 @@ final class CloudSync {
     private func deliverRemoteProfile() {
         guard let remote: PlayerProfile = read(key: Key.profile) else { return }
         profileReceiver?(remote)
+    }
+
+    private func receiveExternalChange() {
+        deliverRemoteProfile()
+        NotificationCenter.default.post(name: Self.didReceiveExternalChange, object: self)
     }
 
     private func read<T: Decodable>(key: String) -> T? {

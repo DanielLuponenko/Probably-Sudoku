@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import ProbablySudokuEngine
 
@@ -27,11 +28,15 @@ struct StartBookView: View {
         self.onBack = onBack
         self.initialIndex = initialIndex ?? Self.debugIndex()
         _index = State(initialValue: self.initialIndex)
+        _resumable = State(initialValue: RunStore.displayedRun())
     }
 
     /// A Book left part-finished. Continuing it is the first thing offered,
     /// because it is almost always what the player came back for.
-    private let resumable = RunStore.displayedRun()
+    /// iCloud arrives asynchronously, so this must be state rather than a
+    /// construction-time snapshot. CloudSync tells us when to refresh it;
+    /// `RunStore` remains the sole authority for whether it is local or remote.
+    @State private var resumable: Game?
 
     @State private var index: Int
     /// One clock for the whole desk, so nothing moves against anything else.
@@ -127,6 +132,9 @@ struct StartBookView: View {
             withAnimation(.linear(duration: 63).repeatForever(autoreverses: false)) {
                 solve = 9
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: CloudSync.didReceiveExternalChange)) { _ in
+            resumable = RunStore.displayedRun()
         }
     }
 
