@@ -12,6 +12,7 @@ struct ContentView: View {
     /// two never show a hard cut between them.
     @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
@@ -53,27 +54,47 @@ struct ContentView: View {
         ZStack {
             if let model, !model.wantsMenu {
                 GameView(model: model, reduceMotion: reduceMotion)
-            } else if let book = opening, let url = openingClip(for: book) {
-                BookOpening(url: url, poster: book.cover, reduceMotion: reduceMotion) {
+            } else if let book = opening {
+                LiveBookOpening(edition: book, reduceMotion: reduceMotion) {
                     begin(book)
                 }
             } else {
-                StartBookView { book, obstacle in
-                    chosenObstacle = obstacle
-                    RunStore.clearRun()
-                    if openingClip(for: book) == nil {
-                        begin(book)          // no clip: straight in
-                    } else {
-                        opening = book
+                switch frontDoor {
+                case .mainMenu:
+                    MainMenuView(
+                        onPlay: {
+                            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+                        },
+                        onShop: {
+                            withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .cosmeticShop }
+                        }
+                    )
+                    .transition(.opacity)
+
+                case .bookShelf:
+                    StartBookView(
+                        onStart: { book, obstacle in
+                            chosenObstacle = obstacle
+                            RunStore.clearRun()
+                            opening = book
+                        },
+                        onContinue: {
+                            if let saved = RunStore.loadRun() {
+                                model = GameModel(resuming: saved)
+                            }
+                        },
+                        onBack: {
+                            withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
+                        }
+                    )
+                    .transition(.opacity)
+
+                case .cosmeticShop:
+                    ClubShopView {
+                        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                     }
-                } onContinue: {
-                    // Straight back to the page you were on: the Book is
-                    // already open, so opening it again would be a lie.
-                    if let saved = RunStore.loadRun() {
-                        model = GameModel(resuming: saved)
-                    }
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
 
             // Paper, held opaque across the swap and then lifted off the board.
@@ -82,11 +103,6 @@ struct ContentView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
         }
-    }
-
-    private func openingClip(for book: BookEdition) -> URL? {
-        guard let opening = book.opening else { return nil }
-        return Bundle.main.url(forResource: opening, withExtension: "mp4")
     }
 
     /// Deals the first Puzzle behind the veil, then lifts it.

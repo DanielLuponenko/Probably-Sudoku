@@ -104,10 +104,22 @@ private struct PageCurlEffect: ViewModifier, Animatable {
 }
 
 enum Haptics {
+    static func prepare() {}
+
+    static func menuPress() { impact(.medium, 0.55) }
+    static func menuOpen() { impact(.light, 0.45) }
+    static func lift() { impact(.soft, 0.5) }
+
     /// The soft thump of a sheet landing.
     static func pageTurn() {
+        impact(.soft, 0.7)
+    }
+
+    private static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle,
+                               _ intensity: CGFloat) {
+        guard AppPreferences.hapticsEnabled else { return }
         #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.7)
+        UIImpactFeedbackGenerator(style: style).impactOccurred(intensity: intensity)
         #endif
     }
 }

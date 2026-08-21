@@ -15,12 +15,6 @@ struct BookEdition: Identifiable, Equatable {
     /// two woods leave a seam and cutting the Book out fragments its index
     /// tabs. Nil while a Book is unwritten.
     let cover: String?
-    /// Bundle resource for the cover's loop, when one has been made. The still
-    /// stays underneath it either way, so a Book without a loop is not a Book
-    /// missing something.
-    let loop: String?
-    /// Bundle resource for the Book opening, played once when it is opened.
-    let opening: String?
     /// The Book's own colour, used for its spine and its accents.
     let accent: Color
     /// §3 — what this Book gives you for the whole run. The board is not a
@@ -28,6 +22,11 @@ struct BookEdition: Identifiable, Equatable {
     let bonus: StartingBoard
 
     var bonusText: String { bonus.text }
+    var design: CoverDesign {
+        if id == Self.first.id { return .probably }
+        let volume = Int(shelfLabel.replacingOccurrences(of: "Volume ", with: "")) ?? 1
+        return .unwritten(title: title, volume: volume, accent: accent)
+    }
     /// §2 leaves the ladder of harder Books undecided, so the rest are shelved
     /// rather than pretended into existence.
     var isWritten: Bool { cover != nil }
@@ -43,10 +42,6 @@ struct BookEdition: Identifiable, Equatable {
         shelfLabel: "Volume 1",
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
         cover: "SceneProbably",
-        // Shot from the same phone-format scene as the still, so it overlays
-        // it exactly rather than sitting on it as a rectangle.
-        loop: "probably-loop",
-        opening: "probably-open",
         accent: Color(hex: 0x7C8C73),
         // A relaxed Book hands you more to work with.
         bonus: .scholar,
@@ -75,8 +70,6 @@ struct BookEdition: Identifiable, Equatable {
             shelfLabel: "Volume \(volume)",
             blurb: "Not written yet.",
             cover: nil,
-            loop: nil,
-            opening: nil,
             accent: accent,
             bonus: bonus,
             marginalia: []

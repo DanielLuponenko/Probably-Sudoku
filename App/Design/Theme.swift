@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The whole game is one physical object: a sudoku book lying open on a desk.
 /// Every colour here is a real material — stained wood, cream paper, printing
@@ -105,6 +106,16 @@ enum Print {
     static func handwritten(_ size: CGFloat) -> Font { .custom("Bradley Hand", size: size) }
 }
 
+extension Print {
+    static func clubTitle(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .black, design: .serif).width(.condensed)
+    }
+
+    static func menuAction(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .heavy).width(.condensed)
+    }
+}
+
 extension View {
     /// Uppercase, heavy, tightly tracked — the mockups' section headings.
     func pageHeading(_ size: CGFloat = 34) -> some View {
@@ -166,6 +177,17 @@ struct PaperGrain: View {
 // MARK: - Colour helper
 
 extension Color {
+    /// `Color.mix(with:by:)` is newer than the app's iOS 17 target.
+    func mixed(with other: Color, by amount: Double) -> Color {
+        let t = min(max(amount, 0), 1)
+        let a = UIColor(self).rgba, b = UIColor(other).rgba
+        return Color(.sRGB,
+                     red: a.r + (b.r - a.r) * t,
+                     green: a.g + (b.g - a.g) * t,
+                     blue: a.b + (b.b - a.b) * t,
+                     opacity: a.a + (b.a - a.a) * t)
+    }
+
     init(hex: UInt32) {
         self.init(
             .sRGB,
@@ -174,5 +196,13 @@ extension Color {
             blue: Double(hex & 0xFF) / 255,
             opacity: 1
         )
+    }
+}
+
+private extension UIColor {
+    var rgba: (r: Double, g: Double, b: Double, a: Double) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Double(r), Double(g), Double(b), Double(a))
     }
 }
