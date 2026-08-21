@@ -51,6 +51,8 @@ public struct RunState: Codable, Sendable {
     public var bookmarks: [OwnedBookmark] = []
     public var markers: [OwnedMarker] = []
     public var buffs: [OwnedBuff] = []
+    /// Expensive Book-wide upgrades. Deliberately separate from held slots.
+    public var subscriptions: [OwnedSubscription] = []
 
     /// Run-scoped scaling state, e.g. Syndication's accumulated wins. Reset
     /// only at a new Book.
@@ -70,10 +72,37 @@ public struct RunState: Codable, Sendable {
         self.coins = startingBoard == .merchant ? 15 : Baseline.coins
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case seed, streams, startingBoard, obstacle, level, slot, coins
+        case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, outcome
+    }
+
+    /// Subscriptions arrived after saved Books existed. Decode their absence as
+    /// an empty collection so a new app never discards an otherwise valid run.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        seed = try c.decode(String.self, forKey: .seed)
+        streams = try c.decode(SeedStreams.self, forKey: .streams)
+        startingBoard = try c.decode(StartingBoard.self, forKey: .startingBoard)
+        obstacle = try c.decodeIfPresent(Obstacle.self, forKey: .obstacle) ?? .none
+        level = try c.decode(Int.self, forKey: .level)
+        slot = try c.decode(PuzzleSlot.self, forKey: .slot)
+        coins = try c.decode(Int.self, forKey: .coins)
+        bookmarks = try c.decodeIfPresent([OwnedBookmark].self, forKey: .bookmarks) ?? []
+        markers = try c.decodeIfPresent([OwnedMarker].self, forKey: .markers) ?? []
+        buffs = try c.decodeIfPresent([OwnedBuff].self, forKey: .buffs) ?? []
+        subscriptions = try c.decodeIfPresent([OwnedSubscription].self, forKey: .subscriptions) ?? []
+        runItemState = try c.decodeIfPresent([String: Double].self, forKey: .runItemState) ?? [:]
+        puzzle = try c.decodeIfPresent(PuzzleState.self, forKey: .puzzle)
+        shop = try c.decodeIfPresent(ShopState.self, forKey: .shop)
+        outcome = try c.decodeIfPresent(RunOutcome.self, forKey: .outcome)
+    }
+
     // MARK: - Ownership queries
 
     public func owns(bookmark id: String) -> Bool { bookmarks.contains { $0.defID == id } }
     public func owns(marker id: String) -> Bool { markers.contains { $0.defID == id } }
+    public func owns(subscription id: String) -> Bool { subscriptions.contains { $0.defID == id } }
 
     /// Markers whose squares include `square` — what a placement there triggers.
     public func markers(covering square: Square) -> [OwnedMarker] {
@@ -99,6 +128,7 @@ public struct RunState: Codable, Sendable {
         var size = Baseline.handSize
         if startingBoard == .scholar { size += 1 }
         if owns(bookmark: Bookmarks.helpWanted) { size += 1 }
+        if owns(subscription: Subscriptions.homeDelivery) { size += 1 }
         size += boss?.handSizeDelta ?? 0
         size += obstacle.handSizeDelta
         return max(1, size)
@@ -109,6 +139,7 @@ public struct RunState: Codable, Sendable {
     public func effectiveTurns(boss: BossModifier?) -> Int {
         var turns = boss?.turnsOverride ?? Baseline.turns
         if owns(bookmark: Bookmarks.lateCityFinal) { turns += 1 }
+        if owns(subscription: Subscriptions.weekendEdition) { turns += 1 }
         return max(1, turns)
     }
 
@@ -123,12 +154,19 @@ public struct RunState: Codable, Sendable {
     /// Per Puzzle. The Erratum removes it entirely; Weather Forecast adds two.
     public func effectiveTossAllowance(boss: BossModifier?) -> Int {
         if boss?.forcesTossAllowanceToZero == true { return 0 }
-        return Baseline.tossAllowance + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
+        return Baseline.tossAllowance
+            + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
+            + (owns(subscription: Subscriptions.wireService) ? 2 : 0)
     }
 
     public var interestCap: Int {
         let bookmarkCap = owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
-        return bookmarkCap + Int(runItemState["clipping.circulation"] ?? 0)
+        let subscriptionCap = owns(subscription: Subscriptions.annualRate) ? 20 : bookmarkCap
+        return subscriptionCap + Int(runItemState["clipping.circulation"] ?? 0)
+    }
+
+    public var markerCapacity: Int {
+        ItemKind.marker.capacity + (owns(subscription: Subscriptions.overseasEdition) ? 1 : 0)
     }
 
     /// The offer is pure from the Book seed and position. It can therefore be

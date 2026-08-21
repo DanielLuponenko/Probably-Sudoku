@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ItemKind: String, Codable, CaseIterable, Sendable {
-    case bookmark, marker, buff
+    case bookmark, marker, buff, subscription
 
     /// §9 — slot capacity per kind.
     public var capacity: Int {
@@ -9,6 +9,7 @@ public enum ItemKind: String, Codable, CaseIterable, Sendable {
         case .bookmark: return 5
         case .marker: return 3
         case .buff: return 2
+        case .subscription: return .max
         }
     }
 }
@@ -143,7 +144,7 @@ public struct ItemDef: Sendable {
 }
 
 public enum Catalog {
-    public static let all: [ItemDef] = Bookmarks.all + Markers.all + Buffs.all
+    public static let all: [ItemDef] = Bookmarks.all + Markers.all + Buffs.all + Subscriptions.all
     private static let byID: [String: ItemDef] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
 
     public static func item(_ id: String) -> ItemDef? { byID[id] }

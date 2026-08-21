@@ -42,6 +42,11 @@ struct QAPanel: View {
                             model.qaSetBuff(item.id)
                         }
                     }
+                    NavigationLink("Choose Subscription") {
+                        QAItemPicker(title: "Subscriptions", items: Catalog.items(of: .subscription)) { item in
+                            model.qaSetSubscription(item.id)
+                        }
+                    }
                     NavigationLink("Force Boss") {
                         List(BossModifier.allCases, id: \.rawValue) { boss in
                             Button(boss.name) { model.qaSetBoss(boss) }

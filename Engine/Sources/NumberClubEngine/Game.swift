@@ -177,6 +177,12 @@ public extension Game {
         run.buffs = [OwnedBuff(defID: defID, pricePaid: 0)]
     }
 
+    mutating func qaSetSubscription(_ defID: String) {
+        guard Catalog.item(defID)?.kind == .subscription else { return }
+        run.subscriptions = [OwnedSubscription(defID: defID, pricePaid: 0)]
+        qaRefreshActivePuzzleLimits()
+    }
+
     /// Applies a selected Boss to the current Puzzle, including its standing
     /// limits, while preserving the board's number-conservation invariant.
     mutating func qaSetBoss(_ boss: BossModifier) {
