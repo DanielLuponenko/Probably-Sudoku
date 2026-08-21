@@ -268,6 +268,14 @@ final class GameModel {
     }
     var markersAreHidden: Bool { puzzle?.boss?.hidesMarkedSquares == true }
     var sleepingBookmark: Int? { puzzle?.disabledBookmark }
+    /// Kept separate from the generic barred set so a Boss board can print
+    /// Over Pusher's wet ink differently from either of the Garrys' greyed
+    /// units without learning any game rules itself.
+    var fouledSquares: Set<Square> {
+        guard let fouled = puzzle?.bossTurn?.fouled else { return [] }
+        return Set(fouled.keys)
+    }
+    var greyedSquares: Set<Square> { puzzle?.bossTurn?.greyed ?? [] }
     func isBarred(_ square: Square) -> Bool { puzzle?.isBarred(square) ?? false }
 
     var selectedDigit: Digit? {

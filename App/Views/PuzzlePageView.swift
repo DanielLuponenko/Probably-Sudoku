@@ -219,20 +219,22 @@ struct BossStamp: View {
     var boss: BossModifier
     var censored: Digit?
 
+    private var design: BossBoardDesign { BossBoardDesign(boss: boss) }
+
     var body: some View {
         HStack(spacing: 7) {
-            Text(boss.name)
+            Label(boss.name, systemImage: design.symbol)
                 .font(Print.caption(11))
                 .tracking(1.4)
                 .textCase(.uppercase)
-                .foregroundStyle(Paper.redPencil)
+                .foregroundStyle(design.ink)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .overlay {
                     RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(Paper.redPencil.opacity(0.7), lineWidth: 1.4)
+                        .strokeBorder(design.ink.opacity(0.7), lineWidth: 1.4)
                 }
-                .rotationEffect(.degrees(-1.5))
+                .rotationEffect(.degrees(design.angle))
 
             Text(censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text)
                 .font(Print.body(11.5))

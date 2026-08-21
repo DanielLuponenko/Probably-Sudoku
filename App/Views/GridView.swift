@@ -14,6 +14,9 @@ struct GridView: View {
             let cell = side / 9
 
             ZStack(alignment: .topLeading) {
+                BossBoardUnderprint(boss: model.puzzle?.boss,
+                                    fouled: model.fouledSquares,
+                                    greyed: model.greyedSquares)
                 cells(cell: cell)
                 rules(side: side, cell: cell)
                 clears(side: side, cell: cell)
@@ -27,7 +30,10 @@ struct GridView: View {
     // MARK: Cells
 
     private func cells(cell: CGFloat) -> some View {
-        ForEach(Square.all, id: \.index) { square in
+        let fouledSquares = model.fouledSquares
+        let greyedSquares = model.greyedSquares
+
+        return ForEach(Square.all, id: \.index) { square in
             let digit = board[square]
             let provenance = board.filledBy[square.index]
             let cellState = state(for: square)
@@ -41,6 +47,8 @@ struct GridView: View {
                     provenance: provenance,
                     state: cellState,
                     marker: marker,
+                    fouled: fouledSquares.contains(square),
+                    greyed: greyedSquares.contains(square),
                     theme: theme,
                     size: cell
                 )
@@ -221,6 +229,8 @@ private struct CellView: View {
     var provenance: Provenance?
     var state: CellState
     var marker: OwnedMarker?
+    var fouled: Bool
+    var greyed: Bool
     var theme: CosmeticTheme
     var size: CGFloat
 
@@ -246,6 +256,25 @@ private struct CellView: View {
                 Hatching()
                     .stroke(Paper.ink.opacity(0.30), lineWidth: 1)
                     .clipShape(Rectangle())
+            }
+
+            if fouled {
+                // Over Pusher's restriction is wet black ink, rather than the
+                // printing fault used by the Garrys. The shape is inset so a
+                // barred square remains readable as a square.
+                Circle()
+                    .fill(Paper.ink.opacity(0.18))
+                    .frame(width: size * 0.72, height: size * 0.46)
+                    .rotationEffect(.degrees(-17))
+            }
+
+            if greyed {
+                Rectangle()
+                    .fill(Paper.ink.opacity(0.09))
+                    .overlay {
+                        Rectangle()
+                            .strokeBorder(Paper.ink.opacity(0.24), lineWidth: 1)
+                    }
             }
 
             if let digit {

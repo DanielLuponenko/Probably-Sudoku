@@ -293,6 +293,13 @@ private struct GameView: View {
                     return
                 }
                 let arguments = ProcessInfo.processInfo.arguments
+                if let index = arguments.firstIndex(of: "-qaBoss"), index + 1 < arguments.count,
+                   let boss = BossModifier(rawValue: arguments[index + 1]) {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
+                    model.qaSetBoss(boss)
+                    return
+                }
                 if let index = arguments.firstIndex(of: "-failBookAtLevel"), index + 1 < arguments.count,
                    let level = Int(arguments[index + 1]) {
                     try? await Task.sleep(for: .milliseconds(400))
