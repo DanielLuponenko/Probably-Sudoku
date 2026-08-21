@@ -854,9 +854,13 @@ struct PothosSpray: View {
             for leaf in placed {
                 let midX: Double = (Double(origin.x) + Double(leaf.base.x)) / 2 + leaf.bend
                 let midY: Double = (Double(origin.y) + Double(leaf.base.y)) / 2
+                let attachment = CGPoint(
+                    x: leaf.base.x + cos(leaf.angle) * leaf.size * 0.18,
+                    y: leaf.base.y + sin(leaf.angle) * leaf.size * 0.18
+                )
                 var stem = Path()
                 stem.move(to: origin)
-                stem.addQuadCurve(to: leaf.base, control: CGPoint(x: midX, y: midY))
+                stem.addQuadCurve(to: attachment, control: CGPoint(x: midX, y: midY))
                 context.stroke(stem, with: .color(ClubRoomMaterial.leafDeep.opacity(0.9)),
                                lineWidth: 1.0 + leaf.size * 0.012)
             }
