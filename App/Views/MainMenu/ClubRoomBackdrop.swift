@@ -1132,11 +1132,13 @@ private struct Pencil: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let eraser = size.height * 0.10
-            let ferrule = size.height * 0.09
+            // A pencil eraser is a short cap, not a second rounded body.
+            let eraser = size.height * 0.052
+            let ferrule = size.height * 0.072
 
             VStack(spacing: 0) {
-                Capsule(style: .continuous)
+                RoundedRectangle(cornerRadius: min(size.width * 0.18, eraser * 0.30),
+                                 style: .continuous)
                     .fill(LinearGradient(colors: [Color(hex: 0xC58081), Color(hex: 0x9A4D59)],
                                          startPoint: .leading, endPoint: .trailing))
                     .frame(height: eraser)
