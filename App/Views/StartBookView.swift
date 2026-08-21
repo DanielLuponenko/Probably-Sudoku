@@ -44,7 +44,6 @@ struct StartBookView: View {
     /// A slower one, counted in whole turns, for the boxes at the head of the
     /// desk: each turn is one of them solving itself.
     @State private var solve: Double = 0
-    @State private var showingHelp = false
 
     /// `-shelfPage 5` opens on that page of the shelf.
     private static func debugIndex() -> Int {
@@ -113,12 +112,6 @@ struct StartBookView: View {
         .background(Paper.deskDark)
         .preferredColorScheme(.dark)
         .statusBarHidden()
-        .overlay {
-            if showingHelp {
-                HelpSlip { withAnimation(.snappy(duration: 0.2)) { showingHelp = false } }
-            }
-        }
-        .animation(.snappy(duration: 0.22), value: showingHelp)
         .onAppear {
             guard !reduceMotion else { return }
             // Linear, and never reversed: everything takes its movement from
@@ -196,9 +189,6 @@ struct StartBookView: View {
                             kind: .quiet, isEnabled: false) {}
             }
 
-            PaperButton(title: "How to play", kind: .quiet) {
-                withAnimation(.snappy(duration: 0.2)) { showingHelp = true }
-            }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 18)
