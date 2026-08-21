@@ -1178,22 +1178,37 @@ private struct Succulent: View {
         GeometryReader { proxy in
             let size = proxy.size
             let potHeight = size.height * 0.46
+            let rim = potHeight * 0.25
 
             ZStack(alignment: .bottom) {
                 ContactShadow(width: size.width * 1.1, depth: max(4, 12 * scale))
                     .offset(y: max(1, 3 * scale))
 
+                // Back of the planter and its dark soil cavity.  The plant is
+                // drawn next, then the near wall hides its root below the rim.
+                PlantPotBody(cornerRadius: potHeight * 0.22)
+                    .fill(LinearGradient(colors: [ClubRoomMaterial.stoneware
+                                                    .mixed(with: .white, by: 0.18),
+                                                  ClubRoomMaterial.stoneware,
+                                                  ClubRoomMaterial.stoneware
+                                                    .mixed(with: .black, by: 0.55)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(height: potHeight)
+                    .shadow(color: .black.opacity(0.5), radius: max(2, 6 * scale),
+                            x: max(1, 2 * scale), y: max(1, 3 * scale))
+
+                Ellipse()
+                    .fill(RadialGradient(colors: [Color(hex: 0x17120D), Color(hex: 0x38291A)],
+                                         center: .init(x: 0.5, y: 0.78),
+                                         startRadius: 0, endRadius: rim))
+                    .frame(height: rim)
+                    .offset(y: -potHeight + rim * 0.95)
+
                 DeskPlant()
                     .frame(width: size.width * 0.62, height: size.height * 0.62)
-                    // The plant's root extends below the rim and is covered by
-                    // the soil overlay, so there is no daylight gap above pot.
                     .offset(x: size.width * 0.01, y: -potHeight * 0.80)
 
-                // A pot of unglazed stoneware, speckled.
-                UnevenRoundedRectangle(topLeadingRadius: 2 * scale,
-                                       bottomLeadingRadius: potHeight * 0.22,
-                                       bottomTrailingRadius: potHeight * 0.22,
-                                       topTrailingRadius: 2 * scale)
+                PlantPotFront(rimY: rim * 0.45, cornerRadius: potHeight * 0.22)
                     .fill(LinearGradient(colors: [ClubRoomMaterial.stoneware
                                                     .mixed(with: .white, by: 0.18),
                                                   ClubRoomMaterial.stoneware,
@@ -1202,19 +1217,16 @@ private struct Succulent: View {
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                     .overlay {
                         PaperGrain(opacity: 0.14, seed: 22)
-                            .clipShape(RoundedRectangle(cornerRadius: potHeight * 0.22))
-                    }
-                    .overlay(alignment: .top) {
-                        // The soil, in the shade of its own rim.
-                        Ellipse()
-                            .fill(Color(hex: 0x241C13))
-                            .frame(height: max(3, 10 * scale))
-                            .padding(.horizontal, max(1, 4 * scale))
-                            .offset(y: -max(1.5, 5 * scale))
+                            .clipShape(PlantPotFront(rimY: rim * 0.45,
+                                                     cornerRadius: potHeight * 0.22))
                     }
                     .frame(height: potHeight)
-                    .shadow(color: .black.opacity(0.5), radius: max(2, 6 * scale),
-                            x: max(1, 2 * scale), y: max(1, 3 * scale))
+
+                PlantPotFrontEdge(rimY: rim * 0.45)
+                    .stroke(LinearGradient(colors: [.white.opacity(0.44), .black.opacity(0.28)],
+                                           startPoint: .leading, endPoint: .trailing),
+                            lineWidth: max(0.7, 1.5 * scale))
+                    .frame(height: potHeight)
             }
             .frame(width: size.width, height: size.height, alignment: .bottom)
         }
@@ -1275,8 +1287,76 @@ private struct Succulent: View {
                         layer.stroke(vein, with: .color(.black.opacity(0.18)), lineWidth: 0.5)
                     }
                 }
+
+                let flowerCenter = CGPoint(x: crown.x + size.width * 0.015,
+                                           y: crown.y - size.height * 0.030)
+                let petalLength = size.width * 0.095
+                for index in 0..<5 {
+                    context.drawLayer { layer in
+                        layer.translateBy(x: flowerCenter.x, y: flowerCenter.y)
+                        layer.rotate(by: .degrees(Double(index) * 72))
+                        let petalRect = CGRect(x: -petalLength * 0.22, y: -petalLength,
+                                               width: petalLength * 0.44, height: petalLength * 0.76)
+                        let petal = Path(ellipseIn: petalRect)
+                        layer.fill(petal, with: .color(Color(hex: 0xD89277)))
+                        layer.stroke(petal, with: .color(.black.opacity(0.22)), lineWidth: 0.45)
+                    }
+                }
+                let flowerCore = Path(ellipseIn: CGRect(x: flowerCenter.x - petalLength * 0.20,
+                                                        y: flowerCenter.y - petalLength * 0.20,
+                                                        width: petalLength * 0.40,
+                                                        height: petalLength * 0.40))
+                context.fill(flowerCore, with: .color(Color(hex: 0xD7B45B)))
+                context.stroke(flowerCore, with: .color(.black.opacity(0.25)), lineWidth: 0.45)
             }
             .allowsHitTesting(false)
+        }
+    }
+
+    private struct PlantPotBody: Shape {
+        var cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            UnevenRoundedRectangle(topLeadingRadius: cornerRadius * 0.12,
+                                   bottomLeadingRadius: cornerRadius,
+                                   bottomTrailingRadius: cornerRadius,
+                                   topTrailingRadius: cornerRadius * 0.12)
+                .path(in: rect)
+        }
+    }
+
+    private struct PlantPotFront: Shape {
+        var rimY: CGFloat
+        var cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            let rim = rect.minY + rimY
+            let bottom = rect.maxY - cornerRadius
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rim))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
+                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.88))
+            path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
+                              control: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
+            path.addQuadCurve(to: CGPoint(x: rect.minX, y: bottom),
+                              control: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+            return path
+        }
+    }
+
+    private struct PlantPotFrontEdge: Shape {
+        var rimY: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            let rim = rect.minY + rimY
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rim))
+            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
+                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.88))
+            return path
         }
     }
 }
