@@ -32,6 +32,7 @@ struct BookEdition: Identifiable, Equatable {
         case .probably: return .probably
         case .slightlyHarder: return .slightlyHarder
         case .noPressure: return .noPressure
+        case .bites: return .bites
         }
     }
     /// A written Book can be opened; a future volume stays visibly shelved.
@@ -88,11 +89,21 @@ struct BookEdition: Identifiable, Equatable {
         marginalia: thirdBookLines
     )
 
+    static let fourth = BookEdition(
+        id: "bites",
+        rule: .bites,
+        title: "This One Bites",
+        shelfLabel: "Volume 4",
+        blurb: "Cold puzzles. The board does not care.",
+        cover: "SceneBites",
+        accent: Color(hex: 0xB4544A),
+        bonus: .scholar,
+        marginalia: fourthBookLines
+    )
+
     /// The remaining unwritten volumes still show their place in the ladder,
     /// but do not claim rules or voices that belong to their own tickets.
     static let unwritten: [BookEdition] = [
-        unwritten(id: "bites", title: "This One Bites",
-                  volume: 4, accent: Color(hex: 0xB4544A), bonus: .merchant),
         unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
                   volume: 5, accent: Color(hex: 0x8E7BA8), bonus: .oracle),
     ]
@@ -112,11 +123,25 @@ struct BookEdition: Identifiable, Equatable {
         )
     }
 
-    static let shelf: [BookEdition] = [first, second, third] + unwritten
+    static let shelf: [BookEdition] = [first, second, third, fourth] + unwritten
 
     static func edition(for book: Book) -> BookEdition {
         shelf.first { $0.rule == book && $0.isWritten } ?? first
     }
+}
+
+private let fourthBookLines: [String] = (1...100).map { note in
+    let openings = [
+        "", "Still, ", "Again, ", "Plainly, ", "Naturally, ",
+        "Predictably, ", "Unfortunately, ", "Of course, ", "Quietly, ", "Finally, "
+    ]
+    let observations = [
+        "The row remains incomplete.", "That candidate is wrong.", "The column has no sympathy.",
+        "There is one legal square.", "The board has not changed its mind.",
+        "A guess is still a guess.", "The box rejects that number.", "Continue.",
+        "The solution is indifferent to effort.", "Find the constraint."
+    ]
+    return "\(openings[(note - 1) / 10])\(observations[(note - 1) % 10])"
 }
 
 private let thirdBookLines: [String] = (1...100).map { note in

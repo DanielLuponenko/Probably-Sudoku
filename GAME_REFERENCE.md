@@ -13,5 +13,4 @@ Nothing carries between Books except the persistent sequential unlock.
 | 3 — No Pressure, Obviously | 38 / 32 / 26 | 1.25× | 5 |
 | 4 — This One Bites | 35 / 29 / 23 | 1.50× | 3 |
 
-Books 2 and 3 are published. Book 4 remains locked until its dedicated
-implementation ticket lands.
+Books 2, 3, and 4 are published. The Volume 5 shelf marker remains unwritten.

@@ -101,6 +101,18 @@ struct CoverDesign {
         ], isBare: false
     )
 
+    static let bites = CoverDesign(
+        titleLines: ["This One"], flourish: "Bites", banner: "A Sudoku Book",
+        strapline: "Cold Puzzles", volume: "Volume 4", imprint: "The Number Club",
+        stock: Color(hex: 0xE7DFDE), ink: Color(hex: 0x352323),
+        accent: Color(hex: 0x9E3F3C), secondAccent: Color(hex: 0x565B72), cloth: Color(hex: 0x642D2C),
+        notes: [
+            Note(lines: ["No", "mercy."], colour: Color(hex: 0xD8C4C2), corner: .fore, tilt: 0),
+            Note(lines: ["It was", "not", "complicated."], colour: Color(hex: 0xC7CBD7), corner: .headLeft, tilt: 2),
+            Note(lines: ["Check", "again."], colour: Color(hex: 0xE5C7A6), corner: .underTheFlourish, tilt: -2, ticked: true),
+        ], isBare: false
+    )
+
     static func unwritten(title: String, volume: Int, accent: Color) -> CoverDesign {
         CoverDesign(
             titleLines: title.split(separator: " ").map(String.init),
