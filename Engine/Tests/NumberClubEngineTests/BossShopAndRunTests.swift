@@ -390,6 +390,33 @@ final class ShopTests: XCTestCase {
         XCTAssertEqual(RunState.sellValue(pricePaid: 1), 1)
         XCTAssertEqual(RunState.sellValue(pricePaid: 0), 1)
     }
+
+    func testSellingBookmarksAndBuffsRefundsAndFreesTheirSlots() throws {
+        var game = Game(seed: "sell", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.bookmarks.append(OwnedBookmark(defID: "bm_op_ed", boughtAtLevel: 1, pricePaid: 7))
+        game.run.buffs.append(OwnedBuff(defID: Buffs.peek, pricePaid: 3))
+        let coins = game.run.coins
+
+        XCTAssertEqual(try game.sell(kind: .bookmark, index: 0), 3)
+        XCTAssertEqual(try game.sell(kind: .buff, index: 0), 1)
+        XCTAssertEqual(game.run.coins, coins + 4)
+        XCTAssertTrue(game.run.bookmarks.isEmpty)
+        XCTAssertTrue(game.run.buffs.isEmpty)
+    }
+
+    func testSellingWorksMidPuzzleButRejectsMarkers() throws {
+        var game = Game(seed: "sell2", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.buffs.append(OwnedBuff(defID: Buffs.peek, pricePaid: 4))
+        XCTAssertEqual(try game.sell(kind: .buff, index: 0), 2)
+
+        game.run.markers.append(OwnedMarker(defID: Markers.rose, boughtAtLevel: 1, pricePaid: 8))
+        XCTAssertThrowsError(try game.sell(kind: .marker, index: 0)) { error in
+            XCTAssertEqual(error as? Shop.ShopError, .cannotBeSold)
+        }
+        XCTAssertEqual(game.run.markers.count, 1)
+    }
 }
 
 final class RunAndDeterminismTests: XCTestCase {

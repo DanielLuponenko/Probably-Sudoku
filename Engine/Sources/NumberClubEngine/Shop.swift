@@ -118,6 +118,7 @@ public enum Shop {
 
     public enum ShopError: Error, Equatable, Sendable {
         case notEnoughCoins, alreadySold, noSuchOffer, slotsFull, noShopOpen
+        case nothingToSell, cannotBeSold
     }
 
     /// Opens the Shop between Puzzles.
@@ -167,20 +168,31 @@ public enum Shop {
 
     // MARK: - Selling and Marker squares
 
-    public static func sellBookmark(_ run: inout RunState, at index: Int) {
-        guard run.bookmarks.indices.contains(index) else { return }
-        run.coins += RunState.sellValue(pricePaid: run.bookmarks[index].pricePaid)
-        run.bookmarks.remove(at: index)
+    /// §10 — what an owned item fetches back: half the paid price, rounded
+    /// down, with a minimum of one coin.
+    public static func sellPrice(_ pricePaid: Int) -> Int {
+        RunState.sellValue(pricePaid: pricePaid)
     }
-    public static func sellMarker(_ run: inout RunState, at index: Int) {
-        guard run.markers.indices.contains(index) else { return }
-        run.coins += RunState.sellValue(pricePaid: run.markers[index].pricePaid)
-        run.markers.remove(at: index)
-    }
-    public static func sellBuff(_ run: inout RunState, at index: Int) {
-        guard run.buffs.indices.contains(index) else { return }
-        run.coins += RunState.sellValue(pricePaid: run.buffs[index].pricePaid)
-        run.buffs.remove(at: index)
+
+    /// Sells an owned Bookmark or Buff. Markers stay bound to their squares
+    /// for the Book and deliberately cannot be sold.
+    @discardableResult
+    public static func sell(_ run: inout RunState, kind: ItemKind, index: Int) throws -> Int {
+        let price: Int
+        switch kind {
+        case .bookmark:
+            guard run.bookmarks.indices.contains(index) else { throw ShopError.nothingToSell }
+            price = sellPrice(run.bookmarks[index].pricePaid)
+            run.bookmarks.remove(at: index)
+        case .buff:
+            guard run.buffs.indices.contains(index) else { throw ShopError.nothingToSell }
+            price = sellPrice(run.buffs[index].pricePaid)
+            run.buffs.remove(at: index)
+        case .marker:
+            throw ShopError.cannotBeSold
+        }
+        run.coins += price
+        return price
     }
 
     public enum MarkerError: Error, Equatable, Sendable {

@@ -425,6 +425,19 @@ final class GameModel {
         catch { message = describe(error) }
     }
 
+    /// §10 — sell a Bookmark or Buff for its deterministic partial refund.
+    func sell(kind: ItemKind, index: Int) {
+        do {
+            let coins = try game.sell(kind: kind, index: index)
+            message = "Sold for \(coins) \(coins == 1 ? "coin" : "coins")"
+            dropHandSelection()
+        } catch {
+            message = describe(error)
+        }
+    }
+
+    func sellPrice(_ pricePaid: Int) -> Int { Shop.sellPrice(pricePaid) }
+
     func claimSquare(markerIndex: Int, square: Square) {
         do { try game.claimSquare(markerIndex: markerIndex, square: square) }
         catch { message = describe(error) }
