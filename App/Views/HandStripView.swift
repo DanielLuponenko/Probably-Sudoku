@@ -11,12 +11,17 @@ struct HandStripView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Numbers Drawn")
+                Text(model.isReadingLitmus ? "Litmus: select a number to inspect blanks" : "Numbers Drawn")
                     .font(Print.caption(12))
                     .tracking(1.4)
                     .textCase(.uppercase)
-                    .foregroundStyle(Paper.inkSoft)
+                    .foregroundStyle(model.isReadingLitmus ? Paper.sageDeep : Paper.inkSoft)
                 Spacer()
+                if model.isReadingLitmus {
+                    Image(systemName: "eyedropper.halffull")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Paper.sageDeep)
+                }
             }
 
             HStack(spacing: 7) {
@@ -45,6 +50,7 @@ struct HandStripView: View {
                 }
             }
         }
+        .animation(.snappy(duration: 0.2), value: model.isReadingLitmus)
     }
 }
 

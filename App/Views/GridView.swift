@@ -51,6 +51,9 @@ struct GridView: View {
         // way. Giving it its own colour made it look like a different kind of
         // thing from the numbers it had just found.
         if model.isBarred(square) { return .barred }
+        if let belongs = model.litmusReading(at: square) {
+            return belongs ? .rightHere : .wrongHere
+        }
         if let digit = model.highlightedDigit, board[square] == digit { return .sameNumber }
         if model.selectedSquare == square { return .selected }
         return .plain
@@ -94,7 +97,7 @@ struct GridView: View {
 }
 
 enum CellState {
-    case plain, selected, sameNumber, barred
+    case plain, selected, sameNumber, barred, rightHere, wrongHere
 }
 
 /// Pencil hatching across a square that cannot be used this Turn.
@@ -209,6 +212,8 @@ private struct CellView: View {
         case .selected: return Paper.cellSelected
         case .sameNumber: return Paper.cellSameNumber
         case .barred: return Paper.gridHair.opacity(0.45)
+        case .rightHere: return Paper.cellSameNumber
+        case .wrongHere: return Paper.cellWrong
         case .plain: return provenance == .given ? Paper.cellGiven : .clear
         }
     }
@@ -230,6 +235,8 @@ private struct CellView: View {
         if let marker { parts.append(marker.def.name) }
         if state == .sameNumber { parts.append("matches selection") }
         if state == .barred { parts.append("barred this turn") }
+        if state == .rightHere { parts.append("Litmus says this number belongs here") }
+        if state == .wrongHere { parts.append("Litmus says this number does not belong here") }
         return parts.joined(separator: ", ")
     }
 }

@@ -225,6 +225,13 @@ struct BookmarkRow: View {
                                         width: width) {
                             onTapBuff(index)
                         })
+                        // Pulling is an enhancement, not the only way to use
+                        // a Buff. Keep a semantic activation for VoiceOver and
+                        // switch control users.
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(buff.def.name). \(buff.def.text)")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { onTapBuff(index) }
                 } else {
                     EmptyBookmark(slot: ItemKind.bookmark.capacity + slot, dark: true)
                 }

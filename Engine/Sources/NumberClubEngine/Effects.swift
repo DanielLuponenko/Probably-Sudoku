@@ -29,6 +29,7 @@ public enum OneShotFlag: String, Codable, Hashable, Sendable {
     case doubleDown     // next correct placement scores x2
     case insurance      // next wrong placement takes no penalty
     case secondPrint    // next Line Clear this Puzzle scores twice
+    case litmus         // the next placement clears Litmus's reading state
 }
 
 // MARK: - Context

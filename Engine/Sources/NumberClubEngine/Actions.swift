@@ -50,6 +50,11 @@ public enum Actions {
             outcome = resolveWrong(&run, &puzzle, digit: digit, square: square)
         }
 
+        // Litmus stays armed while the player examines the grid, then is spent
+        // by either a correct or wrong placement. Guards above ensure blocked
+        // or otherwise invalid attempts leave it available.
+        _ = puzzle.consume(.litmus)
+
         puzzle.assertConservation()
         run.puzzle = puzzle
         // A playable Turn with no cards has no further decision in it. Run the

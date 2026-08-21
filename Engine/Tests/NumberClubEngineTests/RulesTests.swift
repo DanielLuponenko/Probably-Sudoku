@@ -27,6 +27,37 @@ extension Game {
 
 final class RulesTests: XCTestCase {
 
+    func testLitmusArmsUntilEitherKindOfPlacement() throws {
+        var game = try startedGame()
+        game.give(buff: Buffs.litmus)
+        XCTAssertTrue(try game.useBuff(at: 0))
+        XCTAssertTrue(game.puzzle!.armedFlags.contains(.litmus))
+
+        let correct = game.blank(wanting: .five)!
+        _ = try game.place(handIndex: game.stackHand(with: .five)!, at: correct)
+        XCTAssertFalse(game.puzzle!.armedFlags.contains(.litmus))
+
+        game.give(buff: Buffs.litmus)
+        XCTAssertTrue(try game.useBuff(at: 0))
+        let wrongSquare = game.blank(wanting: .one)!
+        let wrong: Digit = game.puzzle!.board.correctDigit(at: wrongSquare) == .four ? .five : .four
+        _ = try game.place(handIndex: game.stackHand(with: wrong)!, at: wrongSquare)
+        XCTAssertFalse(game.puzzle!.armedFlags.contains(.litmus))
+    }
+
+    func testLitmusStaysArmedWhenAPlacementIsBarred() throws {
+        var game = try startedGame()
+        game.give(buff: Buffs.litmus)
+        XCTAssertTrue(try game.useBuff(at: 0))
+        let square = game.blank(wanting: .five)!
+        var bossTurn = BossTurnState()
+        bossTurn.fouled[square] = 2
+        game.run.puzzle?.bossTurn = bossTurn
+
+        XCTAssertThrowsError(try game.place(handIndex: game.stackHand(with: .five)!, at: square))
+        XCTAssertTrue(game.puzzle!.armedFlags.contains(.litmus))
+    }
+
     private func startedGame(seed: String = "rules", board: StartingBoard = .scholar) throws -> Game {
         var game = Game(seed: seed, startingBoard: board)
         try game.startPuzzle()
