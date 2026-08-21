@@ -40,6 +40,8 @@ public enum RunOutcome: String, Codable, Sendable {
 public struct RunState: Codable, Sendable {
     public let seed: String
     public var streams: SeedStreams
+    /// The published Book selected on the shelf, fixed for the whole run.
+    public let book: Book
     public let startingBoard: StartingBoard
     /// Chosen with the Book, and fixed for the whole run.
     public let obstacle: Obstacle
@@ -62,18 +64,20 @@ public struct RunState: Codable, Sendable {
     public var shop: ShopState?
     public var outcome: RunOutcome?
 
-    public init(seed: String, startingBoard: StartingBoard, obstacle: Obstacle = .none) {
+    public init(seed: String, book: Book = .probably,
+                startingBoard: StartingBoard, obstacle: Obstacle = .none) {
         self.seed = seed
         self.streams = SeedStreams(seed: seed)
+        self.book = book
         self.startingBoard = startingBoard
         self.obstacle = obstacle
         self.level = 1
         self.slot = .easy
-        self.coins = startingBoard == .merchant ? 15 : Baseline.coins
+        self.coins = startingBoard == .merchant ? 15 : book.startingCoins
     }
 
     private enum CodingKeys: String, CodingKey {
-        case seed, streams, startingBoard, obstacle, level, slot, coins
+        case seed, streams, book, startingBoard, obstacle, level, slot, coins
         case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, outcome
     }
 
@@ -83,6 +87,7 @@ public struct RunState: Codable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         seed = try c.decode(String.self, forKey: .seed)
         streams = try c.decode(SeedStreams.self, forKey: .streams)
+        book = try c.decodeIfPresent(Book.self, forKey: .book) ?? .probably
         startingBoard = try c.decode(StartingBoard.self, forKey: .startingBoard)
         obstacle = try c.decodeIfPresent(Obstacle.self, forKey: .obstacle) ?? .none
         level = try c.decode(Int.self, forKey: .level)
@@ -226,7 +231,7 @@ public struct RunState: Codable, Sendable {
     // MARK: - Progression
 
     public var isBossPuzzle: Bool { slot == .boss }
-    public var target: Int { Targets.target(level: level, slot: slot) }
+    public var target: Int { book.target(level: level, slot: slot) }
 
     /// Advances to the next Puzzle, rolling over into the next Level. Returns
     /// false when the Book is finished (beating the Level 9 Boss).

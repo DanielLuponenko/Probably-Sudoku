@@ -68,10 +68,12 @@ public enum Generator {
     /// board stream, so the result stays a pure function of the seed.
     public static func generate(_ rng: inout RandomStream,
                                 difficulty: Difficulty,
+                                givens: Int? = nil,
                                 maxAttempts: Int = 200) throws -> GeneratedPuzzle {
         for _ in 0..<maxAttempts {
             let solution = fullGrid(&rng)
-            guard let isGiven = dig(&rng, solution: solution, givensTarget: difficulty.givens) else { continue }
+            guard let isGiven = dig(&rng, solution: solution,
+                                    givensTarget: givens ?? difficulty.givens) else { continue }
             guard passesGate(difficulty, solution: solution, isGiven: isGiven) else { continue }
             return GeneratedPuzzle(
                 solution: solution.map { Digit(rawValue: Int($0))! },

@@ -74,9 +74,10 @@ final class GameModel {
     private(set) var message: String?
 
     init(seed: String = GameModel.randomSeed(),
+         book: Book = .probably,
          startingBoard: StartingBoard = .scholar,
          obstacle: Obstacle = .none) {
-        game = Game(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
+        game = Game(seed: seed, book: book, startingBoard: startingBoard, obstacle: obstacle)
     }
 
     /// A read-only copy of the game as it was, for drawing the page that is
@@ -115,7 +116,7 @@ final class GameModel {
         switch outcome {
         case .bookCompleted:
             let isFirstEver = RunStore.booksCompleted == 0
-            RunStore.recordBookCompleted()
+            RunStore.recordBookCompleted(game.run.book)
             let rewards = CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
                                                              isFirstEver: isFirstEver)
             stampsEarned = PlayerProfileStore.shared.earn(rewards)
@@ -193,7 +194,7 @@ final class GameModel {
     }
 
     /// Which Book this is, and therefore what it says in the margins.
-    var edition: BookEdition { BookEdition.edition(forBookTier: 1) }
+    var edition: BookEdition { BookEdition.edition(for: game.run.book) }
 
     /// The line written in the margin this Turn, if the Book has anything to
     /// say. Derived from the seed, so a Book always says the same things in the
@@ -525,7 +526,7 @@ final class GameModel {
 
     /// Restarts in place, without going back to the cover. Used by QA only.
     func startNewBook(startingBoard: StartingBoard? = nil) {
-        game = Game(seed: Self.randomSeed(),
+        game = Game(seed: Self.randomSeed(), book: game.run.book,
                     startingBoard: startingBoard ?? game.run.startingBoard,
                     obstacle: game.run.obstacle)
         selectedHandIndex = nil

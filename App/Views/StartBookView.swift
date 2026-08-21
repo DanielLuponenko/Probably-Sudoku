@@ -149,7 +149,8 @@ struct StartBookView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.8)
 
-            if let saved = resumable, book.isWritten {
+            if let saved = resumable, book.isWritten, book.isUnlocked,
+               saved.run.book == book.rule {
                 VStack(spacing: 8) {
                     PaperButton(title: "Continue the Book",
                                 subtitle: "Level \(saved.run.level), Puzzle \(saved.run.slot.rawValue + 1)",
@@ -158,10 +159,11 @@ struct StartBookView: View {
                         onStart(book, obstacle)
                     }
                 }
-            } else if book.isWritten {
+            } else if book.isWritten, book.isUnlocked {
                 PaperButton(title: "Open the Book", kind: .primary) { onStart(book, obstacle) }
             } else {
-                PaperButton(title: "Locked", kind: .quiet, isEnabled: false) {}
+                PaperButton(title: book.isWritten ? "Finish the previous Book" : "Not written yet",
+                            kind: .quiet, isEnabled: false) {}
             }
         }
         .padding(.horizontal, 24)
@@ -285,9 +287,9 @@ private struct BookShelf: View {
     }
 
     /// A Book only carries ribbons when it is the one in hand, and only a
-    /// written one can be started at all.
+    /// written and unlocked one can be started at all.
     private func ribbons(for edition: BookEdition, at position: Int) -> LiveBook.RibbonStrip? {
-        guard edition.isWritten, position == index else { return nil }
+        guard edition.isWritten, edition.isUnlocked, position == index else { return nil }
         return LiveBook.RibbonStrip(
             levels: Obstacle.allCases,
             selected: obstacle,

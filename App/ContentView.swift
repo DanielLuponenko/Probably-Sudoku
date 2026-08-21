@@ -108,7 +108,7 @@ struct ContentView: View {
     /// Deals the first Puzzle behind the veil, then lifts it.
     private func begin(_ book: BookEdition) {
         veil = 1
-        model = GameModel(startingBoard: book.bonus, obstacle: chosenObstacle)
+        model = GameModel(book: book.rule, startingBoard: book.bonus, obstacle: chosenObstacle)
         opening = nil
         Task {
             // One frame flat first: animating a value in the same update that
