@@ -127,7 +127,10 @@ struct MainMenuSceneMetrics: Equatable {
 
     // MARK: The objects
 
-    var lampFrame: CGRect { frame(CGRect(x: -8, y: 0, width: 268, height: 310)) }
+    /// Keep the shade inside the narrowest supported screen. The original
+    /// negative reference x intentionally made the lamp feel close, but on an
+    /// iPhone SE it physically cut its enamel edge off.
+    var lampFrame: CGRect { frame(CGRect(x: 16, y: 0, width: 268, height: 310)) }
 
     /// Clamped up to a comfortable target: the gear is 89 units in the
     /// composition, which lands under 44 on a small phone, and 44 is not
