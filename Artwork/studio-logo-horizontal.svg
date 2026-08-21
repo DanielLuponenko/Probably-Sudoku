@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="900" viewBox="0 0 2200 900">
+  <title>DannyLovesAnna Game Studio horizontal lockup</title>
+  <rect width="2200" height="900" fill="#FFF4D7"/>
+  <g transform="translate(65 65) scale(24.0625)">
+    <rect width="32" height="32" fill="#EE2632"/>
+    <path fill="#11100F" d="M3 7h2V5h4V3h14v2h4v2h2v18h-2v2h-4v2H9v-2H5v-2H3z"/>
+    <path fill="#FFF4D7" d="M5 8h2V6h18v2h2v16h-2v2H7v-2H5z"/>
+    <path fill="#EE2632" d="M13 7h2V6h2v1h2v2h1v3h-1v1h-2v1h-2v-1h-2v-1h-1V9h1z"/>
+    <path fill="#11100F" d="M7 22h2v-5h2v-2h4v2h1v4h1v-4h1v-2h4v2h2v5h1v3H7z"/>
+    <path fill="#6D3D2C" d="M9 17h1v-1h4v1h1v3h-1v1H9zM18 17h1v-1h4v1h1v3h-1v1h-5z"/>
+    <path fill="#F7B184" d="M10 18h4v3h-4zM19 18h4v3h-4z"/>
+    <path fill="#11100F" d="M13 19h1v1h-1zM19 19h1v1h-1zM15 20h3v1h-3z"/>
+    <path fill="#25211F" d="M8 23h7v2H8zM17 23h7v2h-7z"/>
+    <path fill="#EE2632" d="M11 26h10v1H11z"/>
+  </g>
+  <rect x="885" y="236" width="1200" height="250" rx="20" fill="#11100F"/>
+  <text x="1485" y="405" text-anchor="middle" fill="#FFF4D7" font-family="Avenir Next Condensed, Avenir Next, sans-serif" font-size="128" font-weight="900" letter-spacing="-6">DANNYLOVESANNA</text>
+  <text x="1485" y="590" text-anchor="middle" fill="#11100F" font-family="Avenir Next, sans-serif" font-size="72" font-weight="800" letter-spacing="14">GAME STUDIO</text>
+  <path fill="#EE2632" d="M1430 638h16v-8h16v8h8v16h-8v8h-16v-8h-16v-16zM1510 638h16v-8h16v8h8v16h-8v8h-16v-8h-16v-16z"/>
+</svg>
