@@ -16,13 +16,8 @@ struct MainMenuView: View {
     var onShop: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true
 
-    /// One clock for the whole room, counted the way the shelf counts its own:
-    /// linear, never reversed, and every movement taken from a sine of it, so
-    /// nothing stalls at either end of the cycle.
-    @State private var roomPhase: Double = 0
     /// 0 to 1 across the first three-quarters of a second.
     @State private var entrance: Double = 0
     @State private var revealed = false
@@ -38,9 +33,6 @@ struct MainMenuView: View {
     }
 
     private var allowsAmbientMotion: Bool { !reduceMotion && ambientMotion }
-    /// What the room's own clock reads. Frozen at zero when ambient motion is
-    /// off, which leaves every drift, sheen and mote at its resting value.
-    private var phase: Double { allowsAmbientMotion ? roomPhase : 0 }
 
     var body: some View {
         GeometryReader { proxy in
@@ -48,12 +40,12 @@ struct MainMenuView: View {
                                                safeArea: proxy.safeAreaInsets)
             ZStack(alignment: .topLeading) {
                 // 00–07: the room.
-                ClubRoomBackdrop(metrics: metrics, phase: phase,
+                ClubRoomBackdrop(metrics: metrics,
                                  reduceMotion: !allowsAmbientMotion)
 
                 // 05: the cone of light in the air, behind everything solid.
                 LampLighting(metrics: metrics)
-                BulbGlow(phase: phase, centre: metrics.bulbCentre, scale: metrics.scale)
+                BulbGlow(phase: 0, centre: metrics.bulbCentre, scale: metrics.scale)
 
                 // 06: what the things standing on the desk put on the desk.
                 // Drawn here — between the surface and the objects — so their
@@ -68,14 +60,8 @@ struct MainMenuView: View {
                 // board and the controls, so the room and the interface are
                 // lit by the same bulb.
                 LampSurfaceLight(metrics: metrics)
-                if allowsAmbientMotion {
-                    DustMotes(phase: roomPhase, bulb: metrics.bulbCentre,
-                              reach: metrics.boardFrame.maxY - metrics.bulbCentre.y,
-                              spread: metrics.width * 0.30)
-                }
-
                 // 16–18: what the room puts in front of everything.
-                ClubRoomForeground(metrics: metrics, phase: phase,
+                ClubRoomForeground(metrics: metrics,
                                    reduceMotion: !allowsAmbientMotion)
 
                 // 19: the gear.
@@ -130,11 +116,6 @@ struct MainMenuView: View {
             }
             #endif
         }
-        .onChange(of: scenePhase) { _, newPhase in
-            // Nothing should be driving a display link behind the home screen.
-            if newPhase == .active { startRoomClock() } else { stopRoomClock() }
-        }
-        .onDisappear { stopRoomClock() }
     }
 
     /// Every footprint on the desk, placed against the desk's own plane rather
@@ -167,7 +148,7 @@ struct MainMenuView: View {
         let scale = metrics.scale
 
         // 08 — the sign.
-        ClubTitlePlaque(metrics: metrics, phase: phase, reduceMotion: !allowsAmbientMotion)
+        ClubTitlePlaque(metrics: metrics, phase: 0, reduceMotion: true)
             .frame(width: metrics.titlePlaqueFrame.width,
                    height: metrics.titlePlaqueFrame.height)
             .position(x: metrics.titlePlaqueFrame.midX, y: metrics.titlePlaqueFrame.midY)
@@ -194,14 +175,14 @@ struct MainMenuView: View {
         }
 
         // 11 — the signature.
-        NumberTileBoard(phase: phase, entrance: entrance, reduceMotion: reduceMotion)
+        NumberTileBoard(phase: 0, entrance: entrance, reduceMotion: reduceMotion)
             .frame(width: metrics.boardFrame.width, height: metrics.boardFrame.height)
             .position(x: metrics.boardFrame.midX, y: metrics.boardFrame.midY)
 
         // 13 — Play.
         MainMenuButton(kind: .play, title: "Play", symbol: "play.fill",
-                       metrics: metrics, phase: phase,
-                       reduceMotion: !allowsAmbientMotion,
+                       metrics: metrics, phase: 0,
+                       reduceMotion: true,
                        accessibilityHint: "Choose a Book or continue your current Book",
                        isEnabled: controlsEnabled && !leaving,
                        isHeld: leaving,
@@ -215,8 +196,8 @@ struct MainMenuView: View {
 
         // 14 — Shop.
         MainMenuButton(kind: .shop, title: "Shop", symbol: "basket.fill",
-                       metrics: metrics, phase: phase,
-                       reduceMotion: !allowsAmbientMotion,
+                       metrics: metrics, phase: 0,
+                       reduceMotion: true,
                        accessibilityHint: "Buy and equip permanent visual skins",
                        isEnabled: controlsEnabled && !leaving,
                        action: onShop)
@@ -240,14 +221,13 @@ struct MainMenuView: View {
 
     // MARK: Arriving and leaving
 
-    private func entranceAnimation(delay: Double) -> Animation {
+    private func entranceAnimation(delay _: Double) -> Animation {
         guard !reduceMotion else { return .easeOut(duration: 0.18) }
         guard !Session.hasEntered else { return .easeOut(duration: 0.2) }
-        return .spring(response: 0.34, dampingFraction: 0.86).delay(delay)
+        return .easeOut(duration: 0.28)
     }
 
     private func arrive() {
-        startRoomClock()
         Haptics.prepare()
 
         let returning = Session.hasEntered
@@ -273,22 +253,6 @@ struct MainMenuView: View {
         }
     }
 
-    private func startRoomClock() {
-        guard allowsAmbientMotion, !leaving else { return }
-        roomPhase = 0
-        // A full, restrained swing every twelve seconds reads as a hanging
-        // lamp, while still being slow enough not to distract from Play.
-        withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
-            roomPhase = 1
-        }
-    }
-
-    /// Takes the repeating animation off the clock. Without this the room goes
-    /// on turning behind the shelf, the Book and the home screen.
-    private func stopRoomClock() {
-        withAnimation(.linear(duration: 0)) { roomPhase = 0 }
-    }
-
     /// Play: the panel goes down, the board takes the light for a moment, and
     /// the room lifts and fades off the shelf.
     ///
@@ -297,14 +261,12 @@ struct MainMenuView: View {
     private func startPlaying() {
         guard !leaving else { return }
         controlsEnabled = false
-        // Keep the panel visibly held while the destination crossfades in.
-        // The room itself stays present until the route transition owns it.
-        leaving = true
-        stopRoomClock()
-
         Task { @MainActor in
             // The press is seen before anything routes.
             try? await Task.sleep(for: .milliseconds(120))
+            // Let ContentView own the one transition. The room stays intact
+            // until the shelf begins its cross-fade, avoiding an empty frame.
+            leaving = true
             onPlay()
         }
     }

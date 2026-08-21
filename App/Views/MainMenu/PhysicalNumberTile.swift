@@ -98,13 +98,11 @@ struct TileMotion: ViewModifier, Animatable {
         }
     }
 
-    /// The entrance, in seconds. Tile one lands at 0.16 and tile nine at 0.56,
-    /// which puts the whole board in place inside three-quarters of a second —
-    /// fast enough that nobody reaching for Play has to wait for it.
+    /// The entrance, in seconds. The entire board arrives with the room;
+    /// serial tile arrivals read as assets loading rather than as a board.
     static let span = 0.72
-    private static let firstAt = 0.16
-    private static let step = 0.05
-    private static let settle = 0.14
+    private static let firstAt = 0.04
+    private static let settle = 0.32
 
     func body(content: Content) -> some View {
         content
@@ -126,8 +124,7 @@ struct TileMotion: ViewModifier, Animatable {
     private var arrival: Double {
         guard !reduceMotion else { return 1 }
         let seconds = entrance * Self.span
-        let due = Self.firstAt + Double(index) * Self.step
-        return min(1, max(0, (seconds - due) / Self.settle))
+        return min(1, max(0, (seconds - Self.firstAt) / Self.settle))
     }
 
     /// Twice in every cycle — about nine seconds apart — one tile shifts by a
