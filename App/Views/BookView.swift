@@ -3,15 +3,16 @@ import NumberClubEngine
 
 /// The desk the book lies on.
 struct DeskView<Content: View>: View {
+    @Environment(\.cosmeticTheme) private var theme
     @ViewBuilder var content: Content
 
     var body: some View {
         ZStack {
-            Rectangle().fill(Paper.desk).ignoresSafeArea()
+            Rectangle().fill(theme.desk.surface).ignoresSafeArea()
             WoodGrain().ignoresSafeArea()
             content
         }
-        .background(Paper.deskDark)
+        .background(theme.desk.dark)
     }
 }
 
@@ -89,11 +90,13 @@ struct BookVolume: View {
 /// Every other sheet in the book, seen edge-on down the fore-edge and along the
 /// tail. Drawn rather than exported, so it stays crisp at any size.
 private struct PageBlock: View {
+    @Environment(\.cosmeticTheme) private var theme
+
     var body: some View {
         Canvas { context, size in
             let body = Path(roundedRect: CGRect(origin: .zero, size: size),
                             cornerRadius: Volume.corner)
-            context.fill(body, with: .color(Paper.pageEdge))
+            context.fill(body, with: .color(theme.paper.edge))
             context.clip(to: body)
 
             var state: UInt64 = 4231
@@ -167,13 +170,14 @@ private struct Binding: View {
 /// The sheet currently being worked on. It is a separate view from the volume
 /// because this is the part that lifts when the page turns.
 struct PageSurface<Content: View>: View {
+    @Environment(\.cosmeticTheme) private var theme
     @ViewBuilder var content: Content
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Rectangle()
-                .fill(Paper.page)
-                .overlay { PaperGrain(opacity: 0.07) }
+                .fill(theme.paper.page)
+                .overlay { PaperGrain(opacity: theme.paper.grain) }
                 .overlay { gutter }
                 .overlay { bow }
 

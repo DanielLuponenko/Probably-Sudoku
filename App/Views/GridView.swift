@@ -4,6 +4,7 @@ import NumberClubEngine
 /// The printed grid. Everything here is drawn rather than exported: the rules,
 /// the washes, the marks. Only the paper underneath is artwork.
 struct GridView: View {
+    @Environment(\.cosmeticTheme) private var theme
     @Bindable var model: GameModel
     var board: Board
 
@@ -36,6 +37,7 @@ struct GridView: View {
                     provenance: board.filledBy[square.index],
                     state: state(for: square),
                     marker: model.visibleMarkers[square],
+                    theme: theme,
                     size: cell
                 )
             }
@@ -85,12 +87,14 @@ struct GridView: View {
                 horizontal.addLine(to: .init(x: side, y: offset))
 
                 let heavy = i % 3 == 0
-                let style = GraphicsContext.Shading.color(heavy ? Paper.gridBold : Paper.gridHair)
-                context.stroke(vertical, with: style, lineWidth: heavy ? 2 : 0.75)
-                context.stroke(horizontal, with: style, lineWidth: heavy ? 2 : 0.75)
+                let style = GraphicsContext.Shading.color(heavy ? theme.board.bold : theme.board.hair)
+                context.stroke(vertical, with: style,
+                               lineWidth: heavy ? theme.board.boldWidth : theme.board.hairWidth)
+                context.stroke(horizontal, with: style,
+                               lineWidth: heavy ? theme.board.boldWidth : theme.board.hairWidth)
             }
             context.stroke(Path(CGRect(x: 0, y: 0, width: side, height: side)),
-                           with: .color(Paper.gridBold), lineWidth: 2.5)
+                           with: .color(theme.board.bold), lineWidth: theme.board.boldWidth + 0.5)
         }
         .allowsHitTesting(false)
     }
@@ -162,6 +166,7 @@ private struct CellView: View {
     var provenance: Provenance?
     var state: CellState
     var marker: OwnedMarker?
+    var theme: CosmeticTheme
     var size: CGFloat
 
     var body: some View {
@@ -190,7 +195,7 @@ private struct CellView: View {
 
             if let digit {
                 Text("\(digit.rawValue)")
-                    .font(Print.numeral(size * 0.52, weight: numeralWeight))
+                    .font(theme.numbers.font(size * 0.52, weight: numeralWeight))
                     .foregroundStyle(inkColor)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
@@ -209,12 +214,12 @@ private struct CellView: View {
 
     private var background: Color {
         switch state {
-        case .selected: return Paper.cellSelected
-        case .sameNumber: return Paper.cellSameNumber
-        case .barred: return Paper.gridHair.opacity(0.45)
-        case .rightHere: return Paper.cellSameNumber
+        case .selected: return theme.board.selected
+        case .sameNumber: return theme.board.sameNumber
+        case .barred: return theme.board.hair.opacity(0.45)
+        case .rightHere: return theme.board.sameNumber
         case .wrongHere: return Paper.cellWrong
-        case .plain: return provenance == .given ? Paper.cellGiven : .clear
+        case .plain: return provenance == .given ? theme.board.given : .clear
         }
     }
 
@@ -222,9 +227,9 @@ private struct CellView: View {
     /// someone else, so it sits lighter on the page.
     private var inkColor: Color {
         switch provenance {
-        case .given: return Paper.ink
+        case .given: return theme.numbers.givenInk
         case .clue: return Paper.inkFaint
-        default: return Paper.ink.opacity(0.92)
+        default: return theme.numbers.ink.opacity(0.92)
         }
     }
 
