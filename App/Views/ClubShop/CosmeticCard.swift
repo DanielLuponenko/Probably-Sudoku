@@ -15,6 +15,7 @@ struct CosmeticCard: View {
     /// renders inside this card's paper bounds instead of above the shelf.
     var refusalVisible: Bool = false
     var action: () -> Void
+    var onPreview: () -> Void = {}
 
     var body: some View {
         Button(action: action) {
@@ -73,11 +74,14 @@ struct CosmeticCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(PressedPaperStyle())
+        // Keep a small movement allowance so a shelf scroll always wins.
+        .onLongPressGesture(minimumDuration: 0.45, maximumDistance: 14, perform: onPreview)
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(item.name)
         .accessibilityValue(spokenState)
         .accessibilityHint(spokenHint)
+        .accessibilityAction(named: "Preview in a puzzle", onPreview)
     }
 
     @ViewBuilder
