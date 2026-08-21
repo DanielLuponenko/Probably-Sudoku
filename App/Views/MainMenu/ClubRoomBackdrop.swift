@@ -1179,6 +1179,7 @@ private struct Succulent: View {
             let size = proxy.size
             let potHeight = size.height * 0.46
             let rim = potHeight * 0.25
+            let frontRimY = rim * 0.25
 
             ZStack(alignment: .bottom) {
                 ContactShadow(width: size.width * 1.1, depth: max(4, 12 * scale))
@@ -1208,7 +1209,7 @@ private struct Succulent: View {
                     .frame(width: size.width * 0.62, height: size.height * 0.62)
                     .offset(x: size.width * 0.01, y: -potHeight * 0.80)
 
-                PlantPotFront(rimY: rim * 0.45, cornerRadius: potHeight * 0.22)
+                PlantPotFront(rimY: frontRimY, cornerRadius: potHeight * 0.22)
                     .fill(LinearGradient(colors: [ClubRoomMaterial.stoneware
                                                     .mixed(with: .white, by: 0.18),
                                                   ClubRoomMaterial.stoneware,
@@ -1217,16 +1218,11 @@ private struct Succulent: View {
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                     .overlay {
                         PaperGrain(opacity: 0.14, seed: 22)
-                            .clipShape(PlantPotFront(rimY: rim * 0.45,
+                            .clipShape(PlantPotFront(rimY: frontRimY,
                                                      cornerRadius: potHeight * 0.22))
                     }
                     .frame(height: potHeight)
 
-                PlantPotFrontEdge(rimY: rim * 0.45)
-                    .stroke(LinearGradient(colors: [.white.opacity(0.44), .black.opacity(0.28)],
-                                           startPoint: .leading, endPoint: .trailing),
-                            lineWidth: max(0.7, 1.5 * scale))
-                    .frame(height: potHeight)
             }
             .frame(width: size.width, height: size.height, alignment: .bottom)
         }
@@ -1335,7 +1331,7 @@ private struct Succulent: View {
             var path = Path()
             path.move(to: CGPoint(x: rect.minX, y: rim))
             path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
-                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.88))
+                              control: CGPoint(x: rect.midX, y: rim + rect.height * 0.075))
             path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
             path.addQuadCurve(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
                               control: CGPoint(x: rect.maxX, y: rect.maxY))
@@ -1355,7 +1351,7 @@ private struct Succulent: View {
             var path = Path()
             path.move(to: CGPoint(x: rect.minX, y: rim))
             path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rim),
-                              control: CGPoint(x: rect.midX, y: rim + rimY * 0.88))
+                              control: CGPoint(x: rect.midX, y: rim + rect.height * 0.075))
             return path
         }
     }
