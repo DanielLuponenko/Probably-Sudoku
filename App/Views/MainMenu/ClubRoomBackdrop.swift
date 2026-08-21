@@ -196,7 +196,8 @@ struct ClubRoomBackdrop: View {
             // 04 — the fixture itself. Its own sheen does not move: what the
             // eye reads as the lamp breathing is the halo above it, which is
             // drawn by `BulbGlow` and is animatable.
-            LampFixture(glow: 1)
+            LampFixture(glow: 1,
+                         ceilingDrop: max(0, metrics.lampFrame.minY - metrics.wallPlane.minY))
                 .frame(width: metrics.lampFrame.width, height: metrics.lampFrame.height)
                 .position(x: metrics.lampFrame.midX, y: metrics.lampFrame.midY)
         }
@@ -1022,7 +1023,7 @@ private struct PencilCup: View {
                         .frame(width: max(3, 12 * scale), height: size.height * 0.74)
                         .rotationEffect(.degrees(Double(index - 2) * 6), anchor: .bottom)
                         .offset(x: CGFloat(index - 2) * size.width * 0.11,
-                                y: -potHeight * 0.62)
+                                y: -potHeight * 0.44)
                 }
 
                 // The pot.
@@ -1269,6 +1270,9 @@ private struct RugEdge: View {
 struct LampFixture: View {
     /// The lamp's own two per cent, applied to the enamel's sheen only.
     var glow: Double = 1
+    /// The lamp is composed below the top of a tall screen; its flex must
+    /// still begin at the actual ceiling rather than at the fixture's frame.
+    var ceilingDrop: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
@@ -1278,14 +1282,19 @@ struct LampFixture: View {
             let top = size.height * 0.30
 
             ZStack(alignment: .top) {
-                // Flex, running off the top of the frame with the sag a cord
-                // actually has.
-                Cord()
+                // A ceiling rose anchors the flex at the room's top edge. The
+                // cord then has one continuous curve to the shade's collar.
+                Capsule()
+                    .fill(Color(hex: 0x15180F))
+                    .frame(width: max(5, size.width * 0.11), height: max(2, size.height * 0.018))
+                    .position(x: size.width * 0.30, y: max(1, size.height * 0.009))
+                    .offset(y: -ceilingDrop)
+
+                Cord(ceilingDrop: ceilingDrop)
                     .stroke(Color(hex: 0x15180F),
                             style: StrokeStyle(lineWidth: max(2, size.width * 0.022),
                                                lineCap: .round))
-                    .frame(width: size.width * 0.3, height: size.height * 0.40)
-                    .offset(x: size.width * 0.02)
+                    .frame(width: size.width, height: top + max(2, size.height * 0.018))
 
                 // Shade.
                 ZStack {
@@ -1357,12 +1366,15 @@ struct LampFixture: View {
     /// A hanging flex is not a plumb line: it leaves the ceiling at an angle
     /// and comes into the fitting straight.
     private struct Cord: Shape {
+        var ceilingDrop: CGFloat
+
         func path(in rect: CGRect) -> Path {
             var path = Path()
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY - rect.height))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.maxY),
-                              control: CGPoint(x: rect.minX + rect.width * 0.1,
-                                               y: rect.maxY * 0.6))
+            path.move(to: CGPoint(x: rect.width * 0.30, y: rect.minY - ceilingDrop))
+            path.addCurve(to: CGPoint(x: rect.width * 0.50, y: rect.maxY),
+                          control1: CGPoint(x: rect.width * 0.29,
+                                             y: rect.minY - ceilingDrop * 0.42),
+                          control2: CGPoint(x: rect.width * 0.40, y: rect.height * 0.86))
             return path
         }
     }
