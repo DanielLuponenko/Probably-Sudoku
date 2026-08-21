@@ -61,21 +61,20 @@ final class PageFlipper {
     }
 }
 
-// MARK: - The curl
+// MARK: - The leaf turn
 
 extension View {
-    /// Bends this view around a cylinder that sweeps across it, showing the
-    /// back of the sheet as it comes over. See `PageCurl.metal`.
-    ///
-    /// The size is passed in rather than read from a `visualEffect` proxy:
-    /// inside `visualEffect` the shader only ever sees the final value of an
-    /// animated parameter, so the curl arrives already finished.
-    func pageCurl(progress: Double, size: CGSize) -> some View {
-        modifier(PageCurlEffect(progress: progress, size: size))
+    /// Turns one complete leaf about the book's spine. The previous Metal
+    /// deform sampled a full-page texture for every output pixel and produced
+    /// a long triangular wedge on device. A sheet turning on its hinge is both
+    /// closer to a physical book and lets Core Animation keep the movement on
+    /// the compositor.
+    func pageLeafTurn(progress: Double, size: CGSize) -> some View {
+        modifier(PageLeafTurn(progress: progress, size: size))
     }
 }
 
-private struct PageCurlEffect: ViewModifier, Animatable {
+private struct PageLeafTurn: ViewModifier, Animatable {
     var progress: Double
     var size: CGSize
 
@@ -85,17 +84,25 @@ private struct PageCurlEffect: ViewModifier, Animatable {
     }
 
     func body(content: Content) -> some View {
-        guard size.width > 1, size.height > 1 else { return AnyView(content) }
-        return AnyView(
-            content.layerEffect(
-                ShaderLibrary.pageCurl(
-                    .float2(size),
-                    .float(Float(progress)),
-                    // A tighter roll than this creases; a looser one is a tube.
-                    .float(Float(min(size.width, size.height) * 0.17))
-                ),
-                maxSampleOffset: size
-            )
-        )
+        let turn = min(max(progress, 0), 1)
+        // Keep the sheet just shy of edge-on. The last fraction is masked by
+        // its own travelling shadow, so the new page is revealed continuously
+        // instead of the old page becoming a mirrored card face.
+        let angle = -89.7 * turn
+        let foldOpacity = 0.30 * sin(turn * .pi)
+
+        content
+            .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0),
+                              anchor: .leading, perspective: 0.24)
+            .scaleEffect(x: 1 - turn * 0.018, y: 1 - turn * 0.006,
+                         anchor: .leading)
+            .shadow(color: .black.opacity(0.22 * (1 - turn)),
+                    radius: max(2, size.width * 0.018), x: 3, y: 3)
+            .overlay(alignment: .leading) {
+                LinearGradient(colors: [.black.opacity(foldOpacity), .clear],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: size.width * 0.28)
+                    .allowsHitTesting(false)
+            }
     }
 }
