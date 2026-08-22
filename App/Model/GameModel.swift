@@ -816,9 +816,15 @@ final class GameModel {
         returnPageAfterAchievements = nil
     }
 
-    func claimSquare(markerIndex: Int, square: Square) {
-        do { try game.claimSquare(markerIndex: markerIndex, square: square) }
-        catch { message = describe(error) }
+    @discardableResult
+    func claimSquare(markerIndex: Int, square: Square) -> Bool {
+        do {
+            try game.claimSquare(markerIndex: markerIndex, square: square)
+            return true
+        } catch {
+            message = describe(error)
+            return false
+        }
     }
 
     /// Leaving a run returns to the cover, because §3 makes the Starting Board

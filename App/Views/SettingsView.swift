@@ -8,6 +8,7 @@ struct PaperSlip<Content: View>: View {
     var title: String
     var subtitle: String?
     var closeLabel: String = "Close"
+    var showsCloseButton: Bool = true
     /// Tapping the desk behind the slip puts it down. Off for slips that are
     /// asking a question rather than showing something.
     var dismissesOnBackground: Bool = true
@@ -44,9 +45,11 @@ struct PaperSlip<Content: View>: View {
                         .padding(.bottom, 14)
                 }
 
-                PaperButton(title: closeLabel, kind: .quiet, action: onClose)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 18)
+                if showsCloseButton {
+                    PaperButton(title: closeLabel, kind: .quiet, action: onClose)
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 18)
+                }
             }
             .frame(maxHeight: 620)
             .background {

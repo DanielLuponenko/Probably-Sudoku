@@ -220,16 +220,19 @@ public enum Shop {
     }
 
     /// §11 — claim a square the Marker is entitled to. Free. A newly placed
-    /// Marker replaces any Marker already covering that square.
+    /// Marker consumes any Marker already covering that square.
     public static func claimSquare(_ run: inout RunState, markerIndex: Int, square: Square) throws {
         guard run.markers.indices.contains(markerIndex) else { throw MarkerError.noSuchMarker }
         guard run.markers[markerIndex].pendingSquares(atLevel: run.level) > 0 else {
             throw MarkerError.noPendingSquares
         }
+        var placedMarkerIndex = markerIndex
         if let existingIndex = run.markers.indices.first(where: { run.markers[$0].covers(square) }) {
-            run.markers[existingIndex].squares.removeAll { $0 == square }
+            guard existingIndex != markerIndex else { throw MarkerError.squareTaken }
+            run.markers.remove(at: existingIndex)
+            if existingIndex < placedMarkerIndex { placedMarkerIndex -= 1 }
         }
-        run.markers[markerIndex].squares.append(square)
+        run.markers[placedMarkerIndex].squares.append(square)
     }
 
     /// §8 — moving an already-placed square costs 2 coins.
