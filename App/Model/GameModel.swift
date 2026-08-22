@@ -122,11 +122,6 @@ final class GameModel {
         didSet { if selectedHandIndex != nil { highlightSource = .hand } }
     }
     var selectedSquare: Square?
-    /// Toss is a deliberate staging mode: several *cards* may be returned at
-    /// once, so this is keyed by each card's presentation identity rather than
-    /// its digit or a hand index that could change after a mutation.
-    private(set) var isChoosingTosses = false
-    private(set) var tossedCardIDs: Set<UUID> = []
 
     /// A row, column or box that has just been completed, held long enough to
     /// be marked on the board and then dropped.
@@ -407,8 +402,6 @@ final class GameModel {
     /// different number rather than at nothing.
     private func dropHandSelection() {
         selectedHandIndex = nil
-        isChoosingTosses = false
-        tossedCardIDs = []
         if highlightSource == .hand {
             highlightSource = selectedSquare == nil ? nil : .square
         }
@@ -420,8 +413,6 @@ final class GameModel {
         selectedHandIndex = nil
         selectedSquare = nil
         highlightSource = nil
-        isChoosingTosses = false
-        tossedCardIDs = []
     }
 
     /// Blanks the selected number could legally go in — every empty square, but
@@ -436,13 +427,8 @@ final class GameModel {
 
     func tapHand(_ index: Int) {
         guard hand.indices.contains(index) else { return }
-        if isChoosingTosses {
-            toggleTossCard(at: index)
-            return
-        }
         if isBlocked(hand[index]) {
-            message = "\(hand[index].rawValue) is blocked this Turn"
-            return
+            message = "\(hand[index].rawValue) is blocked this Turn — it can still be Tossed"
         }
         selectedHandIndex = selectedHandIndex == index ? nil : index
     }
@@ -512,61 +498,20 @@ final class GameModel {
         }
     }
 
-    /// §5.1 — choose cards by slot, then return all of them in one action.
-    /// The Engine still removes one card at a time, so remove in descending
-    /// hand order: every remaining index then continues to identify the card
-    /// the player chose even when duplicate digits are present.
-    func toggleTossMode() {
-        guard (puzzle?.tossesRemaining ?? 0) > 0 else { return }
-        if isChoosingTosses {
-            if tossedCardIDs.isEmpty {
-                clearSelection()
-            } else {
-                tossSelected()
-            }
-            return
-        }
-
-        isChoosingTosses = true
-        tossedCardIDs = []
-        if let selectedHandIndex, handCards.indices.contains(selectedHandIndex) {
-            tossedCardIDs.insert(handCards[selectedHandIndex].id)
-        }
-        selectedHandIndex = nil
-        if highlightSource == .hand {
-            highlightSource = selectedSquare == nil ? nil : .square
-        }
-    }
-
-    private func toggleTossCard(at index: Int) {
-        guard handCards.indices.contains(index) else { return }
-        let id = handCards[index].id
-        if tossedCardIDs.contains(id) {
-            tossedCardIDs.remove(id)
-            return
-        }
-        guard tossedCardIDs.count < (puzzle?.tossesRemaining ?? 0) else {
-            message = "No more Tosses left this Turn"
-            return
-        }
-        tossedCardIDs.insert(id)
-    }
-
+    /// §5.1 — a Toss is one selected Hand slot, one number returned to the
+    /// Pool. The allowance controls how often the player may repeat that
+    /// action; it never turns several selected cards into a batch operation.
     func tossSelected() {
-        let chosen = handCards.enumerated().compactMap { index, card in
-            tossedCardIDs.contains(card.id) ? (index, card.digit) : nil
-        }
-        guard !chosen.isEmpty else {
-            clearSelection()
+        guard let index = selectedHandIndex, hand.indices.contains(index) else {
+            message = "Pick one number to Toss"
             return
         }
+        let digit = hand[index]
         do {
-            for (index, _) in chosen.sorted(by: { $0.0 > $1.0 }) {
-                _ = try game.toss(handIndex: index)
-            }
+            _ = try game.toss(handIndex: index)
             refreshHandCards()
             message = nil
-            presentReturn(kind: .pool, digits: chosen.map(\.1))
+            presentReturn(kind: .pool, digits: [digit])
         } catch {
             message = describe(error)
         }
@@ -578,34 +523,11 @@ final class GameModel {
     }
 
     var tossButtonTitle: String {
-        guard isChoosingTosses else { return "Toss" }
-        return tossedCardIDs.isEmpty ? "Cancel Toss" : "Toss \(tossedCardIDs.count)"
+        "Toss"
     }
 
     var tossButtonSubtitle: String {
-        isChoosingTosses
-            ? "choose up to \(puzzle?.tossesRemaining ?? 0)"
-            : "\(puzzle?.tossesRemaining ?? 0) left this puzzle"
-    }
-
-    func isChosenForToss(_ card: HandCard) -> Bool {
-        tossedCardIDs.contains(card.id)
-    }
-
-    /// Tossing is the one thing a blocked number can still be used for, so it
-    /// has its own path in from the Hand.
-    func tossBlocked(at index: Int) {
-        guard hand.indices.contains(index) else { return }
-        let digit = hand[index]
-        do {
-            _ = try game.toss(handIndex: index)
-            refreshHandCards()
-            message = nil
-            presentReturn(kind: .pool, digits: [digit])
-        } catch {
-            message = describe(error)
-        }
-        clearSelection()
+        "\(puzzle?.tossesRemaining ?? 0) left this puzzle"
     }
 
     func useClue(at square: Square) {

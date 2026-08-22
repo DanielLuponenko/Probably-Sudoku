@@ -119,7 +119,7 @@ struct PuzzlePageView: View {
                         subtitle: model.tossButtonSubtitle,
                         kind: .quiet,
                         isEnabled: model.canToss) {
-                model.toggleTossMode()
+                model.tossSelected()
             }
 
             if puzzle.canUseClue {
