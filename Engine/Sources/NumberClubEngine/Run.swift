@@ -177,7 +177,7 @@ public struct RunState: Codable, Sendable {
     }
 
     public var markerCapacity: Int {
-        ItemKind.marker.capacity + (owns(subscription: Subscriptions.overseasEdition) ? 1 : 0)
+        .max
     }
 
     /// The offer is pure from the Book seed and position. It can therefore be

@@ -3,11 +3,11 @@ import Foundation
 public enum ItemKind: String, Codable, CaseIterable, Sendable {
     case bookmark, marker, buff, subscription
 
-    /// §9 — slot capacity per kind.
+    /// §9 — slot capacity per kind. Markers are intentionally unlimited.
     public var capacity: Int {
         switch self {
         case .bookmark: return 5
-        case .marker: return 3
+        case .marker: return .max
         case .buff: return 2
         case .subscription: return .max
         }

@@ -20,7 +20,7 @@ struct MarkerPlacementSlip: View {
         PaperSlip(
             title: "Where does it go?",
             subtitle: marker.map {
-                "\($0.def.name). \($0.def.text). It keeps this square for the rest of the Book."
+                "\($0.def.name). \($0.def.text). It keeps this square for the rest of the Book. Tap an occupied square to replace its Marker."
             },
             closeLabel: pending > 0 ? "Skip for now" : "Done",
             dismissesOnBackground: false,
@@ -43,6 +43,10 @@ struct MarkerPlacementSlip: View {
                 }
 
                 BlankGridPicker(model: model, markerIndex: markerIndex)
+
+                Text("Tap any square. An occupied square is replaced by this Marker.")
+                    .font(Print.body(11.5))
+                    .foregroundStyle(Paper.inkSoft)
 
                 Text("Marked squares are worth more on harder Puzzles: the fewer numbers "
                      + "are already printed, the more of your marks come into play.")
@@ -69,19 +73,21 @@ private struct BlankGridPicker: View {
                 ForEach(Square.all, id: \.index) { square in
                     let owner = model.run.markedSquares[square]
                     Button {
-                        guard owner == nil else { return }
                         model.claimSquare(markerIndex: markerIndex, square: square)
                     } label: {
                         Rectangle()
                             .fill(owner.map { Paper.markerColor($0.defID).opacity(0.55) }
                                   ?? Paper.pageWarm)
-                            .overlay { Rectangle().strokeBorder(Paper.gridHair, lineWidth: 0.5) }
+                            .overlay {
+                                Rectangle().strokeBorder(owner == nil ? Paper.gridHair : Paper.redPencil,
+                                                          lineWidth: owner == nil ? 0.5 : 1.5)
+                            }
                             .frame(width: cell, height: cell)
                     }
                     .buttonStyle(.plain)
-                    .disabled(owner != nil)
                     .offset(x: CGFloat(square.col) * cell, y: CGFloat(square.row) * cell)
-                    .accessibilityLabel("\(square.description)\(owner != nil ? ", taken" : "")")
+                    .accessibilityLabel("\(square.description)\(owner.map { ", occupied by \($0.def.name)" } ?? ", empty")")
+                    .accessibilityHint(owner == nil ? "Places this Marker" : "Replaces the Marker on this square")
                 }
 
                 Canvas { context, _ in

@@ -319,14 +319,15 @@ final class ScoringTests: XCTestCase {
         XCTAssertEqual(late.entitledSquares(atLevel: 9), 2)
     }
 
-    func testTwoMarkersMayNotShareASquare() throws {
+    func testNewMarkerReplacesTheMarkerOnAnOccupiedSquare() throws {
         var run = RunState(seed: "squares", startingBoard: .scholar)
         run.markers = [OwnedMarker(defID: "mk_golden", boughtAtLevel: 1, pricePaid: 5),
                        OwnedMarker(defID: "mk_azure", boughtAtLevel: 1, pricePaid: 5)]
         try Shop.claimSquare(&run, markerIndex: 0, square: Square(40))
-        XCTAssertThrowsError(try Shop.claimSquare(&run, markerIndex: 1, square: Square(40))) {
-            XCTAssertEqual($0 as? Shop.MarkerError, .squareTaken)
-        }
+        try Shop.claimSquare(&run, markerIndex: 1, square: Square(40))
+        XCTAssertTrue(run.markers[0].squares.isEmpty)
+        XCTAssertEqual(run.markers[1].squares, [Square(40)])
+        XCTAssertEqual(run.markedSquares[Square(40)]?.defID, "mk_azure")
     }
 
     func testMovingAPlacedSquareCostsTwoCoins() throws {
