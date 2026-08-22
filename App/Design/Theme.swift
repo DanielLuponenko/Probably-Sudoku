@@ -151,6 +151,23 @@ struct LevelPalette: Equatable {
         }
     }
 
+    /// A Level palette supplies the puzzle's temperature; the selected stock
+    /// supplies contrast. The Night Sky paper is dark, so every semantic ink
+    /// needs to invert together rather than fixing only the grid numerals.
+    func resolved(for paper: PaperSkin) -> LevelPalette {
+        guard paper.isDark else { return self }
+        return LevelPalette(id: id,
+                            paper: paper.ink,
+                            ink: paper.ink,
+                            rule: paper.ruleInk,
+                            accent: paper.accentInk,
+                            danger: Color(hex: 0xF2A39B),
+                            given: Color(hex: 0x294568),
+                            placed: paper.ink,
+                            marked: Color(hex: 0xA6CFA4),
+                            target: Paper.sage)
+    }
+
     /// Lets the local screenshot harness compare the three Level treatments on
     /// the same puzzle. It is compiled out of Release builds.
     static func forDisplay(slot: PuzzleSlot) -> LevelPalette {
@@ -202,9 +219,18 @@ extension Print {
 extension View {
     /// Uppercase, heavy, tightly tracked — the mockups' section headings.
     func pageHeading(_ size: CGFloat = 34) -> some View {
-        self.font(Print.heading(size))
+        modifier(ThemedPageHeading(size: size))
+    }
+}
+
+private struct ThemedPageHeading: ViewModifier {
+    @Environment(\.cosmeticTheme) private var theme
+    var size: CGFloat
+
+    func body(content: Content) -> some View {
+        content.font(Print.heading(size))
             .tracking(-0.5)
-            .foregroundStyle(Paper.ink)
+            .foregroundStyle(theme.paper.ink)
             .textCase(.uppercase)
     }
 }

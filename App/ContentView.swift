@@ -209,6 +209,7 @@ struct ContentView: View {
 }
 
 private struct GameView: View {
+    @Environment(PlayerProfileStore.self) private var profile
     @Bindable var model: GameModel
     var reduceMotion: Bool
     var onBookCompletion: (GameModel) -> Void
@@ -373,7 +374,8 @@ private struct GameView: View {
         case .puzzle:
             if let puzzle = source.puzzle {
                 PuzzlePageView(model: source, puzzle: puzzle)
-                    .environment(\.levelPalette, .forDisplay(slot: puzzle.slot))
+                    .environment(\.levelPalette,
+                                 .forDisplay(slot: puzzle.slot).resolved(for: profile.theme.paper))
             }
         case .results:
             ResultsPageView(model: source) { onBookCompletion(model) }
