@@ -209,18 +209,18 @@ public struct RunState: Codable, Sendable {
 
     public struct Payout: Sendable, Equatable {
         public var base = 0
-        /// One coin for each card left in the Hand when the Puzzle is banked.
-        public var unusedHand = 0
+        /// One coin for each Turn left when the Puzzle is banked.
+        public var unusedTurns = 0
         public var keepFillingBank = 0
         public var interest = 0
         public var paperRoute = 0
-        public var total: Int { base + unusedHand + keepFillingBank + interest + paperRoute }
+        public var total: Int { base + unusedTurns + keepFillingBank + interest + paperRoute }
     }
 
     public func payout(for puzzle: PuzzleState) -> Payout {
         var p = Payout()
         p.base = 5
-        p.unusedHand = puzzle.hand.count
+        p.unusedTurns = puzzle.turnsRemaining
         p.keepFillingBank = puzzle.keepFillingCoins
         if puzzle.boss?.cancelsInterest != true {
             p.interest = min(interestCap, coins / 10)
