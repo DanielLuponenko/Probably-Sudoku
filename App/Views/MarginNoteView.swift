@@ -90,7 +90,7 @@ struct MarginNoteView: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(note.text)
                 .font(MarginNote.font(16))
-                .foregroundStyle(theme.marker.tint)
+                .foregroundStyle(theme.paper.handwritingInk(theme.marker.tint))
                 // Two lines, shrinking rather than wrapping to a third: the
                 // band is fixed, and a third line runs into the Hand below it.
                 .lineLimit(2)
@@ -99,7 +99,7 @@ struct MarginNoteView: View {
             if note.underlined {
                 // A wobbly underline, drawn the way a hand draws one.
                 Underline()
-                    .stroke(theme.marker.tint.opacity(0.55), lineWidth: 1.2)
+                    .stroke(theme.paper.handwritingInk(theme.marker.tint).opacity(0.55), lineWidth: 1.2)
                     .frame(height: 3)
             }
         }

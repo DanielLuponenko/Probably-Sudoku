@@ -27,6 +27,19 @@ struct PaperSkin: Equatable {
     let edge: Color
     let grain: Double
     let treatment: PaperTreatment
+
+    /// Page copy is a property of the stock, not a global colour. Most sheets
+    /// are dark ink on cream; Night Sky is the deliberate inverse.
+    var ink: Color { treatment == .nightSky ? Color(hex: 0xFFF9E7) : Paper.ink }
+    var softInk: Color { treatment == .nightSky ? Color(hex: 0xDCE6F2) : Paper.inkSoft }
+    var faintInk: Color { treatment == .nightSky ? Color(hex: 0xAABDD2) : Paper.inkFaint }
+    var ruleInk: Color { treatment == .nightSky ? Color(hex: 0xC6D6E7) : Paper.rule }
+    var accentInk: Color { treatment == .nightSky ? Color(hex: 0xE6C671) : Paper.sageDeep }
+    var isDark: Bool { treatment == .nightSky }
+
+    func handwritingInk(_ selectedMarker: Color) -> Color {
+        isDark ? Color(hex: 0xE6C671) : selectedMarker
+    }
 }
 
 /// A material treatment, not a gameplay state. It is shared by the live page
