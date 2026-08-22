@@ -122,7 +122,7 @@ struct ResultsPageView: View {
     private func payoutLines(_ payout: RunState.Payout) -> some View {
         VStack(spacing: 7) {
             line("Base", payout.base)
-            if payout.unusedHand > 0 { line("Unused Hand", payout.unusedHand) }
+            if payout.unusedTurns > 0 { line("Unused Turns", payout.unusedTurns) }
             if payout.keepFillingBank > 0 { line("Kept filling", payout.keepFillingBank) }
             if payout.interest > 0 { line("Interest", payout.interest) }
             if payout.paperRoute > 0 { line("Paper Route", payout.paperRoute) }

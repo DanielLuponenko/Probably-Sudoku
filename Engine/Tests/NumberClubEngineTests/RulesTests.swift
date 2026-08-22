@@ -353,7 +353,7 @@ final class RulesTests: XCTestCase {
         XCTAssertGreaterThan(game.puzzle!.keepFillingCoins, clears, "Full Clear banks 3, each clear 1")
     }
 
-    func testPayoutAddsBaseUnusedHandInterestAndPaperRoute() throws {
+    func testPayoutAddsBaseUnusedTurnsInterestAndPaperRoute() throws {
         var game = try startedGame()
         game.run.coins = 60          // 10% interest = 6
         game.give(ad: Bookmarks.paperRoute)
@@ -365,18 +365,21 @@ final class RulesTests: XCTestCase {
         }
         let payout = try game.cashOut()
         XCTAssertEqual(payout.base, 5)
-        XCTAssertEqual(payout.unusedHand, 1, "the final unplayed Hand card pays one coin")
+        XCTAssertEqual(payout.unusedTurns, game.puzzle?.turnsRemaining,
+                       "every unused Turn pays one coin")
         XCTAssertEqual(payout.interest, 6)
         XCTAssertEqual(payout.paperRoute, 2)
         XCTAssertEqual(game.run.coins, 60 + payout.total)
     }
 
-    func testUnusedHandPayoutMatchesEveryPossibleRemainingHandCount() throws {
-        for count in 0...7 {
-            var run = RunState(seed: "unused-hand-\(count)", startingBoard: .scholar)
+    func testUnusedTurnPayoutMatchesEveryPossibleRemainingTurnCount() throws {
+        for count in 0...10 {
+            var run = RunState(seed: "unused-turn-\(count)", startingBoard: .scholar)
             var puzzle = try PuzzleState.create(run: &run)
-            puzzle.hand = Array(repeating: .one, count: count)
-            XCTAssertEqual(run.payout(for: puzzle).unusedHand, count)
+            puzzle.hand = Array(repeating: .one, count: 7)
+            puzzle.turnNumber = puzzle.turnsMax - count + 1
+            XCTAssertEqual(puzzle.turnsRemaining, count)
+            XCTAssertEqual(run.payout(for: puzzle).unusedTurns, count)
             XCTAssertEqual(run.payout(for: puzzle).total, 5 + count)
         }
     }
