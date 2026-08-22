@@ -284,6 +284,18 @@ struct PaperStockOverlay: View {
                 }
                 .padding(.horizontal, 18)
                 .frame(width: size.width, height: size.height)
+            case .garden:
+                themedArtwork("ThemeGarden", size: size)
+                    .scaleEffect(1 + idlePhase * 0.008, anchor: .bottomLeading)
+                    .offset(x: idlePhase * 2)
+            case .nightSky:
+                themedArtwork("ThemeNightSky", size: size)
+                    .opacity(0.96 - Double(idlePhase) * 0.13)
+                    .scaleEffect(1 + idlePhase * 0.012)
+            case .ocean:
+                themedArtwork("ThemeOcean", size: size)
+                    .scaleEffect(1 + idlePhase * 0.012, anchor: .bottom)
+                    .offset(x: -idlePhase * 3, y: idlePhase * 2)
             }
         }
         .opacity(1 - Double(idlePhase) * 0.035)
@@ -304,6 +316,16 @@ struct PaperStockOverlay: View {
         withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
             idlePhase = 1
         }
+    }
+
+    /// The middle of each generated paper is deliberately quiet. Nine-slice
+    /// stretching preserves the illustrated border on every Book size while
+    /// leaving the live grid's centre sharp and unobstructed.
+    private func themedArtwork(_ name: String, size: CGSize) -> some View {
+        Image(name)
+            .resizable(capInsets: EdgeInsets(top: 110, leading: 110, bottom: 110, trailing: 110),
+                       resizingMode: .stretch)
+            .frame(width: size.width, height: size.height)
     }
 }
 

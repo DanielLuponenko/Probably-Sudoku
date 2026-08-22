@@ -32,7 +32,7 @@ struct PaperSkin: Equatable {
 /// A material treatment, not a gameplay state. It is shared by the live page
 /// and shop preview so a purchased sheet never promises something it cannot do.
 enum PaperTreatment: Equatable {
-    case plain, graph, ledger, onionSkin, carbon, telegram
+    case plain, graph, ledger, onionSkin, carbon, telegram, garden, nightSky, ocean
 }
 
 struct BoardSkin: Equatable {
@@ -181,6 +181,12 @@ enum CosmeticCatalog {
                      blurb: "A second impression, slightly out of register."),
         CosmeticItem(id: "pp_telegram", category: .paper, name: "Telegram", price: 95,
                      blurb: "Yellow tape from a machine that never sleeps."),
+        CosmeticItem(id: "pp_garden", category: .paper, name: "Garden", price: 100,
+                     blurb: "Ivy round the edges. The numbers still have nowhere to hide."),
+        CosmeticItem(id: "pp_night_sky", category: .paper, name: "Night Sky", price: 100,
+                     blurb: "A quiet sky. The grid is the constellation."),
+        CosmeticItem(id: "pp_ocean", category: .paper, name: "Ocean", price: 100,
+                     blurb: "Sea-glass paper and a tide that minds its own business."),
         // Grid
         CosmeticItem(id: "bd_printed", category: .board, name: "Printed Rule", price: 0,
                      blurb: "Hairlines inside, heavy lines round the boxes."),
@@ -233,11 +239,33 @@ enum CosmeticCatalog {
     // MARK: Resolving
 
     static func theme(for equipped: EquippedCosmetics) -> CosmeticTheme {
-        CosmeticTheme(desk: desk(equipped.deskID),
-                      paper: paper(equipped.paperID),
-                      board: board(equipped.boardID),
-                      numbers: numbers(equipped.numberID),
-                      marker: marker(equipped.markerID))
+        let selectedPaper = paper(equipped.paperID)
+        let selectedBoard = board(equipped.boardID)
+        let selectedNumbers = numbers(equipped.numberID)
+        return CosmeticTheme(desk: desk(equipped.deskID),
+                             paper: selectedPaper,
+                             board: nightAdjusted(selectedBoard, on: selectedPaper),
+                             numbers: nightAdjusted(selectedNumbers, on: selectedPaper),
+                             marker: marker(equipped.markerID))
+    }
+
+    /// Night Sky is the one dark stock. Keep the player's chosen rule weight
+    /// and numeral face, but invert their inks so it stays a theme, not an
+    /// accessibility regression.
+    private static func nightAdjusted(_ skin: BoardSkin, on paper: PaperSkin) -> BoardSkin {
+        guard paper.treatment == .nightSky else { return skin }
+        return BoardSkin(id: skin.id,
+                         hair: Color.white.opacity(0.42), bold: Color(hex: 0xE6C671),
+                         hairWidth: skin.hairWidth, boldWidth: skin.boldWidth,
+                         given: Color(hex: 0x294568), selected: Color(hex: 0x3D5F80),
+                         sameNumber: Color(hex: 0x2E486D))
+    }
+
+    private static func nightAdjusted(_ skin: NumberSkin, on paper: PaperSkin) -> NumberSkin {
+        guard paper.treatment == .nightSky else { return skin }
+        return NumberSkin(id: skin.id, design: skin.design, ink: Color(hex: 0xFFF9E7),
+                          givenInk: Color(hex: 0xE6C671), motion: skin.motion,
+                          weightShift: skin.weightShift)
     }
 
     static func desk(_ id: String) -> DeskSkin {
@@ -280,6 +308,15 @@ enum CosmeticCatalog {
         case "pp_telegram":
             return PaperSkin(id: id, page: Color(hex: 0xEFE0A7), warm: Color(hex: 0xE5D397),
                              edge: Color(hex: 0xCEBD7B), grain: 0.045, treatment: .telegram)
+        case "pp_garden":
+            return PaperSkin(id: id, page: Color(hex: 0xF3EBD5), warm: Color(hex: 0xE9DFC1),
+                             edge: Color(hex: 0xB8A87D), grain: 0.048, treatment: .garden)
+        case "pp_night_sky":
+            return PaperSkin(id: id, page: Color(hex: 0x172B49), warm: Color(hex: 0x12233D),
+                             edge: Color(hex: 0x927B44), grain: 0.038, treatment: .nightSky)
+        case "pp_ocean":
+            return PaperSkin(id: id, page: Color(hex: 0xD9EDF0), warm: Color(hex: 0xC7E3E8),
+                             edge: Color(hex: 0x8DB9C4), grain: 0.035, treatment: .ocean)
         default:
             return PaperSkin(id: "pp_newsprint", page: Paper.page, warm: Paper.pageWarm,
                              edge: Paper.pageEdge, grain: 0.055, treatment: .plain)
