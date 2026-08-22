@@ -7,7 +7,7 @@ import ProbablySudokuEngine
 struct MarkerPlacementSlip: View {
     @Bindable var model: GameModel
     var markerIndex: Int
-    var onDone: () -> Void
+    var onPlaced: () -> Void
 
     private var marker: OwnedMarker? {
         model.run.markers.indices.contains(markerIndex) ? model.run.markers[markerIndex] : nil
@@ -22,9 +22,9 @@ struct MarkerPlacementSlip: View {
             subtitle: marker.map {
                 "\($0.def.name). \($0.def.text). It keeps this square for the rest of the Book. Tap an occupied square to replace its Marker."
             },
-            closeLabel: pending > 0 ? "Skip for now" : "Done",
+            showsCloseButton: false,
             dismissesOnBackground: false,
-            onClose: onDone
+            onClose: onPlaced
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
@@ -42,7 +42,7 @@ struct MarkerPlacementSlip: View {
                         .foregroundStyle(pending > 0 ? Paper.redPencil : Paper.sageDeep)
                 }
 
-                BlankGridPicker(model: model, markerIndex: markerIndex)
+                BlankGridPicker(model: model, markerIndex: markerIndex, onPlaced: onPlaced)
 
                 Text("Tap any square. An occupied square is replaced by this Marker.")
                     .font(Print.body(11.5))
@@ -63,6 +63,7 @@ struct MarkerPlacementSlip: View {
 private struct BlankGridPicker: View {
     @Bindable var model: GameModel
     var markerIndex: Int
+    var onPlaced: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -73,7 +74,9 @@ private struct BlankGridPicker: View {
                 ForEach(Square.all, id: \.index) { square in
                     let owner = model.run.markedSquares[square]
                     Button {
-                        model.claimSquare(markerIndex: markerIndex, square: square)
+                        if model.claimSquare(markerIndex: markerIndex, square: square) {
+                            onPlaced()
+                        }
                     } label: {
                         Rectangle()
                             .fill(owner.map { Paper.markerColor($0.defID).opacity(0.55) }

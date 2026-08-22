@@ -8,7 +8,6 @@ struct ShopPageView: View {
     var shop: ShopState
     @State private var claimingMarker: Int?
     @State private var inspectedOffer: ShopOffer?
-    @State private var sellCandidate: LoadoutItem?
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -25,11 +24,6 @@ struct ShopPageView: View {
                 .padding(.bottom, 4)
             }
 
-            if model.run.pendingMarkerSquares() > 0 {
-                pendingSquaresNotice
-            }
-
-            ownedSummary
             PaperButton(title: "Continue", subtitle: "Next Puzzle", kind: .primary) {
                 Task {
                     await flipper.flip(from: model, reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
@@ -48,35 +42,6 @@ struct ShopPageView: View {
                 setClaimingMarker(markerIndex)
             }
         }
-        .confirmationDialog("Sell \(sellCandidate?.def.name ?? "item")?",
-                            isPresented: sellDialogPresented,
-                            titleVisibility: .visible) {
-            if let candidate = sellCandidate {
-                Button("Sell for \(candidate.sellValue) coins", role: .destructive) {
-                    model.sell(kind: candidate.kind, index: candidate.index)
-                    sellCandidate = nil
-                }
-            }
-            Button("Keep it", role: .cancel) { sellCandidate = nil }
-        } message: {
-            if let candidate = sellCandidate {
-                Text("This returns \(candidate.sellValue) coins. Markers cannot be sold.")
-            }
-        }
-    }
-
-    fileprivate struct LoadoutItem: Identifiable {
-        let kind: ItemKind
-        let index: Int
-        let def: ItemDef
-        let sellValue: Int
-        let canSell: Bool
-
-        var id: String { "\(kind.rawValue)-\(def.id)-\(index)" }
-    }
-
-    private var sellDialogPresented: Binding<Bool> {
-        Binding(get: { sellCandidate != nil }, set: { if !$0 { sellCandidate = nil } })
     }
 
     private func setClaimingMarker(_ markerIndex: Int?) {
@@ -173,80 +138,6 @@ struct ShopPageView: View {
         .opacity(model.coins < shop.rerollCost ? 0.45 : 1)
         .accessibilityLabel(shop.rerollCost == 0 ? "Reroll the shop for free"
                                                    : "Reroll the shop for \(shop.rerollCost) \(shop.rerollCost == 1 ? "coin" : "coins")")
-    }
-
-    /// §11 — a Marker gains a square per Level, and the player chooses it here.
-    private var pendingSquaresNotice: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Squares to place")
-                .font(Print.caption(11)).tracking(1.4).textCase(.uppercase)
-                .foregroundStyle(Paper.inkSoft)
-            ForEach(Array(model.run.markers.enumerated()), id: \.offset) { index, marker in
-                let pending = marker.pendingSquares(atLevel: model.run.level)
-                if pending > 0 {
-                    Button { claimingMarker = index } label: {
-                        HStack(spacing: 8) {
-                            Circle().fill(Paper.markerColor(marker.defID)).frame(width: 14, height: 14)
-                            Text(marker.def.name)
-                                .font(Print.subheading(13))
-                                .foregroundStyle(Paper.ink)
-                            Spacer()
-                            Text("\(pending) to place")
-                                .font(Print.caption(11))
-                                .foregroundStyle(Paper.redPencil)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Paper.inkFaint)
-                        }
-                        .padding(9)
-                        .background { RoundedRectangle(cornerRadius: 5).fill(Paper.pageWarm) }
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Paper.redPencil.opacity(0.5), lineWidth: 1.2)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private var ownedSummary: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 10) {
-                Text("Your loadout")
-                    .font(Print.caption(11)).tracking(1.4).textCase(.uppercase)
-                    .foregroundStyle(Paper.inkSoft)
-                Rectangle().fill(Paper.rule.opacity(0.6)).frame(height: 1)
-            }
-            LoadoutBand(title: "Bookmarks", items: bookmarks, capacity: ItemKind.bookmark.capacity,
-                        sellCandidate: $sellCandidate)
-            LoadoutBand(title: "Markers", items: markers, capacity: nil,
-                        sellCandidate: $sellCandidate)
-            LoadoutBand(title: "Buffs", items: buffs, capacity: ItemKind.buff.capacity,
-                        sellCandidate: $sellCandidate)
-        }
-    }
-
-    private var bookmarks: [LoadoutItem] {
-        model.run.bookmarks.enumerated().map {
-            LoadoutItem(kind: .bookmark, index: $0.offset, def: $0.element.def,
-                        sellValue: model.sellPrice($0.element.pricePaid), canSell: true)
-        }
-    }
-
-    private var markers: [LoadoutItem] {
-        model.run.markers.enumerated().map {
-            LoadoutItem(kind: .marker, index: $0.offset, def: $0.element.def,
-                        sellValue: model.sellPrice($0.element.pricePaid), canSell: false)
-        }
-    }
-
-    private var buffs: [LoadoutItem] {
-        model.run.buffs.enumerated().map {
-            LoadoutItem(kind: .buff, index: $0.offset, def: $0.element.def,
-                        sellValue: model.sellPrice($0.element.pricePaid), canSell: true)
-        }
     }
 
 }
@@ -472,73 +363,5 @@ private struct OfferSlip: View {
             }
         }
         .presentationDetents([.medium])
-    }
-}
-
-private struct LoadoutBand: View {
-    let title: String
-    let items: [ShopPageView.LoadoutItem]
-    let capacity: Int?
-    @Binding var sellCandidate: ShopPageView.LoadoutItem?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(Print.caption(9))
-                .tracking(1.1)
-                .textCase(.uppercase)
-                .foregroundStyle(Paper.inkFaint)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) { entries }
-                VStack(alignment: .leading, spacing: 5) { entries }
-            }
-        }
-    }
-
-    @ViewBuilder private var entries: some View {
-        ForEach(items) { item in
-            if item.canSell {
-                Button { sellCandidate = item } label: { itemLabel(item, sellable: true) }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(item.def.name), sell for \(item.sellValue) coins")
-            } else {
-                itemLabel(item, sellable: false)
-                    .accessibilityLabel("\(item.def.name), not sellable")
-            }
-        }
-        if let capacity, capacity > items.count {
-            Text("\(capacity - items.count) open")
-                .font(Print.caption(10))
-                .foregroundStyle(Paper.inkFaint)
-                .padding(.horizontal, 6).padding(.vertical, 4)
-                .overlay { Rectangle().strokeBorder(Paper.rule.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [2, 2])) }
-                .accessibilityLabel("\(capacity - items.count) open \(title) slots")
-        } else if capacity != nil {
-            Text("Full")
-                .font(Print.caption(10))
-                .foregroundStyle(Paper.redPencil)
-                .padding(.horizontal, 6).padding(.vertical, 4)
-                .overlay { Rectangle().strokeBorder(Paper.redPencil.opacity(0.65), lineWidth: 1) }
-                .accessibilityLabel("All \(title) slots are full")
-        }
-    }
-
-    private func itemLabel(_ item: ShopPageView.LoadoutItem, sellable: Bool) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: ItemIcon.symbol(for: item.def.id))
-                .font(.system(size: 11))
-            Text(item.def.name)
-                .font(Print.caption(10))
-                .lineLimit(1)
-            if sellable {
-                Text("−\(item.sellValue)")
-                    .font(Print.caption(9))
-                    .foregroundStyle(Paper.redPencil)
-            }
-        }
-        .foregroundStyle(Paper.inkSoft)
-        .padding(.horizontal, 6).padding(.vertical, 4)
-        .background(Paper.pageWarm.opacity(0.7))
-        .overlay { Rectangle().strokeBorder(Paper.rule.opacity(0.75), lineWidth: 1) }
     }
 }
