@@ -288,6 +288,10 @@ struct PaperStockOverlay: View {
                 themedArtwork("ThemeGarden", size: size)
                     .scaleEffect(1 + idlePhase * 0.008, anchor: .bottomLeading)
                     .offset(x: idlePhase * 2)
+                    // The illustration is decorative page furniture, never
+                    // part of the puzzle. Keep a clear live-content area so
+                    // ivy cannot sit behind the grid, labels or controls.
+                    .mask(GardenMarginMask())
             case .nightSky:
                 themedArtwork("ThemeNightSky", size: size)
                     .opacity(0.96 - Double(idlePhase) * 0.13)
@@ -326,6 +330,22 @@ struct PaperStockOverlay: View {
             .resizable(capInsets: EdgeInsets(top: 110, leading: 110, bottom: 110, trailing: 110),
                        resizingMode: .stretch)
             .frame(width: size.width, height: size.height)
+    }
+}
+
+/// Masks the Garden illustration down to a narrow physical page margin. The
+/// page stock and grain remain visible in the centre, but no foliage can
+/// overlap the interactive content that PageSurface places there.
+private struct GardenMarginMask: View {
+    var body: some View {
+        ZStack {
+            Color.white
+            Rectangle()
+                .fill(.white)
+                .padding(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                .blendMode(.destinationOut)
+        }
+        .compositingGroup()
     }
 }
 
