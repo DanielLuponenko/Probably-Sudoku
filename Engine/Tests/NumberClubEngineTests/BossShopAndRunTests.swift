@@ -361,6 +361,23 @@ final class ShopTests: XCTestCase {
         }
     }
 
+    func testMarkersCanBeBoughtBeyondTheFormerThreeMarkerLimit() throws {
+        var run = RunState(seed: "unlimited-markers", startingBoard: .scholar)
+        run.coins = 20
+        run.shop = ShopState(
+            offers: (0..<4).map { ShopOffer(slot: $0, defID: "mk_golden", price: 5) },
+            rerollCost: 2,
+            rerollsUsed: 0
+        )
+
+        for slot in 0..<4 {
+            try Shop.buy(&run, slot: slot)
+        }
+
+        XCTAssertEqual(run.markers.count, 4)
+        XCTAssertEqual(run.coins, 0)
+    }
+
     func testRerollCostsTwoThenClimbs() throws {
         var run = RunState(seed: "reroll", startingBoard: .scholar)
         run.coins = 100
@@ -435,7 +452,7 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertEqual(run.effectiveTurns(boss: nil), 11)
         XCTAssertEqual(run.effectiveTossAllowance(boss: nil), 6)
         XCTAssertEqual(run.interestCap, 20)
-        XCTAssertEqual(run.markerCapacity, 4)
+        XCTAssertEqual(run.markerCapacity, .max)
         XCTAssertTrue(run.bookmarks.count < ItemKind.bookmark.capacity)
         XCTAssertTrue(run.buffs.count < ItemKind.buff.capacity)
 

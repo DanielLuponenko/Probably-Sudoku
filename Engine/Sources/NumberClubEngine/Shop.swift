@@ -171,7 +171,6 @@ public enum Shop {
             guard run.bookmarks.count < ItemKind.bookmark.capacity else { throw ShopError.slotsFull }
             run.bookmarks.append(OwnedBookmark(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
         case .marker:
-            guard run.markers.count < run.markerCapacity else { throw ShopError.slotsFull }
             run.markers.append(OwnedMarker(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
         case .buff:
             guard run.buffs.count < ItemKind.buff.capacity else { throw ShopError.slotsFull }
@@ -220,13 +219,16 @@ public enum Shop {
         case noSuchMarker, squareTaken, noPendingSquares, notEnoughCoins, squareNotOwned
     }
 
-    /// §11 — claim a square the Marker is entitled to. Free.
+    /// §11 — claim a square the Marker is entitled to. Free. A newly placed
+    /// Marker replaces any Marker already covering that square.
     public static func claimSquare(_ run: inout RunState, markerIndex: Int, square: Square) throws {
         guard run.markers.indices.contains(markerIndex) else { throw MarkerError.noSuchMarker }
         guard run.markers[markerIndex].pendingSquares(atLevel: run.level) > 0 else {
             throw MarkerError.noPendingSquares
         }
-        guard run.squareIsFree(square) else { throw MarkerError.squareTaken }
+        if let existingIndex = run.markers.indices.first(where: { run.markers[$0].covers(square) }) {
+            run.markers[existingIndex].squares.removeAll { $0 == square }
+        }
         run.markers[markerIndex].squares.append(square)
     }
 

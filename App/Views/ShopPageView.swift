@@ -92,7 +92,7 @@ struct ShopPageView: View {
     private func hasSlot(for kind: ItemKind) -> Bool {
         switch kind {
         case .bookmark: return model.run.bookmarks.count < kind.capacity
-        case .marker: return model.run.markers.count < model.run.markerCapacity
+        case .marker: return true
         case .buff: return model.run.buffs.count < kind.capacity
         case .subscription: return true
         }
@@ -221,7 +221,7 @@ struct ShopPageView: View {
             }
             LoadoutBand(title: "Bookmarks", items: bookmarks, capacity: ItemKind.bookmark.capacity,
                         sellCandidate: $sellCandidate)
-            LoadoutBand(title: "Markers", items: markers, capacity: model.run.markerCapacity,
+            LoadoutBand(title: "Markers", items: markers, capacity: nil,
                         sellCandidate: $sellCandidate)
             LoadoutBand(title: "Buffs", items: buffs, capacity: ItemKind.buff.capacity,
                         sellCandidate: $sellCandidate)
@@ -405,7 +405,7 @@ private struct OfferSlip: View {
     private var hasSlot: Bool {
         switch currentOffer.def.kind {
         case .bookmark: return model.run.bookmarks.count < ItemKind.bookmark.capacity
-        case .marker: return model.run.markers.count < model.run.markerCapacity
+        case .marker: return true
         case .buff: return model.run.buffs.count < ItemKind.buff.capacity
         case .subscription: return true
         }
