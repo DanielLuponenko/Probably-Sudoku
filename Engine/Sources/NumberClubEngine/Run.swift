@@ -151,6 +151,7 @@ public struct RunState: Codable, Sendable {
         var turns = boss?.turnsOverride ?? Baseline.turns
         if owns(bookmark: Bookmarks.lateCityFinal) { turns += 1 }
         if owns(subscription: Subscriptions.weekendEdition) { turns += 1 }
+        turns += obstacle.turnsDelta
         return max(1, turns)
     }
 
@@ -164,7 +165,7 @@ public struct RunState: Codable, Sendable {
 
     /// Per Puzzle. The Erratum removes it entirely; Weather Forecast adds two.
     public func effectiveTossAllowance(boss: BossModifier?) -> Int {
-        if boss?.forcesTossAllowanceToZero == true { return 0 }
+        if boss?.forcesTossAllowanceToZero == true || obstacle.removesTosses { return 0 }
         return Baseline.tossAllowance
             + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
             + (owns(subscription: Subscriptions.wireService) ? 2 : 0)

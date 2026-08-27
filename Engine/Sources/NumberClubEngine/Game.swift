@@ -35,7 +35,11 @@ public struct Game: Sendable {
     /// finished — beating the Level 9 Boss (§2).
     @discardableResult
     public mutating func advance() -> Bool {
-        run.advance()
+        // Leaving the Shop is part of moving to the next briefing. Keeping its
+        // stale state made `currentClipping` think the next normal Puzzle was
+        // still in a Shop, so its skip offer disappeared.
+        run.shop = nil
+        return run.advance()
     }
     @discardableResult
     public mutating func skipPuzzle() throws -> Clipping {

@@ -487,4 +487,42 @@ final class ObstacleTests: XCTestCase {
         _ = try game.endTurn()
         XCTAssertNil(game.puzzle?.blockedDigit)
     }
+
+    func testObstacleFourThroughNineAreRealRules() throws {
+        var four = Game(seed: "obstacle-four", startingBoard: .scholar, obstacle: .smallerHand)
+        try four.startPuzzle()
+        XCTAssertEqual(four.puzzle?.handSize, 5)
+        XCTAssertEqual(four.puzzle?.obstacleBlockedDigits.count, 1)
+
+        var five = Game(seed: "obstacle-five", startingBoard: .scholar,
+                        obstacle: .smallerHandAndBlocked)
+        try five.startPuzzle()
+        XCTAssertEqual(five.puzzle?.handSize, 5)
+        XCTAssertEqual(five.puzzle?.obstacleBlockedDigits.count, 2)
+
+        var six = Game(seed: "obstacle-six", startingBoard: .scholar, obstacle: .doubleBlocked)
+        try six.startPuzzle()
+        XCTAssertEqual(six.puzzle?.obstacleBlockedDigits.count, 2)
+        XCTAssertEqual(six.puzzle?.turnsMax, Baseline.turns - 1)
+        XCTAssertTrue(six.puzzle!.obstacleBlockedDigits.isSubset(of: Set(six.puzzle!.hand)))
+
+        var seven = Game(seed: "obstacle-seven", startingBoard: .scholar, obstacle: .shortDeadline)
+        try seven.startPuzzle()
+        XCTAssertEqual(seven.puzzle?.turnsMax, Baseline.turns - 1)
+        XCTAssertEqual(seven.puzzle?.tossAllowance, 0)
+
+        var eight = Game(seed: "obstacle-eight", startingBoard: .scholar, obstacle: .noTosses)
+        try eight.startPuzzle()
+        XCTAssertEqual(eight.puzzle?.turnsMax, Baseline.turns - 1)
+        XCTAssertEqual(eight.puzzle?.tossAllowance, 0)
+        XCTAssertEqual(eight.puzzle?.obstacleBlockedDigits.count, 3)
+
+        var nine = Game(seed: "obstacle-nine", startingBoard: .scholar, obstacle: .finalEdition)
+        try nine.startPuzzle()
+        XCTAssertEqual(nine.puzzle?.handSize, 4)
+        XCTAssertEqual(nine.puzzle?.obstacleBlockedDigits.count, 3)
+        XCTAssertTrue(nine.puzzle!.obstacleBlockedDigits.isSubset(of: Set(nine.puzzle!.hand)))
+        XCTAssertEqual(nine.puzzle?.turnsMax, Baseline.turns - 1)
+        XCTAssertEqual(nine.puzzle?.tossAllowance, 0)
+    }
 }

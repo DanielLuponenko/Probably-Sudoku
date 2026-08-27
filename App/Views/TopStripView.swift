@@ -99,6 +99,7 @@ struct CoinBadge: View {
 
 /// Where this Puzzle sits in the Level: three dots, one per slot.
 struct ProgressDots: View {
+    @Environment(\.cosmeticTheme) private var theme
     var index: Int
     var count: Int
 
@@ -106,12 +107,12 @@ struct ProgressDots: View {
         HStack(spacing: 0) {
             ForEach(0..<count, id: \.self) { i in
                 Circle()
-                    .fill(i <= index ? Paper.ink : Color.clear)
-                    .overlay { Circle().strokeBorder(Paper.ink.opacity(0.55), lineWidth: 1.4) }
+                    .fill(i <= index ? theme.paper.ink : Color.clear)
+                    .overlay { Circle().strokeBorder(theme.paper.ink.opacity(0.55), lineWidth: 1.4) }
                     .frame(width: i == index ? 9 : 7, height: i == index ? 9 : 7)
                 if i < count - 1 {
                     Rectangle()
-                        .fill(Paper.ink.opacity(0.35))
+                        .fill(theme.paper.ink.opacity(0.35))
                         .frame(width: 12, height: 1.2)
                 }
             }

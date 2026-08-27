@@ -19,11 +19,10 @@ struct HandStripView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(model.isReadingLitmus ? palette.accent : palette.ink.opacity(0.7))
                 Spacer()
-                Label("Pool", systemImage: "tray.and.arrow.down")
-                    .font(Print.caption(10))
-                    .tracking(0.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(palette.ink.opacity(0.52))
+                // Keep the animation destination without introducing a
+                // visible control that is absent from the paper-board design.
+                Color.clear
+                    .frame(width: 1, height: 1)
                     .numberReturnMotionFrame(NumberReturnMotionAnchor.pool)
                 if model.isReadingLitmus {
                     Image(systemName: "eyedropper.halffull")
@@ -89,6 +88,7 @@ private struct NumberTile: View {
             .background {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(isSelected ? theme.board.selected : theme.paper.warm)
+                    .shadow(color: .black.opacity(0.16), radius: 2, x: 0, y: 2)
             }
             .overlay {
                 // Struck through in red pencil: it is still yours and still

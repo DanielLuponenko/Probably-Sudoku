@@ -55,6 +55,9 @@ public struct PuzzleState: Codable, Sendable {
     /// rather than a Hand position, because positions shift as the Hand is
     /// played and a moving block is unreadable.
     public var blockedDigit: Digit?
+    /// Obstacle IV onward can bar more than one number. This is separate from
+    /// a Boss's temporary bars so the two sources stack cleanly.
+    public var obstacleBlockedDigits: Set<Digit> = []
     /// State for Bosses whose restrictions change from one Turn to the next.
     public var bossTurn: BossTurnState?
 
@@ -70,7 +73,7 @@ public struct PuzzleState: Codable, Sendable {
         case level, slot, difficulty, board, pool, hand, handSize, turnNumber,
              turnsMax, tossedThisPuzzle, tossAllowance, score, target,
              cluesRemaining, pendingBase, pendingMult, boss,
-             censoredDigit, blockedDigit, bossTurn, phase, keepFillingCoins,
+             censoredDigit, blockedDigit, obstacleBlockedDigits, bossTurn, phase, keepFillingCoins,
              itemState, armedFlags
     }
 
@@ -78,7 +81,7 @@ public struct PuzzleState: Codable, Sendable {
          pool: Pool, hand: [Digit], handSize: Int, turnNumber: Int,
          turnsMax: Int, tossedThisPuzzle: Int, tossAllowance: Int, score: Int,
          target: Int, cluesRemaining: Int, boss: BossModifier?,
-         censoredDigit: Digit?, blockedDigit: Digit?, bossTurn: BossTurnState?,
+         censoredDigit: Digit?, blockedDigit: Digit?, obstacleBlockedDigits: Set<Digit> = [], bossTurn: BossTurnState?,
          phase: PuzzlePhase, keepFillingCoins: Int) {
         self.level = level
         self.slot = slot
@@ -97,6 +100,7 @@ public struct PuzzleState: Codable, Sendable {
         self.boss = boss
         self.censoredDigit = censoredDigit
         self.blockedDigit = blockedDigit
+        self.obstacleBlockedDigits = obstacleBlockedDigits
         self.bossTurn = bossTurn
         self.phase = phase
         self.keepFillingCoins = keepFillingCoins
@@ -125,6 +129,7 @@ public struct PuzzleState: Codable, Sendable {
         boss = try c.decodeIfPresent(BossModifier.self, forKey: .boss)
         censoredDigit = try c.decodeIfPresent(Digit.self, forKey: .censoredDigit)
         blockedDigit = try c.decodeIfPresent(Digit.self, forKey: .blockedDigit)
+        obstacleBlockedDigits = try c.decodeIfPresent(Set<Digit>.self, forKey: .obstacleBlockedDigits) ?? []
         bossTurn = try c.decodeIfPresent(BossTurnState.self, forKey: .bossTurn)
         phase = try c.decode(PuzzlePhase.self, forKey: .phase)
         keepFillingCoins = try c.decode(Int.self, forKey: .keepFillingCoins)
@@ -151,6 +156,7 @@ public struct PuzzleState: Codable, Sendable {
     public var canUseClue: Bool { cluesRemaining > 0 && boss?.disablesClues != true }
     public var blockedDigits: Set<Digit> {
         var digits = bossTurn?.blockedDigits ?? []
+        digits.formUnion(obstacleBlockedDigits)
         if let blockedDigit { digits.insert(blockedDigit) }
         return digits
     }
@@ -212,13 +218,12 @@ public extension PuzzleState {
             boss: boss,
             censoredDigit: censored,
             blockedDigit: nil,
+            obstacleBlockedDigits: [],
             bossTurn: nil,
             phase: .playing,
             keepFillingCoins: 0
         )
-        if run.obstacle.blocksANumberEachTurn {
-            puzzle.blockedDigit = Self.pickBlocked(from: puzzle.hand, rng: &run.streams.pool)
-        }
+        puzzle.startObstacleTurn(&run)
         puzzle.startBossTurn(&run)
 
         puzzle.assertConservation()
@@ -236,6 +241,21 @@ public extension PuzzleState {
         let held = Array(Set(hand).subtracting(taken)).sorted()
         guard !held.isEmpty else { return nil }
         return held[rng.int(held.count)]
+    }
+
+    /// Picks only from the Hand after it has been refilled, so every obstacle
+    /// block is a real restriction. `blockedDigit` remains populated for
+    /// saved-run compatibility and existing UI call sites.
+    mutating func startObstacleTurn(_ run: inout RunState) {
+        blockedDigit = nil
+        obstacleBlockedDigits = []
+        for _ in 0..<run.obstacle.blockedNumbersEachTurn {
+            guard let digit = Self.pickBlocked(from: hand,
+                                                barring: obstacleBlockedDigits,
+                                                rng: &run.streams.pool) else { break }
+            obstacleBlockedDigits.insert(digit)
+            if blockedDigit == nil { blockedDigit = digit }
+        }
     }
 
     /// Everything an extended Boss does when a new Turn begins. This happens
