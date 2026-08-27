@@ -15,6 +15,7 @@ struct GridView: View {
             let cell = side / 9
 
             ZStack(alignment: .topLeading) {
+                Rectangle().fill(theme.paper.page)
                 BossBoardUnderprint(boss: model.puzzle?.boss,
                                     fouled: model.fouledSquares,
                                     greyed: model.greyedSquares)
@@ -23,6 +24,12 @@ struct GridView: View {
                 clears(side: side, cell: cell)
             }
             .frame(width: side, height: side)
+            .background {
+                Rectangle()
+                    .fill(theme.paper.page)
+                    .shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 4)
+            }
+            .overlay { Rectangle().strokeBorder(theme.board.bold, lineWidth: theme.board.boldWidth + 0.8) }
         }
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
@@ -160,8 +167,6 @@ struct GridView: View {
                 context.stroke(horizontal, with: style,
                                lineWidth: heavy ? theme.board.boldWidth : theme.board.hairWidth)
             }
-            context.stroke(Path(CGRect(x: 0, y: 0, width: side, height: side)),
-                           with: .color(theme.board.bold), lineWidth: theme.board.boldWidth + 0.5)
         }
         .allowsHitTesting(false)
     }

@@ -171,6 +171,7 @@ private struct Binding: View {
 /// because this is the part that lifts when the page turns.
 struct PageSurface<Content: View>: View {
     @Environment(\.cosmeticTheme) private var theme
+    var showsStockArtwork: Bool = true
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -178,7 +179,11 @@ struct PageSurface<Content: View>: View {
             Rectangle()
                 .fill(theme.paper.page)
                 .overlay { PaperGrain(opacity: theme.paper.grain) }
-                .overlay { PaperStockOverlay(treatment: theme.paper.treatment) }
+                .overlay {
+                    if showsStockArtwork {
+                        PaperStockOverlay(treatment: theme.paper.treatment)
+                    }
+                }
                 .overlay { gutter }
                 .overlay { bow }
 
@@ -218,14 +223,12 @@ struct PageSurface<Content: View>: View {
     }
 }
 
-/// Stock-specific printing that sits below the page's content. Its only motion
-/// is a nearly imperceptible opacity/transform pulse, and that is suppressed by
-/// Reduce Motion. It never affects layout, hit targets or a Line Clear.
+/// Stock-specific printing that sits below the page's content. It is static:
+/// paper does not breathe while a player is trying to read a puzzle. It never
+/// affects layout, hit targets or a Line Clear.
 struct PaperStockOverlay: View {
     var treatment: PaperTreatment
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var idlePhase: CGFloat = 0
+    @Environment(\.cosmeticTheme) private var theme
 
     var body: some View {
         GeometryReader { proxy in
@@ -286,39 +289,32 @@ struct PaperStockOverlay: View {
                 .frame(width: size.width, height: size.height)
             case .garden:
                 themedArtwork("ThemeGarden", size: size)
-                    .scaleEffect(1 + idlePhase * 0.008, anchor: .bottomLeading)
-                    .offset(x: idlePhase * 2)
                     // The illustration is decorative page furniture, never
                     // part of the puzzle. Keep a clear live-content area so
                     // ivy cannot sit behind the grid, labels or controls.
                     .mask(GardenMarginMask())
             case .nightSky:
                 themedArtwork("ThemeNightSky", size: size)
-                    .opacity(0.96 - Double(idlePhase) * 0.13)
-                    .scaleEffect(1 + idlePhase * 0.012)
             case .ocean:
                 themedArtwork("ThemeOcean", size: size)
-                    .scaleEffect(1 + idlePhase * 0.012, anchor: .bottom)
-                    .offset(x: -idlePhase * 3, y: idlePhase * 2)
             }
         }
-        .opacity(1 - Double(idlePhase) * 0.035)
-        .offset(x: treatment == .carbon ? idlePhase : 0,
-                y: treatment == .onionSkin ? -idlePhase : 0)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-        .onAppear { updateIdleMotion() }
-        .onChange(of: reduceMotion) { _, _ in updateIdleMotion() }
+        // Each illustrated stock has a tiny light export matte. Cover the
+        // last pixels at the fore-edge with the stock's own paper colour so
+        // the artwork meets the physical page stack cleanly.
+        .overlay(alignment: .trailing) {
+            if hasIllustratedEdge {
+                theme.paper.page.frame(width: 5)
+            }
+        }
     }
 
-    private func updateIdleMotion() {
-        guard !reduceMotion, treatment != .plain else {
-            idlePhase = 0
-            return
-        }
-        idlePhase = 0
-        withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
-            idlePhase = 1
+    private var hasIllustratedEdge: Bool {
+        switch treatment {
+        case .garden, .nightSky, .ocean: true
+        default: false
         }
     }
 
@@ -330,6 +326,10 @@ struct PaperStockOverlay: View {
             .resizable(capInsets: EdgeInsets(top: 110, leading: 110, bottom: 110, trailing: 110),
                        resizingMode: .stretch)
             .frame(width: size.width, height: size.height)
+            // Source illustrations have a thin export matte at their edge.
+            // Enlarge just enough to crop it, so the themed stock meets the
+            // page edge instead of looking like a white inset bezel.
+            .scaleEffect(1.02)
     }
 }
 

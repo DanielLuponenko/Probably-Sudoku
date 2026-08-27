@@ -8,6 +8,7 @@ struct ResultsPageView: View {
     var onBookCompletion: () -> Void
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.cosmeticTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -23,7 +24,7 @@ struct ResultsPageView: View {
             if model.puzzle?.phase == .won {
                 Text("Keep Filling freezes the score, but every clear banks coins.")
                     .font(Print.body(12))
-                    .foregroundStyle(Paper.inkSoft)
+                    .foregroundStyle(theme.paper.softInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -81,17 +82,17 @@ struct ResultsPageView: View {
             Text(title).pageHeading(34)
             Text(subtitle)
                 .font(Print.body(13.5))
-                .foregroundStyle(Paper.inkSoft)
+                .foregroundStyle(theme.paper.softInk)
                 .fixedSize(horizontal: false, vertical: true)
-            Rectangle().fill(Paper.rule).frame(height: 1)
+            Rectangle().fill(theme.paper.ruleInk).frame(height: 1)
 
             if let puzzle = model.puzzle {
                 HStack {
                     RollingNumber(value: puzzle.score, size: 38, weight: .black,
-                                  color: didWin ? Paper.ink : Paper.redPencil)
+                                  color: didWin ? theme.paper.ink : Paper.redPencil)
                     Text("/ \(puzzle.target.formatted())")
                         .font(Print.numeral(17, weight: .semibold))
-                        .foregroundStyle(Paper.inkFaint)
+                        .foregroundStyle(theme.paper.faintInk)
                     Spacer()
                 }
             }
@@ -126,7 +127,7 @@ struct ResultsPageView: View {
             if payout.keepFillingBank > 0 { line("Kept filling", payout.keepFillingBank) }
             if payout.interest > 0 { line("Interest", payout.interest) }
             if payout.paperRoute > 0 { line("Paper Route", payout.paperRoute) }
-            Rectangle().fill(Paper.rule).frame(height: 1).padding(.vertical, 2)
+            Rectangle().fill(theme.paper.ruleInk).frame(height: 1).padding(.vertical, 2)
             line("Total", payout.total, bold: true)
         }
     }
@@ -137,7 +138,7 @@ struct ResultsPageView: View {
                 .foregroundStyle(Paper.coinRim)
             Text("Stamps earned")
                 .font(Print.subheading(14))
-                .foregroundStyle(Paper.ink)
+                .foregroundStyle(theme.paper.ink)
             Spacer()
             RollingNumber(value: model.stampsEarned, size: 20, weight: .bold,
                           color: Paper.coinRim)
@@ -145,7 +146,7 @@ struct ResultsPageView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
-        .background(RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm))
+        .background(RoundedRectangle(cornerRadius: 4).fill(theme.paper.warm))
         .animation(.snappy(duration: 0.3), value: model.stampsEarned)
     }
 
@@ -153,7 +154,7 @@ struct ResultsPageView: View {
         HStack {
             Text(label)
                 .font(bold ? Print.subheading(14) : Print.body(13))
-                .foregroundStyle(bold ? Paper.ink : Paper.inkSoft)
+                .foregroundStyle(bold ? theme.paper.ink : theme.paper.softInk)
             Spacer()
             HStack(spacing: 5) {
                 Circle()
@@ -162,7 +163,7 @@ struct ResultsPageView: View {
                     .frame(width: 13, height: 13)
                 Text("\(amount)")
                     .font(Print.numeral(bold ? 17 : 14, weight: bold ? .bold : .medium))
-                    .foregroundStyle(Paper.ink)
+                    .foregroundStyle(theme.paper.ink)
             }
         }
     }

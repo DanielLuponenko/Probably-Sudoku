@@ -55,6 +55,10 @@ struct StartBookView: View {
         return 0
     }
     @State private var obstacle: Obstacle = StartBookView.debugObstacle()
+    /// A locked ribbon explains the obstacle on a paper slip rather than in a
+    /// system presentation. The shelf owns it because the slip lives on the
+    /// desk, above whichever Book is currently in hand.
+    @State private var obstacleInfo: Obstacle?
 
     /// `-obstacle 3` opens on that level, so each one can be looked at.
     private static func debugObstacle() -> Obstacle {
@@ -96,7 +100,7 @@ struct StartBookView: View {
 
             BookShelf(books: books, index: $index, phase: phase,
                       obstacle: $obstacle, unlockedThrough: unlockedThrough,
-                      needsContinuationClearance: showsContinuationControls)
+                      onShowObstacleInfo: { obstacleInfo = $0 })
 
             // The bare wood above the Book, given something to do.
             SolvingBoxes(phase: solve)
@@ -108,6 +112,13 @@ struct StartBookView: View {
             }
 
             controls
+
+            if let obstacleInfo {
+            ObstacleInfoPopup(obstacle: obstacleInfo) {
+                    withAnimation(.snappy(duration: 0.2)) { self.obstacleInfo = nil }
+                }
+                .zIndex(2)
+            }
         }
         .background(Paper.deskDark)
         .preferredColorScheme(.dark)
@@ -194,12 +205,73 @@ struct StartBookView: View {
         .padding(.bottom, 18)
     }
 
-    /// A resumed Book adds a second primary action below its cover. Leave a
-    /// deliberate gap so the cover's printed metadata never reads as part of
-    /// the action stack on a phone-height viewport.
-    private var showsContinuationControls: Bool {
-        guard let saved = resumable else { return false }
-        return book.isWritten && book.isUnlocked && saved.run.book == book.rule
+}
+
+/// A locked ribbon gets a small desk card — enough to explain the rule without
+/// covering the Book the player was looking at.
+private struct ObstacleInfoPopup: View {
+    var obstacle: Obstacle
+    var onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            Button(action: onClose) {
+                Color.black.opacity(0.28).ignoresSafeArea()
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(obstacle.name)
+                            .font(Print.heading(20))
+                            .tracking(-0.5)
+                            .foregroundStyle(Paper.ink)
+                            .textCase(.uppercase)
+                        Text("LOCKED")
+                            .font(Print.caption(9)).tracking(1.4)
+                            .foregroundStyle(Paper.inkFaint)
+                    }
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Paper.inkSoft)
+                            .frame(width: 28, height: 28)
+                            .background(Circle().fill(Paper.rule.opacity(0.35)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close obstacle details")
+                }
+
+                Rectangle().fill(Paper.rule).frame(height: 1).padding(.vertical, 12)
+
+                Text(obstacle.text)
+                    .font(Print.body(16))
+                    .foregroundStyle(Paper.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Finish a Book to unlock it.")
+                    .font(Print.body(12.5))
+                    .foregroundStyle(Paper.inkSoft)
+                    .padding(.top, 8)
+            }
+            .padding(18)
+            .frame(maxWidth: 280, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(Paper.page)
+                    .overlay { PaperGrain(opacity: 0.045) }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 15)
+                            .strokeBorder(Paper.pageEdge, lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.42), radius: 18, x: 2, y: 10)
+            }
+            .padding(.horizontal, 40)
+        }
+        .accessibilityLabel("\(obstacle.name). \(obstacle.text). Locked.")
+        .transition(.opacity.combined(with: .scale(scale: 0.94)))
     }
 }
 
@@ -215,12 +287,9 @@ private struct BookShelf: View {
     var phase: Double
     @Binding var obstacle: Obstacle
     var unlockedThrough: Int
-    var needsContinuationClearance: Bool
+    var onShowObstacleInfo: (Obstacle) -> Void
 
     @State private var drag: CGFloat = 0
-    /// The Book that has just been picked up, and how far off the desk it is.
-    @State private var lifted: Int?
-    @State private var lift: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -241,11 +310,6 @@ private struct BookShelf: View {
                         // further off along the desk.
                         .scaleEffect(scale(for: position, step: step))
                         .opacity(opacity(for: position, step: step))
-                        // Picked up and set down again.
-                        .offset(y: position == lifted ? -14 * lift : 0)
-                        .scaleEffect(position == lifted ? 1 + 0.028 * lift : 1)
-                        .contentShape(Rectangle())
-                        .onTapGesture { pickUp(position) }
                 }
             }
             .frame(width: width, alignment: .leading)
@@ -255,10 +319,10 @@ private struct BookShelf: View {
                        - CGFloat(index) * step + drag)
             .frame(width: width, height: bookHeight)
             .frame(width: width, height: proxy.size.height)
-            // A hair above centre. When resuming, the shelf grows a second
-            // primary action; lift the Book proportionally to preserve a
-            // readable gap between its printed metadata and those controls.
-            .offset(y: -proxy.size.height * (needsContinuationClearance ? 0.08 : 0.022))
+            // The Book stays in the same position whether it has one or two
+            // actions below it. Moving it up hid the solving boards at the
+            // top of the desk on a resumed Book.
+            .offset(y: -proxy.size.height * 0.022)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture()
@@ -277,47 +341,8 @@ private struct BookShelf: View {
                         }
                     }
             )
-            #if DEBUG
-            // `-tapBook N` picks one up on launch, so the movement itself can
-            // be watched without a finger on the glass.
-            .task {
-                let arguments = ProcessInfo.processInfo.arguments
-                guard let at = arguments.firstIndex(of: "-tapBook"), at + 1 < arguments.count,
-                      let position = Int(arguments[at + 1]) else { return }
-                try? await Task.sleep(for: .milliseconds(700))
-                pickUp(position)
-            }
-            #endif
         }
         .ignoresSafeArea()
-    }
-
-    /// Touching a Book lifts it off the desk and drops it back.
-    ///
-    /// It does not open it — that is what the button under it is for. This is
-    /// only the object answering: everything else on this screen moves when it
-    /// is touched, and a Book that did nothing felt painted on.
-    private func pickUp(_ position: Int) {
-        guard !reduceMotion else {
-            if position != index { withAnimation(.snappy(duration: 0.2)) { index = position } }
-            return
-        }
-        Haptics.lift()
-
-        // A Book off to the side comes forward as well: reaching for one and
-        // watching it hop where it stands would be the wrong answer.
-        if position != index {
-            withAnimation(.interactiveSpring(response: 0.26, dampingFraction: 0.86)) {
-                index = position
-            }
-        }
-
-        lifted = position
-        withAnimation(.spring(response: 0.16, dampingFraction: 0.5)) { lift = 1 }
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(110))
-            withAnimation(.spring(response: 0.30, dampingFraction: 0.55)) { lift = 0 }
-        }
     }
 
     /// A Book only carries ribbons when it is the one in hand, and only a
@@ -328,7 +353,8 @@ private struct BookShelf: View {
             levels: Obstacle.allCases,
             selected: obstacle,
             isUnlocked: { $0.rawValue <= unlockedThrough },
-            onPick: { obstacle = $0 }
+            onPick: { obstacle = $0 },
+            onShowInfo: onShowObstacleInfo
         )
     }
 

@@ -539,6 +539,17 @@ final class RunAndDeterminismTests: XCTestCase {
         }
     }
 
+    func testNormalPuzzleKeepsItsClippingOfferAfterPreviousShopCloses() throws {
+        var game = Game(seed: "second-puzzle-clipping", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.openShop()
+
+        XCTAssertTrue(game.advance())
+        XCTAssertEqual(game.run.slot, .medium)
+        XCTAssertNil(game.shop)
+        XCTAssertNotNil(game.run.currentClipping)
+    }
+
     func testOverprintIsConsumedByTheNextPuzzle() throws {
         let seed = try XCTUnwrap((0..<100).map(String.init).first { seed in
             Game(seed: seed, startingBoard: .scholar).run.currentClipping == .overprint

@@ -375,13 +375,10 @@ public enum Actions {
             turn.numbersDrawn = drawn.count
         }
 
-        // Obstacle III bars a different number each Turn, chosen after the
-        // refill so it is picked from the Hand the player will actually hold.
-        if run.obstacle.blocksANumberEachTurn {
-            puzzle.blockedDigit = PuzzleState.pickBlocked(from: puzzle.hand,
-                                                          rng: &run.streams.pool)
-            turn.blockedDigit = puzzle.blockedDigit
-        }
+        // Obstacle III onward bars numbers after the refill, so every block
+        // is drawn from the Hand the player will actually hold.
+        puzzle.startObstacleTurn(&run)
+        turn.blockedDigit = puzzle.blockedDigit
         puzzle.startBossTurn(&run)
         turn.blockedDigits = puzzle.blockedDigits
         turn.barredSquares = puzzle.barredSquares

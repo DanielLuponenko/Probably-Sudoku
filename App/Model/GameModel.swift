@@ -415,6 +415,12 @@ final class GameModel {
         highlightSource = nil
     }
 
+    /// Neutral page areas let a player put the pencil down without changing a
+    /// square, spending a Buff, or opening any Book chrome.
+    func dismissSelection() {
+        clearSelection()
+    }
+
     /// Blanks the selected number could legally go in — every empty square, but
     /// the ones that already hold that number elsewhere in the unit are worth
     /// warning about.

@@ -2,33 +2,38 @@ import SwiftUI
 import ProbablySudokuEngine
 
 struct PuzzlePageView: View {
+    @Environment(\.cosmeticTheme) private var theme
     @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var puzzle: PuzzleState
     @State private var numberReturnFrames: [String: CGRect] = [:]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             header
             ScoreMeter(score: puzzle.score, target: puzzle.target,
                        level: puzzle.level, slot: puzzle.slot.rawValue,
                        queuedBase: puzzle.pendingBase,
                        queuedMultiplier: puzzle.pendingMultiplier,
                        recentCoins: model.lastOutcome?.coinsEarned)
+                .dismissesPuzzleSelection(when: hasSelection) {
+                    model.dismissSelection()
+                }
 
-            Spacer(minLength: 0)
             GridView(model: model, board: puzzle.board)
                 .layoutPriority(1)
-            if showsInstruction { instruction }
 
-            // The band under the grid is the only part of the page with
-            // nothing printed on it and nothing to tap, which is why the Book
-            // writes here.
             marginBand
+                .dismissesPuzzleSelection(when: hasSelection) {
+                    model.dismissSelection()
+                }
 
             HandStripView(model: model, handSize: puzzle.handSize)
             actionRow
-            PageNumber(level: puzzle.level, slot: puzzle.slot.rawValue)
+            PuzzleTurnLine(turn: puzzle.turnNumber, total: puzzle.turnsMax)
+                .dismissesPuzzleSelection(when: hasSelection) {
+                    model.dismissSelection()
+                }
         }
         .coordinateSpace(name: NumberReturnMotionAnchor.space)
         .onPreferenceChange(NumberReturnMotionFrames.self) { numberReturnFrames = $0 }
@@ -47,18 +52,15 @@ struct PuzzlePageView: View {
 
     // MARK: Header
 
+    private var hasSelection: Bool {
+        model.selectedHandIndex != nil || model.selectedSquare != nil
+    }
+
     private var header: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Puzzle \(puzzle.slot.rawValue + 1)")
-                    .pageHeading(27)
-                if puzzle.boss == nil {
-                    Text(puzzle.difficulty.rawValue)
-                        .font(Print.caption(10))
-                        .tracking(1.4)
-                        .textCase(.uppercase)
-                        .foregroundStyle(palette.ink.opacity(0.52))
-                }
+                    .pageHeading(31)
                 Spacer(minLength: 4)
                 if let secondsLeft = model.secondsLeft {
                     Label(clockText(secondsLeft), systemImage: "timer")
@@ -66,10 +68,6 @@ struct PuzzlePageView: View {
                         .foregroundStyle(secondsLeft <= 30 ? palette.danger : palette.ink.opacity(0.72))
                         .accessibilityLabel("Time remaining, \(Int(secondsLeft.rounded(.up))) seconds")
                 }
-                Text("Turn \(min(puzzle.turnNumber, puzzle.turnsMax))/\(puzzle.turnsMax)")
-                    .font(Print.caption(12))
-                    .foregroundStyle(palette.ink.opacity(0.72))
-                    .contentTransition(.numericText())
             }
 
             if let boss = puzzle.boss {
@@ -77,6 +75,9 @@ struct PuzzlePageView: View {
             }
 
             Rectangle().fill(palette.rule).frame(height: 1)
+        }
+        .dismissesPuzzleSelection(when: hasSelection) {
+            model.dismissSelection()
         }
     }
 
@@ -94,50 +95,59 @@ struct PuzzlePageView: View {
                     .id(note.text)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 54, maxHeight: .infinity)
-        .padding(.bottom, 2)
+        .frame(maxWidth: .infinity, minHeight: 38, maxHeight: 46)
         .animation(.easeInOut(duration: 0.45), value: model.marginNote)
-    }
-
-    /// Only on the very first page of a Book.
-    private var showsInstruction: Bool {
-        puzzle.level == 1 && puzzle.slot == .easy
-    }
-
-    private var instruction: some View {
-        Text("Fill the grid so each column, row and 3x3 box contains numbers 1-9.")
-            .font(Print.body(11.5))
-            .foregroundStyle(palette.ink.opacity(0.72))
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: Actions
 
     private var actionRow: some View {
-        HStack(spacing: 10) {
-            PaperButton(title: model.tossButtonTitle,
-                        subtitle: model.tossButtonSubtitle,
-                        kind: .quiet,
-                        isEnabled: model.canToss) {
+        HStack(spacing: 12) {
+            PuzzleActionButton(title: model.tossButtonTitle,
+                               subtitle: model.tossButtonSubtitle,
+                               kind: .quiet,
+                               isEnabled: model.canToss) {
                 model.tossSelected()
             }
 
             if puzzle.canUseClue {
-                PaperButton(title: "Clue",
-                            subtitle: model.selectedSquare == nil
-                                ? "pick a square" : "\(puzzle.cluesRemaining) left",
-                            kind: .quiet,
-                            isEnabled: model.selectedSquare.map {
+                PuzzleActionButton(title: "Clue",
+                                   subtitle: model.selectedSquare == nil
+                                       ? "pick a square" : "\(puzzle.cluesRemaining) left",
+                                   kind: .quiet,
+                                   isEnabled: model.selectedSquare.map {
                                 puzzle.board.isBlank($0)
                             } ?? false) {
                     if let square = model.selectedSquare { model.useClue(at: square) }
                 }
             }
 
-            // No page turn here: a Turn ending deals a new Hand on the same
-            // page. Turning the page for it made every Turn feel like leaving
-            // the Puzzle.
-            PaperButton(title: "End Turn", kind: .primary) { model.endTurn() }
+            PuzzleActionButton(title: "End Turn", kind: .primary) { model.endTurn() }
+        }
+    }
+}
+
+/// A transparent, explicitly labelled Button placed only behind inert page
+/// regions. Existing controls remain above it and keep their own actions.
+private struct PuzzleSelectionDismissSurface: View {
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Color.clear.contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Clear board selection")
+    }
+}
+
+private extension View {
+    func dismissesPuzzleSelection(when active: Bool,
+                                  action: @escaping () -> Void) -> some View {
+        background {
+            if active {
+                PuzzleSelectionDismissSurface(action: action)
+            }
         }
     }
 }
@@ -166,15 +176,23 @@ struct ScoreMeter: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("Score")
-                    .font(Print.caption(10)).tracking(1.4).textCase(.uppercase)
-                    .foregroundStyle(palette.ink.opacity(0.52))
-                RollingNumber(value: score, size: 25, weight: .bold, color: palette.ink)
-                Text("of \(target.formatted())")
-                    .font(Print.numeral(15, weight: .semibold))
-                    .foregroundStyle(palette.ink.opacity(0.52))
+                    .font(Print.caption(13)).tracking(1.7).textCase(.uppercase)
+                    .foregroundStyle(palette.ink.opacity(0.72))
+                Spacer()
+                Text("Level \(level)")
+                    .font(Print.body(15))
+                    .foregroundStyle(palette.ink)
+                ProgressDots(index: slot, count: 3)
+            }
+
+            HStack(alignment: .bottom, spacing: 8) {
+                RollingNumber(value: score, size: 48, weight: .bold, color: palette.ink)
+                Text("/ \(target.formatted())")
+                    .font(Print.numeral(23, weight: .medium))
+                    .foregroundStyle(palette.ink.opacity(0.70))
                 if queuedBase > 0 {
                     Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
                         .font(Print.caption(11))
@@ -189,36 +207,112 @@ struct ScoreMeter: View {
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                         .accessibilityLabel("Last placement, plus \(recentCoins) coins")
                 }
-                Spacer(minLength: 6)
-                Text("Level \(level)")
-                    .font(Print.caption(11))
-                    .foregroundStyle(palette.ink.opacity(0.72))
-                ProgressDots(index: slot, count: 3)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
 
-            // A pencil line filling up along a printed rule.
-            ZStack(alignment: .leading) {
-                Capsule().fill(palette.rule.opacity(0.45)).frame(height: 5)
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(palette.target.opacity(0.45))
-                            .frame(width: max(4, proxy.size.width * reach), height: 5)
-                        Capsule()
-                            .fill(fraction >= 1 ? palette.target : palette.ink.opacity(0.75))
-                            .frame(width: max(4, proxy.size.width * fraction), height: 5)
-                    }
-                }
-                .frame(height: 5)
-            }
-            .frame(height: 5)
+            ScoreRuler(fraction: fraction, reach: reach, target: target, score: score,
+                        ink: palette.ink, fill: palette.target, rule: palette.rule)
         }
         .animation(.snappy, value: score)
         .animation(.snappy(duration: 0.22), value: queuedBase)
         .animation(.snappy(duration: 0.22), value: queuedMultiplier)
         .animation(.snappy(duration: 0.22), value: recentCoins)
+    }
+}
+
+private struct ScoreRuler: View {
+    var fraction: Double
+    var reach: Double
+    var target: Int
+    var score: Int
+    var ink: Color
+    var fill: Color
+    var rule: Color
+
+    private var percent: Int { Int((fraction * 100).rounded()) }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                ZStack(alignment: .leading) {
+                    Capsule().fill(rule.opacity(0.42)).frame(height: 13)
+                    Capsule()
+                        .fill(fill.opacity(0.38))
+                        .frame(width: max(4, width * reach), height: 13)
+                    Capsule()
+                        .fill(ink.opacity(0.88))
+                        .frame(width: max(4, width * fraction), height: 13)
+                    HStack(spacing: 0) {
+                        ForEach(1..<8, id: \.self) { tick in
+                            Rectangle().fill(.white.opacity(0.78)).frame(width: 1, height: 7)
+                            if tick < 7 { Spacer() }
+                        }
+                    }
+                    .padding(.horizontal, 18)
+
+                    Text("\(percent)%")
+                        .font(Print.numeral(13, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.96))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(fill.opacity(0.98)))
+                        .position(x: min(max(width * fraction, 24), width - 24), y: 6)
+                }
+            }
+            .frame(height: 22)
+
+            Text("\(max(0, target - score).formatted()) TO GO")
+                .font(Print.caption(12)).tracking(0.6)
+                .foregroundStyle(ink.opacity(0.76))
+                .fixedSize()
+        }
+    }
+}
+
+private struct PuzzleActionButton: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.levelPalette) private var palette
+    enum Kind { case primary, quiet }
+    var title: String
+    var subtitle: String? = nil
+    var kind: Kind
+    var isEnabled: Bool = true
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Text(title).font(Print.subheading(18)).tracking(1.1).textCase(.uppercase)
+                if let subtitle { Text(subtitle).font(Print.body(11.5)).opacity(0.72) }
+            }
+            .foregroundStyle(kind == .primary ? Color.white : theme.paper.ink)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(kind == .primary ? palette.target : theme.paper.warm)
+                    .shadow(color: .black.opacity(kind == .primary ? 0.27 : 0.15), radius: 2, x: 0, y: 2)
+            }
+            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(palette.rule.opacity(0.8), lineWidth: 1) }
+        }
+        .buttonStyle(PressedPaperStyle())
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.42)
+    }
+}
+
+private struct PuzzleTurnLine: View {
+    @Environment(\.levelPalette) private var palette
+    var turn: Int
+    var total: Int
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle().fill(palette.rule.opacity(0.5)).frame(width: 18, height: 1)
+            Text("Turn \(min(turn, total))/\(total)").font(Print.body(13)).foregroundStyle(palette.ink.opacity(0.70))
+            Rectangle().fill(palette.rule.opacity(0.5)).frame(width: 18, height: 1)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

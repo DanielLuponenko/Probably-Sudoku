@@ -31,6 +31,7 @@ struct LiveBook: View {
         var selected: Obstacle
         var isUnlocked: (Obstacle) -> Bool
         var onPick: (Obstacle) -> Void
+        var onShowInfo: (Obstacle) -> Void
     }
 
     private var design: CoverDesign { edition.design }
@@ -176,37 +177,26 @@ struct LiveBook: View {
                 let unlocked = level.map(strip.isUnlocked) ?? false
                 let picked = level != nil && level == strip.selected
 
-                Bookmark(numeral: "\(slot)",
-                         // The one you are on is bound in with the Book.
-                         colour: picked
-                             ? ObstacleRibbon.colour(for: strip.selected)
-                             : ObstacleRibbon.colour(forSlot: slot),
-                         unlocked: unlocked,
-                         picked: picked,
-                         width: w,
-                         height: h * 0.088)
-                    // Only a sliver of a bookmark is outside the boards, and a
-                    // sliver is not something you can hit. The touch box runs
-                    // on past the fore-edge into the bare desk beside it.
-                    .frame(width: w * 0.20, height: h * 0.088, alignment: .leading)
-                    .contentShape(Rectangle())
-                    // Out a little further when it is the one you are on.
-                    .offset(x: w * 0.155 + (picked ? w * 0.030 : 0))
-                    .onTapGesture {
+                ObstacleRibbonTab(
+                    slot: slot,
+                    obstacle: level,
+                    colour: picked
+                        ? ObstacleRibbon.colour(for: strip.selected)
+                        : ObstacleRibbon.colour(forSlot: slot),
+                    unlocked: unlocked,
+                    picked: picked,
+                    width: w,
+                    height: h * 0.088,
+                    onPick: {
                         guard let level, unlocked, !picked else { return }
                         Haptics.pageTurn()
                         withAnimation(.snappy(duration: 0.28)) { strip.onPick(level) }
-                    }
-                    .accessibilityLabel(label(slot: slot, level: level, unlocked: unlocked))
-                    .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
+                    },
+                    onShowInfo: strip.onShowInfo
+                )
             }
         }
         .frame(width: w, height: h, alignment: .trailing)
-    }
-
-    private func label(slot: Int, level: Obstacle?, unlocked: Bool) -> String {
-        guard let level else { return "Obstacle \(slot). Not written yet." }
-        return unlocked ? "\(level.name). \(level.text)" : "\(level.name). Locked."
     }
 
     private func notes(w: CGFloat, h: CGFloat) -> some View {
@@ -254,6 +244,60 @@ struct LiveBook: View {
     }
 
 }
+
+/// A ribbon is both the obstacle picker and the place to learn what a locked
+/// obstacle changes. Holding it leaves its normal tap-to-select behavior
+/// intact while revealing a card anchored to that exact ribbon.
+private struct ObstacleRibbonTab: View {
+    var slot: Int
+    var obstacle: Obstacle?
+    var colour: Color
+    var unlocked: Bool
+    var picked: Bool
+    var width: CGFloat
+    var height: CGFloat
+    var onPick: () -> Void
+    var onShowInfo: (Obstacle) -> Void
+
+    var body: some View {
+        // A real button owns this precise hit area. Gestures layered on the
+        // Book lost to the shelf's tap-to-lift gesture, which was why a
+        // locked ribbon only made the Book bounce.
+        Button {
+            if unlocked {
+                onPick()
+            } else if let obstacle {
+                onShowInfo(obstacle)
+            }
+        } label: {
+            Bookmark(numeral: "\(slot)", colour: colour, unlocked: unlocked,
+                     picked: picked, width: width, height: height)
+                // Only a sliver of a bookmark is outside the boards, and a
+                // sliver is not something you can hit. The touch box runs on
+                // past the fore-edge into the bare desk beside it.
+                .frame(width: width * 0.20, height: height, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(width: width * 0.20, height: height, alignment: .leading)
+        .contentShape(Rectangle())
+        // Out a little further when it is the one you are on.
+        .offset(x: width * 0.155 + (picked ? width * 0.030 : 0))
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint(unlocked ? "Select this obstacle." : "Shows obstacle details.")
+            .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction(named: "Show obstacle details") {
+                guard let obstacle, !unlocked else { return }
+                onShowInfo(obstacle)
+            }
+    }
+
+    private var accessibilityLabel: String {
+        guard let obstacle else { return "Obstacle \(slot). Not written yet." }
+        return unlocked ? "\(obstacle.name). \(obstacle.text)" : "\(obstacle.name). Locked."
+    }
+}
+
 // MARK: - The joint
 
 /// The front board's hinge.

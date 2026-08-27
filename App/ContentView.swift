@@ -227,6 +227,8 @@ private struct GameView: View {
                 }
                 .padding(.horizontal, 26)
                 .padding(.top, 4)
+                // Bookmarks sit behind the page block: their lower tails are
+                // swallowed by the book rather than floating over the paper.
                 .zIndex(0)
 
                 BookView(
@@ -237,9 +239,10 @@ private struct GameView: View {
                 }
                 .padding(.leading, 8)
                 .padding(.trailing, 10)
-                // Pulls the book up over the bookmarks' tails, so they read as
-                // slipped into the pages rather than resting on them.
-                .padding(.top, -BookmarkRow.tuck)
+                // The tabs must remain above the book rather than covering
+                // the puzzle heading. Their lower tails still tuck into the
+                // page block, but the readable part keeps its own band.
+                .padding(.top, -(BookmarkRow.tuck - 4))
                 .zIndex(1)
             }
             .padding(.bottom, 8)
