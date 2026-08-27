@@ -5,6 +5,24 @@
 **Applies to:** every SwiftUI surface, cosmetic, illustration, glyph, transition,
 and accessibility representation in Number Club.
 
+**Visual baseline:** [Design Language Baseline](DESIGN_LANGUAGE_BASELINE.md)
+
+## Visual reference set
+
+These are captured from the current iPhone 17 Pro simulator build. They are
+reference examples, not idealized mockups: new work must fit the same material
+world and preserve the gameplay hierarchy they demonstrate.
+
+| Surface | Reference | What it establishes |
+| --- | --- | --- |
+| Club room | [Main menu](Artwork/DesignLanguage/main-menu.png) | Lamp-lit wood, plaque, desk objects, number board, and controls as furniture |
+| Live Book | [Puzzle page](Artwork/DesignLanguage/live-puzzle.png) | Physical volume, quiet paper, high-contrast grid, handwritten margin, and printed actions |
+| Club Shop | [Cosmetic counter](Artwork/DesignLanguage/club-shop.png) | Material samples, ownership state, practical typography, and a dark room surround |
+
+The accompanying [Design Language Baseline](DESIGN_LANGUAGE_BASELINE.md) is the
+review artifact: it puts these captures beside the visual rules and their code
+sources. Use it at the start of any player-facing UI change.
+
 ## 1. The thesis
 
 Number Club is **a well-used puzzle book opened on the desk of a small,
@@ -294,4 +312,3 @@ writing the view.
   size, and every supported cosmetic theme.
 - It introduces no generic iOS assets or stock iOS control styling.
 - Motion has a physical or game-semantic reason and a Reduce Motion path.
-
