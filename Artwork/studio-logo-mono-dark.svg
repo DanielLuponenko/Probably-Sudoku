@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <title>DannyLovesAnna Game Studio mono light on dark</title>
+  <rect width="1600" height="800" fill="#11100F"/>
+  <g transform="translate(50 150) scale(15.625)" fill="#FFF4D7">
+    <path d="M13 4h2V3h2v1h2v2h1v3h-1v1h-2v1h-2v-1h-2V9h-1V6h1zM6 29V20h2v-2h3v-2h4v2h1v3h1v-3h1v-2h4v2h2v9H6zm4-9h4v4h-4v-4zm8 0h4v4h-4v-4z"/>
+  </g>
+  <text x="1050" y="360" text-anchor="middle" fill="#FFF4D7" font-family="Avenir Next Condensed, Avenir Next, sans-serif" font-size="130" font-weight="900" letter-spacing="-6">DANNYLOVESANNA</text>
+  <text x="1050" y="510" text-anchor="middle" fill="#FFF4D7" font-family="Avenir Next, sans-serif" font-size="66" font-weight="800" letter-spacing="13">GAME STUDIO</text>
+</svg>

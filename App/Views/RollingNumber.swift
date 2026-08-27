@@ -48,6 +48,10 @@ struct RollingNumber: View {
             }
         }
         .frame(height: lineHeight)
+        // The rolling strips render ten Text views per digit. Treat the
+        // finished number as one semantic value so VoiceOver does not visit
+        // each hidden digit in the animation.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
     }
 }

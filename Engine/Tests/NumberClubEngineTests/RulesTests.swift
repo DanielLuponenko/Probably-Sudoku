@@ -1,5 +1,5 @@
 import XCTest
-@testable import NumberClubEngine
+@testable import ProbablySudokuEngine
 
 extension Game {
     /// Fills every Blank of a row except the last one, then returns that last
@@ -27,10 +27,56 @@ extension Game {
 
 final class RulesTests: XCTestCase {
 
+    func testLitmusArmsUntilEitherKindOfPlacement() throws {
+        var game = try startedGame()
+        game.give(buff: Buffs.litmus)
+        XCTAssertTrue(try game.useBuff(at: 0))
+        XCTAssertTrue(game.puzzle!.armedFlags.contains(.litmus))
+
+        let correct = game.blank(wanting: .five)!
+        _ = try game.place(handIndex: game.stackHand(with: .five)!, at: correct)
+        XCTAssertFalse(game.puzzle!.armedFlags.contains(.litmus))
+
+        game.give(buff: Buffs.litmus)
+        XCTAssertTrue(try game.useBuff(at: 0))
+        let wrongSquare = game.blank(wanting: .one)!
+        let wrong: Digit = game.puzzle!.board.correctDigit(at: wrongSquare) == .four ? .five : .four
+        _ = try game.place(handIndex: game.stackHand(with: wrong)!, at: wrongSquare)
+        XCTAssertFalse(game.puzzle!.armedFlags.contains(.litmus))
+    }
+
+    func testLitmusStaysArmedWhenAPlacementIsBarred() throws {
+        var game = try startedGame()
+        game.give(buff: Buffs.litmus)
+        XCTAssertTrue(try game.useBuff(at: 0))
+        let square = game.blank(wanting: .five)!
+        var bossTurn = BossTurnState()
+        bossTurn.fouled[square] = 2
+        game.run.puzzle?.bossTurn = bossTurn
+
+        XCTAssertThrowsError(try game.place(handIndex: game.stackHand(with: .five)!, at: square))
+        XCTAssertTrue(game.puzzle!.armedFlags.contains(.litmus))
+    }
+
     private func startedGame(seed: String = "rules", board: StartingBoard = .scholar) throws -> Game {
         var game = Game(seed: seed, startingBoard: board)
         try game.startPuzzle()
         return game
+    }
+
+    func testPlacingTheLastHandCardEndsTheTurnAndRefills() throws {
+        var game = try startedGame()
+        let square = try XCTUnwrap(game.puzzle?.board.blanks.first)
+        let digit = game.puzzle!.board.correctDigit(at: square)
+        for held in game.puzzle!.hand { game.run.puzzle!.pool.put(held) }
+        game.run.puzzle!.hand = []
+        let index = try XCTUnwrap(game.stackHand(with: digit))
+        let turn = game.puzzle!.turnNumber
+
+        _ = try game.place(handIndex: index, at: square)
+
+        XCTAssertEqual(game.puzzle?.turnNumber, turn + 1)
+        XCTAssertEqual(game.puzzle?.hand.count, game.puzzle?.handSize)
     }
 
     // MARK: Line Clears (§6)
@@ -56,8 +102,12 @@ final class RulesTests: XCTestCase {
         let digit = game.puzzle!.board.correctDigit(at: last)
 
         let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: last)
-        XCTAssertEqual(outcome.lineClearPoints.first, (45 + 25) * 2)
-        XCTAssertEqual(outcome.points, 10 * digit.rawValue * 2)
+        XCTAssertEqual(outcome.lineClearPoints.first, 45 + 25)
+        XCTAssertEqual(outcome.points, 10 * digit.rawValue)
+        let queued = game.puzzle!.pendingBase
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 2)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, queued * 2)
     }
 
     func testFillingTheWholeBoardScoresEveryUnitThenTheFullClear() throws {
@@ -77,6 +127,48 @@ final class RulesTests: XCTestCase {
         }
         XCTAssertNotNil(last, "board never reported a Full Clear")
         XCTAssertTrue(game.puzzle!.board.isFull)
+    }
+
+    func testOnePlacementScoresBothItsRowAndBox() throws {
+        var game = try startedGame()
+        let puzzle = try XCTUnwrap(game.puzzle)
+
+        let candidate = try XCTUnwrap(puzzle.board.blanks.first { square in
+            Geometry.rows[square.row].filter(puzzle.board.isBlank).count >= 2
+                && Geometry.boxes[square.box].filter(puzzle.board.isBlank).count >= 2
+                && Geometry.cols[square.col].filter(puzzle.board.isBlank).count >= 2
+        })
+        let rowAndBox = Set(Geometry.rows[candidate.row] + Geometry.boxes[candidate.box])
+        for square in rowAndBox where square != candidate && game.puzzle!.board.isBlank(square) {
+            if game.puzzle!.phase == .won { try game.keepFilling() }
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            _ = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
+        }
+
+        if game.puzzle!.phase == .won { try game.keepFilling() }
+        let digit = game.puzzle!.board.correctDigit(at: candidate)
+        let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: candidate)
+
+        XCTAssertEqual(outcome.lineClears, [.row, .box])
+        XCTAssertEqual(outcome.lineClearPoints, [45, 45])
+        XCTAssertEqual(outcome.totalPoints, 10 * digit.rawValue + 90)
+    }
+
+    func testOnePlacementScoresRowColumnAndBoxSeparately() throws {
+        var game = try startedGame()
+        for square in game.puzzle!.board.blanks {
+            if game.puzzle!.phase == .won { try game.keepFilling() }
+            let digit = game.puzzle!.board.correctDigit(at: square)
+            let outcome = try game.place(handIndex: game.stackHand(with: digit)!, at: square)
+            guard outcome.fullClear else { continue }
+
+            XCTAssertEqual(outcome.lineClears, [.row, .col, .box])
+            XCTAssertEqual(outcome.lineClearPoints, [45, 45, 45])
+            XCTAssertEqual(outcome.fullClearPoints, 500)
+            XCTAssertEqual(outcome.totalPoints, 10 * digit.rawValue + 135 + 500)
+            return
+        }
+        XCTFail("board never reported a Full Clear")
     }
 
     func testSecondPrintDoublesOnlyTheNextLineClear() throws {
@@ -273,10 +365,23 @@ final class RulesTests: XCTestCase {
         }
         let payout = try game.cashOut()
         XCTAssertEqual(payout.base, 5)
-        XCTAssertEqual(payout.unusedTurns, 3, "capped at 3")
+        XCTAssertEqual(payout.unusedTurns, game.puzzle?.turnsRemaining,
+                       "every unused Turn pays one coin")
         XCTAssertEqual(payout.interest, 6)
         XCTAssertEqual(payout.paperRoute, 2)
         XCTAssertEqual(game.run.coins, 60 + payout.total)
+    }
+
+    func testUnusedTurnPayoutMatchesEveryPossibleRemainingTurnCount() throws {
+        for count in 0...10 {
+            var run = RunState(seed: "unused-turn-\(count)", startingBoard: .scholar)
+            var puzzle = try PuzzleState.create(run: &run)
+            puzzle.hand = Array(repeating: .one, count: 7)
+            puzzle.turnNumber = puzzle.turnsMax - count + 1
+            XCTAssertEqual(puzzle.turnsRemaining, count)
+            XCTAssertEqual(run.payout(for: puzzle).unusedTurns, count)
+            XCTAssertEqual(run.payout(for: puzzle).total, 5 + count)
+        }
     }
 
     func testInterestIsCappedAndRaisedByMarketWrap() throws {

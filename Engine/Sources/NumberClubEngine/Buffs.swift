@@ -8,6 +8,7 @@ public enum Buffs {
     public static let paperCrane = "bf_paper_crane"
     public static let birdSeed = "bf_bird_seed"
     public static let freshInk = "bf_fresh_ink"
+    public static let litmus = "bf_litmus"
 
     /// Round-scoped keys the scoring resolver reads.
     public static func paperCraneKey(_ digit: Digit) -> String { "\(paperCrane)_\(digit.rawValue)" }
@@ -59,6 +60,10 @@ public enum Buffs {
         buff(freshInk, "Fresh Ink", .rare, 4,
              "+2 mult for the rest of the Puzzle",
              onUse: { c, r in r.bumpPuzzleState(freshInk, by: 2, in: c) }),
+
+        buff(litmus, "Litmus", .rare, 4,
+             "Select a number to reveal which blank squares it belongs in. Spent when you place a number",
+             onUse: { _, r in r.armFlags.insert(.litmus) }),
 
         buff(paperCrane, "Paper Crane", .common, 3,
              "Choose a number: it scores +50 flat for the rest of the Puzzle",

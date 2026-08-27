@@ -1,7 +1,4 @@
 import SwiftUI
-#if canImport(UIKit)
-import UIKit
-#endif
 
 /// A page turn is one continuous movement, not a rotation with a cut in the
 /// middle. The sheet that is leaving keeps its old contents and bends away,
@@ -100,14 +97,5 @@ private struct PageCurlEffect: ViewModifier, Animatable {
                 maxSampleOffset: size
             )
         )
-    }
-}
-
-enum Haptics {
-    /// The soft thump of a sheet landing.
-    static func pageTurn() {
-        #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.7)
-        #endif
     }
 }

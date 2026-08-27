@@ -1,6 +1,6 @@
 #if DEBUG
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Shortcuts for exercising the game by hand. Debug builds only — the whole
 /// file is compiled out of a release build, as are the engine calls behind it.
@@ -27,6 +27,57 @@ struct QAPanel: View {
                 }
 
                 Section {
+                    NavigationLink("Choose Bookmark") {
+                        QAItemPicker(title: "Bookmarks", items: Catalog.items(of: .bookmark)) { item in
+                            model.qaSetBookmark(item.id)
+                        }
+                    }
+                    NavigationLink("Choose Marker at first blank") {
+                        QAItemPicker(title: "Markers", items: Catalog.items(of: .marker)) { item in
+                            model.qaSetMarker(item.id)
+                        }
+                    }
+                    NavigationLink("Choose Buff") {
+                        QAItemPicker(title: "Buffs", items: Catalog.items(of: .buff)) { item in
+                            model.qaSetBuff(item.id)
+                        }
+                    }
+                    NavigationLink("Choose Subscription") {
+                        QAItemPicker(title: "Subscriptions", items: Catalog.items(of: .subscription)) { item in
+                            model.qaSetSubscription(item.id)
+                        }
+                    }
+                    NavigationLink("Force Boss") {
+                        List(BossModifier.allCases, id: \.rawValue) { boss in
+                            Button(boss.name) { model.qaSetBoss(boss) }
+                        }
+                        .navigationTitle("Bosses")
+                    }
+                } header: {
+                    Text("Loadout")
+                } footer: {
+                    Text("Selections are Debug-only. Each replaces its own QA slot; a marker picked before play is placed on the upcoming board's first blank.")
+                }
+
+                Section("Achievements") {
+                    NavigationLink("Award achievement") {
+                        List(AchievementCatalog.all) { achievement in
+                            Button {
+                                model.qaEarnAchievement(achievement.id)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(achievement.title)
+                                    Text(achievement.detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .navigationTitle("Achievements")
+                    }
+                }
+
+                Section {
                     row("Fill the board", "square.grid.3x3.fill") { model.qaFillBoard() }
                 } header: {
                     Text("Board")
@@ -37,9 +88,14 @@ struct QAPanel: View {
 
                 Section("Run") {
                     row("New Book", "book.closed") { model.startNewBook() }
+                    row("Reset tutorial and start Book 1", "text.book.closed") {
+                        model.qaResetFirstRunTutorial()
+                    }
                 }
 
                 Section("State") {
+                    row("Undo last action", "arrow.uturn.backward",
+                        isEnabled: model.qaCanUndo) { model.qaUndoLastAction() }
                     LabeledContent("Seed", value: model.run.seed)
                     LabeledContent("Level", value: "\(model.run.level)")
                     LabeledContent("Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
@@ -67,6 +123,7 @@ struct QAPanel: View {
 
     private func row(_ title: String, _ symbol: String,
                      destructive: Bool = false,
+                     isEnabled: Bool = true,
                      action: @escaping () -> Void) -> some View {
         Button {
             action()
@@ -75,6 +132,31 @@ struct QAPanel: View {
             Label(title, systemImage: symbol)
         }
         .foregroundStyle(destructive ? Color.red : Color.accentColor)
+        .disabled(!isEnabled)
+    }
+}
+
+/// One Debug picker for a catalogue group. It deliberately stays open after a
+/// selection, so a tester can switch cases without reopening the QA panel.
+private struct QAItemPicker: View {
+    var title: String
+    var items: [ItemDef]
+    var grant: (ItemDef) -> Void
+
+    var body: some View {
+        List(items, id: \.id) { item in
+            Button {
+                grant(item)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                    Text(item.text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle(title)
     }
 }
 #endif

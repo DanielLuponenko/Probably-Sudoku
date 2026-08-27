@@ -1,11 +1,12 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// A Book is a published thing with a personality, not just a difficulty tier.
 /// The first one is cheerful and faintly unsure of itself, and it talks to the
 /// player in the margins.
 struct BookEdition: Identifiable, Equatable {
     let id: String
+    let rule: Book
     let title: String
     /// Printed on the shelf under the cover.
     let shelfLabel: String
@@ -15,12 +16,6 @@ struct BookEdition: Identifiable, Equatable {
     /// two woods leave a seam and cutting the Book out fragments its index
     /// tabs. Nil while a Book is unwritten.
     let cover: String?
-    /// Bundle resource for the cover's loop, when one has been made. The still
-    /// stays underneath it either way, so a Book without a loop is not a Book
-    /// missing something.
-    let loop: String?
-    /// Bundle resource for the Book opening, played once when it is opened.
-    let opening: String?
     /// The Book's own colour, used for its spine and its accents.
     let accent: Color
     /// §3 — what this Book gives you for the whole run. The board is not a
@@ -28,9 +23,27 @@ struct BookEdition: Identifiable, Equatable {
     let bonus: StartingBoard
 
     var bonusText: String { bonus.text }
-    /// §2 leaves the ladder of harder Books undecided, so the rest are shelved
-    /// rather than pretended into existence.
+    var design: CoverDesign {
+        guard isWritten else {
+            let volume = Int(shelfLabel.replacingOccurrences(of: "Volume ", with: "")) ?? 1
+            return .unwritten(title: title, volume: volume, accent: accent)
+        }
+        switch rule {
+        case .probably: return .probably
+        case .slightlyHarder: return .slightlyHarder
+        case .noPressure: return .noPressure
+        case .bites: return .bites
+        }
+    }
+    /// A written Book can be opened; a future volume stays visibly shelved.
     var isWritten: Bool { cover != nil }
+    var isUnlocked: Bool {
+        guard isWritten else { return false }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-unlockAll") { return true }
+        #endif
+        return RunStore.booksCompleted >= rule.volume - 1
+    }
 
     /// Lines the Book writes in the margins while you play.
     let marginalia: [String]
@@ -39,30 +52,58 @@ struct BookEdition: Identifiable, Equatable {
 
     static let first = BookEdition(
         id: "probably",
+        rule: .probably,
         title: "You\u{2019}ve Got This, Probably",
         shelfLabel: "Volume 1",
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
         cover: "SceneProbably",
-        // Shot from the same phone-format scene as the still, so it overlays
-        // it exactly rather than sitting on it as a rectangle.
-        loop: "probably-loop",
-        opening: "probably-open",
         accent: Color(hex: 0x7C8C73),
         // A relaxed Book hands you more to work with.
         bonus: .scholar,
         marginalia: firstBookLines
     )
 
-    /// Placeholders for the ladder above it. They can be picked up and looked
-    /// at, but not opened. Shown rather than hidden, so the shelf says how far
-    /// this goes instead of implying it.
+    static let second = BookEdition(
+        id: "sorry",
+        rule: .slightlyHarder,
+        title: "Slightly Harder, Sorry",
+        shelfLabel: "Volume 2",
+        blurb: "Brisk puzzles. Professional disappointment included.",
+        cover: "SceneSorry",
+        accent: Color(hex: 0xC8853F),
+        // The second Book keeps the first Book's Board: its only rule change
+        // is three fewer givens at every slot.
+        bonus: .scholar,
+        marginalia: secondBookLines
+    )
+
+    static let third = BookEdition(
+        id: "pressure",
+        rule: .noPressure,
+        title: "No Pressure, Obviously",
+        shelfLabel: "Volume 3",
+        blurb: "Editorial puzzles. The board has notes.",
+        cover: "ScenePressure",
+        accent: Color(hex: 0x6F9EC4),
+        bonus: .scholar,
+        marginalia: thirdBookLines
+    )
+
+    static let fourth = BookEdition(
+        id: "bites",
+        rule: .bites,
+        title: "This One Bites",
+        shelfLabel: "Volume 4",
+        blurb: "Cold puzzles. The board does not care.",
+        cover: "SceneBites",
+        accent: Color(hex: 0xB4544A),
+        bonus: .scholar,
+        marginalia: fourthBookLines
+    )
+
+    /// The remaining unwritten volumes still show their place in the ladder,
+    /// but do not claim rules or voices that belong to their own tickets.
     static let unwritten: [BookEdition] = [
-        unwritten(id: "sorry", title: "Slightly Harder, Sorry",
-                  volume: 2, accent: Color(hex: 0xC8853F), bonus: .merchant),
-        unwritten(id: "pressure", title: "No Pressure, Obviously",
-                  volume: 3, accent: Color(hex: 0x6F9EC4), bonus: .oracle),
-        unwritten(id: "bites", title: "This One Bites",
-                  volume: 4, accent: Color(hex: 0xB4544A), bonus: .merchant),
         unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
                   volume: 5, accent: Color(hex: 0x8E7BA8), bonus: .oracle),
     ]
@@ -71,24 +112,106 @@ struct BookEdition: Identifiable, Equatable {
                                   accent: Color, bonus: StartingBoard) -> BookEdition {
         BookEdition(
             id: id,
+            rule: .slightlyHarder,
             title: title,
             shelfLabel: "Volume \(volume)",
             blurb: "Not written yet.",
             cover: nil,
-            loop: nil,
-            opening: nil,
             accent: accent,
             bonus: bonus,
             marginalia: []
         )
     }
 
-    static let shelf: [BookEdition] = [first] + unwritten
+    static let shelf: [BookEdition] = [first, second, third, fourth] + unwritten
 
-    static func edition(forBookTier tier: Int) -> BookEdition {
-        shelf.indices.contains(tier - 1) ? shelf[tier - 1] : first
+    static func edition(for book: Book) -> BookEdition {
+        shelf.first { $0.rule == book && $0.isWritten } ?? first
     }
 }
+
+private let fourthBookLines: [String] = (1...100).map { note in
+    let openings = [
+        "", "Still, ", "Again, ", "Plainly, ", "Naturally, ",
+        "Predictably, ", "Unfortunately, ", "Of course, ", "Quietly, ", "Finally, "
+    ]
+    let observations = [
+        "The row remains incomplete.", "That candidate is wrong.", "The column has no sympathy.",
+        "There is one legal square.", "The board has not changed its mind.",
+        "A guess is still a guess.", "The box rejects that number.", "Continue.",
+        "The solution is indifferent to effort.", "Find the constraint."
+    ]
+    return "\(openings[(note - 1) / 10])\(observations[(note - 1) % 10])"
+}
+
+private let thirdBookLines: [String] = (1...100).map { note in
+    let openings = [
+        "Editorial note:", "For the record:", "A small correction:", "As expected:",
+        "Let us be precise:", "Unsurprisingly:", "A reminder:", "In brief:",
+        "The evidence says:", "Please observe:"
+    ]
+    let observations = [
+        "the row already rules that out.", "the column has made its position clear.",
+        "this box has only one credible option.", "the candidate list is not decorative.",
+        "the 7 cannot be everywhere at once.", "the givens are sufficient.",
+        "a guess would add nothing useful.", "the intersection resolves this neatly.",
+        "the remaining square is constrained.", "the board prefers a defensible move."
+    ]
+    return "\(openings[(note - 1) / 10]) \(observations[(note - 1) % 10])"
+}
+
+private let secondBookLines: [String] = [
+    "Proceed methodically.", "The row has not improved by being ignored.",
+    "Check the column, please.", "A pencil mark is not a commitment.",
+    "There is a correct answer. Locate it.", "Try the obvious square first.",
+    "One clean deduction will do.", "The box is waiting for your attention.",
+    "You have enough information.", "Re-read the givens.",
+    "A pause is acceptable. A guess is not.", "Start with the constrained digit.",
+    "The 7 is not going to place itself.", "Verify before you commit.",
+    "That candidate has consequences.", "Work the smallest possibility set.",
+    "A tidy grid supports a tidy mind.", "There is no prize for rushing.",
+    "This is solvable. Continue.", "The numbers are being quite clear.",
+    "Check the box intersection.", "Use the information already present.",
+    "A single exclusion is progress.", "You may begin with the easy part.",
+    "The row needs one number. Find it.", "Keep the pencil marks useful.",
+    "That square has narrowed nicely.", "Do not overcomplicate a 4.",
+    "The column disagrees. Resolve it.", "A correction now saves time later.",
+    "Please inspect the middle box.", "The candidates are a map, not decoration.",
+    "Good. Now repeat that reasoning.", "The answer is constrained, not hidden.",
+    "No need for theatrics; use the givens.", "This deduction is available to you.",
+    "Compare the two remaining positions.", "The next step is smaller than it looks.",
+    "You can eliminate more than one option here.", "The row is nearly complete.",
+    "Take the cleanest available move.", "A blank square is a request for analysis.",
+    "The 3x3 box has an opinion.", "Check whether the 6 can travel.",
+    "The contradiction is informative.", "That was a sound placement.",
+    "Continue while the pattern is visible.", "The grid rewards consistency.",
+    "Look for the lone candidate.", "You have seen this shape before.",
+    "The column is more constrained than it appears.", "Write down the candidates that matter.",
+    "This is not a speed test.", "There is a clean line through this box.",
+    "The givens have already done the hard part.", "Review the peer squares.",
+    "A measured move is still a move.", "The 8 has only one sensible home.",
+    "Keep going; the structure is holding.", "You can rule that out immediately.",
+    "The remaining choices are not equal.", "Trust the constraint, then verify it.",
+    "This row is ready for a decision.", "One deduction at a time is sufficient.",
+    "The pattern is not accidental.", "Make the placement you can defend.",
+    "You are narrowing the board correctly.", "The box is simpler than the whole grid.",
+    "Check the pairs before expanding the search.", "A reliable method scales.",
+    "Nothing is gained by placing a hopeful 9.", "That intersection is worth another look.",
+    "The next number is earned, not guessed.", "Keep the evidence on the page.",
+    "The candidate list has become useful.", "This is a good place to slow down.",
+    "The row and column agree on one thing.", "A clear exclusion is a clear advance.",
+    "The puzzle is offering you a simple move.", "Stay with the local constraints.",
+    "You are one check away from certainty.", "The 5 has been accounted for.",
+    "A correct square improves three units at once.", "The board is becoming more cooperative.",
+    "Please do not invent extra difficulty.", "There is no ambiguity in that box.",
+    "The clean solution is usually nearby.", "Good work. Continue the process.",
+    "This candidate cannot survive the column.", "The remaining blank has a limited future.",
+    "A careful check is faster than an undo.", "The grid is not negotiating.",
+    "That move was appropriately justified.", "Use the row to settle the box.",
+    "The answer has fewer places to hide now.", "You are making the puzzle smaller.",
+    "Finish the deduction before changing tactics.", "The last few blanks are still governed by rules.",
+    "Complete the line, then inspect the next one.", "Correctness first. Momentum second."
+]
 
 private let firstBookLines: [String] = [
         "Confidence first. Double-checking second.",

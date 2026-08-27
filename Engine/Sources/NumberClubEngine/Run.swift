@@ -40,6 +40,8 @@ public enum RunOutcome: String, Codable, Sendable {
 public struct RunState: Codable, Sendable {
     public let seed: String
     public var streams: SeedStreams
+    /// The published Book selected on the shelf, fixed for the whole run.
+    public let book: Book
     public let startingBoard: StartingBoard
     /// Chosen with the Book, and fixed for the whole run.
     public let obstacle: Obstacle
@@ -47,10 +49,15 @@ public struct RunState: Codable, Sendable {
     public var level: Int
     public var slot: PuzzleSlot
     public var coins: Int
+    /// Kept for the completed-Book record. It is updated only when a Puzzle
+    /// is banked, so an unfinished score is never presented as an achievement.
+    public var bestPuzzleScore: Int
 
     public var bookmarks: [OwnedBookmark] = []
     public var markers: [OwnedMarker] = []
     public var buffs: [OwnedBuff] = []
+    /// Expensive Book-wide upgrades. Deliberately separate from held slots.
+    public var subscriptions: [OwnedSubscription] = []
 
     /// Run-scoped scaling state, e.g. Syndication's accumulated wins. Reset
     /// only at a new Book.
@@ -60,20 +67,53 @@ public struct RunState: Codable, Sendable {
     public var shop: ShopState?
     public var outcome: RunOutcome?
 
-    public init(seed: String, startingBoard: StartingBoard, obstacle: Obstacle = .none) {
+    public init(seed: String, book: Book = .probably,
+                startingBoard: StartingBoard, obstacle: Obstacle = .none) {
         self.seed = seed
         self.streams = SeedStreams(seed: seed)
+        self.book = book
         self.startingBoard = startingBoard
         self.obstacle = obstacle
         self.level = 1
         self.slot = .easy
-        self.coins = startingBoard == .merchant ? 15 : Baseline.coins
+        self.coins = startingBoard == .merchant ? 15 : book.startingCoins
+        self.bestPuzzleScore = 0
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case seed, streams, book, startingBoard, obstacle, level, slot, coins
+        case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, outcome
+        case bestPuzzleScore
+    }
+
+    /// Subscriptions arrived after saved Books existed. Decode their absence as
+    /// an empty collection so a new app never discards an otherwise valid run.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        seed = try c.decode(String.self, forKey: .seed)
+        streams = try c.decode(SeedStreams.self, forKey: .streams)
+        book = try c.decodeIfPresent(Book.self, forKey: .book) ?? .probably
+        startingBoard = try c.decode(StartingBoard.self, forKey: .startingBoard)
+        obstacle = try c.decodeIfPresent(Obstacle.self, forKey: .obstacle) ?? .none
+        level = try c.decode(Int.self, forKey: .level)
+        slot = try c.decode(PuzzleSlot.self, forKey: .slot)
+        coins = try c.decode(Int.self, forKey: .coins)
+        bestPuzzleScore = try c.decodeIfPresent(Int.self, forKey: .bestPuzzleScore) ?? 0
+        bookmarks = try c.decodeIfPresent([OwnedBookmark].self, forKey: .bookmarks) ?? []
+        markers = try c.decodeIfPresent([OwnedMarker].self, forKey: .markers) ?? []
+        buffs = try c.decodeIfPresent([OwnedBuff].self, forKey: .buffs) ?? []
+        subscriptions = try c.decodeIfPresent([OwnedSubscription].self, forKey: .subscriptions) ?? []
+        runItemState = try c.decodeIfPresent([String: Double].self, forKey: .runItemState) ?? [:]
+        puzzle = try c.decodeIfPresent(PuzzleState.self, forKey: .puzzle)
+        shop = try c.decodeIfPresent(ShopState.self, forKey: .shop)
+        outcome = try c.decodeIfPresent(RunOutcome.self, forKey: .outcome)
     }
 
     // MARK: - Ownership queries
 
     public func owns(bookmark id: String) -> Bool { bookmarks.contains { $0.defID == id } }
     public func owns(marker id: String) -> Bool { markers.contains { $0.defID == id } }
+    public func owns(subscription id: String) -> Bool { subscriptions.contains { $0.defID == id } }
 
     /// Markers whose squares include `square` — what a placement there triggers.
     public func markers(covering square: Square) -> [OwnedMarker] {
@@ -99,6 +139,7 @@ public struct RunState: Codable, Sendable {
         var size = Baseline.handSize
         if startingBoard == .scholar { size += 1 }
         if owns(bookmark: Bookmarks.helpWanted) { size += 1 }
+        if owns(subscription: Subscriptions.homeDelivery) { size += 1 }
         size += boss?.handSizeDelta ?? 0
         size += obstacle.handSizeDelta
         return max(1, size)
@@ -109,6 +150,7 @@ public struct RunState: Codable, Sendable {
     public func effectiveTurns(boss: BossModifier?) -> Int {
         var turns = boss?.turnsOverride ?? Baseline.turns
         if owns(bookmark: Bookmarks.lateCityFinal) { turns += 1 }
+        if owns(subscription: Subscriptions.weekendEdition) { turns += 1 }
         return max(1, turns)
     }
 
@@ -123,17 +165,51 @@ public struct RunState: Codable, Sendable {
     /// Per Puzzle. The Erratum removes it entirely; Weather Forecast adds two.
     public func effectiveTossAllowance(boss: BossModifier?) -> Int {
         if boss?.forcesTossAllowanceToZero == true { return 0 }
-        return Baseline.tossAllowance + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
+        return Baseline.tossAllowance
+            + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
+            + (owns(subscription: Subscriptions.wireService) ? 2 : 0)
     }
 
     public var interestCap: Int {
-        owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
+        let bookmarkCap = owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
+        let subscriptionCap = owns(subscription: Subscriptions.annualRate) ? 20 : bookmarkCap
+        return subscriptionCap + Int(runItemState["clipping.circulation"] ?? 0)
+    }
+
+    public var markerCapacity: Int {
+        .max
+    }
+
+    /// The offer is pure from the Book seed and position. It can therefore be
+    /// read by the pre-Puzzle page as often as needed without shifting any
+    /// gameplay RNG stream.
+    public var currentClipping: Clipping? {
+        guard slot != .boss, skipsRemaining > 0, puzzle == nil, shop == nil, outcome == nil else {
+            return nil
+        }
+        return Clipping.offer(seed: seed, level: level, slot: slot)
+    }
+
+    public var skipsUsed: Int {
+        runItemState.keys.filter { $0.hasPrefix("clipping.taken.") }.count
+    }
+
+    public var skipsRemaining: Int { max(0, 2 - skipsUsed) }
+
+    public var takenClippings: [Clipping] {
+        (1...9).flatMap { level in
+            [PuzzleSlot.easy, .medium].compactMap { slot in
+                runItemState["clipping.taken.\(level).\(slot.rawValue)"] == nil
+                    ? nil : Clipping.offer(seed: seed, level: level, slot: slot)
+            }
+        }
     }
 
     // MARK: - Economy (§8)
 
     public struct Payout: Sendable, Equatable {
         public var base = 0
+        /// One coin for each Turn left when the Puzzle is banked.
         public var unusedTurns = 0
         public var keepFillingBank = 0
         public var interest = 0
@@ -144,7 +220,7 @@ public struct RunState: Codable, Sendable {
     public func payout(for puzzle: PuzzleState) -> Payout {
         var p = Payout()
         p.base = 5
-        p.unusedTurns = min(3, max(0, puzzle.turnsMax - puzzle.turnNumber + 1))
+        p.unusedTurns = puzzle.turnsRemaining
         p.keepFillingBank = puzzle.keepFillingCoins
         if puzzle.boss?.cancelsInterest != true {
             p.interest = min(interestCap, coins / 10)
@@ -162,7 +238,7 @@ public struct RunState: Codable, Sendable {
     // MARK: - Progression
 
     public var isBossPuzzle: Bool { slot == .boss }
-    public var target: Int { Targets.target(level: level, slot: slot) }
+    public var target: Int { book.target(level: level, slot: slot) }
 
     /// Advances to the next Puzzle, rolling over into the next Level. Returns
     /// false when the Book is finished (beating the Level 9 Boss).
@@ -180,6 +256,20 @@ public struct RunState: Codable, Sendable {
             grantPendingMarkerSquares()
         }
         return true
+    }
+
+    mutating func takeCurrentClipping() throws -> Clipping {
+        guard let clipping = currentClipping else { throw ClippingError.cannotSkip }
+        runItemState["clipping.taken.\(level).\(slot.rawValue)"] = 1
+        switch clipping {
+        case .coupon:
+            coins += 8
+        case .overprint:
+            runItemState["clipping.overprint"] = (runItemState["clipping.overprint"] ?? 0) + 1
+        case .circulation:
+            runItemState["clipping.circulation"] = (runItemState["clipping.circulation"] ?? 0) + 5
+        }
+        return clipping
     }
 
     /// §11 — each Marker gains one more square per Level completed while owned.

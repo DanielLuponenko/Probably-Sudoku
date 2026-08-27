@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Anything that is about the run rather than in it is printed on a slip and
 /// laid on the desk over the book. A system settings list would be the one
@@ -8,6 +8,7 @@ struct PaperSlip<Content: View>: View {
     var title: String
     var subtitle: String?
     var closeLabel: String = "Close"
+    var showsCloseButton: Bool = true
     /// Tapping the desk behind the slip puts it down. Off for slips that are
     /// asking a question rather than showing something.
     var dismissesOnBackground: Bool = true
@@ -44,9 +45,11 @@ struct PaperSlip<Content: View>: View {
                         .padding(.bottom, 14)
                 }
 
-                PaperButton(title: closeLabel, kind: .quiet, action: onClose)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 18)
+                if showsCloseButton {
+                    PaperButton(title: closeLabel, kind: .quiet, action: onClose)
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 18)
+                }
             }
             .frame(maxHeight: 620)
             .background {
@@ -230,6 +233,7 @@ struct SettingsSlip: View {
                 #endif
             }
         }
+        .accessibilityAddTraits(.isModal)
         #if DEBUG
         .sheet(isPresented: $showingQA) { QAPanel(model: model) }
         .overlay {
@@ -247,64 +251,170 @@ struct SettingsSlip: View {
 /// The rules, in the order you meet them.
 struct HelpSlip: View {
     var onClose: () -> Void
+    @State private var selectedTopic: Topic = .handAndPool
 
-    private struct Rule: Identifiable {
-        let id = UUID()
-        let heading: String
-        let lines: [String]
+    fileprivate enum Topic: String, CaseIterable, Identifiable {
+        case handAndPool
+        case rightAndWrong
+        case turnsAndToss
+        case targetsAndClears
+        case cashOut
+        case shop
+        case markers
+        case bosses
+        case failure
+
+        var id: String { rawValue }
+
+        var heading: String {
+            switch self {
+            case .handAndPool: return "Hand & Pool"
+            case .rightAndWrong: return "Right & wrong"
+            case .turnsAndToss: return "Turns & Toss"
+            case .targetsAndClears: return "Targets & clears"
+            case .cashOut: return "Cash Out"
+            case .shop: return "Shop & slots"
+            case .markers: return "Markers"
+            case .bosses: return "Bosses"
+            case .failure: return "When a Book ends"
+            }
+        }
+
+        var kicker: String {
+            switch self {
+            case .handAndPool: return "YOUR MATERIAL"
+            case .rightAndWrong: return "THE RISK"
+            case .turnsAndToss: return "THE CLOCK"
+            case .targetsAndClears: return "THE POINT"
+            case .cashOut: return "THE CHOICE"
+            case .shop: return "BETWEEN PUZZLES"
+            case .markers: return "ON THE BOARD"
+            case .bosses: return "THE OBSTACLE"
+            case .failure: return "THE STAKES"
+            }
+        }
+
+        var lines: [String] {
+            switch self {
+            case .handAndPool: return [
+                "Your Hand is what you can play now. The Pool contains every number not already on the board or in your Hand.",
+                "A finished sudoku contains nine of each number, so the Pool can be counted if you pay attention."
+            ]
+            case .rightAndWrong: return [
+                "Place a number on a Blank. A correct placement scores ten times that number.",
+                "A wrong placement costs fifty times the number and sends it back to the Pool."
+            ]
+            case .turnsAndToss: return [
+                "End Turn refills your Hand. Unplayed numbers carry over, so a good Hand is worth protecting.",
+                "Toss sends a picked number back to the Pool. Its allowance is limited and the Hand does not refill until End Turn."
+            ]
+            case .targetsAndClears: return [
+                "Each Puzzle has a target. Reach it before the final Turn to keep the Book alive.",
+                "Rows, columns and 3×3 boxes pay much more than a single placement. Plan toward clears."
+            ]
+            case .cashOut: return [
+                "After meeting the target, Cash Out banks the receipt and moves on safely.",
+                "Keep Filling freezes the target score and lets clears bank extra coins, but uses the Turns you have left."
+            ]
+            case .shop: return [
+                "The Shop appears between Puzzles. Bookmarks last the Book; Markers bind to a square; Buffs are one use.",
+                "Slots are limited. Sell a Bookmark or Buff for a partial refund when the plan changes."
+            ]
+            case .markers: return [
+                "Place a Marker on a Blank before its number lands. Its effect belongs to that square for this Book.",
+                "Markers do not share squares, and some Bosses can make their marked squares harder to read."
+            ]
+            case .bosses: return [
+                "The third Puzzle of each Level is a Boss encounter. It changes the rules of that Puzzle, not the Book's difficulty.",
+                "Read the Boss stamp before playing: it tells you exactly which resource or board rule is under pressure."
+            ]
+            case .failure: return [
+                "If a Puzzle fills below its target, the Book ends. There are exactly enough numbers for the Blanks, so it cannot recover.",
+                "A completed Book unlocks the next one. Obstacles are a separate choice when you open a Book."
+            ]
+            }
+        }
     }
-
-    private let rules: [Rule] = [
-        Rule(heading: "The idea", lines: [
-            "You are filling a sudoku for points, not for completion. Each Puzzle sets a "
-            + "score target you have to beat within a fixed number of Turns.",
-        ]),
-        Rule(heading: "Numbers", lines: [
-            "Numbers arrive at random from the Pool. Place one on a Blank: a correct "
-            + "placement scores ten times the number, a wrong one costs fifty times it "
-            + "and goes back.",
-            "Completing a row, column or box is worth far more than a placement, so the "
-            + "board is where the points are.",
-            "The Pool is never shown. But a finished sudoku holds each digit nine times, "
-            + "so what is left is nine, minus what is on the board, minus what is in your "
-            + "hand. Counting is the one edge the game does not hand you.",
-        ]),
-        Rule(heading: "A Turn", lines: [
-            "Ending a Turn refills your hand. Unplaced numbers carry over.",
-            "Toss returns numbers to the Pool, up to the allowance each Turn. The hand "
-            + "only refills at the end of a Turn, so tossing is paid for in tempo.",
-        ]),
-        Rule(heading: "Between Puzzles", lines: [
-            "Beat the target and you choose: bank the payout, or keep filling for coins "
-            + "with the Turns you have left.",
-            "The Shop sells Bookmarks, which run for the whole Book; Markers, which mark a "
-            + "square so whatever lands there scores more; and Buffs, used once.",
-            "Targets double every Level, so multipliers are not a luxury.",
-        ]),
-        Rule(heading: "Losing", lines: [
-            "Miss a target and the Book ends. There are exactly as many numbers as there "
-            + "are Blanks, so a board that fills below target cannot be recovered.",
-        ]),
-    ]
 
     var body: some View {
         PaperSlip(title: "How to play",
-                  subtitle: "The Number Club, in the order you meet it.",
+                  subtitle: "Probably Sudoku, in the order you meet it.",
                   onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(rules) { rule in
-                    SlipSection(title: rule.heading) {
-                        VStack(alignment: .leading, spacing: 7) {
-                            ForEach(rule.lines, id: \.self) { line in
-                                Text(line)
-                                    .font(Print.body(13))
-                                    .foregroundStyle(Paper.inkSoft)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
+                HStack(spacing: 8) {
+                    Text(selectedTopic.heading)
+                        .font(Print.caption(10))
+                        .textCase(.uppercase)
+                        .tracking(0.9)
+                        .foregroundStyle(Paper.page)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .background(Paper.ink, in: RoundedRectangle(cornerRadius: 3))
+                        .accessibilityLabel("How to play topic")
+                        .accessibilityValue("\(selectedTopic.heading), \(selectedIndex + 1) of \(Topic.allCases.count)")
+                }
+                .padding(.bottom, 12)
+
+                HelpTopicPage(topic: selectedTopic)
+
+                HStack(spacing: 10) {
+                    if selectedIndex > 0 {
+                        PaperButton(title: "Previous", kind: .quiet) {
+                            select(Topic.allCases[selectedIndex - 1])
+                        }
+                    }
+                    if selectedIndex < Topic.allCases.count - 1 {
+                        PaperButton(title: "Next", kind: .quiet) {
+                            select(Topic.allCases[selectedIndex + 1])
                         }
                     }
                 }
+                .padding(.top, 14)
             }
         }
+    }
+
+    private var selectedIndex: Int {
+        Topic.allCases.firstIndex(of: selectedTopic) ?? 0
+    }
+
+    private func select(_ topic: Topic) {
+        withAnimation(.snappy(duration: 0.18)) { selectedTopic = topic }
+    }
+}
+
+private struct HelpTopicPage: View {
+    let topic: HelpSlip.Topic
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            Image("Cover")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 96)
+                .clipShape(.rect(cornerRadius: 3))
+                .overlay(alignment: .bottomLeading) {
+                    Text(topic.kicker)
+                        .font(Print.caption(10))
+                        .tracking(1.5)
+                        .foregroundStyle(Paper.page)
+                        .padding(9)
+                        .background(.black.opacity(0.45))
+                }
+                .accessibilityHidden(true)
+
+            Text(topic.heading)
+                .font(Print.heading(21))
+                .foregroundStyle(Paper.ink)
+
+            ForEach(topic.lines, id: \.self) { line in
+                Text(line)
+                    .font(Print.body(14))
+                    .foregroundStyle(Paper.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(topic.heading)
     }
 }

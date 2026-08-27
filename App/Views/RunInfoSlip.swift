@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// Everything true about the run right now, including what is still in the Pool.
 ///
@@ -39,6 +39,15 @@ struct RunInfoSlip: View {
                     LeaderRow(label: "Level", value: "\(model.run.level) of 9")
                     LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
                     LeaderRow(label: "Coins", value: "\(model.coins)")
+                    LeaderRow(label: "Clippings", value: "\(model.run.skipsUsed) used · \(model.run.skipsRemaining) left")
+                }
+
+                if !model.run.takenClippings.isEmpty {
+                    SlipSection(title: "Clippings taken") {
+                        ForEach(model.run.takenClippings) { clipping in
+                            OwnedLine(name: clipping.name, detail: clipping.detail)
+                        }
+                    }
                 }
 
                 if !model.run.bookmarks.isEmpty {
@@ -67,6 +76,14 @@ struct RunInfoSlip: View {
                     SlipSection(title: "Buffs") {
                         ForEach(Array(model.run.buffs.enumerated()), id: \.offset) { _, buff in
                             OwnedLine(name: buff.def.name, detail: buff.def.text)
+                        }
+                    }
+                }
+
+                if !model.run.subscriptions.isEmpty {
+                    SlipSection(title: "Subscriptions") {
+                        ForEach(model.run.subscriptions) { subscription in
+                            OwnedLine(name: subscription.def.name, detail: subscription.def.text)
                         }
                     }
                 }

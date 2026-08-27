@@ -4,6 +4,8 @@ import Foundation
 /// resource, so no single build answers all of them.
 public enum BossModifier: String, Codable, CaseIterable, Sendable {
     case censor, editor, deadline, fog, critic, mirror, paywall, erratum, collector
+    case heavyLifter, unluckyLucky, buffborger, sashimi, overPusher
+    case accountant, tikTak, handyDandy, grayTheGarry, garryTheGray
 
     public var name: String {
         switch self {
@@ -16,6 +18,16 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
         case .paywall: return "The Paywall"
         case .erratum: return "The Erratum"
         case .collector: return "The Collector"
+        case .heavyLifter: return "Heavy Lifter"
+        case .unluckyLucky: return "Unlucky Lucky"
+        case .buffborger: return "Big Buffborger Jr"
+        case .sashimi: return "Sashimi"
+        case .overPusher: return "Over Pusher"
+        case .accountant: return "Natural Born Accountant"
+        case .tikTak: return "Tik Tak"
+        case .handyDandy: return "Handy Dandy"
+        case .grayTheGarry: return "Gray the Garry"
+        case .garryTheGray: return "Garry the Gray"
         }
     }
 
@@ -30,6 +42,16 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
         case .paywall: return "All Clues disabled, including Buff-granted"
         case .erratum: return "Toss allowance 0"
         case .collector: return "This Puzzle's payout includes no interest"
+        case .heavyLifter: return "The target is four times what it would be"
+        case .unluckyLucky: return "One Bookmark sleeps each Turn"
+        case .buffborger: return "No Buff can be spent this Puzzle"
+        case .sashimi: return "All score multipliers are cut in half"
+        case .overPusher: return "Three squares are fouled each Turn, and clear two Turns later"
+        case .accountant: return "Every placement costs a coin, even if you have none"
+        case .tikTak: return "Three minutes for the whole Puzzle"
+        case .handyDandy: return "Two numbers in your Hand are barred each Turn"
+        case .grayTheGarry: return "A row is greyed out each Turn and cannot be written in"
+        case .garryTheGray: return "A box is greyed out each Turn and cannot be written in"
         }
     }
 
@@ -45,6 +67,16 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
         case .paywall: return "Clue builds"
         case .erratum: return "Hand filtering"
         case .collector: return "Hoarding"
+        case .heavyLifter: return "Everything at once"
+        case .unluckyLucky: return "Builds that lean on one Bookmark"
+        case .buffborger: return "Anything held in reserve"
+        case .sashimi: return "Mult stacking"
+        case .overPusher: return "Room to play"
+        case .accountant: return "The Shop after this"
+        case .tikTak: return "Thinking it through"
+        case .handyDandy: return "The Hand you were counting on"
+        case .grayTheGarry: return "Rows you were about to finish"
+        case .garryTheGray: return "Boxes you were about to finish"
         }
     }
 
@@ -57,6 +89,18 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
     public var hidesMarkedSquares: Bool { self == .fog }
     public var cancelsInterest: Bool { self == .collector }
     public var doublesWrongPenalty: Bool { self == .critic }
+    public var targetMultiplier: Int { self == .heavyLifter ? 4 : 1 }
+    public var disablesBuffs: Bool { self == .buffborger }
+    public var halvesScoreMultiplier: Bool { self == .sashimi }
+    /// Natural Born Accountant. Coins can go negative: the point is pressure,
+    /// not an affordability check that turns a placement into a dead end.
+    public var coinsPerPlacement: Int { self == .accountant ? 1 : 0 }
+    public var barsNumbersEachTurn: Int { self == .handyDandy ? 2 : 0 }
+    public var foulsSquaresEachTurn: Bool { self == .overPusher }
+    public var greysARowEachTurn: Bool { self == .grayTheGarry }
+    public var greysABoxEachTurn: Bool { self == .garryTheGray }
+    public var disablesABookmarkEachTurn: Bool { self == .unluckyLucky }
+    public var secondsAllowed: Double? { self == .tikTak ? 180 : nil }
 
     /// Needs a digit rolled alongside it.
     public var censorsARandomDigit: Bool { self == .censor }
@@ -70,6 +114,9 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
         case .mirror:
             // Line Clear bonuses score 0; the Full Clear is unaffected.
             if context.event == .lineClear { result.zeroed = true }
+        case .sashimi:
+            // KAN-47 applies this after the Turn's held multipliers are known.
+            break
         default:
             break
         }

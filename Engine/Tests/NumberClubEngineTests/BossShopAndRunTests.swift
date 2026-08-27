@@ -1,5 +1,6 @@
+import Foundation
 import XCTest
-@testable import NumberClubEngine
+@testable import ProbablySudokuEngine
 
 final class BossModifierTests: XCTestCase {
 
@@ -11,7 +12,7 @@ final class BossModifierTests: XCTestCase {
             XCTAssertFalse(boss.text.isEmpty)
             XCTAssertFalse(boss.attacks.isEmpty)
         }
-        XCTAssertEqual(BossModifier.allCases.count, 9)
+        XCTAssertEqual(BossModifier.allCases.count, 19)
     }
 
     func testTheEditorShrinksTheHand() {
@@ -59,6 +60,7 @@ final class BossModifierTests: XCTestCase {
         game.give(ad: "bm_stop_the_presses")
         game.give(ad: "bm_editorial_board")
         _ = try game.place(handIndex: game.stackHand(with: .nine)!, at: game.blank(wanting: .nine)!)
+        _ = try game.endTurn()
         let before = game.puzzle!.score
         XCTAssertEqual(before, 810)
 
@@ -113,6 +115,146 @@ final class BossModifierTests: XCTestCase {
         XCTAssertEqual(BossModifier.fog.handSizeDelta, 0)
         XCTAssertNil(BossModifier.fog.turnsOverride)
     }
+
+    func testHeavyLifterQuadruplesTheTargetInTheQAPath() throws {
+        var game = Game(seed: "heavy", startingBoard: .scholar)
+        try game.startPuzzle()
+        let baseTarget = game.puzzle!.target
+
+        #if DEBUG
+        game.qaSetBoss(.heavyLifter)
+        XCTAssertEqual(game.puzzle?.target, baseTarget * 4)
+        #endif
+    }
+
+    func testBuffborgerAndAccountantApplyTheirResourcePressure() throws {
+        var game = Game(seed: "resources", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.give(buff: Buffs.peek)
+        game.run.puzzle?.boss = .buffborger
+        XCTAssertThrowsError(try game.useBuff(at: 0)) {
+            XCTAssertEqual($0 as? PlacementError, .buffsDisabled)
+        }
+        XCTAssertEqual(game.run.buffs.count, 1, "a blocked Buff stays held")
+
+        game.run.puzzle?.boss = .accountant
+        let coinsBefore = game.run.coins
+        let square = game.blank(wanting: .five)!
+        _ = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
+        XCTAssertEqual(game.run.coins, coinsBefore - 1)
+    }
+
+    func testSashimiHalvesTheWholeScoreMultiplier() throws {
+        var game = Game(seed: "sashimi", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.give(ad: "bm_op_ed") // normal x2
+        game.run.puzzle?.boss = .sashimi
+
+        let outcome = try game.place(handIndex: game.stackHand(with: .five)!,
+                                     at: game.blank(wanting: .five)!)
+        XCTAssertEqual(outcome.points, 50, "Sashimi takes the normal x2 back to x1")
+    }
+
+    func testHandyDandyBarsTwoHeldDigitsAndTheGrayBossesBarTheirUnits() throws {
+        var handy = Game(seed: "handy", startingBoard: .scholar)
+        try handy.startPuzzle()
+        handy.run.puzzle?.boss = .handyDandy
+        var handyPuzzle = handy.run.puzzle!
+        handyPuzzle.startBossTurn(&handy.run)
+        handy.run.puzzle = handyPuzzle
+        XCTAssertEqual(handy.puzzle?.blockedDigits.count, min(2, Set(handy.puzzle!.hand).count))
+        XCTAssertTrue(handy.puzzle!.blockedDigits.isSubset(of: Set(handy.puzzle!.hand)))
+
+        for boss in [BossModifier.grayTheGarry, .garryTheGray] {
+            var game = Game(seed: boss.rawValue, startingBoard: .scholar)
+            try game.startPuzzle()
+            game.run.puzzle?.boss = boss
+            var puzzle = game.run.puzzle!
+            puzzle.startBossTurn(&game.run)
+            game.run.puzzle = puzzle
+            let barred = try XCTUnwrap(game.puzzle?.barredSquares.first)
+            XCTAssertThrowsError(try game.place(handIndex: 0, at: barred)) {
+                XCTAssertEqual($0 as? PlacementError, .squareBarred)
+            }
+            if boss == .grayTheGarry {
+                XCTAssertEqual(Set(game.puzzle!.barredSquares.map(\.row)).count, 1)
+            } else {
+                XCTAssertEqual(Set(game.puzzle!.barredSquares.map(\.box)).count, 1)
+            }
+        }
+    }
+
+    func testOverPusherExpiresFoulsAndUnluckyLuckySleepsABookmark() throws {
+        var pusher = Game(seed: "push", startingBoard: .scholar)
+        try pusher.startPuzzle()
+        pusher.run.puzzle?.boss = .overPusher
+        var puzzle = pusher.run.puzzle!
+        let filledSquare = try XCTUnwrap(Geometry.rows.flatMap { $0 }
+            .first { !puzzle.board.isBlank($0) })
+        var previousTurn = BossTurnState()
+        previousTurn.fouled = [filledSquare: puzzle.turnNumber]
+        puzzle.bossTurn = previousTurn
+        puzzle.startBossTurn(&pusher.run)
+        XCTAssertFalse(puzzle.barredSquares.contains(filledSquare))
+        XCTAssertFalse(puzzle.barredSquares.isEmpty)
+
+        var unlucky = Game(seed: "unlucky", startingBoard: .scholar)
+        try unlucky.startPuzzle()
+        unlucky.give(ad: "bm_local_gossip")
+        unlucky.run.puzzle?.boss = .unluckyLucky
+        var sleepingTurn = BossTurnState()
+        sleepingTurn.disabledBookmark = 0
+        unlucky.run.puzzle?.bossTurn = sleepingTurn
+        let outcome = try unlucky.place(handIndex: unlucky.stackHand(with: .five)!,
+                                        at: unlucky.blank(wanting: .five)!)
+        XCTAssertEqual(outcome.points, 50, "the sleeping Bookmark cannot contribute its +30")
+    }
+
+    func testTikTakDefinesTheClockAndExpiryFailsEvenWhileKeepingFilling() throws {
+        XCTAssertEqual(BossModifier.tikTak.secondsAllowed, 180)
+        var game = Game(seed: "clock", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.puzzle?.phase = .keepFilling
+        game.failPuzzle()
+        XCTAssertEqual(game.puzzle?.phase, .failed)
+        XCTAssertEqual(game.run.outcome, .failed)
+    }
+
+    #if DEBUG
+    func testQASelectorsMakeAnyLoadoutAndBossRepeatable() throws {
+        var game = Game(seed: "qa-selectors", startingBoard: .scholar)
+        try game.startPuzzle()
+
+        game.qaSetBoss(.editor)
+        XCTAssertEqual(game.puzzle?.handSize, 6)
+
+        game.qaSetBoss(.overPusher)
+        XCTAssertFalse(game.puzzle!.barredSquares.isEmpty)
+        game.qaSetBoss(.grayTheGarry)
+        XCTAssertTrue(game.puzzle!.bossTurn!.fouled.isEmpty,
+                      "a new QA Boss starts without the old Boss's fouls")
+        game.qaSetBoss(.editor)
+
+        game.qaSetBookmark(Bookmarks.helpWanted)
+        game.qaSetMarker("mk_silver", at: Square(row: 4, col: 4))
+        game.qaSetBuff(Buffs.peek)
+
+        XCTAssertEqual(game.run.bookmarks.map(\.defID), [Bookmarks.helpWanted])
+        XCTAssertEqual(game.run.markers.first?.defID, "mk_silver")
+        XCTAssertEqual(game.run.markers.first?.squares, [Square(row: 4, col: 4)])
+        XCTAssertEqual(game.run.buffs.map(\.defID), [Buffs.peek])
+        XCTAssertEqual(game.puzzle?.boss, .editor)
+        XCTAssertEqual(game.puzzle?.handSize, 7, "Help Wanted offsets The Editor")
+        XCTAssertNil(Conservation.check(board: game.puzzle!.board,
+                                        pool: game.puzzle!.pool,
+                                        hand: game.puzzle!.hand))
+
+        game.qaSetMarker("mk_copper", at: Square(row: 1, col: 1))
+        XCTAssertEqual(game.run.markers.count, 1)
+        XCTAssertEqual(game.run.markers.first?.squares, [Square(row: 1, col: 1)])
+        XCTAssertEqual(game.run.markers.first?.defID, "mk_copper")
+    }
+    #endif
 
     func testBossPuzzlesAlwaysRollAModifierAndOthersNever() throws {
         var run = RunState(seed: "rolls", startingBoard: .scholar)
@@ -219,6 +361,23 @@ final class ShopTests: XCTestCase {
         }
     }
 
+    func testMarkersCanBeBoughtBeyondTheFormerThreeMarkerLimit() throws {
+        var run = RunState(seed: "unlimited-markers", startingBoard: .scholar)
+        run.coins = 20
+        run.shop = ShopState(
+            offers: (0..<4).map { ShopOffer(slot: $0, defID: "mk_golden", price: 5) },
+            rerollCost: 2,
+            rerollsUsed: 0
+        )
+
+        for slot in 0..<4 {
+            try Shop.buy(&run, slot: slot)
+        }
+
+        XCTAssertEqual(run.markers.count, 4)
+        XCTAssertEqual(run.coins, 0)
+    }
+
     func testRerollCostsTwoThenClimbs() throws {
         var run = RunState(seed: "reroll", startingBoard: .scholar)
         run.coins = 100
@@ -248,9 +407,87 @@ final class ShopTests: XCTestCase {
         XCTAssertEqual(RunState.sellValue(pricePaid: 1), 1)
         XCTAssertEqual(RunState.sellValue(pricePaid: 0), 1)
     }
+
+    func testSellingBookmarksAndBuffsRefundsAndFreesTheirSlots() throws {
+        var game = Game(seed: "sell", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.bookmarks.append(OwnedBookmark(defID: "bm_op_ed", boughtAtLevel: 1, pricePaid: 7))
+        game.run.buffs.append(OwnedBuff(defID: Buffs.peek, pricePaid: 3))
+        let coins = game.run.coins
+
+        XCTAssertEqual(try game.sell(kind: .bookmark, index: 0), 3)
+        XCTAssertEqual(try game.sell(kind: .buff, index: 0), 1)
+        XCTAssertEqual(game.run.coins, coins + 4)
+        XCTAssertTrue(game.run.bookmarks.isEmpty)
+        XCTAssertTrue(game.run.buffs.isEmpty)
+    }
+
+    func testSellingWorksMidPuzzleButRejectsMarkers() throws {
+        var game = Game(seed: "sell2", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.run.buffs.append(OwnedBuff(defID: Buffs.peek, pricePaid: 4))
+        XCTAssertEqual(try game.sell(kind: .buff, index: 0), 2)
+
+        game.run.markers.append(OwnedMarker(defID: Markers.rose, boughtAtLevel: 1, pricePaid: 8))
+        XCTAssertThrowsError(try game.sell(kind: .marker, index: 0)) { error in
+            XCTAssertEqual(error as? Shop.ShopError, .cannotBeSold)
+        }
+        XCTAssertEqual(game.run.markers.count, 1)
+    }
 }
 
 final class RunAndDeterminismTests: XCTestCase {
+
+    func testSubscriptionsStackPersistAndDoNotUseHeldSlots() throws {
+        var run = RunState(seed: "subscriptions", startingBoard: .scholar)
+        run.subscriptions = [
+            OwnedSubscription(defID: Subscriptions.homeDelivery, pricePaid: 12),
+            OwnedSubscription(defID: Subscriptions.weekendEdition, pricePaid: 14),
+            OwnedSubscription(defID: Subscriptions.wireService, pricePaid: 14),
+            OwnedSubscription(defID: Subscriptions.annualRate, pricePaid: 18),
+            OwnedSubscription(defID: Subscriptions.overseasEdition, pricePaid: 20),
+        ]
+        run.bookmarks.append(OwnedBookmark(defID: Bookmarks.helpWanted, boughtAtLevel: 1, pricePaid: 0))
+        XCTAssertEqual(run.effectiveHandSize(boss: nil), 9)
+        XCTAssertEqual(run.effectiveTurns(boss: nil), 11)
+        XCTAssertEqual(run.effectiveTossAllowance(boss: nil), 6)
+        XCTAssertEqual(run.interestCap, 20)
+        XCTAssertEqual(run.markerCapacity, .max)
+        XCTAssertTrue(run.bookmarks.count < ItemKind.bookmark.capacity)
+        XCTAssertTrue(run.buffs.count < ItemKind.buff.capacity)
+
+        let restored = try Game(decoding: try Game(run: run).encoded())
+        XCTAssertEqual(restored.run.subscriptions.map(\.defID), run.subscriptions.map(\.defID))
+    }
+
+    func testStockContainsOnlyBookmarksMarkersAndBuffs() {
+        for seed in 0..<100 {
+            var run = RunState(seed: "sub-\(seed)", startingBoard: .scholar)
+            run.level = 3
+            Shop.open(&run)
+            XCTAssertEqual(run.shop!.offers.count, 5)
+            XCTAssertEqual(run.shop!.offers.filter { $0.def.kind == .bookmark }.count, 2)
+            XCTAssertEqual(run.shop!.offers.filter { $0.def.kind == .marker }.count, 2)
+            XCTAssertEqual(run.shop!.offers.filter { $0.def.kind == .buff }.count, 1)
+            XCTAssertFalse(run.shop!.offers.contains { $0.def.kind == .subscription })
+        }
+    }
+
+    func testBuyingSubscriptionUsesCoinsButNoHeldSlotAndCannotBeSold() throws {
+        var run = RunState(seed: "buy-subscription", startingBoard: .scholar)
+        run.coins = 20
+        run.shop = ShopState(offers: [ShopOffer(slot: 0, defID: Subscriptions.homeDelivery, price: 12)],
+                             rerollCost: 2, rerollsUsed: 0)
+        try Shop.buy(&run, slot: 0)
+        XCTAssertEqual(run.coins, 8)
+        XCTAssertEqual(run.subscriptions.map(\.defID), [Subscriptions.homeDelivery])
+        XCTAssertTrue(run.bookmarks.isEmpty)
+        XCTAssertTrue(run.markers.isEmpty)
+        XCTAssertTrue(run.buffs.isEmpty)
+        XCTAssertThrowsError(try Shop.sell(&run, kind: .subscription, index: 0)) { error in
+            XCTAssertEqual(error as? Shop.ShopError, .cannotBeSold)
+        }
+    }
 
     func testABookIsNineLevelsOfThreePuzzles() {
         var run = RunState(seed: "book", startingBoard: .scholar)
@@ -283,6 +520,36 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertNotEqual(try play("share-me"), try play("other-seed"))
     }
 
+    func testClippingsAreSeededLimitedAndNeverOfferedForBosses() throws {
+        var first = Game(seed: "clip", startingBoard: .scholar)
+        var second = Game(seed: "clip", startingBoard: .scholar)
+        XCTAssertEqual(first.run.currentClipping, second.run.currentClipping)
+        XCTAssertEqual(first.run.skipsRemaining, 2)
+
+        _ = try first.skipPuzzle()
+        _ = try second.skipPuzzle()
+        XCTAssertEqual(first.run.slot, .medium)
+        XCTAssertEqual(first.run.currentClipping, second.run.currentClipping)
+        _ = try first.skipPuzzle()
+        XCTAssertEqual(first.run.slot, .boss)
+        XCTAssertEqual(first.run.skipsRemaining, 0)
+        XCTAssertNil(first.run.currentClipping)
+        XCTAssertThrowsError(try first.skipPuzzle()) { error in
+            XCTAssertEqual(error as? ClippingError, .cannotSkip)
+        }
+    }
+
+    func testOverprintIsConsumedByTheNextPuzzle() throws {
+        let seed = try XCTUnwrap((0..<100).map(String.init).first { seed in
+            Game(seed: seed, startingBoard: .scholar).run.currentClipping == .overprint
+        })
+        var game = Game(seed: seed, startingBoard: .scholar)
+        _ = try game.skipPuzzle()
+        try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.pendingMult, 2)
+        XCTAssertNil(game.run.runItemState["clipping.overprint"])
+    }
+
     func testSaveAndLoadRoundTripsMidPuzzle() throws {
         var game = Game(seed: "save", startingBoard: .oracle)
         try game.startPuzzle()
@@ -298,10 +565,35 @@ final class RunAndDeterminismTests: XCTestCase {
         XCTAssertEqual(restored.run.markers.first?.squares, game.run.markers.first?.squares)
     }
 
+    func testPreTurnBankSaveStillLoadsWithAnEmptyQueue() throws {
+        var game = Game(seed: "legacy-queue", startingBoard: .scholar)
+        try game.startPuzzle()
+        let encoded = try game.encoded()
+        var root = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var puzzle = try XCTUnwrap(root["puzzle"] as? [String: Any])
+        puzzle.removeValue(forKey: "pendingBase")
+        puzzle.removeValue(forKey: "pendingMult")
+        root["puzzle"] = puzzle
+
+        let oldSave = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+        let restored = try Game(decoding: oldSave)
+        XCTAssertEqual(restored.puzzle?.pendingBase, 0)
+        XCTAssertEqual(restored.puzzle?.pendingMultiplier, 1)
+    }
+
+    func testPreSubscriptionSaveLoadsWithNoSubscriptions() throws {
+        let game = Game(seed: "legacy-subscription", startingBoard: .scholar)
+        var root = try XCTUnwrap(try JSONSerialization.jsonObject(with: game.encoded()) as? [String: Any])
+        root.removeValue(forKey: "subscriptions")
+        let legacy = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+        XCTAssertTrue(try Game(decoding: legacy).run.subscriptions.isEmpty)
+    }
+
     func testItemCatalogueMatchesTheDesignTables() {
         XCTAssertEqual(Catalog.items(of: .bookmark).count, 23)
         XCTAssertEqual(Catalog.items(of: .marker).count, 12)
-        XCTAssertEqual(Catalog.items(of: .buff).count, 10)
+        XCTAssertEqual(Catalog.items(of: .buff).count, 11)
+        XCTAssertEqual(Catalog.items(of: .subscription).count, 7)
         // Ids must be unique — the catalogue is keyed by them.
         let ids = Catalog.all.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count)

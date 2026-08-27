@@ -1,5 +1,5 @@
 import Foundation
-import NumberClubEngine
+import ProbablySudokuEngine
 
 // A soak test, not an AI. The bot cheats — it reads the solution — because the
 // point is to exercise every code path in the engine across whole Books and

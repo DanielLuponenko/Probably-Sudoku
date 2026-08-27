@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import ProbablySudokuEngine
 
 /// The whole game is one physical object: a sudoku book lying open on a desk.
 /// Every colour here is a real material — stained wood, cream paper, printing
@@ -56,6 +58,9 @@ enum Paper {
     static let coin = Color(hex: 0xE0B33C)
     static let coinRim = Color(hex: 0xA9801E)
     static let redPencil = Color(hex: 0xB4544A)
+    /// Editorial blue stays a named ink rather than becoming an anonymous
+    /// literal in a board treatment.
+    static let editorBlue = Color(hex: 0x53688C)
     /// Graphite, for anything written by hand rather than printed.
     static let pencil = Color(hex: 0x5A5750)
     /// The first Book's accents: soft green and a warm orange.
@@ -89,6 +94,102 @@ enum Paper {
     }
 }
 
+// MARK: - Level palettes
+
+/// Semantic inks for a Puzzle slot. Cosmetic themes choose the physical paper,
+/// desk, typeface, and rule furniture; this palette is the Level's temperature
+/// on top of those materials. The values are immutable so a page only updates
+/// when it moves to another slot.
+struct LevelPalette: Equatable {
+    let id: String
+    let paper: Color
+    let ink: Color
+    let rule: Color
+    let accent: Color
+    let danger: Color
+    let given: Color
+    let placed: Color
+    let marked: Color
+    let target: Color
+
+    static let easy = LevelPalette(id: "easy",
+                                   paper: Paper.page,
+                                   ink: Paper.ink,
+                                   rule: Paper.rule,
+                                   accent: Paper.sageDeep,
+                                   danger: Paper.redPencil,
+                                   given: Paper.cellGiven,
+                                   placed: Paper.ink,
+                                   marked: Paper.sage,
+                                   target: Paper.sage)
+    static let medium = LevelPalette(id: "medium",
+                                     paper: Color(hex: 0xE7DDC9),
+                                     ink: Color(hex: 0x332A25),
+                                     rule: Color(hex: 0xA99B85),
+                                     accent: Color(hex: 0x87613B),
+                                     danger: Paper.redPencil,
+                                     given: Color(hex: 0xDDD0B4),
+                                     placed: Color(hex: 0x332A25),
+                                     marked: Color(hex: 0xA56B3A),
+                                     target: Color(hex: 0x785538))
+    static let boss = LevelPalette(id: "boss",
+                                   paper: Color(hex: 0xE7E1D4),
+                                   ink: Color(hex: 0x29302C),
+                                   rule: Color(hex: 0x938B7C),
+                                   accent: Color(hex: 0x65765D),
+                                   danger: Paper.redPencil,
+                                   given: Color(hex: 0xD7D5B8),
+                                   placed: Color(hex: 0x29302C),
+                                   marked: Color(hex: 0x6E825F),
+                                   target: Color(hex: 0x5A6B52))
+
+    static func forSlot(_ slot: PuzzleSlot) -> LevelPalette {
+        switch slot {
+        case .easy: return .easy
+        case .medium: return .medium
+        case .boss: return .boss
+        }
+    }
+
+    /// A Level palette supplies the puzzle's temperature; the selected stock
+    /// supplies contrast. The Night Sky paper is dark, so every semantic ink
+    /// needs to invert together rather than fixing only the grid numerals.
+    func resolved(for paper: PaperSkin) -> LevelPalette {
+        guard paper.isDark else { return self }
+        return LevelPalette(id: id,
+                            paper: paper.ink,
+                            ink: paper.ink,
+                            rule: paper.ruleInk,
+                            accent: paper.accentInk,
+                            danger: Color(hex: 0xF2A39B),
+                            given: Color(hex: 0x294568),
+                            placed: paper.ink,
+                            marked: Color(hex: 0xA6CFA4),
+                            target: Paper.sage)
+    }
+
+    /// Lets the local screenshot harness compare the three Level treatments on
+    /// the same puzzle. It is compiled out of Release builds.
+    static func forDisplay(slot: PuzzleSlot) -> LevelPalette {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-qaPalette"), index + 1 < arguments.count {
+            switch arguments[index + 1] {
+            case "easy": return .easy
+            case "medium": return .medium
+            case "boss": return .boss
+            default: break
+            }
+        }
+        #endif
+        return forSlot(slot)
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var levelPalette: LevelPalette = .easy
+}
+
 // MARK: - Type
 
 /// Printed, not rendered: headings are letterpress-heavy and tightly set, body
@@ -102,14 +203,34 @@ enum Print {
     static func numeral(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
         .system(size: size, weight: weight).monospacedDigit()
     }
+    static func handwritten(_ size: CGFloat) -> Font { .custom("Bradley Hand", size: size) }
+}
+
+extension Print {
+    static func clubTitle(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .black, design: .serif).width(.condensed)
+    }
+
+    static func menuAction(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .heavy).width(.condensed)
+    }
 }
 
 extension View {
     /// Uppercase, heavy, tightly tracked — the mockups' section headings.
     func pageHeading(_ size: CGFloat = 34) -> some View {
-        self.font(Print.heading(size))
+        modifier(ThemedPageHeading(size: size))
+    }
+}
+
+private struct ThemedPageHeading: ViewModifier {
+    @Environment(\.cosmeticTheme) private var theme
+    var size: CGFloat
+
+    func body(content: Content) -> some View {
+        content.font(Print.heading(size))
             .tracking(-0.5)
-            .foregroundStyle(Paper.ink)
+            .foregroundStyle(theme.paper.ink)
             .textCase(.uppercase)
     }
 }
@@ -165,6 +286,17 @@ struct PaperGrain: View {
 // MARK: - Colour helper
 
 extension Color {
+    /// `Color.mix(with:by:)` is newer than the app's iOS 17 target.
+    func mixed(with other: Color, by amount: Double) -> Color {
+        let t = min(max(amount, 0), 1)
+        let a = UIColor(self).rgba, b = UIColor(other).rgba
+        return Color(.sRGB,
+                     red: a.r + (b.r - a.r) * t,
+                     green: a.g + (b.g - a.g) * t,
+                     blue: a.b + (b.b - a.b) * t,
+                     opacity: a.a + (b.a - a.a) * t)
+    }
+
     init(hex: UInt32) {
         self.init(
             .sRGB,
@@ -173,5 +305,13 @@ extension Color {
             blue: Double(hex & 0xFF) / 255,
             opacity: 1
         )
+    }
+}
+
+private extension UIColor {
+    var rgba: (r: Double, g: Double, b: Double, a: Double) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Double(r), Double(g), Double(b), Double(a))
     }
 }

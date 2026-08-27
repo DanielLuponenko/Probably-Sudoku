@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 struct ContentView: View {
     @State private var model: GameModel? = ContentView.debugModel()
@@ -12,6 +12,12 @@ struct ContentView: View {
     /// two never show a hard cut between them.
     @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(GameCenterService.self) private var gameCenter
+    @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
+    @State private var pendingRunConflict: RunStore.Conflict?
+    @State private var showingRunConflict = false
+    @State private var closingBook: BookEdition?
+    @State private var completionSummary: GameModel.BookCompletionSummary?
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
@@ -25,6 +31,11 @@ struct ContentView: View {
             seed = arguments[index + 1]
         }
         let model = GameModel(seed: seed, startingBoard: .scholar)
+        // The normal route deliberately pauses at the briefing page so a
+        // player can choose whether to spend a Clipping. This debug route is
+        // specifically for exercising a live grid, so it must make that
+        // choice before applying its selection fixtures.
+        model.beginPuzzle()
         if let index = arguments.firstIndex(of: "-selectHand"), index + 1 < arguments.count,
            let handIndex = Int(arguments[index + 1]) {
             model.selectedHandIndex = handIndex
@@ -51,29 +62,62 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if let model, !model.wantsMenu {
-                GameView(model: model, reduceMotion: reduceMotion)
-            } else if let book = opening, let url = openingClip(for: book) {
-                BookOpening(url: url, poster: book.cover, reduceMotion: reduceMotion) {
+            if let closingBook {
+                LiveBookClosing(edition: closingBook, reduceMotion: reduceMotion,
+                                onFinish: finishBookClosing)
+            } else if let model, !model.wantsMenu {
+                GameView(model: model, reduceMotion: reduceMotion,
+                         onBookCompletion: beginBookClosing)
+            } else if let book = opening {
+                LiveBookOpening(edition: book, reduceMotion: reduceMotion) {
                     begin(book)
                 }
             } else {
-                StartBookView { book, obstacle in
-                    chosenObstacle = obstacle
-                    RunStore.clearRun()
-                    if openingClip(for: book) == nil {
-                        begin(book)          // no clip: straight in
-                    } else {
-                        opening = book
+                switch frontDoor {
+                case .studioIntro:
+                    StudioSplashView(reduceMotion: reduceMotion) {
+                        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                     }
-                } onContinue: {
-                    // Straight back to the page you were on: the Book is
-                    // already open, so opening it again would be a lie.
-                    if let saved = RunStore.loadRun() {
-                        model = GameModel(resuming: saved)
+                    .transition(.opacity)
+
+                case .mainMenu:
+                    MainMenuView(
+                        onPlay: {
+                            showBookShelfOrAskAboutConflict()
+                        },
+                        onShop: {
+                            withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .cosmeticShop }
+                        }
+                    )
+                    .transition(.opacity)
+
+                case .bookShelf:
+                    StartBookView(
+                        onStart: { book, obstacle in
+                            chosenObstacle = obstacle
+                            RunStore.clearRun()
+                            opening = book
+                        },
+                        onContinue: {
+                            if let saved = RunStore.resumeRun() {
+                                model = GameModel(resuming: saved)
+                            }
+                        },
+                        onBack: {
+                            withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
+                        },
+                        initialIndex: completionSummary?.nextBook.map { edition in
+                            BookEdition.shelf.firstIndex(of: edition) ?? 0
+                        }
+                    )
+                    .transition(.opacity)
+
+                case .cosmeticShop:
+                    ClubShopView {
+                        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                     }
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
 
             // Paper, held opaque across the swap and then lifted off the board.
@@ -81,18 +125,51 @@ struct ContentView: View {
                 .opacity(veil)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+
+            if let completionSummary {
+                BookCompletionView(summary: completionSummary) {
+                    withAnimation(.easeInOut(duration: 0.22)) { self.completionSummary = nil }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+        }
+        .confirmationDialog("Two unfinished Books", isPresented: $showingRunConflict) {
+            if let conflict = pendingRunConflict {
+                Button("Use this device’s \(conflict.label(for: .local))") {
+                    resume(.local, from: conflict)
+                }
+                Button("Use the other device’s \(conflict.label(for: .remote))") {
+                    resume(.remote, from: conflict)
+                }
+            }
+            Button("Decide later", role: .cancel) {}
+        } message: {
+            if let conflict = pendingRunConflict {
+                Text("This device has \(conflict.label(for: .local)). The other device has \(conflict.label(for: .remote)). Both are kept until you choose one.")
+            }
+        }
+        .onChange(of: showingRunConflict) { wasShowing, isShowing in
+            // The club-room Play animation has already finished by this point.
+            // If the player defers, land them on the shelf rather than leaving
+            // an invisible, disabled main-menu button behind the dialog.
+            guard wasShowing, !isShowing, pendingRunConflict != nil else { return }
+            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+        }
+        .onChange(of: isShowingBook, initial: true) { _, isShowingBook in
+            gameCenter.setAccessPointVisible(!isShowingBook)
         }
     }
 
-    private func openingClip(for book: BookEdition) -> URL? {
-        guard let opening = book.opening else { return nil }
-        return Bundle.main.url(forResource: opening, withExtension: "mp4")
+    /// Game Center belongs to the club room and shelf, never on an open Book.
+    private var isShowingBook: Bool {
+        guard let model else { return false }
+        return !model.wantsMenu
     }
 
     /// Deals the first Puzzle behind the veil, then lifts it.
     private func begin(_ book: BookEdition) {
         veil = 1
-        model = GameModel(startingBoard: book.bonus, obstacle: chosenObstacle)
+        model = GameModel(book: book.rule, startingBoard: book.bonus, obstacle: chosenObstacle)
         opening = nil
         Task {
             // One frame flat first: animating a value in the same update that
@@ -101,11 +178,41 @@ struct ContentView: View {
             withAnimation(.easeOut(duration: 0.65)) { veil = 0 }
         }
     }
+
+    private func beginBookClosing(_ model: GameModel) {
+        guard let summary = model.bookCompletionSummary else { return }
+        completionSummary = summary
+        closingBook = summary.edition
+    }
+
+    private func finishBookClosing() {
+        closingBook = nil
+        model?.abandonRun()
+        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .bookShelf }
+    }
+
+    private func showBookShelfOrAskAboutConflict() {
+        if let conflict = RunStore.conflict() {
+            pendingRunConflict = conflict
+            showingRunConflict = true
+        } else {
+            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+        }
+    }
+
+    private func resume(_ choice: RunStore.Conflict.Choice, from conflict: RunStore.Conflict) {
+        _ = RunStore.choose(choice, from: conflict)
+        pendingRunConflict = nil
+        showingRunConflict = false
+        withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+    }
 }
 
 private struct GameView: View {
+    @Environment(PlayerProfileStore.self) private var profile
     @Bindable var model: GameModel
     var reduceMotion: Bool
+    var onBookCompletion: (GameModel) -> Void
     @State private var flipper = PageFlipper()
     @State private var showingSettings = false
     @State private var showingRunInfo = false
@@ -153,6 +260,9 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
+            // A paper slip covers the whole desk. Keep its obscured controls
+            // out of VoiceOver navigation until the slip is closed.
+            .accessibilityHidden(isPresentingSlip)
             .overlay {
                 // In-world, on the desk — not a system sheet sliding up over it.
                 if showingSettings {
@@ -178,6 +288,10 @@ private struct GameView: View {
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
                 if ProcessInfo.processInfo.arguments.contains("-runInfo") { showingRunInfo = true }
+                if ProcessInfo.processInfo.arguments.contains("-achievements") {
+                    model.openAchievements()
+                    return
+                }
                 if ProcessInfo.processInfo.arguments.contains("-loadout") {
                     model.qaFillLoadout()
                     return
@@ -190,23 +304,53 @@ private struct GameView: View {
                 }
                 if ProcessInfo.processInfo.arguments.contains("-clearLine") {
                     try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
                     model.qaCompleteARow()
                     return
                 }
                 if ProcessInfo.processInfo.arguments.contains("-winNow") {
                     try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
                     model.qaMeetTarget()
                     return
                 }
+                if ProcessInfo.processInfo.arguments.contains("-completeBookNow") {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.qaCompleteBook()
+                    }
+                    return
+                }
                 let arguments = ProcessInfo.processInfo.arguments
+                if let index = arguments.firstIndex(of: "-qaBoss"), index + 1 < arguments.count,
+                   let boss = BossModifier(rawValue: arguments[index + 1]) {
+                    // This debug route is used by launch-time screenshot QA.  It must
+                    // configure the board in the first rendered state instead of
+                    // leaving a timing window that exposes the briefing page.
+                    model.beginPuzzle()
+                    model.qaSetBoss(boss)
+                    return
+                }
+                if let index = arguments.firstIndex(of: "-failBookAtLevel"), index + 1 < arguments.count,
+                   let level = Int(arguments[index + 1]) {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    model.beginPuzzle()
+                    model.qaFailBook(atLevel: level)
+                    return
+                }
                 if let index = arguments.firstIndex(of: "-curlHold"), index + 1 < arguments.count,
                    let value = Double(arguments[index + 1]) {
                     try? await Task.sleep(for: .milliseconds(400))
-                    flipper.hold(from: model, at: value) { model.endTurn() }
+                    // A new Game opens on its briefing page. Use the existing
+                    // deterministic completion shortcut so this QA route
+                    // always freezes a real outgoing/incoming page pair,
+                    // rather than a curl over an unchanged briefing.
+                    flipper.hold(from: model, at: value) { model.qaCompleteBook() }
                     return
                 }
                 guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
                 try? await Task.sleep(for: .seconds(1))
+                model.beginPuzzle()
                 await flipper.flip(from: model, reduceMotion: false) { model.endTurn() }
                 #endif
             }
@@ -216,21 +360,31 @@ private struct GameView: View {
         .statusBarHidden()
     }
 
+    private var isPresentingSlip: Bool {
+        showingSettings || showingRunInfo || usingBuff != nil
+    }
+
     // MARK: Pages
 
     @ViewBuilder
     private func page(of source: GameModel) -> some View {
         switch source.page {
+        case .briefing:
+            PuzzleBriefingView(model: source)
         case .puzzle:
             if let puzzle = source.puzzle {
                 PuzzlePageView(model: source, puzzle: puzzle)
+                    .environment(\.levelPalette,
+                                 .forDisplay(slot: puzzle.slot).resolved(for: profile.theme.paper))
             }
         case .results:
-            ResultsPageView(model: source)
+            ResultsPageView(model: source) { onBookCompletion(model) }
         case .shop:
             if let shop = source.shop {
                 ShopPageView(model: source, shop: shop)
             }
+        case .achievements:
+            AchievementsPageView { source.closeAchievements() }
         }
     }
 
@@ -240,6 +394,13 @@ private struct GameView: View {
     /// Puzzle page and Reroll onto the Shop page, because both act on a page.
     private var controls: [StripControl] {
         [
+            StripControl(systemImage: "rosette", label: "Achievements") {
+                Task {
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.openAchievements()
+                    }
+                }
+            },
             StripControl(systemImage: "questionmark", label: "Run information") {
                 withAnimation(.snappy(duration: 0.22)) { showingRunInfo = true }
             },
@@ -270,7 +431,8 @@ private struct GameView: View {
 }
 
 #Preview("Puzzle") {
-    GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false)
+    GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false,
+             onBookCompletion: { _ in })
         .environment(PageFlipper())
 }
 

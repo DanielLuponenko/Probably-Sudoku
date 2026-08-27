@@ -1,14 +1,15 @@
 import Foundation
 
 public enum ItemKind: String, Codable, CaseIterable, Sendable {
-    case bookmark, marker, buff
+    case bookmark, marker, buff, subscription
 
-    /// §9 — slot capacity per kind.
+    /// §9 — slot capacity per kind. Markers are intentionally unlimited.
     public var capacity: Int {
         switch self {
         case .bookmark: return 5
-        case .marker: return 3
+        case .marker: return .max
         case .buff: return 2
+        case .subscription: return .max
         }
     }
 }
@@ -29,6 +30,7 @@ public enum OneShotFlag: String, Codable, Hashable, Sendable {
     case doubleDown     // next correct placement scores x2
     case insurance      // next wrong placement takes no penalty
     case secondPrint    // next Line Clear this Puzzle scores twice
+    case litmus         // the next placement clears Litmus's reading state
 }
 
 // MARK: - Context
@@ -56,6 +58,10 @@ public struct EffectContext: Sendable {
     /// True when this placement also completed a row, column or box, for
     /// Copper. Only meaningful on `.place`.
     public let completesLine: Bool
+    /// Number of row, column, and box units completed by this placement. A
+    /// simultaneous row-and-box clear has a count of two, so effects such as
+    /// Copper can pay once for each qualifying unit.
+    public let completedUnitCount: Int
 
     public let puzzleState: [String: Double]
     public let runState: [String: Double]
@@ -138,7 +144,7 @@ public struct ItemDef: Sendable {
 }
 
 public enum Catalog {
-    public static let all: [ItemDef] = Bookmarks.all + Markers.all + Buffs.all
+    public static let all: [ItemDef] = Bookmarks.all + Markers.all + Buffs.all + Subscriptions.all
     private static let byID: [String: ItemDef] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
 
     public static func item(_ id: String) -> ItemDef? { byID[id] }

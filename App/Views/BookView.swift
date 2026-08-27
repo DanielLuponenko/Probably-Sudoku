@@ -1,17 +1,18 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// The desk the book lies on.
 struct DeskView<Content: View>: View {
+    @Environment(\.cosmeticTheme) private var theme
     @ViewBuilder var content: Content
 
     var body: some View {
         ZStack {
-            Rectangle().fill(Paper.desk).ignoresSafeArea()
+            Rectangle().fill(theme.desk.surface).ignoresSafeArea()
             WoodGrain().ignoresSafeArea()
             content
         }
-        .background(Paper.deskDark)
+        .background(theme.desk.dark)
     }
 }
 
@@ -89,11 +90,13 @@ struct BookVolume: View {
 /// Every other sheet in the book, seen edge-on down the fore-edge and along the
 /// tail. Drawn rather than exported, so it stays crisp at any size.
 private struct PageBlock: View {
+    @Environment(\.cosmeticTheme) private var theme
+
     var body: some View {
         Canvas { context, size in
             let body = Path(roundedRect: CGRect(origin: .zero, size: size),
                             cornerRadius: Volume.corner)
-            context.fill(body, with: .color(Paper.pageEdge))
+            context.fill(body, with: .color(theme.paper.edge))
             context.clip(to: body)
 
             var state: UInt64 = 4231
@@ -167,13 +170,15 @@ private struct Binding: View {
 /// The sheet currently being worked on. It is a separate view from the volume
 /// because this is the part that lifts when the page turns.
 struct PageSurface<Content: View>: View {
+    @Environment(\.cosmeticTheme) private var theme
     @ViewBuilder var content: Content
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Rectangle()
-                .fill(Paper.page)
-                .overlay { PaperGrain(opacity: 0.07) }
+                .fill(theme.paper.page)
+                .overlay { PaperGrain(opacity: theme.paper.grain) }
+                .overlay { PaperStockOverlay(treatment: theme.paper.treatment) }
                 .overlay { gutter }
                 .overlay { bow }
 
@@ -210,6 +215,137 @@ struct PageSurface<Content: View>: View {
         )
         .blendMode(.multiply)
         .allowsHitTesting(false)
+    }
+}
+
+/// Stock-specific printing that sits below the page's content. Its only motion
+/// is a nearly imperceptible opacity/transform pulse, and that is suppressed by
+/// Reduce Motion. It never affects layout, hit targets or a Line Clear.
+struct PaperStockOverlay: View {
+    var treatment: PaperTreatment
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var idlePhase: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            switch treatment {
+            case .plain:
+                EmptyView()
+            case .graph:
+                Canvas { context, _ in
+                    let step: CGFloat = 18
+                    for position in stride(from: step, through: size.width, by: step) {
+                        var path = Path()
+                        path.move(to: .init(x: position, y: 0))
+                        path.addLine(to: .init(x: position, y: size.height))
+                        context.stroke(path, with: .color(Paper.editorBlue.opacity(0.16)), lineWidth: 0.5)
+                    }
+                    for position in stride(from: step, through: size.height, by: step) {
+                        var path = Path()
+                        path.move(to: .init(x: 0, y: position))
+                        path.addLine(to: .init(x: size.width, y: position))
+                        context.stroke(path, with: .color(Paper.editorBlue.opacity(0.16)), lineWidth: 0.5)
+                    }
+                }
+            case .ledger:
+                Canvas { context, _ in
+                    for position in stride(from: CGFloat(34), through: size.height, by: 25) {
+                        var path = Path()
+                        path.move(to: .init(x: 0, y: position))
+                        path.addLine(to: .init(x: size.width, y: position))
+                        context.stroke(path, with: .color(Paper.sage.opacity(0.16)), lineWidth: 0.7)
+                    }
+                    var margin = Path()
+                    margin.move(to: .init(x: 28, y: 0))
+                    margin.addLine(to: .init(x: 28, y: size.height))
+                    context.stroke(margin, with: .color(Paper.redPencil.opacity(0.28)), lineWidth: 1)
+                }
+            case .onionSkin:
+                Text("YESTERDAY’S PUZZLE")
+                    .font(Print.heading(26))
+                    .tracking(3)
+                    .foregroundStyle(Paper.ink.opacity(0.035))
+                    .rotationEffect(.degrees(180))
+                    .frame(width: size.width, height: size.height)
+            case .carbon:
+                Text("CARBON COPY")
+                    .font(Print.heading(25))
+                    .tracking(2)
+                    .foregroundStyle(Color(hex: 0x6B557D).opacity(0.08))
+                    .offset(x: 2, y: 1)
+                    .frame(width: size.width, height: size.height)
+            case .telegram:
+                VStack(spacing: 18) {
+                    ForEach(0..<8, id: \.self) { _ in
+                        Rectangle().fill(Paper.ink.opacity(0.08)).frame(height: 1)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .frame(width: size.width, height: size.height)
+            case .garden:
+                themedArtwork("ThemeGarden", size: size)
+                    .scaleEffect(1 + idlePhase * 0.008, anchor: .bottomLeading)
+                    .offset(x: idlePhase * 2)
+                    // The illustration is decorative page furniture, never
+                    // part of the puzzle. Keep a clear live-content area so
+                    // ivy cannot sit behind the grid, labels or controls.
+                    .mask(GardenMarginMask())
+            case .nightSky:
+                themedArtwork("ThemeNightSky", size: size)
+                    .opacity(0.96 - Double(idlePhase) * 0.13)
+                    .scaleEffect(1 + idlePhase * 0.012)
+            case .ocean:
+                themedArtwork("ThemeOcean", size: size)
+                    .scaleEffect(1 + idlePhase * 0.012, anchor: .bottom)
+                    .offset(x: -idlePhase * 3, y: idlePhase * 2)
+            }
+        }
+        .opacity(1 - Double(idlePhase) * 0.035)
+        .offset(x: treatment == .carbon ? idlePhase : 0,
+                y: treatment == .onionSkin ? -idlePhase : 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { updateIdleMotion() }
+        .onChange(of: reduceMotion) { _, _ in updateIdleMotion() }
+    }
+
+    private func updateIdleMotion() {
+        guard !reduceMotion, treatment != .plain else {
+            idlePhase = 0
+            return
+        }
+        idlePhase = 0
+        withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+            idlePhase = 1
+        }
+    }
+
+    /// The middle of each generated paper is deliberately quiet. Nine-slice
+    /// stretching preserves the illustrated border on every Book size while
+    /// leaving the live grid's centre sharp and unobstructed.
+    private func themedArtwork(_ name: String, size: CGSize) -> some View {
+        Image(name)
+            .resizable(capInsets: EdgeInsets(top: 110, leading: 110, bottom: 110, trailing: 110),
+                       resizingMode: .stretch)
+            .frame(width: size.width, height: size.height)
+    }
+}
+
+/// Masks the Garden illustration down to a narrow physical page margin. The
+/// page stock and grain remain visible in the centre, but no foliage can
+/// overlap the interactive content that PageSurface places there.
+private struct GardenMarginMask: View {
+    var body: some View {
+        ZStack {
+            Color.white
+            Rectangle()
+                .fill(.white)
+                .padding(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                .blendMode(.destinationOut)
+        }
+        .compositingGroup()
     }
 }
 

@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// A line the Book says to you, written by hand in the margin.
 ///
@@ -38,12 +38,31 @@ struct MarginNote: Equatable {
             underlined: rng.next() < 0.22
         )
     }
+
+    /// The first Book teaches by writing beside the work, never by stopping it
+    /// with a modal tour. These fixed beats are one line per Turn.
+    static func firstRunTeachingLine(at index: Int) -> MarginNote? {
+        let lines = [
+            "Pick a number from your Hand, then put it on a Blank.",
+            "Right numbers score. Wrong ones cost 50 times their value and go back to the Pool.",
+            "End a Turn to deal back up. What you do not place stays in your Hand.",
+            "Toss sends a picked number back to the Pool. The allowance is printed on the button.",
+            "The target is the number beside the slash. Clear rows, columns and boxes to reach it.",
+            "When you meet the target, Cash Out to bank it — or Keep Filling for more coins."
+        ]
+        guard lines.indices.contains(index) else { return nil }
+        let lateral = [0.02, 0.64, 0.16, 0.58, 0.10, 0.48][index]
+        let angle = [-1.4, 1.2, -0.7, 1.6, -1.1, 0.8][index]
+        return MarginNote(text: lines[index], lateral: lateral, angle: angle,
+                          underlined: index == 4 || index == 5)
+    }
 }
 
 /// Draws the note in the band under the grid — the one part of the page with
 /// nothing printed on it and nothing to tap, so a note can never cover a
 /// square, a number or a button, and can never fall off the page.
 struct MarginNoteView: View {
+    @Environment(\.cosmeticTheme) private var theme
     var note: MarginNote
 
     /// The note is offset from the left by at most a quarter of the free width
@@ -71,7 +90,7 @@ struct MarginNoteView: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(note.text)
                 .font(MarginNote.font(16))
-                .foregroundStyle(Paper.pencil)
+                .foregroundStyle(theme.paper.handwritingInk(theme.marker.tint))
                 // Two lines, shrinking rather than wrapping to a third: the
                 // band is fixed, and a third line runs into the Hand below it.
                 .lineLimit(2)
@@ -80,7 +99,7 @@ struct MarginNoteView: View {
             if note.underlined {
                 // A wobbly underline, drawn the way a hand draws one.
                 Underline()
-                    .stroke(Paper.pencil.opacity(0.55), lineWidth: 1.2)
+                    .stroke(theme.paper.handwritingInk(theme.marker.tint).opacity(0.55), lineWidth: 1.2)
                     .frame(height: 3)
             }
         }

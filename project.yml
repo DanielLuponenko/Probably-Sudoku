@@ -1,4 +1,4 @@
-name: NumberClub
+name: ProbablySudoku
 options:
   bundleIdPrefix: com.numberclub
   deploymentTarget:
@@ -6,21 +6,28 @@ options:
   createIntermediateGroups: true
 
 packages:
-  NumberClubEngine:
+  ProbablySudokuEngine:
     path: Engine
 
 targets:
-  NumberClub:
+  ProbablySudoku:
     type: application
     platform: iOS
     sources:
       - path: App
+      - path: Artwork/studio-logo-horizontal.png
+        buildPhase: resources
+    entitlements:
+      path: App/ProbablySudoku.entitlements
+      properties:
+        com.apple.developer.game-center: true
+        com.apple.developer.ubiquity-kvstore-identifier: "$(TeamIdentifierPrefix)$(CFBundleIdentifier)"
     dependencies:
-      - package: NumberClubEngine
+      - package: ProbablySudokuEngine
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Number Club
+        CFBundleDisplayName: Probably Sudoku
         # Without this iOS holds the app at 60Hz on a ProMotion phone.
         CADisableMinimumFrameDurationOnPhone: true
         UIStatusBarStyle: UIStatusBarStyleLightContent

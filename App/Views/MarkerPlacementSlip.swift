@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// §11 — a Marker marks a square, and the square is chosen the moment the
 /// Marker is gained. Asked on a blank grid, because the board is regenerated
@@ -7,7 +7,7 @@ import NumberClubEngine
 struct MarkerPlacementSlip: View {
     @Bindable var model: GameModel
     var markerIndex: Int
-    var onDone: () -> Void
+    var onPlaced: () -> Void
 
     private var marker: OwnedMarker? {
         model.run.markers.indices.contains(markerIndex) ? model.run.markers[markerIndex] : nil
@@ -20,11 +20,11 @@ struct MarkerPlacementSlip: View {
         PaperSlip(
             title: "Where does it go?",
             subtitle: marker.map {
-                "\($0.def.name). \($0.def.text). It keeps this square for the rest of the Book."
+                "\($0.def.name). \($0.def.text). It keeps this square for the rest of the Book. Tap an occupied square to replace its Marker."
             },
-            closeLabel: pending > 0 ? "Skip for now" : "Done",
+            showsCloseButton: false,
             dismissesOnBackground: false,
-            onClose: onDone
+            onClose: onPlaced
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
@@ -42,7 +42,11 @@ struct MarkerPlacementSlip: View {
                         .foregroundStyle(pending > 0 ? Paper.redPencil : Paper.sageDeep)
                 }
 
-                BlankGridPicker(model: model, markerIndex: markerIndex)
+                BlankGridPicker(model: model, markerIndex: markerIndex, onPlaced: onPlaced)
+
+                Text("Tap any square. An occupied square is replaced by this Marker.")
+                    .font(Print.body(11.5))
+                    .foregroundStyle(Paper.inkSoft)
 
                 Text("Marked squares are worth more on harder Puzzles: the fewer numbers "
                      + "are already printed, the more of your marks come into play.")
@@ -59,6 +63,7 @@ struct MarkerPlacementSlip: View {
 private struct BlankGridPicker: View {
     @Bindable var model: GameModel
     var markerIndex: Int
+    var onPlaced: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -69,19 +74,23 @@ private struct BlankGridPicker: View {
                 ForEach(Square.all, id: \.index) { square in
                     let owner = model.run.markedSquares[square]
                     Button {
-                        guard owner == nil else { return }
-                        model.claimSquare(markerIndex: markerIndex, square: square)
+                        if model.claimSquare(markerIndex: markerIndex, square: square) {
+                            onPlaced()
+                        }
                     } label: {
                         Rectangle()
                             .fill(owner.map { Paper.markerColor($0.defID).opacity(0.55) }
                                   ?? Paper.pageWarm)
-                            .overlay { Rectangle().strokeBorder(Paper.gridHair, lineWidth: 0.5) }
+                            .overlay {
+                                Rectangle().strokeBorder(owner == nil ? Paper.gridHair : Paper.redPencil,
+                                                          lineWidth: owner == nil ? 0.5 : 1.5)
+                            }
                             .frame(width: cell, height: cell)
                     }
                     .buttonStyle(.plain)
-                    .disabled(owner != nil)
                     .offset(x: CGFloat(square.col) * cell, y: CGFloat(square.row) * cell)
-                    .accessibilityLabel("\(square.description)\(owner != nil ? ", taken" : "")")
+                    .accessibilityLabel("\(square.description)\(owner.map { ", occupied by \($0.def.name)" } ?? ", empty")")
+                    .accessibilityHint(owner == nil ? "Places this Marker" : "Replaces the Marker on this square")
                 }
 
                 Canvas { context, _ in

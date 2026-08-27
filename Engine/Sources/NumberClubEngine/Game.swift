@@ -5,8 +5,9 @@ import Foundation
 public struct Game: Sendable {
     public internal(set) var run: RunState
 
-    public init(seed: String, startingBoard: StartingBoard, obstacle: Obstacle = .none) {
-        run = RunState(seed: seed, startingBoard: startingBoard, obstacle: obstacle)
+    public init(seed: String, book: Book = .probably,
+                startingBoard: StartingBoard, obstacle: Obstacle = .none) {
+        run = RunState(seed: seed, book: book, startingBoard: startingBoard, obstacle: obstacle)
     }
     public init(run: RunState) { self.run = run }
 
@@ -17,7 +18,11 @@ public struct Game: Sendable {
     /// Deals the current Level and slot's board.
     public mutating func startPuzzle() throws {
         run.shop = nil
-        run.puzzle = try PuzzleState.create(run: &run)
+        var puzzle = try PuzzleState.create(run: &run)
+        if let overprint = run.runItemState.removeValue(forKey: "clipping.overprint"), overprint > 0 {
+            puzzle.pendingMult += overprint
+        }
+        run.puzzle = puzzle
     }
 
     /// §9 — a Shop opens after every Puzzle.
@@ -31,6 +36,12 @@ public struct Game: Sendable {
     @discardableResult
     public mutating func advance() -> Bool {
         run.advance()
+    }
+    @discardableResult
+    public mutating func skipPuzzle() throws -> Clipping {
+        let clipping = try run.takeCurrentClipping()
+        _ = run.advance()
+        return clipping
     }
 
     // Pass-throughs, so callers never have to reach for `Actions` and `Shop`
@@ -51,6 +62,9 @@ public struct Game: Sendable {
     public mutating func endTurn() throws -> Actions.TurnResult {
         try Actions.endTurn(&run)
     }
+    public mutating func failPuzzle() {
+        Actions.failPuzzle(&run)
+    }
     public mutating func cashOut() throws -> RunState.Payout {
         try Actions.cashOut(&run)
     }
@@ -62,6 +76,10 @@ public struct Game: Sendable {
     }
     public mutating func reroll() throws {
         try Shop.reroll(&run)
+    }
+    @discardableResult
+    public mutating func sell(kind: ItemKind, index: Int) throws -> Int {
+        try Shop.sell(&run, kind: kind, index: index)
     }
     public mutating func claimSquare(markerIndex: Int, square: Square) throws {
         try Shop.claimSquare(&run, markerIndex: markerIndex, square: square)
@@ -114,6 +132,34 @@ public extension Game {
         run.outcome = .failed
     }
 
+    /// Moves a debug Book to a specific reached level, then fails it. The
+    /// puzzle state is intentionally left alone because the failure reward is
+    /// based on cleared levels and Bosses, not a synthetic board result.
+    mutating func qaFailBook(atLevel level: Int) {
+        run.level = min(max(1, level), 9)
+        qaFailPuzzle()
+    }
+
+    /// Reaches the exact terminal Book state through the same cash-out and
+    /// advance rules as live play. It exists solely to inspect the closing
+    /// sequence without playing twenty-seven Puzzles.
+    mutating func qaCompleteBook() {
+        guard run.outcome == nil else { return }
+        run.level = 9
+        run.slot = .boss
+        run.puzzle = nil
+        run.shop = nil
+        do {
+            try startPuzzle()
+        } catch {
+            return
+        }
+        qaMeetTarget()
+        guard (try? cashOut()) != nil else { return }
+        openShop()
+        _ = advance()
+    }
+
     /// Fills every Blank with its solution digit, taking each number from the
     /// Pool or the Hand so the conservation rule still holds. Nothing is
     /// scored — this is for reaching the Full Clear and the results page, not
@@ -129,6 +175,77 @@ public extension Game {
     mutating func qaGrantBuff(_ defID: String) {
         guard Catalog.item(defID) != nil, run.buffs.count < ItemKind.buff.capacity else { return }
         run.buffs.append(OwnedBuff(defID: defID, pricePaid: 0))
+    }
+
+    /// Replaces the corresponding QA loadout slot. This makes every catalogue
+    /// entry reachable in a fresh, repeatable state without filling capacity.
+    mutating func qaSetBookmark(_ defID: String) {
+        guard Catalog.item(defID)?.kind == .bookmark else { return }
+        run.bookmarks = [OwnedBookmark(defID: defID, boughtAtLevel: run.level, pricePaid: 0)]
+        qaRefreshActivePuzzleLimits()
+    }
+
+    /// Places exactly one selected Marker on a known blank square. Replacing
+    /// the QA marker loadout keeps every Marker individually testable.
+    mutating func qaSetMarker(_ defID: String, at square: Square) {
+        guard Catalog.item(defID)?.kind == .marker else { return }
+        run.markers = [OwnedMarker(defID: defID, boughtAtLevel: run.level,
+                                   pricePaid: 0, squares: [square])]
+    }
+
+    mutating func qaSetBuff(_ defID: String) {
+        guard Catalog.item(defID)?.kind == .buff else { return }
+        run.buffs = [OwnedBuff(defID: defID, pricePaid: 0)]
+    }
+
+    mutating func qaSetSubscription(_ defID: String) {
+        guard Catalog.item(defID)?.kind == .subscription else { return }
+        run.subscriptions = [OwnedSubscription(defID: defID, pricePaid: 0)]
+        qaRefreshActivePuzzleLimits()
+    }
+
+    /// Applies a selected Boss to the current Puzzle, including its standing
+    /// limits, while preserving the board's number-conservation invariant.
+    mutating func qaSetBoss(_ boss: BossModifier) {
+        guard var puzzle = run.puzzle else { return }
+
+        puzzle.boss = boss
+        puzzle.censoredDigit = boss.censorsARandomDigit
+            ? BossModifier.rollCensoredDigit(&run.streams.boss)
+            : nil
+        // A QA selection represents a fresh encounter. Dynamic effects from
+        // the previously selected Boss (fouls, sleeping Bookmark, barred
+        // digits) must not bleed into the one being inspected next.
+        puzzle.bossTurn = nil
+        run.puzzle = puzzle
+        qaRefreshActivePuzzleLimits()
+        guard var active = run.puzzle else { return }
+        active.startBossTurn(&run)
+        run.puzzle = active
+    }
+
+    /// Reapply standing limits after a QA selection changes the active run or
+    /// Boss. Returning excess hand cards to the Pool preserves conservation.
+    private mutating func qaRefreshActivePuzzleLimits() {
+        guard var puzzle = run.puzzle else { return }
+        let boss = puzzle.boss
+
+        puzzle.turnsMax = run.effectiveTurns(boss: boss)
+        puzzle.turnNumber = min(puzzle.turnNumber, puzzle.turnsMax)
+        puzzle.tossAllowance = run.effectiveTossAllowance(boss: boss)
+        puzzle.cluesRemaining = run.effectiveClues(boss: boss)
+        puzzle.target = run.book.target(level: puzzle.level, slot: puzzle.slot)
+            * (boss?.targetMultiplier ?? 1)
+
+        let targetHandSize = run.effectiveHandSize(boss: boss)
+        while puzzle.hand.count > targetHandSize {
+            puzzle.pool.put(puzzle.hand.removeLast())
+        }
+        puzzle.hand.append(contentsOf: puzzle.pool.draw(&run.streams.pool,
+                                                        count: targetHandSize - puzzle.hand.count))
+        puzzle.handSize = puzzle.hand.count
+        run.puzzle = puzzle
+        puzzle.assertConservation()
     }
 
     /// Fills one square without scoring, for setting a board up by hand.

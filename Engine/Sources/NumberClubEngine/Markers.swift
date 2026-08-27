@@ -66,8 +66,8 @@ public enum Markers {
                [.place: { c, r in r.bumpPuzzleState(rose, by: 1, in: c) }]),
 
         marker("mk_copper", "Copper Marker", .common, 6,
-               "+3 coins if the placement completes a Line Clear",
-               [.place: { c, r in if c.completesLine { r.coins += 3 } }]),
+               "+3 coins for each Line or Box completed by the placement",
+               [.place: { c, r in r.coins += 3 * c.completedUnitCount }]),
 
         marker("mk_violet", "Violet Marker", .rare, 8,
                "The number scores base points as if it were a 9",

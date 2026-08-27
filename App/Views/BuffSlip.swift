@@ -1,5 +1,5 @@
 import SwiftUI
-import NumberClubEngine
+import ProbablySudokuEngine
 
 /// §12 — a Buff is one-shot and consumed on use, so spending one should be a
 /// decision rather than a tap that makes an icon vanish. This says what it
