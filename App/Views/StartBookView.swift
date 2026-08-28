@@ -209,7 +209,7 @@ struct StartBookView: View {
 
 /// A locked ribbon gets a small desk card — enough to explain the rule without
 /// covering the Book the player was looking at.
-private struct ObstacleInfoPopup: View {
+struct ObstacleInfoPopup: View {
     var obstacle: Obstacle
     var onClose: () -> Void
 

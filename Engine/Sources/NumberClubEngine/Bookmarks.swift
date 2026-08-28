@@ -35,7 +35,7 @@ public enum Bookmarks {
            [.turnEnd: { _, r in r.directScore += 100 }]),
 
         ad("bm_evening_edition", "Evening Edition", .common, 4,
-           "+300 points at Puzzle end",
+           "+300 points at the end of Turn 10",
            [.puzzleEnd: { _, r in r.directScore += 300 }]),
 
         ad("bm_local_gossip", "Local Gossip", .common, 4,

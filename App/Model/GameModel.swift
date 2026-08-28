@@ -63,7 +63,18 @@ final class GameModel {
         let penalty: Int?
     }
 
+    /// A short presentation receipt for rule effects that fired from a played
+    /// square. Rule ownership stays in the engine; this only makes the engine
+    /// result legible at the moment it matters.
+    struct EffectActivation: Identifiable {
+        let id = UUID()
+        let markerSquare: Square?
+        let markerText: String?
+        let bookmarkIDs: Set<String>
+    }
+
     private(set) var numberReturns: [NumberReturn] = []
+    private(set) var effectActivation: EffectActivation?
 
     private struct BossFeedbackSnapshot {
         let blocked: Set<Digit>
@@ -142,6 +153,9 @@ final class GameModel {
     private(set) var lastOutcome: PlacementOutcome?
     private(set) var lastPlacedSquare: Square?
     private(set) var lastPayout: RunState.Payout?
+    /// Kept on the next briefing so taking a Clipping has a visible, specific
+    /// result instead of silently changing a future rule or balance.
+    private(set) var lastClipping: Clipping?
     private(set) var message: String?
 
     init(seed: String = GameModel.randomSeed(),
@@ -164,12 +178,20 @@ final class GameModel {
     /// Resumes a Book that was put down.
     init(resuming game: Game) {
         self.game = game
-        if game.puzzle != nil {
+        if let puzzle = game.puzzle,
+           puzzle.phase == .playing || puzzle.phase == .keepFilling {
             page = .puzzle
             refreshHandCards(replacing: true)
             startClock()
+        } else if game.puzzle != nil {
+            // A target can have been reached just before the app is closed or
+            // replaced by a new build. The Puzzle still exists for the payout
+            // and next-page decision, but it is no longer playable.
+            page = .results
         } else if game.shop != nil {
             page = .shop
+        } else if game.run.outcome != nil {
+            page = .results
         }
     }
 
@@ -348,6 +370,10 @@ final class GameModel {
         guard puzzle?.boss?.hidesMarkedSquares != true else { return [:] }
         return run.markedSquares
     }
+    var activeBookmarkIDs: Set<String> { effectActivation?.bookmarkIDs ?? [] }
+    func markerEffect(at square: Square) -> String? {
+        effectActivation?.markerSquare == square ? effectActivation?.markerText : nil
+    }
     var markersAreHidden: Bool { puzzle?.boss?.hidesMarkedSquares == true }
     var sleepingBookmark: Int? { puzzle?.disabledBookmark }
     /// Kept separate from the generic barred set so a Boss board can print
@@ -433,7 +459,7 @@ final class GameModel {
 
     func tapHand(_ index: Int) {
         guard hand.indices.contains(index) else { return }
-        if isBlocked(hand[index]) {
+        if isBlocked(handIndex: index) {
             message = "\(hand[index].rawValue) is blocked this Turn — it can still be Tossed"
         }
         selectedHandIndex = selectedHandIndex == index ? nil : index
@@ -441,8 +467,8 @@ final class GameModel {
 
     /// Obstacle III bars one number a Turn. It stays in the Hand — it can be
     /// seen and Tossed — but it cannot go on the board.
-    func isBlocked(_ digit: Digit) -> Bool {
-        puzzle?.isBlocked(digit) ?? false
+    func isBlocked(handIndex: Int) -> Bool {
+        puzzle?.isBlocked(handIndex: handIndex) ?? false
     }
 
     func tapSquare(_ square: Square) {
@@ -473,6 +499,7 @@ final class GameModel {
             lastOutcome = outcome
             lastPlacedSquare = square
             if outcome.correct { Haptics.scored(points: outcome.points) }
+            presentEffectActivation(for: outcome, at: square)
             markCleared(outcome, at: square)
             // A placement consumes the card and changes the square, so neither
             // side of the former selection still describes an available action.
@@ -487,6 +514,42 @@ final class GameModel {
             presentBossChanges(from: bossBefore)
         } catch {
             message = describe(error)
+        }
+    }
+
+    private func presentEffectActivation(for outcome: PlacementOutcome, at square: Square) {
+        let events: Set<GameEvent> = {
+            if outcome.correct {
+                var values: Set<GameEvent> = [.place, .anyScore]
+                if !outcome.lineClears.isEmpty { values.insert(.lineClear) }
+                if outcome.fullClear { values.insert(.fullClear) }
+                return values
+            }
+            return [.wrongPlace]
+        }()
+        guard !events.isEmpty else { return }
+
+        let marker = run.markedSquares[square]
+        let markerFired = marker.flatMap { owned in
+            events.contains { owned.def.hooks[$0] != nil } ? owned : nil
+        }
+        let bookmarkIDs = Set<String>(run.bookmarks.enumerated().compactMap { index, owned in
+            guard sleepingBookmark != index,
+                  events.contains(where: { owned.def.hooks[$0] != nil }) else { return nil }
+            return owned.defID
+        })
+        guard markerFired != nil || !bookmarkIDs.isEmpty else { return }
+
+        let activation = EffectActivation(markerSquare: markerFired == nil ? nil : square,
+                                          markerText: markerFired?.def.text,
+                                          bookmarkIDs: bookmarkIDs)
+        effectActivation = activation
+        Task { @MainActor in
+            // Long enough to read the receipt during normal play, but short
+            // enough that it never becomes persistent board chrome.
+            try? await Task.sleep(for: .seconds(3))
+            guard effectActivation?.id == activation.id else { return }
+            effectActivation = nil
         }
     }
 
@@ -670,6 +733,7 @@ final class GameModel {
             selectedHandIndex = nil
             selectedSquare = nil
             lastOutcome = nil
+            lastClipping = nil
             page = .puzzle
             presentBossChanges(from: BossFeedbackSnapshot(nil))
         } catch {
@@ -679,7 +743,7 @@ final class GameModel {
 
     func skipCurrentPuzzle() {
         do {
-            _ = try game.skipPuzzle()
+            lastClipping = try game.skipPuzzle()
             PlayerProfileStore.shared.recordSkipsUsed(game.run.skipsUsed)
             isTrackingAchievementPuzzle = false
             selectedHandIndex = nil

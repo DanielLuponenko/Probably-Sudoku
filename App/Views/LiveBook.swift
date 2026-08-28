@@ -600,7 +600,7 @@ private struct Endpaper: View {
 
 /// Everything printed on the front. Set rather than photographed, so it stays
 /// sharp at any size and every volume can say its own name.
-private struct CoverFace: View {
+struct CoverFace: View {
     var design: CoverDesign
 
     var body: some View {

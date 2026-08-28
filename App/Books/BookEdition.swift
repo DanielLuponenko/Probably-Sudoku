@@ -106,6 +106,14 @@ struct BookEdition: Identifiable, Equatable {
     static let unwritten: [BookEdition] = [
         unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
                   volume: 5, accent: Color(hex: 0x8E7BA8), bonus: .oracle),
+        unwritten(id: "future-6", title: "Not Written Yet",
+                  volume: 6, accent: Color(hex: 0x857D70), bonus: .oracle),
+        unwritten(id: "future-7", title: "Not Written Yet",
+                  volume: 7, accent: Color(hex: 0x708F86), bonus: .oracle),
+        unwritten(id: "future-8", title: "Not Written Yet",
+                  volume: 8, accent: Color(hex: 0x8D758F), bonus: .oracle),
+        unwritten(id: "future-9", title: "Not Written Yet",
+                  volume: 9, accent: Color(hex: 0x8C946C), bonus: .oracle),
     ]
 
     private static func unwritten(id: String, title: String, volume: Int,

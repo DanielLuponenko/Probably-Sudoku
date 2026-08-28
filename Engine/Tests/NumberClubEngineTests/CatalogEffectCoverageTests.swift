@@ -136,6 +136,26 @@ final class CatalogEffectCoverageTests: XCTestCase {
         XCTAssertEqual(Catalog.items(of: .bookmark).count, 23)
     }
 
+    func testEveningEditionAwardsItsPointsOnTurnTen() throws {
+        var game = Game(seed: "evening-turn-ten", startingBoard: .scholar)
+        try game.startPuzzle()
+        game.give(ad: "bm_evening_edition")
+        game.run.puzzle?.turnNumber = Baseline.turns
+        game.run.puzzle?.pendingMult = 2
+
+        let scoreBefore = try XCTUnwrap(game.puzzle?.score)
+        _ = try game.endTurn()
+        XCTAssertEqual(game.puzzle?.score, scoreBefore + 300)
+
+        var beforeTurnTen = Game(seed: "evening-turn-nine", startingBoard: .scholar)
+        try beforeTurnTen.startPuzzle()
+        beforeTurnTen.give(ad: "bm_evening_edition")
+        beforeTurnTen.run.puzzle?.turnNumber = Baseline.turns - 1
+        let earlierScore = try XCTUnwrap(beforeTurnTen.puzzle?.score)
+        _ = try beforeTurnTen.endTurn()
+        XCTAssertEqual(beforeTurnTen.puzzle?.score, earlierScore)
+    }
+
     func testEveryBuffUseOrStandingEffectDispatchesItsAdvertisedResult() throws {
         XCTAssertEqual(try buffUseResult(Buffs.peek).extraClues, 1, "\(Buffs.peek)")
         XCTAssertTrue(try buffUseResult(Buffs.redraw).redrawHand, "\(Buffs.redraw)")

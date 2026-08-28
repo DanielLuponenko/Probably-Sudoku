@@ -5,6 +5,9 @@ struct ContentView: View {
     @State private var model: GameModel? = ContentView.debugModel()
     /// The obstacle level chosen with the Book.
     @State private var chosenObstacle: Obstacle = .none
+    /// A saved run that should resume after the selected cover opens. A new
+    /// Book leaves this nil and is dealt with `chosenObstacle` instead.
+    @State private var openingSavedRun: Game?
     /// The Book being opened, while its clip plays. `-playOpening` starts on
     /// it, so the transition can be recorded without tapping through the shelf.
     @State private var opening: BookEdition? = ContentView.debugOpening()
@@ -16,6 +19,9 @@ struct ContentView: View {
     @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
     @State private var pendingRunConflict: RunStore.Conflict?
     @State private var showingRunConflict = false
+    /// A different Book was selected while an unfinished run is still safe.
+    /// Nothing is cleared until the player explicitly starts the replacement.
+    @State private var pendingBookReplacement: BookReplacement?
     @State private var closingBook: BookEdition?
     @State private var completionSummary: GameModel.BookCompletionSummary?
 
@@ -33,9 +39,17 @@ struct ContentView: View {
         let model = GameModel(seed: seed, startingBoard: .scholar)
         // The normal route deliberately pauses at the briefing page so a
         // player can choose whether to spend a Clipping. This debug route is
-        // specifically for exercising a live grid, so it must make that
-        // choice before applying its selection fixtures.
-        model.beginPuzzle()
+        // normally for a live grid, while `-briefing` preserves that choice
+        // for visual and interaction QA of the between-stage page itself.
+        if !arguments.contains("-briefing") {
+            model.beginPuzzle()
+        }
+        // Screenshot route for the boss briefing: take the two real clipping
+        // skips so the view receives the exact state a player reaches.
+        if arguments.contains("-briefingBoss") {
+            model.skipCurrentPuzzle()
+            model.skipCurrentPuzzle()
+        }
         if let index = arguments.firstIndex(of: "-selectHand"), index + 1 < arguments.count,
            let handIndex = Int(arguments[index + 1]) {
             model.selectedHandIndex = handIndex
@@ -62,18 +76,19 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if let closingBook {
-                LiveBookClosing(edition: closingBook, reduceMotion: reduceMotion,
-                                onFinish: finishBookClosing)
-            } else if let model, !model.wantsMenu {
-                GameView(model: model, reduceMotion: reduceMotion,
-                         onBookCompletion: beginBookClosing)
-            } else if let book = opening {
-                LiveBookOpening(edition: book, reduceMotion: reduceMotion) {
-                    begin(book)
-                }
-            } else {
-                switch frontDoor {
+            Group {
+                if let closingBook {
+                    LiveBookClosing(edition: closingBook, reduceMotion: reduceMotion,
+                                    onFinish: finishBookClosing)
+                } else if let model, !model.wantsMenu {
+                    GameView(model: model, reduceMotion: reduceMotion,
+                             onBookCompletion: beginBookClosing)
+                } else if let book = opening {
+                    LiveBookOpening(edition: book, reduceMotion: reduceMotion) {
+                        begin(book)
+                    }
+                } else {
+                    switch frontDoor {
                 case .studioIntro:
                     StudioSplashView(reduceMotion: reduceMotion) {
                         withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
@@ -82,11 +97,8 @@ struct ContentView: View {
 
                 case .mainMenu:
                     MainMenuView(
-                        onPlay: {
-                            showBookShelfOrAskAboutConflict()
-                        },
-                        onShop: {
-                            withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .cosmeticShop }
+                        onBookSelected: { book, obstacle in
+                            openBookOrAskAboutConflict(book, obstacle: obstacle)
                         }
                     )
                     .transition(.opacity)
@@ -94,9 +106,7 @@ struct ContentView: View {
                 case .bookShelf:
                     StartBookView(
                         onStart: { book, obstacle in
-                            chosenObstacle = obstacle
-                            RunStore.clearRun()
-                            opening = book
+                            openBookOrAskAboutConflict(book, obstacle: obstacle)
                         },
                         onContinue: {
                             if let saved = RunStore.resumeRun() {
@@ -117,44 +127,60 @@ struct ContentView: View {
                         withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                     }
                     .transition(.opacity)
+                    }
                 }
+
+                // Paper, held opaque across the swap and then lifted off the board.
+                Paper.page
+                    .opacity(veil)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+
+                if let completionSummary {
+                    BookCompletionView(summary: completionSummary) {
+                        withAnimation(.easeInOut(duration: 0.22)) { self.completionSummary = nil }
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                }
+            }
+            .allowsHitTesting(!isShowingRunDecision)
+            .accessibilityHidden(isShowingRunDecision)
+
+            if showingRunConflict, let conflict = pendingRunConflict {
+                Color.black.opacity(0.48)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture { dismissRunConflict() }
+
+                RunConflictSlip(
+                    localLabel: conflict.label(for: .local),
+                    remoteLabel: conflict.label(for: .remote),
+                    onChooseLocal: { resume(.local, from: conflict) },
+                    onChooseRemote: { resume(.remote, from: conflict) },
+                    onCancel: dismissRunConflict
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.965)))
+                .zIndex(40)
             }
 
-            // Paper, held opaque across the swap and then lifted off the board.
-            Paper.page
-                .opacity(veil)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+            if let replacement = pendingBookReplacement {
+                Color.black.opacity(0.48)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture { dismissBookReplacement() }
 
-            if let completionSummary {
-                BookCompletionView(summary: completionSummary) {
-                    withAnimation(.easeInOut(duration: 0.22)) { self.completionSummary = nil }
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                BookReplacementSlip(
+                    savedRunLabel: replacement.savedRunLabel,
+                    newBookLabel: replacement.book.shelfLabel,
+                    onContinueSaved: continueSavedRun,
+                    onStartNew: { startReplacement(from: replacement) },
+                    onCancel: dismissBookReplacement
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.965)))
+                .zIndex(40)
             }
         }
-        .confirmationDialog("Two unfinished Books", isPresented: $showingRunConflict) {
-            if let conflict = pendingRunConflict {
-                Button("Use this device’s \(conflict.label(for: .local))") {
-                    resume(.local, from: conflict)
-                }
-                Button("Use the other device’s \(conflict.label(for: .remote))") {
-                    resume(.remote, from: conflict)
-                }
-            }
-            Button("Decide later", role: .cancel) {}
-        } message: {
-            if let conflict = pendingRunConflict {
-                Text("This device has \(conflict.label(for: .local)). The other device has \(conflict.label(for: .remote)). Both are kept until you choose one.")
-            }
-        }
-        .onChange(of: showingRunConflict) { wasShowing, isShowing in
-            // The club-room Play animation has already finished by this point.
-            // If the player defers, land them on the shelf rather than leaving
-            // an invisible, disabled main-menu button behind the dialog.
-            guard wasShowing, !isShowing, pendingRunConflict != nil else { return }
-            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
-        }
+        .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.22), value: isShowingRunDecision)
         .onChange(of: isShowingBook, initial: true) { _, isShowingBook in
             gameCenter.setAccessPointVisible(!isShowingBook)
         }
@@ -166,10 +192,19 @@ struct ContentView: View {
         return !model.wantsMenu
     }
 
+    private var isShowingRunDecision: Bool {
+        showingRunConflict || pendingBookReplacement != nil
+    }
+
     /// Deals the first Puzzle behind the veil, then lifts it.
     private func begin(_ book: BookEdition) {
         veil = 1
-        model = GameModel(book: book.rule, startingBoard: book.bonus, obstacle: chosenObstacle)
+        if let saved = openingSavedRun {
+            model = GameModel(resuming: saved)
+            openingSavedRun = nil
+        } else {
+            model = GameModel(book: book.rule, startingBoard: book.bonus, obstacle: chosenObstacle)
+        }
         opening = nil
         Task {
             // One frame flat first: animating a value in the same update that
@@ -191,20 +226,215 @@ struct ContentView: View {
         withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .bookShelf }
     }
 
-    private func showBookShelfOrAskAboutConflict() {
+    private func openBookOrAskAboutConflict(_ book: BookEdition, obstacle: Obstacle) {
         if let conflict = RunStore.conflict() {
             pendingRunConflict = conflict
             showingRunConflict = true
-        } else {
-            withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+            return
+        }
+
+        if let displayed = RunStore.displayedRun() {
+            if displayed.run.book == book.rule, let saved = RunStore.resumeRun() {
+                openingSavedRun = saved
+                opening = book
+            } else {
+                pendingBookReplacement = BookReplacement(
+                    book: book,
+                    obstacle: obstacle,
+                    savedRun: displayed
+                )
+            }
+            return
+        }
+
+        chosenObstacle = obstacle
+        openingSavedRun = nil
+        opening = book
+    }
+
+    private func continueSavedRun() {
+        pendingBookReplacement = nil
+        guard let saved = RunStore.resumeRun() else { return }
+        openingSavedRun = saved
+        opening = BookEdition.edition(for: saved.run.book)
+    }
+
+    private func startReplacement(from replacement: BookReplacement) {
+        pendingBookReplacement = nil
+        // This is the only replacement path that clears the unfinished run,
+        // and it is reached solely from the explicit "Start new Book" action.
+        RunStore.clearRun()
+        chosenObstacle = replacement.obstacle
+        openingSavedRun = nil
+        opening = replacement.book
+    }
+
+    private func dismissBookReplacement() {
+        pendingBookReplacement = nil
+    }
+
+    private struct BookReplacement {
+        let book: BookEdition
+        let obstacle: Obstacle
+        let savedRun: Game
+
+        var savedRunLabel: String {
+            "Book \(savedRun.run.book.volume), Level \(savedRun.run.level), Puzzle \(savedRun.run.slot.rawValue + 1)"
         }
     }
 
     private func resume(_ choice: RunStore.Conflict.Choice, from conflict: RunStore.Conflict) {
-        _ = RunStore.choose(choice, from: conflict)
+        let chosen = RunStore.choose(choice, from: conflict)
         pendingRunConflict = nil
         showingRunConflict = false
-        withAnimation(.easeInOut(duration: 0.35)) { frontDoor = .bookShelf }
+        openingSavedRun = chosen
+        opening = BookEdition.edition(for: chosen.run.book)
+    }
+
+    private func dismissRunConflict() {
+        showingRunConflict = false
+        pendingRunConflict = nil
+    }
+}
+
+/// The destructive counterpart to `RunConflictSlip`: the saved Book remains
+/// untouched unless the red replacement action is pressed explicitly.
+private struct BookReplacementSlip: View {
+    var savedRunLabel: String
+    var newBookLabel: String
+    var onContinueSaved: () -> Void
+    var onStartNew: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text("UNFINISHED BOOK")
+                            .font(Print.caption(10))
+                            .tracking(1.8)
+                            .foregroundStyle(Paper.redPencil)
+
+                        Text("Start a different Book?")
+                            .font(.system(size: 24, weight: .semibold, design: .serif))
+                            .foregroundStyle(Paper.ink)
+
+                        Text("Your current run stays safe unless you replace it.")
+                            .font(.system(size: 13, design: .serif))
+                            .foregroundStyle(Paper.inkSoft)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Button(action: onCancel) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Paper.inkSoft)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Paper.pageEdge.opacity(0.55)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Keep current Book")
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 19)
+                .padding(.bottom, 15)
+
+                Rectangle()
+                    .fill(Paper.redPencil.opacity(0.48))
+                    .frame(height: 1)
+                    .padding(.horizontal, 20)
+
+                VStack(spacing: 11) {
+                    decisionButton(
+                        eyebrow: "CONTINUE CURRENT",
+                        label: savedRunLabel,
+                        symbol: "bookmark",
+                        tint: Paper.sage,
+                        action: onContinueSaved
+                    )
+
+                    decisionButton(
+                        eyebrow: "REPLACE CURRENT RUN",
+                        label: "Start \(newBookLabel)",
+                        symbol: "book.closed",
+                        tint: Paper.redPencil,
+                        action: onStartNew
+                    )
+
+                    Button("KEEP CURRENT BOOK", action: onCancel)
+                        .font(Print.caption(10))
+                        .tracking(1.5)
+                        .foregroundStyle(Paper.inkSoft)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .buttonStyle(.plain)
+                }
+                .padding(16)
+            }
+            .frame(width: min(proxy.size.width - 30, 390))
+            .background {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Paper.page)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Paper.pageEdge, lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.45), radius: 20, y: 12)
+            }
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(Paper.redPencil)
+                    .frame(width: 3)
+                    .padding(.vertical, 18)
+            }
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func decisionButton(
+        eyebrow: String,
+        label: String,
+        symbol: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 13) {
+                Image(systemName: symbol)
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(tint)
+                    .frame(width: 34, height: 34)
+                    .overlay(Circle().stroke(tint.opacity(0.65), lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(eyebrow)
+                        .font(Print.caption(9))
+                        .tracking(1.4)
+                        .foregroundStyle(tint)
+                    Text(label)
+                        .font(.system(size: 15, weight: .semibold, design: .serif))
+                        .foregroundStyle(Paper.ink)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 6)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Paper.inkSoft)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 64)
+            .background(RoundedRectangle(cornerRadius: 3).fill(Paper.pageWarm))
+            .overlay {
+                RoundedRectangle(cornerRadius: 3)
+                    .strokeBorder(Paper.pageEdge, lineWidth: 1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(eyebrow), \(label)")
     }
 }
 

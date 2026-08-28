@@ -40,7 +40,7 @@ struct HandStripView: View {
                             NumberTile(
                                 digit: card.digit,
                                 isSelected: model.selectedHandIndex == index,
-                                isBlocked: model.isBlocked(card.digit),
+                                isBlocked: model.isBlocked(handIndex: index),
                                 arrivalOrder: card.arrivalOrder,
                                 shouldAnimateArrival: model.animatesHandArrival,
                                 theme: theme,
@@ -49,7 +49,7 @@ struct HandStripView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Number \(card.digit.rawValue)"
-                            + (model.isBlocked(card.digit) ? ", blocked this turn" : "")
+                            + (model.isBlocked(handIndex: index) ? ", blocked this turn" : "")
                             + (model.selectedHandIndex == index ? ", selected" : ""))
                     }
                 }

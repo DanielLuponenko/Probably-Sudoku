@@ -188,6 +188,7 @@ struct BookmarkRow: View {
                              ink: Paper.ink, flagged: false, slot: slot,
                              pulling: pulled?.kind == .bookmark && pulled?.index == slot,
                              asleep: model.sleepingBookmark == slot,
+                             fired: model.activeBookmarkIDs.contains(owned.defID),
                              explaining: Binding(
                                 get: { explaining == slot },
                                 set: { explaining = $0 ? slot : nil }))
@@ -218,6 +219,7 @@ struct BookmarkRow: View {
                              slot: ItemKind.bookmark.capacity + slot,
                              pulling: pulled?.kind == .buff && pulled?.index == index,
                              asleep: false,
+                             fired: false,
                              explaining: .constant(false))
                         .gesture(handle(kind: .buff, index: index,
                                         defID: buff.defID,
@@ -340,6 +342,8 @@ private struct Bookmark: View {
     /// Unlucky Lucky has this one asleep for the Turn: still yours, still in
     /// the pages, doing nothing.
     var asleep: Bool
+    /// A passive Bookmark that just contributed to the player’s last action.
+    var fired: Bool
     @Binding var explaining: Bool
 
     /// Hand-inserted things are never quite straight, and the tilt has to be
@@ -394,12 +398,29 @@ private struct Bookmark: View {
                     .rotationEffect(.degrees(-18))
             }
         }
+        .overlay(alignment: .top) {
+            if fired {
+                HStack(spacing: 2) {
+                    Image(systemName: "sparkles")
+                    Text("FIRED")
+                }
+                    .font(Print.caption(8))
+                    .fontWeight(.black)
+                    .foregroundStyle(Paper.coin)
+                    .shadow(color: Paper.coin.opacity(0.9), radius: 5)
+                    .offset(y: -9)
+                    .transition(.scale.combined(with: .opacity))
+                    .accessibilityHidden(true)
+            }
+        }
         .rotationEffect(.degrees(tilt), anchor: .bottom)
         // Out of the pages and in your hand.
         .opacity(pulling ? 0.25 : (asleep ? 0.55 : 1))
         .saturation(asleep ? 0.2 : 1)
         .contentShape(Rectangle())
         .animation(.snappy(duration: 0.16), value: pulling)
+        .animation(.bouncy(duration: 0.26, extraBounce: 0.16), value: fired)
+        .scaleEffect(fired ? 1.12 : 1)
         // Anchored to this bookmark, so the arrow points at the one that was
         // tapped rather than at the middle of the row.
         .popover(isPresented: $explaining, arrowEdge: .bottom) {

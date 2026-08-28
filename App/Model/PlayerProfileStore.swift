@@ -21,6 +21,12 @@ final class PlayerProfileStore {
 
     private(set) var profile: PlayerProfile
 
+    #if DEBUG
+    /// Screenshot/test launches with explicit profile arguments must not be
+    /// overwritten a moment later by the simulator's cached cloud profile.
+    @ObservationIgnored private var hasDebugProfileOverride = false
+    #endif
+
     private static var fileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                             in: .userDomainMask)[0]
@@ -223,6 +229,9 @@ final class PlayerProfileStore {
     /// Remote profile data is merged, never blindly assigned. An unavailable,
     /// corrupt, or newer-schema cloud value therefore leaves local play alone.
     func merge(remote: PlayerProfile) {
+        #if DEBUG
+        guard !hasDebugProfileOverride else { return }
+        #endif
         let before = profile
         profile.merge(remote: remote)
         guard profile != before else { return }
@@ -249,15 +258,19 @@ final class PlayerProfileStore {
     private func applyDebugArguments() {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
+        var hasLaunchOverride = false
         if arguments.contains("-resetProfile") {
             profile = PlayerProfile()
+            hasLaunchOverride = true
         }
         if let at = arguments.firstIndex(of: "-grantClubCurrency"), at + 1 < arguments.count,
            let amount = Int(arguments[at + 1]) {
             profile.cosmeticCurrency = amount
+            hasLaunchOverride = true
         }
         if arguments.contains("-unlockAllCosmetics") {
             profile.ownedCosmeticIDs.formUnion(CosmeticCatalog.items.map(\.id))
+            hasLaunchOverride = true
         }
         // `-equipCosmetic dk_baize,nb_oldstyle` puts skins on without going
         // through the counter, so what they do to a Puzzle can be looked at.
@@ -271,6 +284,14 @@ final class PlayerProfileStore {
             // launch-only selection long enough to inspect it; the override is
             // never written to disk, so it cannot become a player preference.
             profile.lastModifiedAt = .distantFuture
+            hasLaunchOverride = true
+        }
+        // A cloud callback may arrive after the debug store is created. Keep
+        // all explicit launch overrides authoritative for this QA session;
+        // they are deliberately never persisted below.
+        if hasLaunchOverride {
+            profile.lastModifiedAt = .distantFuture
+            hasDebugProfileOverride = true
         }
         // Deliberately not saved: a QA grant that survived the next launch
         // would quietly become the player's real balance.

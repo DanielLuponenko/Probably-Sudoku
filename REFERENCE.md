@@ -9,7 +9,7 @@ Generated from the ProbablySudokuEngine catalogue. Do not edit by hand.
 | Name | Price | Effect |
 | --- | ---: | --- |
 | Morning Edition | 4 | +100 points at the end of each Turn |
-| Evening Edition | 4 | +300 points at Puzzle end |
+| Evening Edition | 4 | +300 points at the end of Turn 10 |
 | Local Gossip | 4 | Every correct placement scores +30 flat |
 | Sports Section | 5 | Line Clears gain +25 |
 | Society Pages | 6 | Full Clear gains +500 |

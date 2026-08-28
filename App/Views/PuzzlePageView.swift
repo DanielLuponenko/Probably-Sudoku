@@ -353,6 +353,7 @@ struct BossStamp: View {
 
 struct PaperButton: View {
     @Environment(\.levelPalette) private var palette
+    @Environment(\.cosmeticTheme) private var theme
     enum Kind { case primary, quiet, danger }
 
     var title: String
@@ -392,20 +393,20 @@ struct PaperButton: View {
 
     private var foreground: Color {
         switch kind {
-        case .primary: return palette.paper
-        case .quiet: return palette.ink
+        case .primary: return theme.paper.isDark ? theme.paper.ink : palette.paper
+        case .quiet: return theme.paper.ink
         case .danger: return palette.danger
         }
     }
     private var background: Color {
         switch kind {
         case .primary: return palette.target
-        case .quiet: return palette.paper.opacity(0.68)
-        case .danger: return palette.paper.opacity(0.68)
+        case .quiet: return theme.paper.warm.opacity(0.9)
+        case .danger: return theme.paper.warm.opacity(0.9)
         }
     }
     private var border: Color {
-        kind == .danger ? palette.danger.opacity(0.6) : palette.rule
+        kind == .danger ? palette.danger.opacity(0.6) : theme.paper.ruleInk
     }
 }
 
@@ -422,6 +423,7 @@ struct PressedPaperStyle: ButtonStyle {
 /// Printed at the foot of every page, the way a puzzle book numbers itself.
 struct PageNumber: View {
     @Environment(\.levelPalette) private var palette
+    @Environment(\.cosmeticTheme) private var theme
     var level: Int
     var slot: Int
 
@@ -430,11 +432,11 @@ struct PageNumber: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Rectangle().fill(palette.rule.opacity(0.45)).frame(width: 14, height: 0.75)
+            Rectangle().fill(theme.paper.ruleInk.opacity(0.45)).frame(width: 14, height: 0.75)
             Text("\(page)")
                 .font(Print.body(10.5))
-                .foregroundStyle(palette.ink.opacity(0.52))
-            Rectangle().fill(palette.rule.opacity(0.45)).frame(width: 14, height: 0.75)
+                .foregroundStyle(theme.paper.faintInk.opacity(0.72))
+            Rectangle().fill(theme.paper.ruleInk.opacity(0.45)).frame(width: 14, height: 0.75)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .accessibilityHidden(true)
