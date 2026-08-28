@@ -39,7 +39,7 @@ public enum Actions {
         let digit = puzzle.hand[handIndex]
         // Obstacle III bars one number a Turn. It stays in the Hand and can
         // still be Tossed; it just cannot go on the board.
-        guard !puzzle.isBlocked(digit) else { throw PlacementError.numberBlocked }
+        guard !puzzle.isBlocked(handIndex: handIndex) else { throw PlacementError.numberBlocked }
         run.coins -= puzzle.boss?.coinsPerPlacement ?? 0
         let outcome: PlacementOutcome
         if digit == puzzle.board.correctDigit(at: square) {
@@ -50,6 +50,15 @@ public enum Actions {
             outcome = resolveWrong(&run, &puzzle, digit: digit, square: square)
         }
 
+        if var bossTurn = puzzle.bossTurn {
+            // Position-based Handy Dandy blocks stay attached to the remaining
+            // cards when a played card before them leaves the Hand.
+            bossTurn.blockedHandIndices = Set(bossTurn.blockedHandIndices.compactMap { index in
+                guard index != handIndex else { return nil }
+                return index > handIndex ? index - 1 : index
+            })
+            puzzle.bossTurn = bossTurn
+        }
         // Litmus stays armed while the player examines the grid, then is spent
         // by either a correct or wrong placement. Guards above ensure blocked
         // or otherwise invalid attempts leave it available.
@@ -250,9 +259,19 @@ public enum Actions {
             throw PlacementError.puzzleNotPlayable
         }
         guard puzzle.hand.indices.contains(handIndex) else { throw PlacementError.numberNotInHand }
+        guard !puzzle.isTossBlocked(handIndex: handIndex) else { throw PlacementError.numberBlocked }
         guard puzzle.tossesRemaining > 0 else { throw PlacementError.tossAllowanceSpent }
 
         let digit = puzzle.hand.remove(at: handIndex)
+        if var bossTurn = puzzle.bossTurn {
+            // Position-based Handy Dandy blocks stay attached to the remaining
+            // cards when a player Tosses a card before them.
+            bossTurn.blockedHandIndices = Set(bossTurn.blockedHandIndices.compactMap { index in
+                guard index != handIndex else { return nil }
+                return index > handIndex ? index - 1 : index
+            })
+            puzzle.bossTurn = bossTurn
+        }
         puzzle.pool.put(digit)
         puzzle.tossedThisPuzzle += 1
 
@@ -353,12 +372,27 @@ public enum Actions {
 
         var turn = TurnResult()
 
+        let wasTenthTurn = puzzle.turnNumber == Baseline.turns
         let context = Resolver.context(.turnEnd, run: run, puzzle: puzzle)
-        let result = Resolver.dispatch(context, run: run, puzzle: puzzle)
+        var result = Resolver.dispatch(context, run: run, puzzle: puzzle)
+        // Evening Edition is deliberately a Turn 10 payout, not an abstract
+        // cash-out bonus. Dispatch its catalogue hook before score banking so
+        // the final-turn points can meet the Puzzle target.
+        if wasTenthTurn {
+            let endContext = Resolver.context(.puzzleEnd, run: run, puzzle: puzzle)
+            let endResult = Resolver.dispatch(endContext, run: run, puzzle: puzzle)
+            result.directScore += endResult.directScore
+            run.absorb(endResult)
+            puzzle.absorb(endResult)
+        }
         if puzzle.phase != .keepFilling {
-            puzzle.pendingBase += result.directScore
             turn.pointsGained = puzzle.pendingScore
             puzzle.bankPending()
+            // Direct payouts are printed point amounts, not another scoring
+            // event: Evening Edition must remain exactly +300 even if the
+            // Turn has a held multiplier.
+            puzzle.score += result.directScore
+            turn.pointsGained += result.directScore
         }
         run.absorb(result)
         puzzle.absorb(result)

@@ -15,6 +15,19 @@ final class BossModifierTests: XCTestCase {
         XCTAssertEqual(BossModifier.allCases.count, 19)
     }
 
+    func testBossBriefingCommitsTheSameBossThatPuzzleStarts() throws {
+        var game = Game(seed: "boss-briefing", startingBoard: .scholar)
+        XCTAssertTrue(game.advance())
+        XCTAssertTrue(game.advance())
+
+        let announced = try XCTUnwrap(game.run.pendingBoss)
+        XCTAssertEqual(game.run.slot, .boss)
+
+        try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.boss, announced)
+        XCTAssertNil(game.run.pendingBoss)
+    }
+
     func testTheEditorShrinksTheHand() {
         XCTAssertEqual(run.effectiveHandSize(boss: nil), 7)          // Scholar's Board
         XCTAssertEqual(run.effectiveHandSize(boss: .editor), 6)
@@ -162,8 +175,21 @@ final class BossModifierTests: XCTestCase {
         var handyPuzzle = handy.run.puzzle!
         handyPuzzle.startBossTurn(&handy.run)
         handy.run.puzzle = handyPuzzle
-        XCTAssertEqual(handy.puzzle?.blockedDigits.count, min(2, Set(handy.puzzle!.hand).count))
-        XCTAssertTrue(handy.puzzle!.blockedDigits.isSubset(of: Set(handy.puzzle!.hand)))
+        XCTAssertEqual(handy.puzzle?.bossTurn?.blockedHandIndices.count, min(2, handy.puzzle!.hand.count))
+        XCTAssertTrue(handy.puzzle!.bossTurn!.blockedHandIndices.allSatisfy { handy.puzzle!.hand.indices.contains($0) })
+
+        // Duplicate digits are separate cards. Handy Dandy must still bar two
+        // positions, never every copy of a selected digit.
+        handyPuzzle = handy.puzzle!
+        handyPuzzle.hand = [.six, .six, .two, .three]
+        handyPuzzle.startBossTurn(&handy.run)
+        XCTAssertEqual(handyPuzzle.bossTurn?.blockedHandIndices.count, 2)
+        XCTAssertEqual((0..<handyPuzzle.hand.count).filter(handyPuzzle.isBlocked(handIndex:)).count, 2)
+        handy.run.puzzle = handyPuzzle
+        let barredCard = try XCTUnwrap(handyPuzzle.bossTurn?.blockedHandIndices.first)
+        XCTAssertThrowsError(try handy.toss(handIndex: barredCard)) {
+            XCTAssertEqual($0 as? PlacementError, .numberBlocked)
+        }
 
         for boss in [BossModifier.grayTheGarry, .garryTheGray] {
             var game = Game(seed: boss.rawValue, startingBoard: .scholar)
@@ -181,6 +207,35 @@ final class BossModifierTests: XCTestCase {
             } else {
                 XCTAssertEqual(Set(game.puzzle!.barredSquares.map(\.box)).count, 1)
             }
+        }
+    }
+
+    func testHandyDandyRebasesBlockedCardsAfterPlacement() throws {
+        for correctPlacement in [true, false] {
+            var game = Game(seed: "handy-rebase-\(correctPlacement)", startingBoard: .scholar)
+            try game.startPuzzle()
+
+            var puzzle = try XCTUnwrap(game.puzzle)
+            puzzle.boss = .handyDandy
+            var bossTurn = BossTurnState()
+            bossTurn.blockedHandIndices = [2, 5]
+            puzzle.bossTurn = bossTurn
+            game.run.puzzle = puzzle
+
+            let playedIndex = 0
+            let playedDigit = puzzle.hand[playedIndex]
+            let target = try XCTUnwrap(puzzle.board.blanks.first { square in
+                (puzzle.board.correctDigit(at: square) == playedDigit) == correctPlacement
+            })
+            let blockedCardsBefore = bossTurn.blockedHandIndices.sorted().map { puzzle.hand[$0] }
+
+            _ = try game.place(handIndex: playedIndex, at: target)
+
+            let rebasedIndices = try XCTUnwrap(game.puzzle?.bossTurn?.blockedHandIndices)
+            XCTAssertEqual(rebasedIndices, [1, 4], "correct placement: \(correctPlacement)")
+            XCTAssertEqual(rebasedIndices.sorted().map { game.puzzle!.hand[$0] },
+                           blockedCardsBefore,
+                           "Handy Dandy must keep blocking the same remaining cards")
         }
     }
 
@@ -559,6 +614,30 @@ final class RunAndDeterminismTests: XCTestCase {
         try game.startPuzzle()
         XCTAssertEqual(game.puzzle?.pendingMult, 2)
         XCTAssertNil(game.run.runItemState["clipping.overprint"])
+    }
+
+    func testEveryClippingAppliesItsAdvertisedRewardAndPersists() throws {
+        for clipping in Clipping.allCases {
+            let seed = try XCTUnwrap((0..<500).map(String.init).first { seed in
+                Game(seed: seed, startingBoard: .scholar).run.currentClipping == clipping
+            })
+            var game = Game(seed: seed, startingBoard: .scholar)
+            let coinsBefore = game.run.coins
+            let capBefore = game.run.interestCap
+
+            XCTAssertEqual(try game.skipPuzzle(), clipping)
+            XCTAssertEqual(try Game(decoding: game.encoded()).run.takenClippings, game.run.takenClippings)
+
+            switch clipping {
+            case .coupon:
+                XCTAssertEqual(game.run.coins, coinsBefore + 8)
+            case .circulation:
+                XCTAssertEqual(game.run.interestCap, capBefore + 5)
+            case .overprint:
+                try game.startPuzzle()
+                XCTAssertEqual(game.puzzle?.pendingMult, 2)
+            }
+        }
     }
 
     func testSaveAndLoadRoundTripsMidPuzzle() throws {

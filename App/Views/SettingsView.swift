@@ -5,6 +5,7 @@ import ProbablySudokuEngine
 /// laid on the desk over the book. A system settings list would be the one
 /// place the game stops being an object.
 struct PaperSlip<Content: View>: View {
+    @Environment(\.cosmeticTheme) private var theme
     var title: String
     var subtitle: String?
     var closeLabel: String = "Close"
@@ -29,10 +30,10 @@ struct PaperSlip<Content: View>: View {
                     if let subtitle {
                         Text(subtitle)
                             .font(Print.body(12.5))
-                            .foregroundStyle(Paper.inkSoft)
+                            .foregroundStyle(theme.paper.softInk)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    Rectangle().fill(Paper.rule).frame(height: 1).padding(.top, 3)
+                    Rectangle().fill(theme.paper.ruleInk).frame(height: 1).padding(.top, 3)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 18)
@@ -54,11 +55,11 @@ struct PaperSlip<Content: View>: View {
             .frame(maxHeight: 620)
             .background {
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(Paper.page)
+                    .fill(theme.paper.page)
                     .overlay { PaperGrain(opacity: 0.06) }
                     .overlay {
                         RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Paper.pageEdge, lineWidth: 1)
+                            .strokeBorder(theme.paper.edge, lineWidth: 1)
                     }
                     .shadow(color: .black.opacity(0.55), radius: 26, x: 4, y: 14)
             }
@@ -70,6 +71,7 @@ struct PaperSlip<Content: View>: View {
 
 /// A printed index line: label, dotted leader, value.
 struct LeaderRow: View {
+    @Environment(\.cosmeticTheme) private var theme
     var label: String
     var value: String
 
@@ -77,16 +79,16 @@ struct LeaderRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(label)
                 .font(Print.body(13.5))
-                .foregroundStyle(Paper.ink)
+                .foregroundStyle(theme.paper.ink)
                 .layoutPriority(1)
             Line()
                 .stroke(style: StrokeStyle(lineWidth: 1, dash: [1.5, 3.5]))
-                .foregroundStyle(Paper.rule)
+                .foregroundStyle(theme.paper.ruleInk)
                 .frame(height: 1)
                 .offset(y: -3)
             Text(value)
                 .font(Print.numeral(13.5, weight: .semibold))
-                .foregroundStyle(Paper.inkSoft)
+                .foregroundStyle(theme.paper.softInk)
                 .layoutPriority(1)
         }
         .accessibilityElement(children: .combine)
@@ -104,6 +106,7 @@ private struct Line: Shape {
 
 /// A small heading printed above a group, the way a form is sectioned.
 struct SlipSection<Content: View>: View {
+    @Environment(\.cosmeticTheme) private var theme
     var title: String
     var note: String?
     @ViewBuilder var content: Content
@@ -113,14 +116,14 @@ struct SlipSection<Content: View>: View {
             HStack(spacing: 8) {
                 Text(title)
                     .font(Print.caption(10)).tracking(1.6).textCase(.uppercase)
-                    .foregroundStyle(Paper.inkFaint)
-                Rectangle().fill(Paper.rule.opacity(0.5)).frame(height: 1)
+                    .foregroundStyle(theme.paper.faintInk)
+                Rectangle().fill(theme.paper.ruleInk.opacity(0.5)).frame(height: 1)
             }
             content
             if let note {
                 Text(note)
                     .font(Print.body(11.5))
-                    .foregroundStyle(Paper.inkFaint)
+                    .foregroundStyle(theme.paper.faintInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -131,6 +134,7 @@ struct SlipSection<Content: View>: View {
 // MARK: - Settings
 
 struct SettingsSlip: View {
+    @Environment(\.cosmeticTheme) private var theme
     @Bindable var model: GameModel
     var onClose: () -> Void
     @State private var confirmingAbandon = false
@@ -147,7 +151,6 @@ struct SettingsSlip: View {
                     LeaderRow(label: "Level", value: "\(model.run.level) of 9")
                     LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
                     LeaderRow(label: "Coins", value: "\(model.coins)")
-                    LeaderRow(label: "Board", value: model.run.startingBoard.name)
                 }
 
                 SlipSection(
@@ -158,15 +161,15 @@ struct SettingsSlip: View {
                     HStack(spacing: 10) {
                         Text(model.run.seed)
                             .font(Print.numeral(17, weight: .bold))
-                            .foregroundStyle(Paper.ink)
+                            .foregroundStyle(theme.paper.ink)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background {
-                                RoundedRectangle(cornerRadius: 3).fill(Paper.pageWarm)
+                                RoundedRectangle(cornerRadius: 3).fill(theme.paper.warm)
                             }
                             .overlay {
                                 RoundedRectangle(cornerRadius: 3)
-                                    .strokeBorder(Paper.rule, lineWidth: 1)
+                                    .strokeBorder(theme.paper.ruleInk, lineWidth: 1)
                             }
                         Spacer()
                         Button {
@@ -177,12 +180,12 @@ struct SettingsSlip: View {
                                 .font(Print.caption(12))
                                 .textCase(.uppercase)
                                 .tracking(0.8)
-                                .foregroundStyle(Paper.ink)
+                                .foregroundStyle(theme.paper.ink)
                                 .padding(.horizontal, 12)
                                 .frame(height: 32)
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 3)
-                                        .strokeBorder(Paper.rule, lineWidth: 1)
+                                    .strokeBorder(theme.paper.ruleInk, lineWidth: 1)
                                 }
                         }
                         .buttonStyle(PressedPaperStyle())

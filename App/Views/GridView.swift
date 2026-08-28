@@ -56,6 +56,7 @@ struct GridView: View {
                     provenance: provenance,
                     state: cellState,
                     marker: marker,
+                    effectText: model.markerEffect(at: square),
                     fouled: fouledSquares.contains(square),
                     greyed: greyedSquares.contains(square),
                     theme: theme,
@@ -240,6 +241,7 @@ private struct CellView: View {
     var provenance: Provenance?
     var state: CellState
     var marker: OwnedMarker?
+    var effectText: String?
     var fouled: Bool
     var greyed: Bool
     var theme: CosmeticTheme
@@ -251,12 +253,21 @@ private struct CellView: View {
             Rectangle().fill(background)
 
             if let marker {
-                // A Marker tints the square it owns, so its bonus is visible
-                // before you decide what to play there (§11).
+                // A Marker needs its own visual language. A full-cell tint
+                // looked too much like the number-selection highlight, so the
+                // square now carries a small printed registration strip.
                 Rectangle()
-                    .fill(Paper.markerColor(marker.defID).opacity(0.28))
-                Rectangle()
-                    .strokeBorder(palette.marked.opacity(0.9), lineWidth: 1.5)
+                    .fill(Paper.markerColor(marker.defID).opacity(0.9))
+                    .frame(width: max(2, size * 0.055))
+                    .padding(.vertical, size * 0.16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityHidden(true)
+                Circle()
+                    .fill(Paper.markerColor(marker.defID))
+                    .frame(width: max(4, size * 0.12), height: max(4, size * 0.12))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(size * 0.11)
+                    .accessibilityHidden(true)
             }
 
             if state == .sameNumber {
@@ -297,11 +308,27 @@ private struct CellView: View {
                             radius: theme.numbers.motion.glow == nil ? 0 : 3)
                     .transition(reduceMotion ? .identity : placementTransition)
             }
+
+            if let effectText {
+                Text(effectText)
+                    .font(Print.caption(max(8, size * 0.15)))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .foregroundStyle(Paper.page)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(Paper.sageDeep, in: Capsule())
+                    .shadow(color: .black.opacity(0.28), radius: 3, y: 2)
+                    .offset(y: -size * 0.53)
+                    .transition(reduceMotion ? .identity : .scale.combined(with: .opacity))
+                    .accessibilityLabel("Marker fired: \(effectText)")
+            }
         }
         .frame(width: size, height: size)
         .contentShape(Rectangle())
         .animation(reduceMotion ? nil : theme.numbers.motion.arrivalAnimation, value: digit)
         .animation(.snappy(duration: 0.16), value: state)
+        .animation(reduceMotion ? nil : .bouncy(duration: 0.28, extraBounce: 0.16), value: effectText)
     }
 
     private var numeralWeight: Font.Weight {

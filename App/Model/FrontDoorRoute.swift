@@ -22,7 +22,17 @@ enum FrontDoorRoute: Equatable {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-clubShop") { return .cosmeticShop }
-        if arguments.contains("-mainMenu") { return .mainMenu }
+        if arguments.contains("-mainMenu")
+            || arguments.contains("-bookstoreHalfway")
+            || arguments.contains("-bookstoreStand")
+            || arguments.contains("-bookstoreShop")
+            || arguments.contains("-bookstoreShopHalfway")
+            || arguments.contains("-bookRack")
+            || arguments.contains("-tapPlay")
+            || arguments.contains("-tapShop")
+            || arguments.contains("-menuSettings") {
+            return .mainMenu
+        }
         if arguments.contains("-shelfPage") || arguments.contains("-obstacle")
             || arguments.contains("-tapBook") || arguments.contains("-unlockAll") {
             return .bookShelf

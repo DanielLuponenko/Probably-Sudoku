@@ -65,6 +65,10 @@ public struct RunState: Codable, Sendable {
 
     public var puzzle: PuzzleState?
     public var shop: ShopState?
+    /// Chosen when the run enters a Boss briefing, then consumed by the
+    /// Puzzle. This makes the announced encounter and played encounter one
+    /// persisted decision.
+    public var pendingBoss: BossModifier?
     public var outcome: RunOutcome?
 
     public init(seed: String, book: Book = .probably,
@@ -78,11 +82,12 @@ public struct RunState: Codable, Sendable {
         self.slot = .easy
         self.coins = startingBoard == .merchant ? 15 : book.startingCoins
         self.bestPuzzleScore = 0
+        self.pendingBoss = nil
     }
 
     private enum CodingKeys: String, CodingKey {
         case seed, streams, book, startingBoard, obstacle, level, slot, coins
-        case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, outcome
+        case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, pendingBoss, outcome
         case bestPuzzleScore
     }
 
@@ -106,7 +111,13 @@ public struct RunState: Codable, Sendable {
         runItemState = try c.decodeIfPresent([String: Double].self, forKey: .runItemState) ?? [:]
         puzzle = try c.decodeIfPresent(PuzzleState.self, forKey: .puzzle)
         shop = try c.decodeIfPresent(ShopState.self, forKey: .shop)
+        pendingBoss = try c.decodeIfPresent(BossModifier.self, forKey: .pendingBoss)
         outcome = try c.decodeIfPresent(RunOutcome.self, forKey: .outcome)
+        // Migrate legacy saved Boss briefings once. A saved shop is already
+        // after that Boss and must not consume a new boss-stream value.
+        if slot == .boss, puzzle == nil, shop == nil, pendingBoss == nil {
+            pendingBoss = BossModifier.roll(&streams.boss)
+        }
     }
 
     // MARK: - Ownership queries
@@ -246,7 +257,9 @@ public struct RunState: Codable, Sendable {
     public mutating func advance() -> Bool {
         switch slot {
         case .easy: slot = .medium
-        case .medium: slot = .boss
+        case .medium:
+            slot = .boss
+            pendingBoss = BossModifier.roll(&streams.boss)
         case .boss:
             if level >= 9 {
                 outcome = .bookCompleted
@@ -254,6 +267,7 @@ public struct RunState: Codable, Sendable {
             }
             level += 1
             slot = .easy
+            pendingBoss = nil
             grantPendingMarkerSquares()
         }
         return true

@@ -14,12 +14,28 @@ public enum PuzzlePhase: String, Codable, Sendable {
 /// before this roster existed decode without a migration failure.
 public struct BossTurnState: Codable, Sendable {
     public var blockedDigits: Set<Digit> = []
+    /// Handy Dandy bars two *cards*, not two digit values. This must be
+    /// position-based because a Hand is allowed to contain duplicate digits.
+    public var blockedHandIndices: Set<Int> = []
     /// Square -> first Turn on which the foul no longer applies.
     public var fouled: [Square: Int] = [:]
     public var greyed: Set<Square> = []
     public var disabledBookmark: Int?
 
+    private enum CodingKeys: String, CodingKey {
+        case blockedDigits, blockedHandIndices, fouled, greyed, disabledBookmark
+    }
+
     public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        blockedDigits = try container.decodeIfPresent(Set<Digit>.self, forKey: .blockedDigits) ?? []
+        blockedHandIndices = try container.decodeIfPresent(Set<Int>.self, forKey: .blockedHandIndices) ?? []
+        fouled = try container.decodeIfPresent([Square: Int].self, forKey: .fouled) ?? [:]
+        greyed = try container.decodeIfPresent(Set<Square>.self, forKey: .greyed) ?? []
+        disabledBookmark = try container.decodeIfPresent(Int.self, forKey: .disabledBookmark)
+    }
 }
 
 /// One sudoku board with one score target.
@@ -161,6 +177,15 @@ public struct PuzzleState: Codable, Sendable {
         return digits
     }
     public func isBlocked(_ digit: Digit) -> Bool { blockedDigits.contains(digit) }
+    public func isBlocked(handIndex: Int) -> Bool {
+        guard hand.indices.contains(handIndex) else { return false }
+        return isBlocked(hand[handIndex]) || bossTurn?.blockedHandIndices.contains(handIndex) == true
+    }
+    /// Handy Dandy bars a specific card completely. Ordinary digit bars from
+    /// Obstacles remain Tossable by design, so Toss must not use `isBlocked`.
+    public func isTossBlocked(handIndex: Int) -> Bool {
+        bossTurn?.blockedHandIndices.contains(handIndex) == true
+    }
     public var disabledBookmark: Int? { bossTurn?.disabledBookmark }
     public var barredSquares: Set<Square> {
         let fouled = bossTurn.map { Set($0.fouled.keys) } ?? []
@@ -185,7 +210,8 @@ public extension PuzzleState {
         var boss: BossModifier?
         var censored: Digit?
         if slot == .boss {
-            boss = BossModifier.roll(&run.streams.boss)
+            boss = run.pendingBoss ?? BossModifier.roll(&run.streams.boss)
+            run.pendingBoss = nil
             if boss?.censorsARandomDigit == true {
                 censored = BossModifier.rollCensoredDigit(&run.streams.boss)
             }
@@ -268,13 +294,17 @@ public extension PuzzleState {
 
         var state = bossTurn ?? BossTurnState()
         state.blockedDigits = []
+        state.blockedHandIndices = []
         state.greyed = []
         state.fouled = state.fouled.filter { $0.value > turnNumber }
 
-        for _ in 0..<boss.barsNumbersEachTurn {
-            guard let digit = Self.pickBlocked(from: hand, barring: state.blockedDigits,
-                                                rng: &run.streams.boss) else { break }
-            state.blockedDigits.insert(digit)
+        if boss.barsNumbersEachTurn > 0 {
+            var eligibleIndices = Array(hand.indices)
+            for _ in 0..<boss.barsNumbersEachTurn {
+                guard !eligibleIndices.isEmpty else { break }
+                let selected = run.streams.boss.int(eligibleIndices.count)
+                state.blockedHandIndices.insert(eligibleIndices.remove(at: selected))
+            }
         }
 
         if boss.foulsSquaresEachTurn {
