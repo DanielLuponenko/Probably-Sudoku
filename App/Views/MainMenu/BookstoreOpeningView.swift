@@ -68,12 +68,13 @@ struct BookstoreOpeningView: View {
 
     init(onOpenBook: @escaping (BookEdition, Obstacle) -> Void) {
         self.onOpenBook = onOpenBook
-        let storedYaw = UserDefaults.standard.object(forKey: "clubShopCounterYawV2") as? Double
-        _counterYaw = State(initialValue: storedYaw ?? 0.20)
-        _counterForward = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCounterForwardV2") as? Double ?? 0)
-        _counterSide = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCounterSideV2") as? Double ?? 0)
-        _cameraForward = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCameraForwardV2") as? Double ?? 0)
-        _cameraSide = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCameraSideV2") as? Double ?? 0)
+        // Approved, fixed Club Shop framing. These are source defaults rather
+        // than per-simulator preferences so every player sees the same stand.
+        _counterYaw = State(initialValue: -0.988)
+        _counterForward = State(initialValue: 0)
+        _counterSide = State(initialValue: 0)
+        _cameraForward = State(initialValue: 2.96)
+        _cameraSide = State(initialValue: 5.19)
         var initialCategory: CosmeticCategory = .paper
         var initialSelections: [CosmeticCategory: String] = [:]
         #if DEBUG
