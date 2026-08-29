@@ -37,6 +37,7 @@ extension View {
 /// accumulates view state after a turn has finished.
 struct NumberReturnMotionOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.cosmeticTheme) private var theme
     let events: [GameModel.NumberReturn]
     let frames: [String: CGRect]
 
@@ -49,6 +50,7 @@ struct NumberReturnMotionOverlay: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+        .cosmeticPulseClock(for: theme.numbers.finish)
     }
 }
 
@@ -177,11 +179,8 @@ private struct ReturnNumberTile: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Text("\(digit.rawValue)")
-                .font(theme.numbers.font(27, weight: .medium))
-                .foregroundStyle(theme.numbers.ink)
-                .shadow(color: theme.numbers.motion.glow?.opacity(0.78) ?? .clear,
-                        radius: theme.numbers.motion.glow == nil ? 0 : 3)
+            CosmeticNumberGlyph(text: "\(digit.rawValue)", skin: theme.numbers,
+                                size: 27, weight: .medium, color: theme.numbers.ink)
                 .frame(width: 46, height: 52)
                 .background(theme.paper.warm, in: RoundedRectangle(cornerRadius: 4))
                 .overlay {

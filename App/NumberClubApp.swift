@@ -21,9 +21,17 @@ struct ProbablySudokuApp: App {
             .task {
                 gameCenter.start()
                 gameCenter.setAppIsActive(scenePhase == .active)
-                CloudSync.shared.start { remote in
-                    PlayerProfileStore.shared.merge(remote: remote)
-                }
+                CloudSync.shared.start(
+                    receivingProfiles: { remote in
+                        PlayerProfileStore.shared.merge(remote: remote)
+                    },
+                    receivingEquipped: { equipped, decisionAt in
+                        PlayerProfileStore.shared.applyRemoteEquipped(
+                            equipped,
+                            decisionAt: decisionAt
+                        )
+                    }
+                )
             }
             .onChange(of: scenePhase) { _, newPhase in
                 gameCenter.setAppIsActive(newPhase == .active)

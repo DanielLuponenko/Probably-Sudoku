@@ -1,0 +1,92 @@
+{
+  "is_error": false,
+  "duration_api_ms": 119978,
+  "num_turns": 29,
+  "stop_reason": "end_turn",
+  "session_id": "d1e6a2d2-0412-4141-8743-e2da7b3f7b7f",
+  "total_cost_usd": 0.4752988,
+  "usage": {
+    "input_tokens": 24,
+    "cache_creation_input_tokens": 64047,
+    "cache_read_input_tokens": 407014,
+    "output_tokens": 13766,
+    "output_tokens_details": {
+      "thinking_tokens": 5016
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 64047,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 4749,
+        "cache_read_input_tokens": 66892,
+        "cache_creation_input_tokens": 1069,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 1069
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-sonnet-5": {
+      "inputTokens": 24,
+      "outputTokens": 13766,
+      "cacheReadInputTokens": 407014,
+      "cacheCreationInputTokens": 64047,
+      "webSearchRequests": 0,
+      "costUSD": 0.4752988,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "All checks confirmed. Now producing the final report.\n\n## STATUS\n`PASS`\n\n## AGENT_RUN_ID\n`CE6572EB-7696-4BDE-8E27-5C90F28FB3BA` (value supplied in the task invocation; used verbatim)\n\n## RESOLVED_MODEL\nNot self-certifiable from inside this `Read`/`Grep`/`Glob`-only session — no Bash/harness-introspection tool is exposed, so this run cannot print its own `modelUsage`/`canonicalModel` value. This is the same structural gap disclosed by R1–R6 (`docs/meshy-production/AGENT_CONTROL_MATRIX.md:25-77`, which records prior runs' canonical model as `claude-sonnet-5`, first-party provider, standard tier — evidence for those runs' invocations, not this one; R6's own preserved result at `docs/meshy-production/reviews/MESHY-001-R6-9F13A2B7-6BFC-44F3-BA6F-268001434247.json` `modelUsage.claude-sonnet-5.canonicalModel = \"claude-sonnet-5\"` is likewise only evidence for the R6 run). Per the task contract, \"the manager owns model, branch, fingerprint, checksum, and byte-level validation\" — Codex/the manager must independently confirm this run's resolved model from its own harness-level record. `status_sha256`, `diff_sha256`, `content_set_sha256`, and `r7_task_sha256` supplied in the invocation could not be independently recomputed — no hashing tool is exposed to this session.\n\n## BRANCH\n`feature/KAN-153-meshy-club-shop`, per `docs/meshy-production/BASELINE.md` (as previously cited by R1–R6: \"Starting branch: `main`\"; \"Protected work branch: `feature/KAN-153-meshy-club-shop`\"). No `git` tool is exposed in this session to independently re-confirm the currently checked-out branch; asserted from preserved evidence only, unchanged from prior runs.\n\n## COMMIT_OR_PATCH\nNONE (read-only)\n\n## R6_CORRECTION_CHECK\nR6 (`docs/meshy-production/reviews/MESHY-001-R6-9F13A2B7-6BFC-44F3-BA6F-268001434247.json`) returned `CORRECTION_REQUIRED`, finding that the manager's fix to R5 defect #2 corrected `exactLocation`/`screen`/`currentImplementation` on all 13 paper `.shop` rows but left the parallel `shopRendererPath` (JSON) / `shop_renderer_path` (CSV) field byte-identically uncorrected at `\"App/Views/MainMenu/BookstoreSceneCoordinator.swift:1557-1580,1909-1969\"` on all 13 rows — wrongly citing the fixed hanging-sample range on the 10 rows that must not, and using an inconsistent stack sub-range (`1909-1969` vs. the correct `1909-1950`) on all 13, plus a wrong value on `pp_utility_roll`.\n\nVerified against the current bytes: **the prescribed correction has now been applied exactly as R6 specified**, in both files, on all 13 rows:\n- 9 plain stack styles (`pp_newsprint`, `pp_white`, `pp_graph`, `pp_onion`, `pp_carbon`, `pp_telegram`, `pp_garden`, `pp_night_sky`, `pp_ocean`): `shopRendererPath`/`shop_renderer_path` now reads `App/Views/MainMenu/BookstoreSceneCoordinator.swift:1909-1950` (JSON lines 11529, 11653, 12149, 12273, 12397, 12521, 12645, 12769, 12893; CSV lines 180, 182, 190, 192, 194, 196, 198, 200, 202).\n- `pp_ivory`, `pp_manila`, `pp_ledger`: now reads `App/Views/MainMenu/BookstoreSceneCoordinator.swift:1557-1580,1909-1950` (JSON lines 11777, 11901, 12025; CSV lines 184, 186, 188).\n- `pp_utility_roll`: now reads `App/Views/MainMenu/BookstoreSceneCoordinator.swift:1951-1967` (JSON line 13017; CSV line 204).\n\n`Grep` for the literal string `1909-1969` across both `COVERAGE_LEDGER.json` and `COVERAGE_LEDGER.csv` returns **0 matches** in each — the stray range is fully gone.\n\n## PAPER_PATH_PARITY\nFull-row read of all 13 paper `.shop` rows in both files (JSON offsets 11482–13030; CSV lines 180–204) confirms `exactLocation`/`exact_location` (CSV field 7) and `shopRendererPath`/`shop_renderer_path` (CSV field 38 of 46) are now byte-identical, field-for-field, row-for-row:\n\n| Row | JSON `exactLocation` = `shopRendererPath` | CSV `exact_location` = `shop_renderer_path` |\n|---|---|---|\n| `pp_newsprint.shop` | `...:1909-1950` | line 180, both fields `...:1909-1950` |\n| `pp_white.shop` | `...:1909-1950` | line 182, same |\n| `pp_ivory.shop` | `...:1557-1580,1909-1950` | line 184, same |\n| `pp_manila.shop` | `...:1557-1580,1909-1950` | line 186, same |\n| `pp_ledger.shop` | `...:1557-1580,1909-1950` | line 188, same |\n| `pp_graph.shop` | `...:1909-1950` | line 190, same |\n| `pp_onion.shop` | `...:1909-1950` | line 192, same |\n| `pp_carbon.shop` | `...:1909-1950` | line 194, same |\n| `pp_telegram.shop` | `...:1909-1950` | line 196, same |\n| `pp_garden.shop` | `...:1909-1950` | line 198, same |\n| `pp_night_sky.shop` | `...:1909-1950` | line 200, same |\n| `pp_ocean.shop` | `...:1909-1950` | line 202, same |\n| `pp_utility_roll.shop` | `...:1951-1967` | line 204, same |\n\nOnly `pp_ivory`, `pp_manila`, `pp_ledger` cite `:1557-1580,1909-1950`; the nine other stack styles cite only `:1909-1950`; `pp_utility_roll` cites only `:1951-1967`. No paper row's `shopRendererPath`/`shop_renderer_path` contains `:1557-1580,1909-1969`; no `:1909-1969` remains anywhere in either file (0 matches each, confirmed by direct `Grep`). Required check #2 and #3 of this task are satisfied.\n\n## UNCHANGED_GATE_FACTS\n- `requiredRowStateForCompletion: \"APPROVED\"` and `currentProgramState: \"BLOCKED\"` present and unchanged at `COVERAGE_LEDGER.json:19-20`; no `completionStatus` key anywhere in the ledger (0 `Grep` matches for `completionStatus`/`completion_status` in `COVERAGE_LEDGER.json`/`.csv`).\n- Row/ID count: `\"canonicalAssetId\"` occurs 209× in JSON (208 data rows + 1 `fieldContract` schema entry, first match at line 41 confirming the schema location) — identical to R6's accounting. CSV: 209 lines matching `^[a-z]` (1 header + 208 data rows).\n- Status: `\"finalStatus\": \"BLOCKED\"` = 208/208; `\"finalStatus\": \"APPROVED\"` = 0. No row promoted.\n- Field count: CSV header (`COVERAGE_LEDGER.csv:1`) enumerates exactly 46 named columns, `shop_renderer_path` at ordinal position 38, matching field-count parity with prior runs.\n- 208/206 formula unchanged: `summary` block, `COVERAGE_LEDGER.json:24-38` — `totalRows:208, visibleArtRows:206, deadCodeRemovalRows:2, environmentRows:71, displayFixtureRows:28, paperDeliverableRows:26, requiredDigitFormula:\"8 * 9\", approvedRows:0, blockedRows:208, coveragePercentage:0`.\n- Authority adjustment #1 (hanging-sample fold-in) unchanged: `Grep` for `\"canonicalAssetId\": \"shop.hangingSample.paper\"` → 0 matches (correctly folded into `pp_ivory`/`pp_manila`/`pp_ledger` lineage, not its own row).\n- Authority adjustment #2 (embers) unchanged: `effect.nb_flame.embers` at `COVERAGE_LEDGER.json:13155-13173` — `gameplayUse: true`, `currentImplementation`: \"Procedural SceneKit particle emitter in shop; no gameplay ember component\" — requirement preserved despite absent current implementation.\n\n## DEFECT_CLOSEOUT\n- **R5 defect #1** (`completionStatus: APPROVED` false top-level claim): closed at the R6 checkpoint, reconfirmed still closed here.\n- **R5 defect #2** (imprecise paper-row citation copy-pasted onto 10 of 13 rows): the `exactLocation`/`screen`/`currentImplementation` portion was closed at the R6 checkpoint.\n- **R6's own finding** (the identical, uncorrected defect surviving in the parallel `shopRendererPath`/`shop_renderer_path` field on all 13 rows) is now **CLOSED**, verified directly against the corrected bytes in `PAPER_PATH_PARITY` above. No new, third, independent defect was found in this pass.\n- All prior R1–R6 findings (D-1 legacy `ClubShopView.swift`, D-2 font-glyph digits, D-3 procedural shop scene, `effect.nb_flame.embers` gameplay gap) are Phase 1 audit *findings*, not audit defects, and remain correctly `BLOCKED` — not reopened, not closed, unchanged.\n\n## PHASE1_GATE_RULING\n`STATUS: PASS`. The single remaining open item carried forward by R6 — the uncorrected `shopRendererPath`/`shop_renderer_path` field on the 13 paper `.shop` rows — is now verified corrected exactly as R6 prescribed, in both JSON and CSV, with full parity to `exactLocation`/`exact_location`. No other previously-passed count, ID, status, reference, catalog reconciliation, authority adjustment, or completion-state field was found to contradict the prior R1–R6 record, so none of that scope is reopened. Per this task's own instruction, the combined MESHY-001/R1/R2/R3/R4/R5/R6/R7 evidence now satisfies CONTRACT-001 Phase 1, **subject solely to the manager's own model/fingerprint/checksum validation**, which this Read/Grep/Glob-only session cannot itself perform (see `RESOLVED_MODEL`). This finding does not approve any production asset: all 208 ledger rows remain `BLOCKED`; no row is promoted; Phases 2–9 remain open and unstarted.\n\n## KNOWN_LIMITATIONS\n- No Bash/checksum tool is exposed to this session; the manager's `status_sha256`, `diff_sha256`, `content_set_sha256`, and `r7_task_sha256` values supplied in the invocation, as well as the R6-referenced `COVERAGE_LEDGER.json`/`.csv` SHA-256 identities, could not be independently reproduced. All checks above were performed by direct read and line-anchored `Grep`/`Read`, not byte hashing — consistent with this task's framing that byte-level validation is manager-owned.\n- `RESOLVED_MODEL` and `BRANCH` are asserted from preserved evidence (`AGENT_CONTROL_MATRIX.md`, `BASELINE.md`, R6's own embedded `modelUsage`), not freshly re-verified via `git`/harness introspection for *this* run, because no such tool is exposed in this session — the same structural gap disclosed by every prior R1–R6 run.\n- Per this task's narrow scope (\"do not reopen already-passed counts, IDs, statuses, references, catalog reconciliation, source/visual coverage, authority adjustments, or the completion-state correction unless the corrected bytes directly contradict them\"), I did not re-walk the full 208-row ledger's non-paper categories, the eight-view catalog reconciliation, or the reference index beyond confirming no contradictory evidence appeared in the fields sampled here; those remain as validated by R1–R6 and are not reopened.\n- This finding is an audit-gate ruling only, contingent on the manager's own independent checksum/fingerprint reconciliation against the values supplied in the task invocation; if those do not match the bytes read here, this `PASS` does not hold.\n\n## BLOCKERS\n- None prevented completion of this verification.\n- Carried forward unchanged, not newly created here: `docs/meshy-production/BLOCKERS.md` `B-001` remains `RESOLVED`; D-1 (release-reachable legacy `ClubShopView.swift`), D-2 (font-glyph digits, 72 number rows), D-3 (procedural shop scene, 71 environment + 28 display rows), and `effect.nb_flame.embers`'s gameplay-coverage gap remain `BLOCKED` and continue to correctly block Phase 2–9 production start; these are Phase 1 audit *findings*, not defects in the audit itself, and this run does not close, reduce, or reinterpret them.",
+  "ttft_ms": 1707,
+  "ttft_stream_ms": 1111,
+  "time_to_request_ms": 74,
+  "type": "result",
+  "duration_ms": 120702,
+  "uuid": "32ef3eb2-e397-49ef-be3b-1a7d9804ccf7"
+}

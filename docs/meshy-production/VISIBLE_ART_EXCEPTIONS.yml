@@ -1,0 +1,16 @@
+schema_version: 1
+status: locked
+policy: >-
+  Entries allow only narrow interaction-state overlays, invisible hit targets,
+  accessibility, layout, collision, or test instrumentation. They may never
+  replace Meshy-origin art or gameplay digits.
+required_fields:
+  - file
+  - symbol_or_line_scope
+  - purpose
+  - why_not_visible_cosmetic_art
+  - owner
+  - creation_date
+  - expiry_or_review_date
+  - screenshot_or_test_evidence
+entries: []

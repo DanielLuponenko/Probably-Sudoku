@@ -20,7 +20,7 @@ struct GridView: View {
                                     fouled: model.fouledSquares,
                                     greyed: model.greyedSquares)
                 cells(cell: cell)
-                rules(side: side, cell: cell)
+                CosmeticGridRules(skin: theme.board, side: side, cell: cell)
                 clears(side: side, cell: cell)
             }
             .frame(width: side, height: side)
@@ -29,11 +29,11 @@ struct GridView: View {
                     .fill(theme.paper.page)
                     .shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 4)
             }
-            .overlay { Rectangle().strokeBorder(theme.board.bold, lineWidth: theme.board.boldWidth + 0.8) }
         }
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
         .numberReturnMotionFrame(NumberReturnMotionAnchor.grid)
+        .cosmeticPulseClock(for: theme.numbers.finish)
     }
 
     // MARK: Cells
@@ -146,31 +146,6 @@ struct GridView: View {
         .allowsHitTesting(false)
     }
 
-    // MARK: Rules
-    // Hairlines between cells, heavy lines between the nine boxes, and a heavy
-    // border — the way a puzzle book prints it.
-
-    private func rules(side: CGFloat, cell: CGFloat) -> some View {
-        Canvas { context, _ in
-            for i in 1..<9 {
-                let offset = CGFloat(i) * cell
-                var vertical = Path()
-                vertical.move(to: .init(x: offset, y: 0))
-                vertical.addLine(to: .init(x: offset, y: side))
-                var horizontal = Path()
-                horizontal.move(to: .init(x: 0, y: offset))
-                horizontal.addLine(to: .init(x: side, y: offset))
-
-                let heavy = i % 3 == 0
-                let style = GraphicsContext.Shading.color(heavy ? theme.board.bold : theme.board.hair)
-                context.stroke(vertical, with: style,
-                               lineWidth: heavy ? theme.board.boldWidth : theme.board.hairWidth)
-                context.stroke(horizontal, with: style,
-                               lineWidth: heavy ? theme.board.boldWidth : theme.board.hairWidth)
-            }
-        }
-        .allowsHitTesting(false)
-    }
 }
 
 enum CellState {
@@ -301,11 +276,9 @@ private struct CellView: View {
             }
 
             if let digit {
-                Text("\(digit.rawValue)")
-                    .font(theme.numbers.font(size * 0.52, weight: numeralWeight))
-                    .foregroundStyle(inkColor)
-                    .shadow(color: theme.numbers.motion.glow?.opacity(0.75) ?? .clear,
-                            radius: theme.numbers.motion.glow == nil ? 0 : 3)
+                CosmeticNumberGlyph(text: "\(digit.rawValue)", skin: theme.numbers,
+                                    size: size * 0.52, weight: numeralWeight,
+                                    color: inkColor)
                     .transition(reduceMotion ? .identity : placementTransition)
             }
 
@@ -339,11 +312,11 @@ private struct CellView: View {
     private var background: Color {
         switch state {
         case .selected: return theme.board.selected
-        case .sameNumber: return palette.accent.opacity(0.28)
+        case .sameNumber: return theme.board.sameNumber
         case .barred: return theme.board.hair.opacity(0.45)
         case .rightHere: return palette.accent.opacity(0.28)
         case .wrongHere: return palette.danger.opacity(0.24)
-        case .plain: return provenance == .given ? palette.given : .clear
+        case .plain: return provenance == .given ? theme.board.given : .clear
         }
     }
 
@@ -365,6 +338,8 @@ private struct CellView: View {
         case .stencil: return .opacity.combined(with: .scale(scale: 1.05))
         case .neon: return .scale(scale: 0.60).combined(with: .opacity)
         case .handset: return .scale(scale: 0.78).combined(with: .opacity)
+        case .laser: return .scale(scale: 0.68).combined(with: .opacity)
+        case .flame: return .scale(scale: 0.66, anchor: .bottom).combined(with: .opacity)
         }
     }
 

@@ -1,0 +1,21 @@
+{
+  "reviewId": "MESHY-002-R6B-R2",
+  "reviewRunId": "95150695-E2D1-4561-A11B-A54B6C5F84EF",
+  "resultUuid": "a64d279e-7ca1-40f7-b904-ead0b944100e",
+  "canonicalModel": "claude-sonnet-5",
+  "candidateCommit": "7dcfc2dd5ebf8e2dcb5b1beeab7668f1b642bed7",
+  "parentCommit": "e46b3407e9342ca72df8a0aad8db06993e93d68d",
+  "verdict": "FAIL",
+  "reproduced": {"tests": 330, "passes": 330},
+  "blockingFindings": [
+    "Download validation accepts any public HTTPS hostname; no reviewed Meshy output-host allowlist is enforced, and download userinfo/port/fragment are not rejected.",
+    "maxTotalDownloadBytes and allowedDownloadContentTypePrefixes are defined but unused in the real download loop; no cumulative-byte or content-type rejection test exists."
+  ],
+  "requiredCorrections": [
+    "Allow only the current official Meshy output host assets.meshy.ai, fail closed on all others and on unsafe URL components, and revalidate every redirect/DNS answer.",
+    "Enforce cumulative download bytes and format-specific content types in the actual streaming loop with adversarial tests and durable evidence."
+  ],
+  "transcriptPath": "/Users/daniel/.claude/projects/-Users-daniel--codex-worktrees-NumberClub-KAN-153-meshy-002-transport/95150695-E2D1-4561-A11B-A54B6C5F84EF.jsonl",
+  "zeroCredit": true,
+  "readOnlyReview": true
+}

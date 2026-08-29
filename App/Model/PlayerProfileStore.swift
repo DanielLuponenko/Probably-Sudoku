@@ -25,6 +25,12 @@ final class PlayerProfileStore {
     /// Screenshot/test launches with explicit profile arguments must not be
     /// overwritten a moment later by the simulator's cached cloud profile.
     @ObservationIgnored private var hasDebugProfileOverride = false
+    /// `-grantClubCurrency`'s balance. Held off `PlayerProfile` so it cannot
+    /// be encoded, written to disk, or published to CloudSync.
+    @ObservationIgnored private var debugCurrencyOverride: Int?
+    /// Test seam only: observes the v2 equip publish without touching the
+    /// real CloudSync/NSUbiquitousKeyValueStore.
+    @ObservationIgnored var debugPublishEquippedHook: ((EquippedCosmetics, Date) -> Void)?
     #endif
 
     private static var fileURL: URL {
@@ -51,7 +57,12 @@ final class PlayerProfileStore {
 
     // MARK: Reading
 
-    var currency: Int { profile.cosmeticCurrency }
+    var currency: Int {
+        #if DEBUG
+        if let debugCurrencyOverride { return debugCurrencyOverride }
+        #endif
+        return profile.cosmeticCurrency
+    }
 
     var needsFirstRunTutorial: Bool { !profile.hasStartedFirstRunTutorial }
 
@@ -66,7 +77,7 @@ final class PlayerProfileStore {
     }
 
     func canPurchase(_ item: CosmeticItem) -> Bool {
-        !owns(item) && profile.cosmeticCurrency >= item.price
+        !owns(item) && currency >= item.price
     }
 
     func equipped(in category: CosmeticCategory) -> CosmeticItem? {
@@ -90,7 +101,7 @@ final class PlayerProfileStore {
     func earn(_ event: CosmeticRewardEvent) -> Bool {
         guard !profile.rewardedCompletionIDs.contains(event.id) else { return false }
         profile.rewardedCompletionIDs.insert(event.id)
-        profile.cosmeticCurrency += max(0, event.amount)
+        profile.earnedRewardAmounts[event.id] = max(0, event.amount)
         save()
         return true
     }
@@ -102,8 +113,16 @@ final class PlayerProfileStore {
 
     func purchase(_ item: CosmeticItem) throws {
         guard !owns(item) else { throw PurchaseError.alreadyOwned }
-        guard profile.cosmeticCurrency >= item.price else { throw PurchaseError.cannotAfford }
-        profile.cosmeticCurrency -= item.price
+        guard currency >= item.price else { throw PurchaseError.cannotAfford }
+        #if DEBUG
+        if debugCurrencyOverride != nil {
+            debugCurrencyOverride! -= item.price
+            profile.ownedCosmeticIDs.insert(item.id)
+            save()
+            return
+        }
+        #endif
+        profile.purchaseAmounts[item.id] = item.price
         profile.ownedCosmeticIDs.insert(item.id)
         save()
     }
@@ -113,7 +132,23 @@ final class PlayerProfileStore {
         guard owns(item) else { return }
         guard profile.equipped[item.category] != item.id else { return }
         profile.equipped[item.category] = item.id
+        let decisionAt = Date()
+        profile.equippedDecisionAt = decisionAt
         save()
+        publishEquipDecision(decisionAt: decisionAt)
+    }
+
+    /// The only v2 publish path. QA/test choices stay in memory and never
+    /// leak into the shared iCloud key-value store.
+    private func publishEquipDecision(decisionAt: Date) {
+        #if DEBUG
+        guard !hasDebugProfileOverride else { return }
+        if let debugPublishEquippedHook {
+            debugPublishEquippedHook(profile.equipped, decisionAt)
+            return
+        }
+        #endif
+        CloudSync.shared.publish(equipped: profile.equipped, decisionAt: decisionAt)
     }
 
     func startFirstRunTutorial() {
@@ -246,7 +281,27 @@ final class PlayerProfileStore {
         }
     }
 
+    /// Applies a newer choice from the dedicated v2 key without echoing it as
+    /// a new local decision. Ownership arrives on profile.v1 and may race this
+    /// payload; do not commit the clock if normalization had to reject an ID.
+    func applyRemoteEquipped(_ equipped: EquippedCosmetics, decisionAt: Date) {
+        #if DEBUG
+        guard !hasDebugProfileOverride else { return }
+        #endif
+        guard decisionAt > profile.equippedDecisionAt else { return }
+        var candidate = profile
+        candidate.equipped = equipped
+        candidate.normalize()
+        guard candidate.equipped == equipped else { return }
+        profile = candidate
+        profile.equippedDecisionAt = decisionAt
+        save()
+    }
+
     private func save() {
+        #if DEBUG
+        if hasDebugProfileOverride || debugPublishEquippedHook != nil { return }
+        #endif
         profile.lastModifiedAt = Date()
         guard let data = try? JSONEncoder().encode(profile) else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
@@ -265,7 +320,7 @@ final class PlayerProfileStore {
         }
         if let at = arguments.firstIndex(of: "-grantClubCurrency"), at + 1 < arguments.count,
            let amount = Int(arguments[at + 1]) {
-            profile.cosmeticCurrency = amount
+            debugCurrencyOverride = amount
             hasLaunchOverride = true
         }
         if arguments.contains("-unlockAllCosmetics") {
@@ -310,6 +365,13 @@ final class PlayerProfileStore {
     func resetFirstRunTutorial() {
         profile.hasStartedFirstRunTutorial = false
         save()
+    }
+
+    /// Unit-test stand-in for `-grantClubCurrency`; process launch arguments
+    /// cannot be varied inside one test process.
+    func debugApplyCurrencyGrant(_ amount: Int) {
+        debugCurrencyOverride = amount
+        hasDebugProfileOverride = true
     }
     #endif
 }

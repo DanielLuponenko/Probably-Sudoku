@@ -43,3 +43,15 @@ targets:
         SWIFT_VERSION: "5.9"
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  ProbablySudokuTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: ProbablySudoku
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.numberclub.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.9"

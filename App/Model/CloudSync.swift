@@ -12,6 +12,7 @@ final class CloudSync {
 
     private enum Key {
         static let profile = "sync.profile.v1"
+        static let equipped = "sync.equipped.v2"
         static let run = "sync.run.v1"
     }
 
@@ -24,14 +25,17 @@ final class CloudSync {
 
     private let store = NSUbiquitousKeyValueStore.default
     private var profileReceiver: ((PlayerProfile) -> Void)?
+    private var equippedReceiver: ((EquippedCosmetics, Date) -> Void)?
     private var observer: NSObjectProtocol?
 
     private init() {}
 
     /// Safe to call at launch: synchronization is asynchronous and a signed-out
     /// device simply remains local. No UI depends on the outcome.
-    func start(receivingProfiles receiver: @escaping (PlayerProfile) -> Void) {
+    func start(receivingProfiles receiver: @escaping (PlayerProfile) -> Void,
+               receivingEquipped equippedReceiver: @escaping (EquippedCosmetics, Date) -> Void) {
         profileReceiver = receiver
+        self.equippedReceiver = equippedReceiver
         if observer == nil {
             observer = NotificationCenter.default.addObserver(
                 forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
@@ -48,6 +52,13 @@ final class CloudSync {
     func publish(profile: PlayerProfile) {
         guard let data = try? JSONEncoder().encode(profile) else { return }
         publish(data, key: Key.profile, modifiedAt: profile.lastModifiedAt)
+    }
+
+    /// Written only for an explicit local equip decision. Unrelated profile
+    /// saves must never make a stale appearance choice look newer.
+    func publish(equipped: EquippedCosmetics, decisionAt: Date) {
+        guard let data = try? JSONEncoder().encode(equipped) else { return }
+        publish(data, key: Key.equipped, modifiedAt: decisionAt)
     }
 
     func publish(run data: Data?) {
@@ -78,16 +89,28 @@ final class CloudSync {
         profileReceiver?(remote)
     }
 
+    private func deliverRemoteEquipped() {
+        guard let (equipped, decisionAt): (EquippedCosmetics, Date) = readEnvelope(key: Key.equipped)
+        else { return }
+        equippedReceiver?(equipped, decisionAt)
+    }
+
     private func receiveExternalChange() {
         deliverRemoteProfile()
+        deliverRemoteEquipped()
         NotificationCenter.default.post(name: Self.didReceiveExternalChange, object: self)
     }
 
     private func read<T: Decodable>(key: String) -> T? {
+        readEnvelope(key: key)?.0
+    }
+
+    private func readEnvelope<T: Decodable>(key: String) -> (T, Date)? {
         guard let data = store.data(forKey: key),
               let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
-              envelope.schema == Envelope.schema
+              envelope.schema == Envelope.schema,
+              let value = try? JSONDecoder().decode(T.self, from: envelope.payload)
         else { return nil }
-        return try? JSONDecoder().decode(T.self, from: envelope.payload)
+        return (value, envelope.modifiedAt)
     }
 }

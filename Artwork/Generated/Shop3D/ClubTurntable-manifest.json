@@ -1,0 +1,13 @@
+{
+  "asset": "ClubTurntable.usdz",
+  "generator": "Meshy Text-to-3D API",
+  "geometryModel": "Meshy 7 Ultra",
+  "textureModel": "Meshy 7 PBR",
+  "previewTaskID": "01a04a31-dc48-74a3-8818-d38f6ab55499",
+  "refineTaskID": "01a04a33-5e3c-73bb-971e-920c0a57cbce",
+  "sourceTextureResolution": "4k",
+  "runtimeTextureResolution": "2k",
+  "runtimeSHA256": "c3f203e3818a77c7651fc7105c2f8a05b44003a31f6cd6af89ff2ba7ce4f80bd",
+  "runtimeValidation": "usdchecker success",
+  "usage": "Shared decorative turntable fixture. Cosmetic paper, grid, and digit content is rendered by game data above the fixture."
+}
