@@ -179,11 +179,11 @@ private struct PreviewPuzzleBoard: View {
                 .frame(width: side, height: side)
 
                 Rectangle()
-                    .fill(Paper.markerColor(theme.marker.id).opacity(0.28))
+                    .fill(Paper.pencil.opacity(0.28))
                     .frame(width: cell, height: cell)
                     .offset(x: cell * 5, y: cell * 4)
 
-                rules(side: side, cell: cell)
+                CosmeticGridRules(skin: theme.board, side: side, cell: cell)
 
                 RoundedRectangle(cornerRadius: 2)
                     .strokeBorder(Paper.sageDeep.opacity(0.9), lineWidth: 2)
@@ -205,19 +205,16 @@ private struct PreviewPuzzleBoard: View {
             .clipShape(RoundedRectangle(cornerRadius: 5))
         }
         .aspectRatio(1, contentMode: .fit)
-        .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(theme.board.bold, lineWidth: 1.5) }
     }
 
     @ViewBuilder
     private func sampleCell(index: Int) -> some View {
         if let digit = givens[index] {
-            Text("\(digit)")
-                .font(theme.numbers.font(16, weight: .bold))
-                .foregroundStyle(theme.numbers.givenInk)
+            CosmeticNumberGlyph(text: "\(digit)", skin: theme.numbers,
+                                size: 16, weight: .bold, color: theme.numbers.givenInk)
         } else if let digit = placed[index] {
-            Text("\(digit)")
-                .font(theme.numbers.font(16, weight: .medium))
-                .foregroundStyle(theme.numbers.ink)
+            CosmeticNumberGlyph(text: "\(digit)", skin: theme.numbers,
+                                size: 16, weight: .medium, color: theme.numbers.ink)
                 .scaleEffect(index == 35 && !placementShown ? theme.numbers.motion.arrivalScale : 1)
                 .opacity(index == 35 && !placementShown ? 0 : 1)
         } else {
@@ -225,24 +222,6 @@ private struct PreviewPuzzleBoard: View {
         }
     }
 
-    private func rules(side: CGFloat, cell: CGFloat) -> some View {
-        Canvas { context, _ in
-            for step in 1..<9 {
-                let position = CGFloat(step) * cell
-                var vertical = Path()
-                vertical.move(to: .init(x: position, y: 0))
-                vertical.addLine(to: .init(x: position, y: side))
-                var horizontal = Path()
-                horizontal.move(to: .init(x: 0, y: position))
-                horizontal.addLine(to: .init(x: side, y: position))
-                let bold = step.isMultiple(of: 3)
-                context.stroke(vertical, with: .color(bold ? theme.board.bold : theme.board.hair),
-                               lineWidth: bold ? theme.board.boldWidth : theme.board.hairWidth)
-                context.stroke(horizontal, with: .color(bold ? theme.board.bold : theme.board.hair),
-                               lineWidth: bold ? theme.board.boldWidth : theme.board.hairWidth)
-            }
-        }
-    }
 }
 
 private struct PreviewHand: View {
@@ -256,9 +235,8 @@ private struct PreviewHand: View {
                 .foregroundStyle(Paper.inkFaint)
             Spacer(minLength: 0)
             ForEach([3, 6, 9], id: \.self) { digit in
-                Text("\(digit)")
-                    .font(theme.numbers.font(18, weight: .medium))
-                    .foregroundStyle(theme.numbers.ink)
+                CosmeticNumberGlyph(text: "\(digit)", skin: theme.numbers,
+                                    size: 18, weight: .medium, color: theme.numbers.ink)
                     .frame(width: 35, height: 32)
                     .background(theme.paper.warm, in: RoundedRectangle(cornerRadius: 3))
                     .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(theme.board.hair, lineWidth: 1) }

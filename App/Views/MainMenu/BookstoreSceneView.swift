@@ -2,6 +2,15 @@ import SceneKit
 import SwiftUI
 import ProbablySudokuEngine
 
+private final class BookstoreSCNView: SCNView {
+    var onViewportChange: ((CGSize) -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onViewportChange?(bounds.size)
+    }
+}
+
 struct BookstoreSceneView: UIViewRepresentable {
     var phase: BookstoreScenePhase
     var editions: [BookEdition]
@@ -13,6 +22,12 @@ struct BookstoreSceneView: UIViewRepresentable {
     var shopCategory: CosmeticCategory
     var shopItem: CosmeticItem?
     var shopPresentation: BookstoreShopPresentation
+    var shopDragOffset: CGFloat?
+    var counterYaw: Double
+    var counterForward: Double
+    var counterSide: Double
+    var cameraForward: Double
+    var cameraSide: Double
     var reduceMotion: Bool
     var debugCameraPosition: BookstoreDebugCameraPosition?
     var onSelectEdition: (String) -> Void
@@ -32,12 +47,16 @@ struct BookstoreSceneView: UIViewRepresentable {
         // A zero-sized CAMetalLayer can keep a zero drawable after SwiftUI's
         // first layout pass on current iOS runtimes. Seed a real drawable; the
         // GeometryReader immediately resizes it to the device bounds.
-        let view = SCNView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+        let view = BookstoreSCNView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+        view.onViewportChange = { [weak coordinator = context.coordinator] size in
+            coordinator?.updateViewport(size)
+        }
         context.coordinator.install(in: view)
         return view
     }
 
     func updateUIView(_ view: SCNView, context: Context) {
+        context.coordinator.updateViewport(view.bounds.size)
         view.isPlaying = true
         view.setNeedsDisplay()
         context.coordinator.update(
@@ -50,6 +69,12 @@ struct BookstoreSceneView: UIViewRepresentable {
             shopCategory: shopCategory,
             shopItem: shopItem,
             shopPresentation: shopPresentation,
+            shopDragOffset: shopDragOffset,
+            counterYaw: counterYaw,
+            counterForward: counterForward,
+            counterSide: counterSide,
+            cameraForward: cameraForward,
+            cameraSide: cameraSide,
             reduceMotion: reduceMotion,
             debugCameraPosition: debugCameraPosition,
             onSelectEdition: onSelectEdition,

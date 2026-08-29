@@ -1,0 +1,40 @@
+{
+  "reviewId": "MESHY-002-R6A-R2",
+  "reviewRunId": "8AD8AC13-A7F6-48AF-92F7-0822DEBAA4F4",
+  "resultUuid": "8599912b-e855-4efc-9a38-dc1d5ca730ca",
+  "canonicalModel": "claude-sonnet-5",
+  "candidateCommit": "797662876e5628a4ae1fe7934953d32abcd77c1c",
+  "parentCommit": "e46b3407e9342ca72df8a0aad8db06993e93d68d",
+  "verdict": "FAIL",
+  "reproduced": {
+    "tests": 258,
+    "passes": 258,
+    "totalLeaves": 208,
+    "submittable": 127,
+    "awaitingReference": 79,
+    "deadCode": 2,
+    "uniquePrompts": 127,
+    "minimumPromptLength": 224,
+    "maximumPromptLength": 543
+  },
+  "blockingFindings": [
+    {
+      "id": "R6A-R2-B1",
+      "severity": "BLOCKING",
+      "summary": "99 of 127 submittable prompts use negative-form language despite the binding affirmative-prompt requirement; 29 use parenthetical negative exclusions, 8 use 'never', and 1 uses 'without'."
+    },
+    {
+      "id": "R6A-R2-B2",
+      "severity": "BLOCKING",
+      "summary": "No production validator or adversarial test rejects negative-form prompt language, so the author evidence overclaims affirmative compliance."
+    }
+  ],
+  "requiredCorrections": [
+    "Rewrite every affected prompt and re-audit all 127 so each describes only what the asset is in affirmative provider-compatible language.",
+    "Add a production affirmative-prompt validator and adversarial tests covering negative words and equivalent exclusion constructions.",
+    "Regenerate all dependent plan/cost/evidence artifacts and repeat independent review."
+  ],
+  "transcriptPath": "/Users/daniel/.claude/projects/-Users-daniel--codex-worktrees-NumberClub-KAN-153-meshy-002-leafspec/8AD8AC13-A7F6-48AF-92F7-0822DEBAA4F4.jsonl",
+  "zeroCredit": true,
+  "readOnlyReview": true
+}

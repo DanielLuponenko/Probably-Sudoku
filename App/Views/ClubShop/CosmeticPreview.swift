@@ -14,6 +14,7 @@ struct CosmeticPreview: View {
             content
         }
         .frame(width: side, height: side)
+        .environment(\.cosmeticTheme, previewTheme)
         .overlay {
             RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.rule, lineWidth: 1)
         }
@@ -24,20 +25,8 @@ struct CosmeticPreview: View {
     @ViewBuilder
     private var content: some View {
         switch item.category {
-        case .desk:
-            let skin = CosmeticCatalog.desk(item.id)
-            Rectangle().fill(skin.surface)
-                .overlay {
-                    // The corner of a Book, so the wood is seen with paper on it.
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Paper.page)
-                        .frame(width: side * 0.42, height: side * 0.54)
-                        .rotationEffect(.degrees(-6))
-                        .shadow(color: .black.opacity(0.5), radius: 3, y: 2)
-                }
-
         case .paper:
-            let skin = CosmeticCatalog.paper(item.id)
+            let skin = previewTheme.paper
             Rectangle().fill(skin.page)
                 .overlay { PaperGrain(opacity: skin.grain, seed: 5) }
                 .overlay { PaperStockOverlay(treatment: skin.treatment) }
@@ -46,67 +35,29 @@ struct CosmeticPreview: View {
                 }
 
         case .board:
-            let skin = CosmeticCatalog.board(item.id)
-            Canvas { context, size in
-                let cell = size.width / 3
-                for step in 1..<3 {
-                    let offset = cell * CGFloat(step)
-                    var vertical = Path()
-                    vertical.move(to: .init(x: offset, y: 0))
-                    vertical.addLine(to: .init(x: offset, y: size.height))
-                    var horizontal = Path()
-                    horizontal.move(to: .init(x: 0, y: offset))
-                    horizontal.addLine(to: .init(x: size.width, y: offset))
-                    context.stroke(vertical, with: .color(skin.hair), lineWidth: skin.hairWidth)
-                    context.stroke(horizontal, with: .color(skin.hair), lineWidth: skin.hairWidth)
-                }
-                context.stroke(Path(CGRect(origin: .zero, size: size)),
-                               with: .color(skin.bold), lineWidth: skin.boldWidth)
-            }
-            .padding(side * 0.10)
+            let inset = side * 0.10
+            let gridSide = side - inset * 2
+            CosmeticGridRules(skin: previewTheme.board, side: gridSide, cell: gridSide / 9)
 
         case .numbers:
-            let skin = CosmeticCatalog.numbers(item.id)
             ZStack {
-                Canvas { context, size in
-                    let cell = size.width / 3
-                    for step in 1..<3 {
-                        let offset = CGFloat(step) * cell
-                        var vertical = Path()
-                        vertical.move(to: .init(x: offset, y: 0))
-                        vertical.addLine(to: .init(x: offset, y: size.height))
-                        var horizontal = Path()
-                        horizontal.move(to: .init(x: 0, y: offset))
-                        horizontal.addLine(to: .init(x: size.width, y: offset))
-                        context.stroke(vertical, with: .color(Paper.rule), lineWidth: 0.8)
-                        context.stroke(horizontal, with: .color(Paper.rule), lineWidth: 0.8)
-                    }
-                    context.stroke(Path(CGRect(origin: .zero, size: size)),
-                                   with: .color(Paper.gridBold), lineWidth: 1.4)
-                }
-                HStack(spacing: side * 0.14) {
-                    ForEach([6, 8], id: \.self) { digit in
-                        Text("\(digit)")
-                            .font(skin.font(side * 0.34, weight: .semibold))
-                            .foregroundStyle(skin.ink)
-                            .shadow(color: skin.motion.glow?.opacity(0.75) ?? .clear,
-                                    radius: skin.motion.glow == nil ? 0 : 2)
+                let gridSide = side * 0.82
+                CosmeticGridRules(skin: previewTheme.board, side: gridSide, cell: gridSide / 9)
+                    .opacity(0.48)
+                HStack(spacing: side * 0.08) {
+                    ForEach([2, 7, 9], id: \.self) { digit in
+                        CosmeticNumberGlyph(text: "\(digit)", skin: previewTheme.numbers,
+                                            size: side * 0.28, weight: .semibold,
+                                            color: previewTheme.numbers.ink)
                     }
                 }
-            }
-
-        case .marker:
-            let skin = CosmeticCatalog.marker(item.id)
-            ZStack {
-                Capsule()
-                    .fill(skin.tint)
-                    .frame(width: side * 0.16, height: side * 0.66)
-                    .rotationEffect(.degrees(24))
-                Text("7")
-                    .font(Print.handwritten(side * 0.34))
-                    .foregroundStyle(skin.tint)
-                    .offset(x: side * 0.22, y: side * 0.16)
             }
         }
+    }
+
+    private var previewTheme: CosmeticTheme {
+        var loadout = EquippedCosmetics.starting
+        loadout[item.category] = item.id
+        return CosmeticCatalog.theme(for: loadout)
     }
 }

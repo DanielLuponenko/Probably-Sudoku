@@ -1,0 +1,376 @@
+{
+  "schemaVersion": 1,
+  "status": "PHASE1_AUDIT_PASSED",
+  "generatedAt": "2026-08-29T12:41:00+03:00",
+  "governingContractSha256": "473e52da4c5ba2622ed3021f3d08564cc3e563495278e4c6eb228930fdde520c",
+  "auditRunId": "MESHY-001/R1/R2/R3/R4/R5/R6/R7",
+  "auditResultArtifact": "docs/meshy-production/reviews/MESHY-001-R7-CE6572EB-7696-4BDE-8E27-5C90F28FB3BA.json",
+  "auditResultSha256": "c917890ebd3cd048d77edb5e372ed1371654db5159c706516f6788e3af3a960a",
+  "resolvedModel": "claude-sonnet-5",
+  "modelProvider": "firstParty",
+  "auditVerdict": "PASS",
+  "sources": [
+    {
+      "path": "App/Model/CosmeticTheme.swift",
+      "role": "authoritative catalog definitions"
+    },
+    {
+      "path": "App/Model/CosmeticItem.swift",
+      "role": "category, ownership, and equipped-state model"
+    },
+    {
+      "path": "App/Model/PlayerProfileStore.swift",
+      "role": "purchase, ownership, equip, and persistence behavior"
+    },
+    {
+      "path": "App/Views/ClubShop/ClubShopView.swift",
+      "role": "release-reachable legacy flat shop surface"
+    },
+    {
+      "path": "App/Views/MainMenu/BookstoreSceneCoordinator.swift",
+      "role": "current SceneKit bookstore and shop surface"
+    },
+    {
+      "path": "App/Views/CosmeticSkinRendering.swift",
+      "role": "current gameplay paper, grid, and number rendering"
+    },
+    {
+      "path": "docs/meshy-production/reviews/MESHY-001-E3D6C0A1-9B7F-4A2E-B518-7C9D3F6A2401.json",
+      "role": "verified Sonnet partial audit; not a phase pass"
+    }
+  ],
+  "counts": {
+    "catalogProducts": 28,
+    "numberStyles": 8,
+    "requiredDigits": 72,
+    "gridStyles": 7,
+    "paperStyles": 13,
+    "effectPackages": 4,
+    "displayedProducts": 28,
+    "purchasableProducts": 25,
+    "equipableProducts": 28,
+    "persistableProducts": 28,
+    "previewProducts": 28,
+    "gameplayProducts": 28,
+    "localizedProducts": 0,
+    "productsNamedInTests": 6,
+    "shopEnvironmentLeafComponents": 71,
+    "shopEnvironmentRenderedInstances": 1893,
+    "shopDisplayAuditedInputLeafComponents": 43,
+    "shopDisplayUniqueFixtureLeafComponents": 28,
+    "shopDisplayCatalogOverlapLeafComponents": 13,
+    "shopDisplayLeafComponents": 28,
+    "shopDisplayReachableInstances": 101,
+    "shopDisplayDeadCodeLeafComponents": 2,
+    "shopDisplayDeadCodePotentialInstances": 4,
+    "catalogReplacementLeafRows": 107,
+    "deadCodeRemovalRows": 2,
+    "visibleArtRowsRequiringApproval": 206,
+    "totalLeafRows": 208
+  },
+  "catalogs": {
+    "displayed": [
+      "pp_newsprint",
+      "pp_white",
+      "pp_ivory",
+      "pp_manila",
+      "pp_ledger",
+      "pp_graph",
+      "pp_onion",
+      "pp_carbon",
+      "pp_telegram",
+      "pp_garden",
+      "pp_night_sky",
+      "pp_ocean",
+      "pp_utility_roll",
+      "bd_printed",
+      "bd_fine",
+      "bd_heavy",
+      "bd_sage",
+      "bd_blueprint",
+      "bd_gilt",
+      "bd_laser",
+      "nb_press",
+      "nb_typewriter",
+      "nb_schoolbook",
+      "nb_oldstyle",
+      "nb_stencil",
+      "nb_neon",
+      "nb_laser",
+      "nb_flame"
+    ],
+    "purchasable": [
+      "pp_white",
+      "pp_ivory",
+      "pp_manila",
+      "pp_ledger",
+      "pp_graph",
+      "pp_onion",
+      "pp_carbon",
+      "pp_telegram",
+      "pp_garden",
+      "pp_night_sky",
+      "pp_ocean",
+      "pp_utility_roll",
+      "bd_fine",
+      "bd_heavy",
+      "bd_sage",
+      "bd_blueprint",
+      "bd_gilt",
+      "bd_laser",
+      "nb_typewriter",
+      "nb_schoolbook",
+      "nb_oldstyle",
+      "nb_stencil",
+      "nb_neon",
+      "nb_laser",
+      "nb_flame"
+    ],
+    "equipable": [
+      "pp_newsprint",
+      "pp_white",
+      "pp_ivory",
+      "pp_manila",
+      "pp_ledger",
+      "pp_graph",
+      "pp_onion",
+      "pp_carbon",
+      "pp_telegram",
+      "pp_garden",
+      "pp_night_sky",
+      "pp_ocean",
+      "pp_utility_roll",
+      "bd_printed",
+      "bd_fine",
+      "bd_heavy",
+      "bd_sage",
+      "bd_blueprint",
+      "bd_gilt",
+      "bd_laser",
+      "nb_press",
+      "nb_typewriter",
+      "nb_schoolbook",
+      "nb_oldstyle",
+      "nb_stencil",
+      "nb_neon",
+      "nb_laser",
+      "nb_flame"
+    ],
+    "persisted": [
+      "pp_newsprint",
+      "pp_white",
+      "pp_ivory",
+      "pp_manila",
+      "pp_ledger",
+      "pp_graph",
+      "pp_onion",
+      "pp_carbon",
+      "pp_telegram",
+      "pp_garden",
+      "pp_night_sky",
+      "pp_ocean",
+      "pp_utility_roll",
+      "bd_printed",
+      "bd_fine",
+      "bd_heavy",
+      "bd_sage",
+      "bd_blueprint",
+      "bd_gilt",
+      "bd_laser",
+      "nb_press",
+      "nb_typewriter",
+      "nb_schoolbook",
+      "nb_oldstyle",
+      "nb_stencil",
+      "nb_neon",
+      "nb_laser",
+      "nb_flame"
+    ],
+    "preview": [
+      "pp_newsprint",
+      "pp_white",
+      "pp_ivory",
+      "pp_manila",
+      "pp_ledger",
+      "pp_graph",
+      "pp_onion",
+      "pp_carbon",
+      "pp_telegram",
+      "pp_garden",
+      "pp_night_sky",
+      "pp_ocean",
+      "pp_utility_roll",
+      "bd_printed",
+      "bd_fine",
+      "bd_heavy",
+      "bd_sage",
+      "bd_blueprint",
+      "bd_gilt",
+      "bd_laser",
+      "nb_press",
+      "nb_typewriter",
+      "nb_schoolbook",
+      "nb_oldstyle",
+      "nb_stencil",
+      "nb_neon",
+      "nb_laser",
+      "nb_flame"
+    ],
+    "gameplay": [
+      "pp_newsprint",
+      "pp_white",
+      "pp_ivory",
+      "pp_manila",
+      "pp_ledger",
+      "pp_graph",
+      "pp_onion",
+      "pp_carbon",
+      "pp_telegram",
+      "pp_garden",
+      "pp_night_sky",
+      "pp_ocean",
+      "pp_utility_roll",
+      "bd_printed",
+      "bd_fine",
+      "bd_heavy",
+      "bd_sage",
+      "bd_blueprint",
+      "bd_gilt",
+      "bd_laser",
+      "nb_press",
+      "nb_typewriter",
+      "nb_schoolbook",
+      "nb_oldstyle",
+      "nb_stencil",
+      "nb_neon",
+      "nb_laser",
+      "nb_flame"
+    ],
+    "localized": [],
+    "tested": [
+      "pp_white",
+      "pp_ivory",
+      "bd_laser",
+      "bd_gilt",
+      "nb_laser",
+      "nb_flame"
+    ]
+  },
+  "catalogAliases": {
+    "shopCategoryPaper": "paper",
+    "shopCategoryGrid": "board",
+    "shopCategoryNumbers": "numbers"
+  },
+  "effectPackages": [
+    "bd_laser",
+    "nb_neon",
+    "nb_laser",
+    "nb_flame"
+  ],
+  "mismatches": [
+    {
+      "id": "CAT-001",
+      "severity": "SEVERE",
+      "finding": "Two independent displayed-shop surfaces are release reachable: the intended bookstore scene and the flat ClubShopView launch-argument route."
+    },
+    {
+      "id": "CAT-002",
+      "severity": "SEVERE",
+      "finding": "All 28 shop/gameplay catalog visuals currently rely on font, Canvas, Path, gradient, SF Symbol, color, or procedural rendering instead of complete Meshy lineage."
+    },
+    {
+      "id": "CAT-003",
+      "severity": "SEVERE",
+      "finding": "The bookstore environment is predominantly procedural SceneKit geometry; only ClubTurntable.usdz has claimed Meshy lineage, and its provenance is incomplete."
+    },
+    {
+      "id": "CAT-004",
+      "severity": "HIGH",
+      "finding": "No product localization source exists, so localized coverage is 0 of 28."
+    },
+    {
+      "id": "CAT-005",
+      "severity": "HIGH",
+      "finding": "Only 6 of 28 product IDs are named in tests; no test proves full catalog floors, 72 digits, provenance, reachability, or placeholder removal."
+    },
+    {
+      "id": "CAT-006",
+      "severity": "RESOLVED_AUDIT_GAP",
+      "finding": "R1-R7 closed every source, reference, visual-read, count, semantic-overlap, parity, and content-correction gap; the synchronized 208-row ledgers passed the Phase 1 audit gate."
+    },
+    {
+      "id": "CAT-007",
+      "severity": "HIGH",
+      "finding": "The approved mockups demonstrate only 5 paper, 3 grid, and 5 number products, but the real browseable shop must expose 13, 7, and 8 respectively."
+    }
+  ],
+  "proceduralAndPlaceholderPaths": [
+    {
+      "path": "App/Views/CosmeticSkinRendering.swift",
+      "patterns": [
+        "Text glyph merchandise",
+        "Canvas/Path grid",
+        "gradient/glow effects",
+        "SF Symbol flame"
+      ],
+      "status": "REPLACEMENT_REQUIRED"
+    },
+    {
+      "path": "App/Views/BookView.swift",
+      "patterns": [
+        "procedural paper-stock overlay"
+      ],
+      "status": "REPLACEMENT_REQUIRED"
+    },
+    {
+      "path": "App/Views/MainMenu/BookstoreSceneCoordinator.swift",
+      "patterns": [
+        "procedural environment primitives",
+        "SCNText merchandise",
+        "runtime-generated textures",
+        "procedural turntable fallback"
+      ],
+      "status": "REPLACEMENT_REQUIRED"
+    },
+    {
+      "path": "App/Views/ClubShop/ClubShopView.swift",
+      "patterns": [
+        "release-reachable alternate flat shop"
+      ],
+      "status": "REACHABILITY_DECISION_REQUIRED"
+    }
+  ],
+  "visibleInventory": [
+    {
+      "category": "paper",
+      "productCount": 13,
+      "shopProductsRequired": 13,
+      "gameplayPackagesRequired": 13,
+      "browsePositionDenominator": 13
+    },
+    {
+      "category": "board",
+      "productCount": 7,
+      "shopProductsRequired": 7,
+      "gameplayPackagesRequired": 7,
+      "browsePositionDenominator": 7
+    },
+    {
+      "category": "numbers",
+      "productCount": 8,
+      "shopProductsRequired": 8,
+      "digitLeafAssetsRequired": 72,
+      "browsePositionDenominator": 8
+    }
+  ],
+  "notes": [
+    "The actual catalog is authoritative when larger than the remembered or mockup demo floor.",
+    "Required digits equal actual number style count times nine, with a floor of 72.",
+    "No count or row is inferred complete from a neighboring row.",
+    "Repeated 28-ID arrays are intentional: each catalog surface must be reconciled independently.",
+    "The corrected Phase 1 total is 208: 71 environment + 28 unique display fixtures + 107 catalog replacements + 2 dead-code removal rows.",
+    "MESHY-001-R1 exact scene evidence is preserved at docs/meshy-production/reviews/MESHY-001-R1-349D394D-892D-4902-BCE0-C2D340A506FD.json.",
+    "Prior totals 231, 230, 224, and raw R4 209 are superseded by semantic-overlap and authority review recorded in DECISIONS.md D-007.",
+    "Phase 1 passed after MESHY-001-R7 and manager-owned model, checksum, and byte-identical checkout validation; all 208 production rows remain BLOCKED for later phases."
+  ]
+}

@@ -6,6 +6,7 @@ struct BookstoreOpeningView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(PlayerProfileStore.self) private var profile
+    @AppStorage(AppPreferences.Key.haptics) private var haptics = true
     @State private var phase: BookstoreScenePhase
     @State private var selectedIndex = 0
     @State private var turnSerial = 0
@@ -21,6 +22,13 @@ struct BookstoreOpeningView: View {
     @State private var shopPurchaseFeedback = 0
     @State private var shopRefusalFeedback = 0
     @State private var shopMessage: String?
+    @State private var shopMessageGeneration = 0
+    @State private var shopDragOffset: CGFloat?
+    @State private var counterYaw: Double
+    @State private var counterForward: Double
+    @State private var counterSide: Double
+    @State private var cameraForward: Double
+    @State private var cameraSide: Double
 
     private let debugDestination = BookstoreDebugDestination.current
     private let pocketSlots: [[Int?]] = [
@@ -32,7 +40,7 @@ struct BookstoreOpeningView: View {
     private var books: [BookEdition] { BookEdition.shelf }
     private var selectedBook: BookEdition { books[selectedIndex] }
     private var shopCategories: [CosmeticCategory] {
-        CosmeticCategory.allCases.filter { $0 != .marker }
+        CosmeticCategory.allCases
     }
     private var shopItems: [CosmeticItem] {
         CosmeticCatalog.items(in: shopCategory)
@@ -60,16 +68,22 @@ struct BookstoreOpeningView: View {
 
     init(onOpenBook: @escaping (BookEdition, Obstacle) -> Void) {
         self.onOpenBook = onOpenBook
-        var initialCategory: CosmeticCategory = .desk
+        let storedYaw = UserDefaults.standard.object(forKey: "clubShopCounterYawV2") as? Double
+        _counterYaw = State(initialValue: storedYaw ?? 0.20)
+        _counterForward = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCounterForwardV2") as? Double ?? 0)
+        _counterSide = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCounterSideV2") as? Double ?? 0)
+        _cameraForward = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCameraForwardV2") as? Double ?? 0)
+        _cameraSide = State(initialValue: UserDefaults.standard.object(forKey: "clubShopCameraSideV2") as? Double ?? 0)
+        var initialCategory: CosmeticCategory = .paper
         var initialSelections: [CosmeticCategory: String] = [:]
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if let at = arguments.firstIndex(of: "-shopCategory"), at + 1 < arguments.count,
-           let requested = CosmeticCategory(rawValue: arguments[at + 1]), requested != .marker {
+           let requested = CosmeticCategory(rawValue: arguments[at + 1]) {
             initialCategory = requested
         }
         if let at = arguments.firstIndex(of: "-shopItem"), at + 1 < arguments.count,
-           let requested = CosmeticCatalog.item(arguments[at + 1]), requested.category != .marker {
+           let requested = CosmeticCatalog.item(arguments[at + 1]) {
             initialCategory = requested.category
             initialSelections[requested.category] = requested.id
         }
@@ -105,6 +119,12 @@ struct BookstoreOpeningView: View {
                     shopCategory: shopCategory,
                     shopItem: selectedShopItem,
                     shopPresentation: shopPresentation,
+                    shopDragOffset: shopDragOffset,
+                    counterYaw: counterYaw,
+                    counterForward: counterForward,
+                    counterSide: counterSide,
+                    cameraForward: cameraForward,
+                    cameraSide: cameraSide,
                     reduceMotion: reduceMotion,
                     debugCameraPosition: debugCameraPosition,
                     onSelectEdition: selectEdition,
@@ -150,8 +170,10 @@ struct BookstoreOpeningView: View {
                     onBack: returnFromShop,
                     onSelectCategory: selectShopCategory,
                     onBuyOrEquip: { buyOrEquip(selectedShopItem) },
-                    onStepItem: stepShopItem
+                    onStepItem: stepShopItem,
+                    onDragItem: { shopDragOffset = $0 },
                 )
+                .ignoresSafeArea()
                 .transition(.opacity)
                 .zIndex(12)
             }
@@ -402,6 +424,7 @@ struct BookstoreOpeningView: View {
 
     private func returnFromShop() {
         guard phase == .shopping else { return }
+        shopDragOffset = nil
         Haptics.menuOpen()
         phase = .transitioningShopToStore
     }
@@ -424,20 +447,22 @@ struct BookstoreOpeningView: View {
     }
 
     private func selectShopCategory(_ category: CosmeticCategory) {
-        guard category != .marker, shopCategory != category else { return }
+        guard shopCategory != category else { return }
+        shopDragOffset = nil
         shopCategory = category
         if shopItemIDs[category] == nil {
             shopItemIDs[category] = CosmeticCatalog.items(in: category).first?.id
         }
-        shopSelectionFeedback += 1
+        if haptics { shopSelectionFeedback += 1 }
         shopMessage = nil
     }
 
     private func stepShopItem(_ direction: Int) {
         guard !shopItems.isEmpty else { return }
+        shopDragOffset = nil
         let next = (selectedShopIndex + direction + shopItems.count) % shopItems.count
         shopItemIDs[shopCategory] = shopItems[next].id
-        shopSelectionFeedback += 1
+        if haptics { shopSelectionFeedback += 1 }
         shopMessage = nil
     }
 
@@ -446,7 +471,7 @@ struct BookstoreOpeningView: View {
 
         if profile.owns(item) {
             profile.equip(item)
-            shopPurchaseFeedback += 1
+            if haptics { shopPurchaseFeedback += 1 }
             showShopMessage("SET ON YOUR DESK")
             return
         }
@@ -454,19 +479,21 @@ struct BookstoreOpeningView: View {
         do {
             try profile.purchase(item)
             profile.equip(item)
-            shopPurchaseFeedback += 1
+            if haptics { shopPurchaseFeedback += 1 }
             showShopMessage("WRAPPED AND READY")
         } catch {
-            shopRefusalFeedback += 1
+            if haptics { shopRefusalFeedback += 1 }
             showShopMessage("NOT ENOUGH STAMPS")
         }
     }
 
     private func showShopMessage(_ message: String) {
+        shopMessageGeneration += 1
+        let generation = shopMessageGeneration
         shopMessage = message
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.45))
-            if shopMessage == message { shopMessage = nil }
+            if shopMessageGeneration == generation { shopMessage = nil }
         }
     }
 

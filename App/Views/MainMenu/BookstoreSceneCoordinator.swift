@@ -3,6 +3,60 @@ import SwiftUI
 import UIKit
 import ProbablySudokuEngine
 
+/// SceneKit's field of view is vertical; horizontal framing falls out of
+/// vertical FOV combined with the view's aspect ratio, not its point width.
+/// A viewport that is merely smaller while keeping the baseline's aspect
+/// ratio (iPhone mini-class devices) must not be widened just because its
+/// width in points is smaller than the baseline's.
+enum ShopCameraFraming {
+    static let baselineViewport = CGSize(width: 402, height: 874)
+    static let baselineFieldOfView: CGFloat = 42
+
+    private static var baselineAspect: CGFloat {
+        baselineViewport.width / baselineViewport.height
+    }
+
+    /// Widens `heightAdjustedFieldOfView` (the pose after the existing
+    /// short-height overlay-clearance term has already run) only enough to
+    /// keep the horizontal field of view at least as wide as the baseline's,
+    /// when the live usable aspect ratio is narrower than baseline. Wider or
+    /// equal aspects, including baseline itself, pass through unchanged.
+    /// `usableWidth` is the horizontal span actually available for the shop
+    /// composition; callers should subtract any fixed horizontal overlay
+    /// insets from the raw viewport width before calling, rather than
+    /// branching on device identity.
+    static func aspectAwareFieldOfView(
+        heightAdjustedFieldOfView: CGFloat,
+        usableWidth: CGFloat,
+        viewportHeight: CGFloat,
+        ceiling: CGFloat = 58
+    ) -> CGFloat {
+        guard usableWidth > 0, viewportHeight > 0 else {
+            return min(heightAdjustedFieldOfView, ceiling)
+        }
+        let liveAspect = usableWidth / viewportHeight
+        guard liveAspect < baselineAspect else {
+            return min(heightAdjustedFieldOfView, ceiling)
+        }
+        let baselineHalfV = baselineFieldOfView * .pi / 360
+        let baselineHorizontalHalfTan = baselineAspect * tan(baselineHalfV)
+        let neededHalfV = atan(baselineHorizontalHalfTan / liveAspect)
+        let neededFieldOfView = neededHalfV * 360 / .pi
+        return min(max(heightAdjustedFieldOfView, neededFieldOfView), ceiling)
+    }
+}
+
+/// Stable keys for the finite catalog of baked shop sample textures.
+enum ShopSampleTextureCacheKey {
+    static func paperStock(skinID: String, label: String, size: CGSize) -> String {
+        "\(skinID)|\(label)|\(Int(size.width))x\(Int(size.height))"
+    }
+
+    static func gridRule(skinID: String, size: CGSize) -> String {
+        "\(skinID)|\(Int(size.width))x\(Int(size.height))"
+    }
+}
+
 @MainActor
 final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private let scene = SCNScene()
@@ -29,38 +83,51 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var shelfBookGeometries: [String: SCNGeometry] = [:]
     private var shopDrawerNodes: [CosmeticCategory: SCNNode] = [:]
     private var shopSampleNodes: [CosmeticCategory: SCNNode] = [:]
+    private var shopTurntableNodes: [CosmeticCategory: SCNNode] = [:]
+    private var shopTurntableRingMaterials: [CosmeticCategory: SCNMaterial] = [:]
     private var shopSampleBasePositions: [CosmeticCategory: SCNVector3] = [:]
     private var shopPriceMaterials: [CosmeticCategory: SCNMaterial] = [:]
     private var shopDrawerLabelMaterials: [CosmeticCategory: SCNMaterial] = [:]
-    private var shopProductNameText: SCNText?
-    private weak var shopProductNameNode: SCNNode?
-    private var shopProductDetailText: SCNText?
-    private weak var shopProductDetailNode: SCNNode?
-    private var shopBrowseText: SCNText?
-    private weak var shopBrowseNode: SCNNode?
-    private var shopPriceText: SCNText?
-    private weak var shopPriceNode: SCNNode?
-    private var shopActionText: SCNText?
-    private weak var shopActionNode: SCNNode?
-    private var shopActionDetailText: SCNText?
-    private weak var shopActionDetailNode: SCNNode?
-    private var shopActionButtonMaterial: SCNMaterial?
-    private var shopCounterSurfaceMaterial: SCNMaterial?
-    private weak var shopCounterSurfaceNode: SCNNode?
     private var shopNeighborMaterials: [SCNMaterial] = []
     private var shopNeighborNodes: [SCNNode] = []
-    private var shopDeskMaterial: SCNMaterial?
-    private var shopDeskLabelMaterial: SCNMaterial?
-    private var shopDeskGrainNodes: [SCNNode] = []
-    private var shopDeskSeamNodes: [SCNNode] = []
     private var shopPaperMaterial: SCNMaterial?
     private var shopPaperBandMaterial: SCNMaterial?
     private var shopPaperTopMaterial: SCNMaterial?
+    private var shopPaperStackNode: SCNNode?
+    private var shopPaperRollNode: SCNNode?
+    private var shopPaperRollMaterial: SCNMaterial?
+    private var shopPaperIsUtilityRoll = false
     private var shopBoardMaterial: SCNMaterial?
     private var shopBoardRuleMaterial: SCNMaterial?
     private var shopBoardInternalRules: [SCNNode] = []
-    private var shopNumberBodyMaterial: SCNMaterial?
-    private var shopNumberSpecimenMaterial: SCNMaterial?
+    private var shopNumberGlyphNodes: [SCNNode] = []
+    private var shopNumberGlyphMaterials: [SCNMaterial] = []
+    private var shopNumberEffectParticles: SCNParticleSystem?
+    private var shopNumberEffectEmitterNode: SCNNode?
+    private var shopNumberFlameNodes: [SCNNode] = []
+    private var shopNumberFinish: NumberFinish = .press
+    private var shopBoardFinish: BoardFinish = .printed
+    private var shopMeshyTurntablePrototype: SCNNode?
+    private var didLoadShopMeshyTurntable = false
+    private var shopMeshyBoardPrototype: SCNNode?
+    private var didLoadShopMeshyBoard = false
+    private weak var importedShopCounter: SCNNode?
+    private weak var shopBoardShelfNode: SCNNode?
+    private weak var shopBoardDisplayNode: SCNNode?
+    private var importedShopCounterSourceBounds: MeshyAssetBounds?
+    private var importedShopCounterBasePosition: SCNVector3?
+    private var appliedCounterYaw: Double?
+    private var appliedCounterForward: Double?
+    private var appliedCounterSide: Double?
+    private var appliedCameraForward: Double?
+    private var appliedCameraSide: Double?
+    private var cameraForwardOffset: Double = 0
+    private var cameraSideOffset: Double = 0
+    private var shopFlameCrownTextureCache: UIImage?
+    private var shopPaperStockTextureCache: [String: UIImage] = [:]
+    private var shopGridRuleTextureCache: [String: UIImage] = [:]
+    private var shopDustSystem: SCNParticleSystem?
+    private var shopDustEmitterNode: SCNNode?
     private weak var sceneView: SCNView?
 
     private var currentPhase: BookstoreScenePhase?
@@ -68,6 +135,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var lastFocusSerial = -1
     private var selectedIndex = 0
     private var panStartAngle: Float = 0
+    private var boardPanStartAngle: Float = 0
     private var shopPanStartTransform = SCNMatrix4Identity
     private var reduceMotion = false
     private var selectedObstacle: Obstacle = .none
@@ -83,9 +151,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var focusedBook: FocusedBook?
     private var focusGeneration = 0
     private var cameraGeneration = 0
-    private var selectedShopCategory: CosmeticCategory = .desk
+    private var selectedShopCategory: CosmeticCategory = .paper
     private var selectedShopItemID: String?
     private var selectedShopPresentation: BookstoreShopPresentation?
+    private var appliedShopDragOffset: CGFloat?
+    private var viewportSize = CGSize.zero
 
     private struct FocusedBook {
         let id: String
@@ -100,8 +170,19 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let fieldOfView: CGFloat
     }
 
-    // The shop pose turns right from the same open aisle. It keeps the near
-    // shelf outside the frustum while preserving the room around the counter.
+    private struct MeshyAssetBounds {
+        let minimum: SCNVector3
+        let maximum: SCNVector3
+
+        var width: Float { maximum.x - minimum.x }
+        var height: Float { maximum.y - minimum.y }
+        var depth: Float { maximum.z - minimum.z }
+        var centerX: Float { (minimum.x + maximum.x) * 0.5 }
+    }
+
+    // The shop remains a counter on the right side of the same aisle. Its
+    // wider arrival pose frames the complete imported stand, rather than
+    // cropping it into a product close-up.
     private let storePose = CameraPose(
         position: SCNVector3(0, 4.79, 13.65),
         target: SCNVector3(0, 2.44, -7.15),
@@ -113,13 +194,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         fieldOfView: 37
     )
     private let shopPose = CameraPose(
-        // Elevated three-quarter view from the approved mockup. The camera
-        // stops at the customer edge of the sales counter. The counter now
-        // fills the lower frame like furniture in the room instead of reading
-        // as a small merchandise stand viewed from across the aisle.
-        position: SCNVector3(-0.15, 4.60, 12.10),
-        target: SCNVector3(3.72, 2.55, 8.62),
-        fieldOfView: 54
+        position: SCNVector3(-0.78, 4.14, 16.46),
+        target: SCNVector3(2.65, 2.08, 8.62),
+        fieldOfView: 53
     )
     private let standHomeAngle = Float(atan2(1.65, 8.65))
     // Exact fixed pocket map from the approved spinner mockup. Each inner
@@ -176,6 +253,22 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         view.addGestureRecognizer(tap)
     }
 
+    func updateViewport(_ size: CGSize) {
+        guard size.width >= 100, size.height >= 100 else { return }
+        guard abs(size.width - viewportSize.width) > 0.5
+                || abs(size.height - viewportSize.height) > 0.5 else { return }
+        viewportSize = size
+
+        // The approved 402x874 composition is the baseline. Short phones keep
+        // the exact overlay anchors, so widen only the physical camera enough
+        // to keep the samples and their price cards clear of those controls.
+        if currentPhase == .shopping {
+            apply(resolvedShopPose)
+        } else if currentPhase == .transitioningToShop {
+            animateCamera(to: resolvedShopPose, destination: .shopping)
+        }
+    }
+
     func update(
         phase: BookstoreScenePhase,
         selectedEditionID: String,
@@ -186,6 +279,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         shopCategory: CosmeticCategory,
         shopItem: CosmeticItem?,
         shopPresentation: BookstoreShopPresentation,
+        shopDragOffset: CGFloat?,
+        counterYaw: Double,
+        counterForward: Double,
+        counterSide: Double,
+        cameraForward: Double,
+        cameraSide: Double,
         reduceMotion: Bool,
         debugCameraPosition: BookstoreDebugCameraPosition?,
         onSelectEdition: @escaping (String) -> Void,
@@ -197,7 +296,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         onBookFocusChanged: @escaping (String?) -> Void,
         onTransitionFinished: @escaping (BookstoreScenePhase) -> Void
     ) {
+        let motionPreferenceChanged = self.reduceMotion != reduceMotion
         self.reduceMotion = reduceMotion
+        shopDustSystem?.birthRate = reduceMotion ? 0 : 3
         self.onSelectEdition = onSelectEdition
         self.onSelectObstacle = onSelectObstacle
         self.onShowObstacleInfo = onShowObstacleInfo
@@ -231,6 +332,36 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 updateShopPresentation(category: shopCategory, item: shopItem, state: shopPresentation)
             }
         }
+        if appliedShopDragOffset != shopDragOffset {
+            let shouldSnap = appliedShopDragOffset != nil && shopDragOffset == nil
+            appliedShopDragOffset = shopDragOffset
+            updateShopDragOffset(shopDragOffset, shouldSnap: shouldSnap)
+        }
+        if appliedCounterYaw != counterYaw {
+            appliedCounterYaw = counterYaw
+            importedShopCounter?.eulerAngles.y = Float(counterYaw)
+        }
+        if appliedCounterForward != counterForward || appliedCounterSide != counterSide {
+            appliedCounterForward = counterForward
+            appliedCounterSide = counterSide
+            if let basePosition = importedShopCounterBasePosition {
+                importedShopCounter?.position = SCNVector3(
+                    basePosition.x + Float(counterSide),
+                    basePosition.y,
+                    basePosition.z + Float(counterForward)
+                )
+            }
+        }
+        if appliedCameraForward != cameraForward {
+            appliedCameraForward = cameraForward
+            cameraForwardOffset = cameraForward
+            if currentPhase == .shopping { apply(resolvedShopPose) }
+        }
+        if appliedCameraSide != cameraSide {
+            appliedCameraSide = cameraSide
+            cameraSideOffset = cameraSide
+            if currentPhase == .shopping { apply(resolvedShopPose) }
+        }
 
         if let debugCameraPosition {
             cameraNode.removeAllActions()
@@ -263,9 +394,27 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 focusBook(id: focusCommand.editionID)
             }
         }
+        if motionPreferenceChanged {
+            updateShopShowcaseMotion()
+            if reduceMotion {
+                // Birth rate alone leaves already-emitted sparks and the
+                // 7±2-second dust motes moving, so clear both immediately.
+                if let emitterNode = shopNumberEffectEmitterNode,
+                   let sparks = shopNumberEffectParticles {
+                    emitterNode.removeAllParticleSystems()
+                    emitterNode.addParticleSystem(sparks)
+                }
+                if let dustEmitterNode = shopDustEmitterNode,
+                   let dust = shopDustSystem {
+                    dustEmitterNode.removeAllParticleSystems()
+                    dustEmitterNode.addParticleSystem(dust)
+                }
+            }
+        }
     }
 
     private func react(to phase: BookstoreScenePhase) {
+        updateShopShowcaseMotion()
         switch phase {
         case .store:
             setRoomLighting(shopFocused: false, animated: false)
@@ -288,10 +437,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             else { finish() }
         case .transitioningToShop:
             setRoomLighting(shopFocused: true, animated: true)
-            animateCamera(to: shopPose, destination: .shopping)
+            animateCamera(to: resolvedShopPose, destination: .shopping)
         case .shopping:
             setRoomLighting(shopFocused: true, animated: false)
-            apply(shopPose)
+            apply(resolvedShopPose)
         case .transitioningShopToStore:
             setRoomLighting(shopFocused: false, animated: true)
             animateCamera(to: storePose, destination: .store)
@@ -358,8 +507,43 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         case .stand(let progress):
             apply(interpolate(from: storePose, to: standPose, amount: CGFloat(progress)))
         case .shop(let progress):
-            apply(interpolate(from: storePose, to: shopPose, amount: CGFloat(progress)))
+            apply(interpolate(from: storePose, to: resolvedShopPose, amount: CGFloat(progress)))
         }
+    }
+
+    private var resolvedShopPose: CameraPose {
+        guard viewportSize.height >= 100 else { return shopPose }
+        let shortfall = max(0, 760 - viewportSize.height)
+        let heightAdjustedFieldOfView = min(58, shopPose.fieldOfView + shortfall * 0.11)
+        let fieldOfView = ShopCameraFraming.aspectAwareFieldOfView(
+            heightAdjustedFieldOfView: heightAdjustedFieldOfView,
+            usableWidth: viewportSize.width,
+            viewportHeight: viewportSize.height
+        )
+        return CameraPose(
+            position: cameraPosition(forwardOffset: cameraForwardOffset, sideOffset: cameraSideOffset),
+            target: shopPose.target,
+            fieldOfView: fieldOfView
+        )
+    }
+
+    private func cameraPosition(forwardOffset: Double, sideOffset: Double) -> SCNVector3 {
+        let direction = SCNVector3(
+            shopPose.target.x - shopPose.position.x,
+            shopPose.target.y - shopPose.position.y,
+            shopPose.target.z - shopPose.position.z
+        )
+        let length = max(0.001, sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z))
+        let amount = Float(forwardOffset) / length
+        let horizontalLength = max(0.001, sqrt(direction.x * direction.x + direction.z * direction.z))
+        // Keep the look target fixed while moving along the camera's horizontal
+        // right axis, so the player can inspect either side of the counter.
+        let sideAmount = Float(sideOffset) / horizontalLength
+        return SCNVector3(
+            shopPose.position.x + direction.x * amount + direction.z * sideAmount,
+            shopPose.position.y + direction.y * amount,
+            shopPose.position.z + direction.z * amount - direction.x * sideAmount
+        )
     }
 
     private func interpolate(from start: CameraPose, to end: CameraPose, amount: CGFloat) -> CameraPose {
@@ -464,14 +648,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        // A pan's initial velocity is often exactly zero for a deliberate slow
-        // touch (and for simulator drags). Rejecting that value made valid shop
-        // swipes fail before `.changed` could establish direction. The shop has
-        // no vertical scrolling, so let its pan recognizer begin and consume
-        // only horizontal translation in `handleShopProductPan`.
         if currentPhase == .shopping,
-           gestureRecognizer is UIPanGestureRecognizer {
-            return true
+           let pan = gestureRecognizer as? UIPanGestureRecognizer {
+            let velocity = pan.velocity(in: pan.view)
+            // UIKit can report zero before a slow drag establishes direction;
+            // admit that case, but reject gestures already known to be vertical.
+            guard abs(velocity.x) > 0.5 || abs(velocity.y) > 0.5 else { return true }
+            return abs(velocity.x) > abs(velocity.y)
         }
         return true
     }
@@ -505,6 +688,22 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func handleShopProductPan(_ gesture: UIPanGestureRecognizer) {
+        if let board = shopBoardDisplayNode, !board.isHidden {
+            switch gesture.state {
+            case .began:
+                board.removeAction(forKey: "board-auto-spin")
+                boardPanStartAngle = board.presentation.eulerAngles.y
+                board.eulerAngles.y = boardPanStartAngle
+            case .changed:
+                board.eulerAngles.y = boardPanStartAngle + Float(gesture.translation(in: gesture.view).x) * 0.012
+            case .ended, .cancelled, .failed:
+                startBoardAutoRotation()
+            default:
+                break
+            }
+            return
+        }
+
         guard let sample = shopSampleNodes[selectedShopCategory],
               let base = shopSampleBasePositions[selectedShopCategory]
         else { return }
@@ -526,8 +725,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         case .ended, .cancelled, .failed:
             let translation = gesture.translation(in: gesture.view).x
             let velocity = gesture.velocity(in: gesture.view).x
-            if abs(translation) > 34 || abs(velocity) > 430 {
-                onStepShopItem?(translation < 0 || velocity < -430 ? 1 : -1)
+            // A decisive flick wins over the shorter translation accumulated
+            // before release; otherwise use the distance threshold.
+            if abs(velocity) > 430 {
+                onStepShopItem?(velocity < 0 ? 1 : -1)
+            } else if abs(translation) > 34 {
+                onStepShopItem?(translation < 0 ? 1 : -1)
             }
             let move = SCNAction.move(
                 to: SCNVector3(base.x, base.y + 0.16, base.z),
@@ -539,6 +742,42 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             sample.runAction(.group([move, rotate]), forKey: "shop-snap")
         default:
             break
+        }
+    }
+
+    /// SwiftUI owns the transparent merchandise hit band so its visible
+    /// controls remain reliable. Mirror that drag into the selected SceneKit
+    /// sample so the physical object still follows the finger and snaps home.
+    private func updateShopDragOffset(_ offset: CGFloat?, shouldSnap: Bool) {
+        guard currentPhase == .shopping,
+              let sample = shopSampleNodes[selectedShopCategory],
+              let base = shopSampleBasePositions[selectedShopCategory]
+        else { return }
+
+        sample.removeAction(forKey: "shop-snap")
+        if let offset {
+            let clamped = max(-72, min(72, offset))
+            sample.position = SCNVector3(
+                base.x + Float(clamped) * 0.0032,
+                base.y + 0.16,
+                base.z
+            )
+            sample.eulerAngles.z = -Float(clamped) * 0.0022
+        } else if shouldSnap {
+            let move = SCNAction.move(
+                to: SCNVector3(base.x, base.y + 0.16, base.z),
+                duration: reduceMotion ? 0.01 : 0.24
+            )
+            move.timingMode = .easeOut
+            let rotate = SCNAction.rotateTo(
+                x: 0,
+                y: 0,
+                z: 0,
+                duration: reduceMotion ? 0.01 : 0.24,
+                usesShortestUnitArc: true
+            )
+            rotate.timingMode = .easeOut
+            sample.runAction(.group([move, rotate]), forKey: "shop-snap")
         }
     }
 
@@ -601,6 +840,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         for result in view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue]) {
             var node: SCNNode? = result.node
             while let candidate = node {
+                if candidate.name == "shop-board-shelf" {
+                    presentShopBoard()
+                    return
+                }
                 if candidate.name == "shop-action" {
                     onBuyOrEquipShopItem?()
                     return
@@ -614,8 +857,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 if let name = candidate.name,
                    name.hasPrefix("shop-category:"),
                    let raw = name.split(separator: ":").last,
-                   let category = CosmeticCategory(rawValue: String(raw)),
-                   category != .marker {
+                   let category = CosmeticCategory(rawValue: String(raw)) {
                     onSelectShopCategory?(category)
                     return
                 }
@@ -1025,6 +1267,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             }
         }
 
+        if side > 0 {
+            addShopAisleFramingBay(walnut: walnut, trim: trim, dark: dark)
+        }
+
 
         for z in stride(from: -10.8 as Float, through: 13.6, by: 3.15) {
             let labelZ = z + 1.35
@@ -1040,6 +1286,77 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             crown.position = SCNVector3(wallX, 5.93, run.center)
             scene.rootNode.addChildNode(crown)
         }
+    }
+
+    /// The approved shop is still visibly inside the aisle: a slim run of the
+    /// right bookcase crosses the near-left edge of the shop view. Keep this
+    /// bay narrow and behind the cabinet so it supplies depth without putting
+    /// a shelf through the merchandise.
+    private func addShopAisleFramingBay(walnut: SCNMaterial, trim: SCNMaterial,
+                                       dark: SCNMaterial) {
+        let centerZ: Float = 6.45
+        let length: Float = 1.75
+        let back = node(box: SCNVector3(0.24, 5.72, length), material: walnut)
+        back.position = SCNVector3(3.54, 2.90, centerZ)
+        scene.rootNode.addChildNode(back)
+
+        for z in [centerZ - length / 2, centerZ + length / 2] {
+            let upright = node(box: SCNVector3(0.54, 5.86, 0.15), material: trim)
+            upright.position = SCNVector3(3.35, 2.95, z)
+            scene.rootNode.addChildNode(upright)
+        }
+
+        let shelfLevels: [Float] = [0.18, 1.30, 2.42, 3.54, 4.66, 5.73]
+        let railMaterial = material(color: rgb(0x79501C), roughness: 0.42, metalness: 0.56)
+        for y in shelfLevels {
+            let shelf = node(box: SCNVector3(1.02, 0.11, length), material: trim)
+            shelf.position = SCNVector3(3.10, y, centerZ)
+            scene.rootNode.addChildNode(shelf)
+
+            let lip = node(box: SCNVector3(0.09, 0.18, length), material: dark, chamfer: 0.016)
+            lip.position = SCNVector3(2.70, y + 0.025, centerZ)
+            scene.rootNode.addChildNode(lip)
+
+            let rail = node(box: SCNVector3(0.022, 0.026, length), material: railMaterial)
+            rail.position = SCNVector3(2.65, y + 0.095, centerZ)
+            rail.opacity = 0.72
+            scene.rootNode.addChildNode(rail)
+        }
+
+        let colors = [0x5A2A25, 0x2B4438, 0x26374B, 0x86602D, 0x7A6A4D, 0x493129, 0x4E3A57]
+        for level in 0..<5 {
+            let y = 0.76 + Float(level) * 1.12
+            for book in 0..<10 {
+                let thickness = 0.13 + Float((level + book) % 3) * 0.022
+                let height = 0.76 + Float((book * 2 + level) % 4) * 0.06
+                let paletteIndex = (level * 2 + book + 3) % colors.count
+                let bookRoot = SCNNode()
+                bookRoot.position = SCNVector3(2.86, y, centerZ - 0.78 + Float(book) * 0.17)
+                if (level + book).isMultiple(of: 6) { bookRoot.eulerAngles.x = 0.045 }
+
+                let geometry = shelfBookGeometry(
+                    width: 0.46,
+                    height: height,
+                    length: thickness,
+                    paletteIndex: paletteIndex,
+                    roughness: 0.84,
+                    chamfer: 0.014
+                )
+                bookRoot.addChildNode(SCNNode(geometry: geometry))
+
+                let spine = makeShelfSpine(
+                    paletteIndex: paletteIndex,
+                    title: shelfTitles[(level * 7 + book + 9) % shelfTitles.count],
+                    width: thickness * 0.88,
+                    height: height * 0.88
+                )
+                spine.position = SCNVector3(-0.235, 0, 0)
+                spine.eulerAngles.y = -.pi / 2
+                bookRoot.addChildNode(spine)
+                scene.rootNode.addChildNode(bookRoot)
+            }
+        }
+
     }
 
     private func addBackShelves(walnut: SCNMaterial, trim: SCNMaterial, dark: SCNMaterial) {
@@ -1188,22 +1505,41 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let shopWallTrim = woodMaterial(color: rgb(0x604027), roughness: 0.70, repeatX: 2, repeatY: 5)
         let counterGreen = material(color: rgb(0x263D35), roughness: 0.65, metalness: 0.05)
         let brass = material(color: rgb(0x9B6D2E), roughness: 0.34, metalness: 0.72)
-        let ivory = material(color: rgb(0xD8CDB4), roughness: 0.90)
         let darkMetal = material(color: rgb(0x242625), roughness: 0.34, metalness: 0.72)
 
         shopRoot.name = "club-shop-root"
         shopRoot.position = SCNVector3(3.62, 0.16, 8.62)
         shopRoot.eulerAngles.y = -0.62
-        // Preserve real-world proportions. The previous x-only compression
-        // flattened every sample, drawer and lamp into a billboard. Framing
-        // belongs to the camera, not a non-uniform scene transform.
+        // Preserve real-world proportions. Framing belongs to the camera, not
+        // a non-uniform scene transform.
         shopRoot.scale = SCNVector3(0.70, 0.70, 0.70)
         scene.rootNode.addChildNode(shopRoot)
 
-        // Printed shop furniture belongs to the existing recessed bookstore
-        // wall, not to the angled counter. Keeping this root wall-aligned
-        // prevents the entire shop from reading as a rotated imported booth.
-        shopWallRoot.name = "club-shop-wall-fixtures"
+        // Counter-only proof: the user's textured Meshy counter is the
+        // complete shop fixture.  Do not layer our old procedural facade,
+        // products, turntables, or sales cards over it.
+        if let importedCounter = makeMeshyShopCounter() {
+            importedCounter.name = "meshy-club-shop-counter"
+            // Put the high rear cabinet against the alcove wall and keep the
+            // selling face toward the aisle. The room and camera path remain
+            // fixed; only the imported fixture is oriented for its real use.
+            importedCounter.eulerAngles.y = 0.20
+            importedShopCounter = importedCounter
+            importedShopCounterBasePosition = importedCounter.position
+            shopRoot.addChildNode(importedCounter)
+            addBoardHeader(to: importedCounter)
+            addBoardShelf(to: importedCounter)
+            shopRoot.enumerateChildNodes { node, _ in
+                node.categoryBitMask = 1
+                node.castsShadow = true
+            }
+            addImportedShopLighting()
+            return
+        }
+
+        // The recessed bookshelf remains part of the room. The shop's own
+        // backing and printed fixtures are children of shopRoot below.
+        shopWallRoot.name = "club-shop-wall-shelf"
         shopWallRoot.position = SCNVector3(4.30, 0.16, 8.62)
         shopWallRoot.eulerAngles.y = -.pi / 2
         shopWallRoot.scale = SCNVector3(0.70, 0.70, 0.70)
@@ -1211,7 +1547,41 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         addShopWallBox(SCNVector3(5.90, 0.14, 0.68),
                        at: SCNVector3(0, 5.46, 0.32),
                        material: shopWallTrim, chamfer: 0.025)
+        // Continue the high shelf into the receding aisle. The native alcove
+        // previously stopped at the frame edge, leaving a black void where the
+        // approved composition has another dense run of books.
+        addShopWallBox(SCNVector3(4.45, 0.14, 0.68),
+                       at: SCNVector3(-4.94, 5.46, 0.32),
+                       material: shopWallTrim, chamfer: 0.025)
         let wallBookColors = [0x5A2A25, 0x2B4438, 0x26374B, 0x86602D, 0x493129, 0x4E3A57]
+        var recedingBookX: Float = -6.96
+        for index in 0..<15 {
+            let width = 0.23 + Float((index + 1) % 3) * 0.035
+            let height = 0.62 + Float((index * 2 + 1) % 5) * 0.075
+            let paletteIndex = (index + 4) % wallBookColors.count
+            let geometry = shelfBookGeometry(
+                width: width,
+                height: height,
+                length: 0.36,
+                paletteIndex: paletteIndex,
+                roughness: 0.84,
+                chamfer: 0.012
+            )
+            let book = SCNNode(geometry: geometry)
+            book.position = SCNVector3(recedingBookX + width / 2, 5.56 + height / 2, 0.22)
+            if index.isMultiple(of: 6) { book.eulerAngles.z = -0.028 }
+            shopWallRoot.addChildNode(book)
+
+            let spine = makeShelfSpine(
+                paletteIndex: paletteIndex,
+                title: shelfTitles[(index + 2) % shelfTitles.count],
+                width: width * 0.84,
+                height: height * 0.84
+            )
+            spine.position = SCNVector3(recedingBookX + width / 2, 5.56 + height / 2, 0.415)
+            shopWallRoot.addChildNode(spine)
+            recedingBookX += width + 0.035
+        }
         var wallBookX: Float = -2.72
         for index in 0..<18 {
             let width = 0.23 + Float(index % 3) * 0.035
@@ -1239,40 +1609,67 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             wallBookX += width + 0.035
         }
         let previewSurfaceMaterial = counterEdge.copy() as! SCNMaterial
-        shopCounterSurfaceMaterial = previewSurfaceMaterial
+
+        // Keep the approved right edge, but carry the cabinet farther left so
+        // the oblique camera never exposes the detached end of the aisle bay.
+        addShopBox(SCNVector3(4.15, 3.95, 0.42),
+                   at: SCNVector3(-0.25, 2.25, -0.35),
+                   material: counterWood, chamfer: 0.018)
+        for x in stride(from: Float(-2.05), through: 1.55, by: 0.52) {
+            addShopBox(SCNVector3(0.018, 2.45, 0.018),
+                       at: SCNVector3(x, 2.22, -0.125),
+                       material: counterEdge)
+        }
+        for y: Float in [1.18, 3.25] {
+            addShopBox(SCNVector3(4.00, 0.026, 0.025),
+                       at: SCNVector3(-0.25, y, -0.116),
+                       material: counterEdge)
+        }
+        for x: Float in [-2.15, 1.66] {
+            for y: Float in [1.16, 3.28] {
+                let screw = SCNSphere(radius: 0.035)
+                screw.firstMaterial = brass
+                let screwNode = SCNNode(geometry: screw)
+                screwNode.position = SCNVector3(x, y, -0.09)
+                shopRoot.addChildNode(screwNode)
+            }
+        }
+
         let previewSurface = addShopBox(
             SCNVector3(3.98, 0.24, 1.18),
             at: SCNVector3(0, 1.10, 0.08),
             material: previewSurfaceMaterial,
             chamfer: 0.055
         )
-        shopCounterSurfaceNode = previewSurface
         addShopBox(SCNVector3(3.74, 1.18, 0.92), at: SCNVector3(0, 0.43, 0.02), material: counterWood, chamfer: 0.025)
         addShopBox(SCNVector3(3.62, 0.08, 0.82), at: SCNVector3(0, 0.97, 0.08), material: brass)
 
-        addShopWallBox(SCNVector3(3.36, 1.08, 0.08),
-                       at: SCNVector3(0, 4.55, 0.025),
-                       material: shopWallTrim, chamfer: 0.025)
         let sign = printedShopPlane(
             width: 3.22,
             height: 0.94,
             image: shopSignTexture(),
-            position: SCNVector3(0, 4.55, 0.075)
+            // SceneKit depth-tests the panel grooves against coplanar decals;
+            // pull the sign forward just enough to keep its face uninterrupted.
+            position: SCNVector3(0, 3.63, -0.08)
         )
-        sign.opacity = 0.98
-        shopWallRoot.addChildNode(sign)
+        sign.opacity = 1
+        sign.renderingOrder = 2
+        sign.geometry?.firstMaterial?.readsFromDepthBuffer = false
+        sign.geometry?.firstMaterial?.writesToDepthBuffer = false
+        shopRoot.addChildNode(sign)
 
         let notice = printedShopPlane(
             width: 1.20,
             height: 0.45,
             image: shopNoticeTexture(),
-            position: SCNVector3(-0.91, 3.18, 0.05)
+            position: SCNVector3(-0.93, 2.63, -0.09)
         )
         notice.eulerAngles.z = -0.035
         notice.opacity = 0.90
-        shopWallRoot.addChildNode(notice)
-        addShopWallBox(SCNVector3(3.45, 0.032, 0.035),
-                       at: SCNVector3(0, 3.56, 0.06), material: brass)
+        notice.renderingOrder = 3
+        notice.geometry?.firstMaterial?.readsFromDepthBuffer = false
+        notice.geometry?.firstMaterial?.writesToDepthBuffer = false
+        shopRoot.addChildNode(notice)
 
         let hanging: [(String, String, String, UIColor, UIColor)] = [
             ("IVORY", "laid stock", "✦", rgb(0xD8CDB4), rgb(0x51483C)),
@@ -1285,20 +1682,23 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 height: 0.55,
                 image: hangingSampleTexture(title: sample.0, note: sample.1, mark: sample.2,
                                             paper: sample.3, ink: sample.4),
-                position: SCNVector3(0.39 + Float(index) * 0.46, 3.10, 0.06)
+                position: SCNVector3(0.52 + Float(index) * 0.46, 2.50, -0.085)
             )
             paper.eulerAngles.z = Float(index - 1) * 0.045
             paper.opacity = 0.94
-            shopWallRoot.addChildNode(paper)
-            let clip = addShopWallBox(SCNVector3(0.10, 0.06, 0.04),
-                                      at: SCNVector3(0.39 + Float(index) * 0.46, 3.39, 0.09),
-                                      material: brass)
+            paper.renderingOrder = 3
+            paper.geometry?.firstMaterial?.readsFromDepthBuffer = false
+            paper.geometry?.firstMaterial?.writesToDepthBuffer = false
+            shopRoot.addChildNode(paper)
+            let clip = addShopBox(SCNVector3(0.12, 0.07, 0.04),
+                                  at: SCNVector3(0.52 + Float(index) * 0.46, 2.79, -0.045),
+                                  material: brass)
             clip.opacity = 0.92
         }
 
-        let categories: [CosmeticCategory] = [.desk, .paper, .board, .numbers]
-        let drawerXPositions: [Float] = [-1.37, -0.46, 0.46, 1.37]
-        let productXPositions: [Float] = [-1.28, -0.43, 0.43, 1.28]
+        let categories = CosmeticCategory.allCases
+        let drawerXPositions: [Float] = [-1.18, 0, 1.18]
+        let productXPositions: [Float] = [-1.05, 0, 1.05]
         for (index, category) in categories.enumerated() {
             let drawer = SCNNode()
             drawer.name = "shop-category:\(category.rawValue)"
@@ -1313,28 +1713,28 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 material: counterEdge,
                 chamfer: 0.014
             )
-            drawerFace.position = SCNVector3(drawerXPositions[index], 0.22, 0.478)
+            drawerFace.position = SCNVector3(drawerXPositions[index], 0.35, 0.478)
             drawer.addChildNode(drawerFace)
 
             let drawerLabelMaterial = SCNMaterial()
             drawerLabelMaterial.lightingModel = .constant
-            drawerLabelMaterial.diffuse.contents = shopDrawerTexture(category.title.uppercased(), selected: category == .desk)
+            drawerLabelMaterial.diffuse.contents = shopDrawerTexture(category.title.uppercased(), selected: category == .paper)
             drawerLabelMaterial.isDoubleSided = true
             shopDrawerLabelMaterials[category] = drawerLabelMaterial
             let drawerLabelPlane = SCNPlane(width: 0.72, height: 0.23)
             drawerLabelPlane.firstMaterial = drawerLabelMaterial
             let drawerLabel = SCNNode(geometry: drawerLabelPlane)
             drawerLabel.name = "shop-category:\(category.rawValue)"
-            drawerLabel.position = SCNVector3(drawerXPositions[index], 0.20, 0.505)
+            drawerLabel.position = SCNVector3(drawerXPositions[index], 0.45, 0.505)
             drawerLabel.castsShadow = false
             drawer.addChildNode(drawerLabel)
 
             let pull = node(box: SCNVector3(0.22, 0.026, 0.026), material: brass, chamfer: 0.01)
-            pull.position = SCNVector3(drawerXPositions[index], 0.36, 0.55)
+            pull.position = SCNVector3(drawerXPositions[index], 0.24, 0.55)
             drawer.addChildNode(pull)
             for postX: Float in [-0.09, 0.09] {
                 let post = node(box: SCNVector3(0.024, 0.07, 0.035), material: brass, chamfer: 0.008)
-                post.position = SCNVector3(drawerXPositions[index] + postX, 0.33, 0.53)
+                post.position = SCNVector3(drawerXPositions[index] + postX, 0.27, 0.53)
                 drawer.addChildNode(post)
             }
 
@@ -1346,21 +1746,72 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             shopSampleNodes[category] = sample
             shopRoot.addChildNode(sample)
 
-            let plinth = SCNCylinder(radius: 0.38, height: 0.10)
-            plinth.firstMaterial = category == .board
-                ? material(color: rgb(0x718069), roughness: 0.67, metalness: 0.03)
-                : counterGreen
-            let plinthNode = SCNNode(geometry: plinth)
-            plinthNode.position.y = 0.02
-            plinthNode.castsShadow = true
-            sample.addChildNode(plinthNode)
+            if let authoredPlinth = makeMeshyShopTurntable() {
+                sample.addChildNode(authoredPlinth)
+            } else {
+                let plinth = SCNCylinder(radius: 0.38, height: 0.10)
+                plinth.firstMaterial = category == .board
+                    ? material(color: rgb(0x718069), roughness: 0.67, metalness: 0.03)
+                    : counterGreen
+                let plinthNode = SCNNode(geometry: plinth)
+                plinthNode.position.y = 0.02
+                plinthNode.castsShadow = true
+                sample.addChildNode(plinthNode)
+            }
+
+            let turntableColor: UIColor
+            switch category {
+            case .paper: turntableColor = rgb(0x6A5941)
+            case .board: turntableColor = rgb(0x73806C)
+            case .numbers: turntableColor = rgb(0x343B38)
+            }
+            let turntableTop = SCNCylinder(radius: 0.33, height: 0.035)
+            turntableTop.firstMaterial = material(
+                color: turntableColor,
+                roughness: 0.50,
+                metalness: 0.08
+            )
+            let turntableTopNode = SCNNode(geometry: turntableTop)
+            turntableTopNode.position.y = 0.087
+            turntableTopNode.castsShadow = true
+            sample.addChildNode(turntableTopNode)
+
+            // A restrained illuminated brass register ring is the shop's
+            // signature detail: it makes the samples read as working display
+            // turntables without introducing arcade-like glow elsewhere.
+            let ringMaterial = brass.copy() as! SCNMaterial
+            ringMaterial.emission.contents = UIColor.black
+            shopTurntableRingMaterials[category] = ringMaterial
+            let ring = SCNTorus(ringRadius: 0.33, pipeRadius: 0.014)
+            ring.firstMaterial = ringMaterial
+            let ringNode = SCNNode(geometry: ring)
+            ringNode.position.y = 0.108
+            ringNode.castsShadow = false
+            sample.addChildNode(ringNode)
+            for angle in stride(from: Float(0), to: Float.pi * 2, by: Float.pi / 2) {
+                let tick = node(
+                    box: SCNVector3(0.050, 0.012, 0.018),
+                    material: ringMaterial,
+                    chamfer: 0.004
+                )
+                tick.position = SCNVector3(cos(angle) * 0.33, 0.112, sin(angle) * 0.33)
+                tick.eulerAngles.y = -angle
+                tick.castsShadow = false
+                sample.addChildNode(tick)
+            }
+
+            // Keep merchandise rotation isolated from the plinth and price
+            // card. The outer sample node still owns lift, scale and swipe
+            // tilt; this inner pivot owns only the showroom turn.
+            let turntable = SCNNode()
+            turntable.name = "shop-merchandise:\(category.rawValue)"
+            shopTurntableNodes[category] = turntable
+            sample.addChildNode(turntable)
 
             switch category {
-            case .desk: addDeskSample(to: sample)
-            case .paper: addPaperSample(to: sample)
-            case .board: addBoardSample(to: sample)
-            case .numbers: addNumberSample(to: sample, ivory: ivory, metal: darkMetal)
-            case .marker: break
+            case .paper: addPaperSample(to: turntable)
+            case .board: addBoardSample(to: turntable)
+            case .numbers: addNumberSample(to: turntable, metal: darkMetal)
             }
 
             let startingPrice = CosmeticCatalog.items(in: category).first?.price ?? 0
@@ -1379,11 +1830,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
         }
 
-        // The cabinet itself is the interface. Raised type and a register key
-        // replace the oversized printed cards that made the room look like a
-        // background image with another screen pasted over it.
-        addShopCabinetInterface(counterGreen: counterGreen, brass: brass, ivory: ivory)
-
         addShopLamp(brass: brass, darkMetal: darkMetal)
 
         // The environment stays in the room rig. Only the work surface,
@@ -1397,6 +1843,209 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             sample.categoryBitMask = 3
         }
         for neighbor in shopNeighborNodes { neighbor.categoryBitMask = 3 }
+    }
+
+    /// Loads the user's retextured USDZ as the complete physical shop stand.
+    /// The asset is centered on the alcove and its lowest vertex is aligned to
+    /// the existing floor so its feet retain contact shadows.
+    private func makeMeshyShopCounter() -> SCNNode? {
+        if !didLoadShopMeshyTurntable {
+            didLoadShopMeshyTurntable = true
+            if let url = Bundle.main.url(forResource: "ClubTurntable", withExtension: "usdz"),
+               let authoredScene = try? SCNScene(url: url) {
+                let prototype = SCNNode()
+                for child in authoredScene.rootNode.childNodes {
+                    prototype.addChildNode(child.clone())
+                }
+                let (minimum, maximum) = prototype.boundingBox
+                importedShopCounterSourceBounds = MeshyAssetBounds(minimum: minimum, maximum: maximum)
+                let footprint = max(maximum.x - minimum.x, maximum.z - minimum.z)
+                if footprint > 0.0001 {
+                    // This compact one-bay stand intentionally occupies half
+                    // the old three-bay counter width, leaving room around it
+                    // for the player-controlled camera framing.
+                    let scale = 2.65 / footprint
+                    prototype.scale = SCNVector3(scale, scale, scale)
+                    prototype.position = SCNVector3(
+                        -(minimum.x + maximum.x) * 0.5 * scale,
+                        -minimum.y * scale,
+                        -(minimum.z + maximum.z) * 0.5 * scale
+                    )
+                }
+                prototype.enumerateChildNodes { node, _ in
+                    node.castsShadow = true
+                    node.geometry?.materials.forEach { material in
+                        material.lightingModel = .physicallyBased
+                        material.roughness.intensity = max(0.32, material.roughness.intensity)
+                    }
+                }
+                shopMeshyTurntablePrototype = prototype
+            }
+        }
+        return shopMeshyTurntablePrototype?.clone()
+    }
+
+    private func makeMeshyShopBoard(targetLargestDimension: Float) -> SCNNode? {
+        if !didLoadShopMeshyBoard {
+            didLoadShopMeshyBoard = true
+            if let url = Bundle.main.url(forResource: "ClubShopBoard", withExtension: "usdz"),
+               let authoredScene = try? SCNScene(url: url) {
+                let prototype = SCNNode()
+                for child in authoredScene.rootNode.childNodes {
+                    prototype.addChildNode(child.clone())
+                }
+                let (minimum, maximum) = prototype.boundingBox
+                let largest = max(maximum.x - minimum.x, maximum.y - minimum.y, maximum.z - minimum.z)
+                if largest > 0.0001 {
+                    let scale = targetLargestDimension / largest
+                    prototype.scale = SCNVector3(scale, scale, scale)
+                    prototype.position = SCNVector3(
+                        -(minimum.x + maximum.x) * 0.5 * scale,
+                        -minimum.y * scale,
+                        -(minimum.z + maximum.z) * 0.5 * scale
+                    )
+                }
+                prototype.enumerateChildNodes { node, _ in
+                    node.castsShadow = true
+                    node.renderingOrder = 20
+                    node.geometry?.materials.forEach { material in
+                        material.lightingModel = .physicallyBased
+                        material.isDoubleSided = true
+                        material.readsFromDepthBuffer = false
+                    }
+                }
+                shopMeshyBoardPrototype = prototype
+            }
+        }
+        return shopMeshyBoardPrototype?.clone()
+    }
+
+    private func addBoardHeader(to counter: SCNNode) {
+        guard let bounds = importedShopCounterSourceBounds else { return }
+        // Keep the title comfortably inside the actual brass-framed plaque.
+        let targetTextWidth = bounds.width * 0.16
+        let headerY = bounds.minimum.y + bounds.height * 0.82
+        let offset = max(bounds.depth * 0.025, 0.02)
+
+        for z in [bounds.minimum.z - offset, bounds.maximum.z + offset] {
+            let geometry = SCNText(
+                string: "Board",
+                extrusionDepth: CGFloat(max(bounds.width * 0.004, 0.008))
+            )
+            geometry.font = UIFont(name: "Georgia-Bold", size: 1) ?? .boldSystemFont(ofSize: 1)
+            geometry.alignmentMode = CATextLayerAlignmentMode.center.rawValue
+            geometry.flatness = 0.18
+            let material = SCNMaterial()
+            material.lightingModel = .physicallyBased
+            material.diffuse.contents = UIColor(red: 0.89, green: 0.72, blue: 0.37, alpha: 1)
+            material.metalness.contents = 0.7
+            material.roughness.contents = 0.34
+            geometry.materials = [material]
+
+            let text = SCNNode(geometry: geometry)
+            let textBounds = geometry.boundingBox
+            let textWidth = max(textBounds.max.x - textBounds.min.x, 0.001)
+            let scale = targetTextWidth / textWidth
+            text.scale = SCNVector3(scale, scale, scale)
+            text.position = SCNVector3(
+                bounds.centerX - (textBounds.min.x + textBounds.max.x) * 0.5 * scale,
+                headerY - (textBounds.min.y + textBounds.max.y) * 0.5 * scale,
+                z
+            )
+            let faceCamera = SCNBillboardConstraint()
+            faceCamera.freeAxes = .Y
+            text.constraints = [faceCamera]
+            counter.addChildNode(text)
+        }
+    }
+
+    private func addBoardShelf(to counter: SCNNode) {
+        guard let bounds = importedShopCounterSourceBounds,
+              let shelfBoard = makeMeshyShopBoard(targetLargestDimension: bounds.width * 0.28),
+              let displayBoard = makeMeshyShopBoard(targetLargestDimension: bounds.width * 0.42)
+        else { return }
+
+        let frontZ = bounds.minimum.z - max(bounds.depth * 0.50, 0.12)
+        shelfBoard.name = "shop-board-shelf"
+        shelfBoard.position = SCNVector3(
+            bounds.minimum.x + bounds.width * 0.25,
+            // The board rests against the backing, with its lower edge on
+            // the left half of the narrow display shelf.
+            bounds.minimum.y + bounds.height * 0.70,
+            frontZ
+        )
+        let facePlayer = SCNBillboardConstraint()
+        shelfBoard.constraints = [facePlayer]
+        counter.addChildNode(shelfBoard)
+        shopBoardShelfNode = shelfBoard
+
+        displayBoard.name = "shop-board-display"
+        displayBoard.position = SCNVector3(
+            bounds.centerX,
+            bounds.minimum.y + bounds.height * 0.40,
+            frontZ
+        )
+        displayBoard.isHidden = true
+        counter.addChildNode(displayBoard)
+        shopBoardDisplayNode = displayBoard
+    }
+
+    private func presentShopBoard() {
+        guard let shelfBoard = shopBoardShelfNode, let displayBoard = shopBoardDisplayNode else { return }
+        shelfBoard.isHidden = true
+        displayBoard.isHidden = false
+        displayBoard.opacity = 0
+        displayBoard.runAction(.fadeIn(duration: reduceMotion ? 0.01 : 0.22), forKey: "board-reveal")
+        startBoardAutoRotation()
+    }
+
+    private func startBoardAutoRotation() {
+        guard let displayBoard = shopBoardDisplayNode else { return }
+        displayBoard.removeAction(forKey: "board-auto-spin")
+        guard !reduceMotion else { return }
+        let turn = SCNAction.rotateBy(x: 0, y: .pi * 2, z: 0, duration: 18)
+        displayBoard.runAction(.repeatForever(turn), forKey: "board-auto-spin")
+    }
+
+    // Kept only for the unreachable procedural fallback below. The
+    // counter-only path returns before that legacy product construction.
+    private func makeMeshyShopTurntable() -> SCNNode? {
+        makeMeshyShopCounter()
+    }
+
+    private func addImportedShopLighting() {
+        let target = SCNNode()
+        target.position = SCNVector3(3.60, 2.05, 8.62)
+        scene.rootNode.addChildNode(target)
+
+        let key = SCNLight()
+        key.type = .spot
+        key.color = UIColor(red: 1, green: 0.83, blue: 0.60, alpha: 1)
+        key.intensity = 420
+        key.attenuationStartDistance = 1
+        key.attenuationEndDistance = 12
+        key.spotInnerAngle = 42
+        key.spotOuterAngle = 78
+        key.castsShadow = false
+        let keyNode = SCNNode()
+        keyNode.light = key
+        keyNode.position = SCNVector3(0.75, 5.80, 13.15)
+        let keyLook = SCNLookAtConstraint(target: target)
+        keyLook.isGimbalLockEnabled = true
+        keyNode.constraints = [keyLook]
+        scene.rootNode.addChildNode(keyNode)
+
+        let fill = SCNLight()
+        fill.type = .omni
+        fill.color = UIColor(red: 0.72, green: 0.83, blue: 0.92, alpha: 1)
+        fill.intensity = 105
+        fill.attenuationStartDistance = 1
+        fill.attenuationEndDistance = 9
+        fill.castsShadow = false
+        let fillNode = SCNNode()
+        fillNode.light = fill
+        fillNode.position = SCNVector3(5.65, 3.35, 10.10)
+        scene.rootNode.addChildNode(fillNode)
     }
 
     @discardableResult
@@ -1459,11 +2108,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             let colour: UIColor
             if let item {
                 switch item.category {
-                case .desk: colour = UIColor(CosmeticCatalog.desk(item.id).light)
                 case .paper: colour = UIColor(CosmeticCatalog.paper(item.id).page)
                 case .board: colour = UIColor(CosmeticCatalog.board(item.id).given)
                 case .numbers: colour = UIColor(CosmeticCatalog.numbers(item.id).givenInk)
-                case .marker: colour = rgb(0x6A6051)
                 }
             } else {
                 colour = rgb(0x82745E)
@@ -1543,137 +2190,33 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         return face
     }
 
-    private func addShopCabinetInterface(counterGreen: SCNMaterial, brass: SCNMaterial,
-                                         ivory: SCNMaterial) {
-        let cream = rgb(0xE8DDC5)
-        let muted = rgb(0xBCA98A)
-
-        let name = raisedShopText("WALNUT", color: cream, scale: 0.22,
-                                  position: SCNVector3(-0.72, 0.76, 0.515))
-        shopProductNameText = name.text
-        shopProductNameNode = name.node
-
-        let detail = raisedShopText("OWNED · EQUIPPED", color: muted, scale: 0.085,
-                                    position: SCNVector3(-0.72, 0.55, 0.518))
-        shopProductDetailText = detail.text
-        shopProductDetailNode = detail.node
-
-        let browse = raisedShopText("‹  1 OF 4 · SWIPE  ›", color: muted, scale: 0.075,
-                                    position: SCNVector3(-0.72, 0.39, 0.518))
-        shopBrowseText = browse.text
-        shopBrowseNode = browse.node
-
-        let actionMaterial = counterGreen.copy() as! SCNMaterial
-        shopActionButtonMaterial = actionMaterial
-        let action = addShopBox(
-            SCNVector3(0.88, 0.54, 0.11),
-            at: SCNVector3(0.98, 0.64, 0.575),
-            material: actionMaterial,
-            chamfer: 0.035
-        )
-        action.name = "shop-action"
-        for x: Float in [-0.37, 0.37] {
-            for y: Float in [-0.20, 0.20] {
-                let pin = SCNSphere(radius: 0.016)
-                pin.firstMaterial = brass
-                let pinNode = SCNNode(geometry: pin)
-                pinNode.position = SCNVector3(x, y, 0.063)
-                action.addChildNode(pinNode)
-            }
-        }
-        let actionTitle = raisedShopText("EQUIPPED", color: cream, scale: 0.13,
-                                         position: SCNVector3(0.98, 0.68, 0.648))
-        shopActionText = actionTitle.text
-        shopActionNode = actionTitle.node
-        let actionDetail = raisedShopText("PERMANENT", color: muted, scale: 0.065,
-                                          position: SCNVector3(0.98, 0.49, 0.650))
-        shopActionDetailText = actionDetail.text
-        shopActionDetailNode = actionDetail.node
-    }
-
-    private func raisedShopText(_ value: String, color: UIColor, scale: Float,
-                                position: SCNVector3) -> (node: SCNNode, text: SCNText) {
-        let text = SCNText(string: value, extrusionDepth: 0.025)
-        text.font = UIFont(name: "AvenirNextCondensed-DemiBold", size: 1)
-            ?? .systemFont(ofSize: 1, weight: .semibold)
-        text.flatness = 0.025
-        let face = material(color: color, roughness: 0.58, metalness: 0.04)
-        text.materials = [face]
-        let node = SCNNode(geometry: text)
-        node.scale = SCNVector3(scale, scale, scale)
-        node.position = position
-        centerShopTextNode(node)
-        node.castsShadow = false
-        shopRoot.addChildNode(node)
-        return (node, text)
-    }
-
-    private func setShopText(_ value: String, text: SCNText?, node: SCNNode?) {
-        guard let text, let node else { return }
-        text.string = value
-        centerShopTextNode(node)
-    }
-
-    private func centerShopTextNode(_ node: SCNNode) {
-        let bounds = node.boundingBox
-        node.pivot = SCNMatrix4MakeTranslation(
-            (bounds.min.x + bounds.max.x) * 0.5,
-            (bounds.min.y + bounds.max.y) * 0.5,
-            0
-        )
-    }
-
-    private func addDeskSample(to sample: SCNNode) {
-        let sampleMaterial = material(color: rgb(0x7B5137), roughness: 0.72).copy() as! SCNMaterial
-        sampleMaterial.diffuse.contents = woodTexture(base: rgb(0x7B5137))
-        sampleMaterial.diffuse.wrapS = .repeat
-        sampleMaterial.diffuse.wrapT = .repeat
-        sampleMaterial.diffuse.contentsTransform = SCNMatrix4MakeScale(1.15, 1.8, 1)
-        shopDeskMaterial = sampleMaterial
-        let slab = node(box: SCNVector3(0.57, 0.74, 0.13), material: sampleMaterial, chamfer: 0.025)
-        slab.position.y = 0.44
-        slab.eulerAngles.z = -0.08
-        sample.addChildNode(slab)
-
-        let grainMaterial = material(color: rgb(0x2D1A12), roughness: 0.82)
-        for (index, y) in [-0.24 as Float, -0.12, 0, 0.12, 0.24].enumerated() {
-            let grain = node(box: SCNVector3(index.isMultiple(of: 2) ? 0.49 : 0.42, 0.012, 0.008),
-                             material: grainMaterial)
-            grain.position = SCNVector3(index.isMultiple(of: 2) ? -0.012 : 0.025, y, 0.071)
-            grain.opacity = 0.22
-            slab.addChildNode(grain)
-            shopDeskGrainNodes.append(grain)
-        }
-        let seamMaterial = material(color: rgb(0xAFC1B0), roughness: 0.95)
-        for x: Float in [-0.19, 0, 0.19] {
-            let seam = node(box: SCNVector3(0.010, 0.62, 0.008), material: seamMaterial)
-            seam.position = SCNVector3(x, 0, 0.071)
-            seam.opacity = 0
-            slab.addChildNode(seam)
-            shopDeskSeamNodes.append(seam)
-        }
-    }
-
     private func addPaperSample(to sample: SCNNode) {
         let paperMaterial = material(color: rgb(0xD8CDB4), roughness: 0.90)
         shopPaperMaterial = paperMaterial
+        let stack = SCNNode()
+        shopPaperStackNode = stack
+        sample.addChildNode(stack)
         for pageIndex in 0..<6 {
             let page = node(box: SCNVector3(0.58, 0.025, 0.72), material: paperMaterial, chamfer: 0.008)
             page.position = SCNVector3(pageIndex.isMultiple(of: 2) ? -0.006 : 0.006,
                                        0.12 + Float(pageIndex) * 0.035, 0)
             page.eulerAngles.y = (Float(pageIndex) - 2.5) * 0.015
-            sample.addChildNode(page)
+            stack.addChildNode(page)
         }
         let bandMaterial = material(color: rgb(0x806D50), roughness: 0.74)
         shopPaperBandMaterial = bandMaterial
         let band = node(box: SCNVector3(0.16, 0.23, 0.75), material: bandMaterial)
         band.position.y = 0.23
-        sample.addChildNode(band)
+        stack.addChildNode(band)
 
         let topMaterial = SCNMaterial()
         topMaterial.lightingModel = .constant
         topMaterial.isDoubleSided = true
-        topMaterial.diffuse.contents = paperSampleTexture(name: "IVORY", paper: rgb(0xF1EBDD), ink: rgb(0x51483C))
+        topMaterial.diffuse.contents = paperStockTexture(
+            skin: CosmeticCatalog.paper("pp_ivory"),
+            label: "IVORY",
+            size: CGSize(width: 520, height: 640)
+        )
         shopPaperTopMaterial = topMaterial
         let topPage = SCNPlane(width: 0.52, height: 0.64)
         topPage.firstMaterial = topMaterial
@@ -1681,7 +2224,31 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         topPageNode.eulerAngles.x = -0.82
         topPageNode.position = SCNVector3(0, 0.50, 0.02)
         topPageNode.castsShadow = false
-        sample.addChildNode(topPageNode)
+        stack.addChildNode(topPageNode)
+
+        let roll = SCNNode()
+        roll.isHidden = true
+        shopPaperRollNode = roll
+        sample.addChildNode(roll)
+        let rollMaterial = material(color: rgb(0xF3F0E6), roughness: 0.94)
+        shopPaperRollMaterial = rollMaterial
+        let tube = SCNTube(innerRadius: 0.075, outerRadius: 0.255, height: 0.48)
+        tube.radialSegmentCount = 48
+        tube.heightSegmentCount = 3
+        tube.firstMaterial = rollMaterial
+        let tubeNode = SCNNode(geometry: tube)
+        tubeNode.eulerAngles.z = .pi / 2
+        tubeNode.position = SCNVector3(0, 0.42, 0)
+        tubeNode.castsShadow = true
+        roll.addChildNode(tubeNode)
+
+        let tail = SCNPlane(width: 0.44, height: 0.46)
+        tail.firstMaterial = topMaterial
+        let tailNode = SCNNode(geometry: tail)
+        tailNode.position = SCNVector3(0, 0.25, 0.245)
+        tailNode.eulerAngles.x = -0.10
+        tailNode.castsShadow = false
+        roll.addChildNode(tailNode)
     }
 
     private func addBoardSample(to sample: SCNNode) {
@@ -1707,20 +2274,27 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             edgeNode.position = edge.1
             sample.addChildNode(edgeNode)
         }
-        for line in 0..<2 {
-            let offset = (Float(line) - 0.5) * 0.186
-            let vertical = node(box: SCNVector3(0.018, 0.56, 0.012), material: ruleMaterial)
-            vertical.position = SCNVector3(offset, 0.42, 0.050)
-            vertical.name = "shop-grid-vertical"
-            sample.addChildNode(vertical)
-            shopBoardInternalRules.append(vertical)
-
-            let horizontal = node(box: SCNVector3(0.56, 0.018, 0.012), material: ruleMaterial)
-            horizontal.position = SCNVector3(0, 0.42 + offset, 0.050)
-            horizontal.name = "shop-grid-horizontal"
-            sample.addChildNode(horizontal)
-            shopBoardInternalRules.append(horizontal)
-        }
+        // Bake the shared gameplay renderer so the showroom has the real 9x9
+        // rule spacing, box weights, dashes and optical finish instead of a
+        // symbolic pair of bars.
+        let gridMaterial = SCNMaterial()
+        gridMaterial.lightingModel = .constant
+        gridMaterial.isDoubleSided = true
+        gridMaterial.diffuse.contents = gridRuleTexture(
+            skin: CosmeticCatalog.board("bd_printed"),
+            size: CGSize(width: 640, height: 640)
+        )
+        gridMaterial.transparency = 1
+        gridMaterial.transparencyMode = .aOne
+        gridMaterial.blendMode = .alpha
+        gridMaterial.writesToDepthBuffer = false
+        let gridPlane = SCNPlane(width: 0.60, height: 0.60)
+        gridPlane.firstMaterial = gridMaterial
+        let gridPlaneNode = SCNNode(geometry: gridPlane)
+        gridPlaneNode.position = SCNVector3(0, 0.42, 0.045)
+        gridPlaneNode.castsShadow = false
+        sample.addChildNode(gridPlaneNode)
+        shopBoardInternalRules = [gridPlaneNode]
 
         let givens: [(String, Float, Float)] = [
             ("7", -0.19, 0.61), ("2", 0.19, 0.61),
@@ -1740,49 +2314,113 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
     }
 
-    private func addNumberSample(to sample: SCNNode, ivory: SCNMaterial, metal: SCNMaterial) {
-        let bodyMaterial = metal.copy() as? SCNMaterial ?? metal
-        shopNumberBodyMaterial = bodyMaterial
-        let body = node(box: SCNVector3(0.72, 0.30, 0.54), material: bodyMaterial, chamfer: 0.045)
-        body.position.y = 0.23
-        sample.addChildNode(body)
-        let keyMaterial = ivory.copy() as? SCNMaterial ?? ivory
-        keyMaterial.lightingModel = .constant
-        keyMaterial.diffuse.contents = rgb(0xE7DDC8)
-        for row in 0..<2 {
-            for column in 0..<3 {
-                let keycap = SCNCylinder(radius: 0.072, height: 0.052)
-                keycap.firstMaterial = keyMaterial
-                let key = SCNNode(geometry: keycap)
-                key.eulerAngles.x = .pi / 2
-                key.position = SCNVector3(-0.21 + Float(column) * 0.21,
-                                           0.34 + Float(row) * 0.14, 0.29)
-                sample.addChildNode(key)
+    private func addNumberSample(to sample: SCNNode, metal: SCNMaterial) {
+        // The merchandise is the number itself. Three freestanding, extruded
+        // glyphs replace the former typewriter/keycap prop, which falsely sold
+        // a machine instead of the in-game numeral treatment.
+        let rail = node(box: SCNVector3(0.66, 0.055, 0.16), material: metal, chamfer: 0.018)
+        rail.position = SCNVector3(0, 0.14, 0)
+        sample.addChildNode(rail)
 
-                let digit = String(row * 3 + column + 1)
-                let digitMaterial = SCNMaterial()
-                digitMaterial.lightingModel = .constant
-                digitMaterial.diffuse.contents = shopGlyphTexture(digit, ink: rgb(0x38342E))
-                digitMaterial.isDoubleSided = true
-                let digitPlane = SCNPlane(width: 0.082, height: 0.082)
-                digitPlane.firstMaterial = digitMaterial
-                let digitNode = SCNNode(geometry: digitPlane)
-                digitNode.position = SCNVector3(key.position.x, key.position.y, 0.323)
-                digitNode.castsShadow = false
-                sample.addChildNode(digitNode)
-            }
+        // One cached flame texture is shared by every glyph. The turntable is
+        // only the fixture; the merchandise remains the literal digit.
+        let flameMaterial = SCNMaterial()
+        flameMaterial.lightingModel = .constant
+        flameMaterial.diffuse.contents = flameCrownTexture(size: CGSize(width: 200, height: 240))
+        flameMaterial.isDoubleSided = true
+        flameMaterial.transparency = 1
+        flameMaterial.transparencyMode = .aOne
+        flameMaterial.blendMode = .add
+        flameMaterial.writesToDepthBuffer = false
+
+        var lastGlyphTop: Float = 0
+        for (index, digit) in ["2", "7", "9"].enumerated() {
+            let glyphMaterial = material(color: rgb(0x34312B), roughness: 0.42, metalness: 0.08)
+            glyphMaterial.emission.contents = UIColor.black
+            shopNumberGlyphMaterials.append(glyphMaterial)
+
+            let glyph = SCNText(string: digit, extrusionDepth: 2.8)
+            glyph.font = numberUIFont(for: .press, size: 100)
+            glyph.flatness = 0.12
+            glyph.chamferRadius = 0.65
+            glyph.chamferProfile = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: 1, height: 1))
+            glyph.materials = [glyphMaterial]
+
+            let glyphNode = SCNNode(geometry: glyph)
+            glyphNode.scale = SCNVector3(0.0035, 0.0035, 0.0035)
+            glyphNode.position = SCNVector3(-0.22 + Float(index) * 0.22, 0.19, 0.01)
+            glyphNode.castsShadow = true
+            centerShopGlyph(glyphNode)
+            sample.addChildNode(glyphNode)
+            shopNumberGlyphNodes.append(glyphNode)
+
+            let (glyphMin, glyphMax) = glyphNode.boundingBox
+            let glyphTop = glyphNode.position.y + (glyphMax.y - glyphMin.y) * glyphNode.scale.y
+            lastGlyphTop = glyphTop
+            let flamePlane = SCNPlane(width: 0.22, height: 0.30)
+            flamePlane.firstMaterial = flameMaterial
+            let flameNode = SCNNode(geometry: flamePlane)
+            flameNode.position = SCNVector3(
+                glyphNode.position.x,
+                glyphTop + 0.03,
+                glyphNode.position.z + 0.045
+            )
+            flameNode.renderingOrder = 5
+            let billboard = SCNBillboardConstraint()
+            billboard.freeAxes = .Y
+            flameNode.constraints = [billboard]
+            flameNode.castsShadow = false
+            flameNode.isHidden = true
+            sample.addChildNode(flameNode)
+            shopNumberFlameNodes.append(flameNode)
         }
-        let specimenMaterial = SCNMaterial()
-        specimenMaterial.lightingModel = .constant
-        specimenMaterial.diffuse.contents = numberSpecimenTexture(itemID: "nb_press", ink: rgb(0x34312B))
-        specimenMaterial.isDoubleSided = true
-        shopNumberSpecimenMaterial = specimenMaterial
-        let specimen = SCNPlane(width: 0.62, height: 0.28)
-        specimen.firstMaterial = specimenMaterial
-        let specimenNode = SCNNode(geometry: specimen)
-        specimenNode.position = SCNVector3(0, 0.65, 0.04)
-        specimenNode.eulerAngles.x = -0.16
-        sample.addChildNode(specimenNode)
+
+        let sparks = SCNParticleSystem()
+        sparks.birthRate = 0
+        sparks.particleLifeSpan = 0.6
+        sparks.particleLifeSpanVariation = 0.22
+        sparks.particleVelocity = 0.13
+        sparks.particleVelocityVariation = 0.05
+        sparks.spreadingAngle = 16
+        sparks.particleSize = 0.012
+        sparks.particleSizeVariation = 0.006
+        sparks.particleColor = rgb(0xFF8A32)
+        sparks.particleColorVariation = SCNVector4(0.08, 0.12, 0.03, 0.14)
+        sparks.blendMode = .additive
+        sparks.emitterShape = SCNBox(width: 0.5, height: 0.03, length: 0.03, chamferRadius: 0)
+        let emitter = SCNNode()
+        emitter.position = SCNVector3(0, lastGlyphTop + 0.14, 0.05)
+        emitter.addParticleSystem(sparks)
+        sample.addChildNode(emitter)
+        shopNumberEffectParticles = sparks
+        shopNumberEffectEmitterNode = emitter
+    }
+
+    private func numberUIFont(for finish: NumberFinish, size: CGFloat) -> UIFont {
+        switch finish {
+        case .press, .woodType, .flame:
+            return UIFont(name: "Georgia-Bold", size: size)
+                ?? .systemFont(ofSize: size, weight: .bold)
+        case .typewriter, .laser:
+            return .monospacedSystemFont(ofSize: size, weight: .semibold)
+        case .graphite, .neon:
+            let descriptor = UIFont.systemFont(ofSize: size, weight: .semibold)
+                .fontDescriptor.withDesign(.rounded)
+            return descriptor.map { UIFont(descriptor: $0, size: size) }
+                ?? .systemFont(ofSize: size, weight: .semibold)
+        case .stencil:
+            return UIFont(name: "AvenirNextCondensed-DemiBold", size: size)
+                ?? .monospacedSystemFont(ofSize: size, weight: .semibold)
+        }
+    }
+
+    private func centerShopGlyph(_ node: SCNNode) {
+        let (minimum, maximum) = node.boundingBox
+        node.pivot = SCNMatrix4MakeTranslation(
+            (minimum.x + maximum.x) * 0.5,
+            minimum.y,
+            (minimum.z + maximum.z) * 0.5
+        )
     }
 
     private func addShopLamp(brass: SCNMaterial, darkMetal: SCNMaterial) {
@@ -1791,26 +2429,26 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let shade = SCNCone(topRadius: 0.18, bottomRadius: 0.58, height: 0.44)
         shade.firstMaterial = shadeMaterial
         let shadeNode = SCNNode(geometry: shade)
-        shadeNode.position = SCNVector3(0.65, 5.82, 1.18)
+        shadeNode.position = SCNVector3(0.45, 4.72, 1.18)
         shadeNode.castsShadow = true
         shopRoot.addChildNode(shadeNode)
 
         let rimGeometry = SCNTorus(ringRadius: 0.58, pipeRadius: 0.028)
         rimGeometry.firstMaterial = brass
         let rim = SCNNode(geometry: rimGeometry)
-        rim.position = SCNVector3(0.65, 5.60, 1.18)
+        rim.position = SCNVector3(0.45, 4.50, 1.18)
         shopRoot.addChildNode(rim)
 
-        let cord = SCNCylinder(radius: 0.012, height: 3.13)
+        let cord = SCNCylinder(radius: 0.012, height: 3.76)
         cord.firstMaterial = darkMetal
         let cordNode = SCNNode(geometry: cord)
-        cordNode.position = SCNVector3(0.65, 7.145, 1.18)
+        cordNode.position = SCNVector3(0.45, 6.82, 1.18)
         shopRoot.addChildNode(cordNode)
 
         let canopy = SCNCylinder(radius: 0.18, height: 0.10)
         canopy.firstMaterial = brass
         let canopyNode = SCNNode(geometry: canopy)
-        canopyNode.position = SCNVector3(0.65, 8.70, 1.18)
+        canopyNode.position = SCNVector3(0.45, 8.70, 1.18)
         shopRoot.addChildNode(canopyNode)
 
         let bulb = SCNSphere(radius: 0.12)
@@ -1819,7 +2457,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         bulbMaterial.diffuse.contents = rgb(0xFFEFD3)
         bulb.firstMaterial = bulbMaterial
         let bulbNode = SCNNode(geometry: bulb)
-        bulbNode.position = SCNVector3(0.65, 5.58, 1.18)
+        bulbNode.position = SCNVector3(0.45, 4.48, 1.18)
         shopRoot.addChildNode(bulbNode)
 
         let target = SCNNode()
@@ -1845,7 +2483,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         lamp.categoryBitMask = 2
         let lampNode = SCNNode()
         lampNode.light = lamp
-        lampNode.position = SCNVector3(0.65, 5.58, 1.18)
+        lampNode.position = SCNVector3(0.45, 4.48, 1.18)
         let look = SCNLookAtConstraint(target: target)
         look.isGimbalLockEnabled = true
         lampNode.constraints = [look]
@@ -1859,7 +2497,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let fill = SCNLight()
         fill.type = .spot
         fill.color = UIColor(red: 1, green: 0.985, blue: 0.94, alpha: 1)
-        fill.intensity = 38
+        fill.intensity = 14
         fill.attenuationStartDistance = 1.2
         fill.attenuationEndDistance = 6.5
         fill.spotInnerAngle = 38
@@ -1882,12 +2520,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         shopWallRoot.addChildNode(wallTarget)
         let wallWash = SCNLight()
         wallWash.type = .spot
-        wallWash.color = UIColor(red: 1, green: 0.86, blue: 0.70, alpha: 1)
-        wallWash.intensity = 50
+        wallWash.color = UIColor(red: 1, green: 0.93, blue: 0.84, alpha: 1)
+        wallWash.intensity = 12
         wallWash.attenuationStartDistance = 1.0
         wallWash.attenuationEndDistance = 8.0
-        wallWash.spotInnerAngle = 90
-        wallWash.spotOuterAngle = 140
+        wallWash.spotInnerAngle = 56
+        wallWash.spotOuterAngle = 104
         wallWash.categoryBitMask = 1
         wallWash.castsShadow = false
         let wallWashNode = SCNNode()
@@ -1898,9 +2536,257 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         wallWashNode.constraints = [wallLook]
         shopWallRoot.addChildNode(wallWashNode)
 
-        // A prior cone-shell volumetric effect rendered as an opaque shape on
-        // iOS. Keep the trace physical: illuminated merchandise and the soft
-        // forward shadow, with no screen-space or particle decoration.
+        let traceMaterial = shopLightTraceMaterial(opacity: 0.055)
+        let trace = SCNNode(geometry: openConeGeometry(
+            topRadius: 0.12, bottomRadius: 1.82, height: 3.40, segments: 40,
+            material: traceMaterial
+        ))
+        trace.position = SCNVector3(0.45, 2.77, 0.78)
+        trace.eulerAngles.z = -0.075
+        trace.castsShadow = false
+        trace.renderingOrder = 1
+        shopRoot.addChildNode(trace)
+
+        let softTrace = SCNNode(geometry: openConeGeometry(
+            topRadius: 0.16, bottomRadius: 2.35, height: 3.72, segments: 40,
+            material: shopLightTraceMaterial(opacity: 0.020)
+        ))
+        softTrace.position = SCNVector3(0.45, 2.62, 0.72)
+        softTrace.eulerAngles.z = -0.075
+        softTrace.castsShadow = false
+        softTrace.renderingOrder = 1
+        shopRoot.addChildNode(softTrace)
+
+        let dust = SCNParticleSystem()
+        dust.birthRate = reduceMotion ? 0 : 3
+        dust.particleLifeSpan = 7
+        dust.particleLifeSpanVariation = 2
+        dust.particleSize = 0.012
+        dust.particleSizeVariation = 0.006
+        dust.particleColor = UIColor(red: 1, green: 0.93, blue: 0.81, alpha: 0.42)
+        dust.particleColorVariation = SCNVector4(0.02, 0.02, 0.02, 0.16)
+        dust.particleImage = UIImage(systemName: "circle.fill")
+        dust.particleVelocity = 0.018
+        dust.particleVelocityVariation = 0.012
+        dust.spreadingAngle = 18
+        dust.acceleration = SCNVector3(0, 0.006, 0)
+        dust.birthDirection = .random
+        dust.birthLocation = .volume
+        dust.emitterShape = SCNCone(topRadius: 0.10, bottomRadius: 1.35, height: 3.10)
+        dust.blendMode = .additive
+        dust.isLocal = true
+        dust.loops = true
+        let dustNode = SCNNode()
+        dustNode.position = SCNVector3(0.45, 2.78, 0.78)
+        dustNode.addParticleSystem(dust)
+        shopRoot.addChildNode(dustNode)
+        shopDustSystem = dust
+        shopDustEmitterNode = dustNode
+    }
+
+    private func shopLightTraceMaterial(opacity: CGFloat) -> SCNMaterial {
+        let material = SCNMaterial()
+        material.lightingModel = .constant
+        material.diffuse.contents = UIColor(red: 1, green: 0.90, blue: 0.74, alpha: opacity)
+        material.transparency = 1
+        material.transparencyMode = .aOne
+        material.blendMode = .alpha
+        material.writesToDepthBuffer = false
+        material.readsFromDepthBuffer = true
+        material.isDoubleSided = true
+        return material
+    }
+
+    /// Side faces only. SCNCone includes opaque end caps on some SceneKit
+    /// render paths, which is what made the earlier light trace read as a
+    /// solid triangle instead of suspended light.
+    private func openConeGeometry(topRadius: Float, bottomRadius: Float, height: Float,
+                                  segments: Int, material: SCNMaterial) -> SCNGeometry {
+        var vertices: [SCNVector3] = []
+        vertices.reserveCapacity((segments + 1) * 2)
+        for index in 0...segments {
+            let angle = Float(index) / Float(segments) * 2 * .pi
+            let cosine = cos(angle)
+            let sine = sin(angle)
+            vertices.append(SCNVector3(cosine * topRadius, height / 2, sine * topRadius))
+            vertices.append(SCNVector3(cosine * bottomRadius, -height / 2, sine * bottomRadius))
+        }
+
+        var indices: [Int32] = []
+        indices.reserveCapacity(segments * 6)
+        for index in 0..<segments {
+            let top = Int32(index * 2)
+            let bottom = top + 1
+            let nextTop = top + 2
+            let nextBottom = top + 3
+            indices.append(contentsOf: [top, bottom, nextTop, nextTop, bottom, nextBottom])
+        }
+        let geometry = SCNGeometry(
+            sources: [SCNGeometrySource(vertices: vertices)],
+            elements: [SCNGeometryElement(indices: indices, primitiveType: .triangles)]
+        )
+        geometry.firstMaterial = material
+        return geometry
+    }
+
+    private func updateShopShowcaseMotion() {
+        let isShopActive = currentPhase == .transitioningToShop || currentPhase == .shopping
+
+        for (category, turntable) in shopTurntableNodes {
+            let isSelected = category == selectedShopCategory
+            let shouldSpin = isShopActive && isSelected && !reduceMotion
+            shopTurntableRingMaterials[category]?.emission.contents = isShopActive && isSelected
+                ? rgb(0x7A5827)
+                : UIColor.black
+
+            if shouldSpin {
+                guard turntable.action(forKey: "shop-turntable-spin") == nil else { continue }
+                let visibleYaw = turntable.presentation.eulerAngles.y
+                turntable.removeAction(forKey: "shop-turntable-settle")
+                turntable.eulerAngles.y = visibleYaw
+                if category == .paper && shopPaperIsUtilityRoll {
+                    // The roll is cylindrical; a full turn never exposes an
+                    // edge-only or blank proof face.
+                    let revolution = SCNAction.rotateBy(
+                        x: 0,
+                        y: CGFloat.pi * 2,
+                        z: 0,
+                        duration: 10.5
+                    )
+                    revolution.timingMode = .linear
+                    turntable.runAction(.repeatForever(revolution),
+                                        forKey: "shop-turntable-spin")
+                } else {
+                    // Flat proof plates, sheet stacks and readable glyphs use
+                    // a showroom sweep rather than exposing a blank edge/back.
+                    let left = SCNAction.rotateTo(x: 0, y: -0.38, z: 0,
+                                                  duration: 2.8,
+                                                  usesShortestUnitArc: true)
+                    let right = SCNAction.rotateTo(x: 0, y: 0.38, z: 0,
+                                                   duration: 3.4,
+                                                   usesShortestUnitArc: true)
+                    left.timingMode = .easeInEaseOut
+                    right.timingMode = .easeInEaseOut
+                    turntable.runAction(.repeatForever(.sequence([left, right])),
+                                        forKey: "shop-turntable-spin")
+                }
+                continue
+            }
+
+            if turntable.action(forKey: "shop-turntable-spin") != nil {
+                let visibleYaw = turntable.presentation.eulerAngles.y
+                turntable.removeAction(forKey: "shop-turntable-spin")
+                turntable.eulerAngles.y = visibleYaw
+            }
+
+            let restingYaw: Float = isShopActive && isSelected && reduceMotion ? 0.14 : 0
+            turntable.removeAction(forKey: "shop-turntable-settle")
+            if isShopActive && !reduceMotion {
+                let settle = SCNAction.rotateTo(
+                    x: 0,
+                    y: CGFloat(restingYaw),
+                    z: 0,
+                    duration: 0.34,
+                    usesShortestUnitArc: true
+                )
+                settle.timingMode = .easeInEaseOut
+                turntable.runAction(settle, forKey: "shop-turntable-settle")
+            } else {
+                turntable.eulerAngles.y = restingYaw
+            }
+        }
+
+        let numberEffectActive = isShopActive && selectedShopCategory == .numbers
+            && shopNumberFinish.isAnimated
+        let numberPulseDuration = shopNumberFinish == .flame ? 0.30 : 0.88
+        for glyph in shopNumberGlyphNodes {
+            if numberEffectActive && !reduceMotion {
+                if glyph.action(forKey: "shop-number-pulse") == nil {
+                    let dim = SCNAction.fadeOpacity(to: 0.78, duration: numberPulseDuration)
+                    dim.timingMode = .easeInEaseOut
+                    let bright = SCNAction.fadeOpacity(to: 1, duration: numberPulseDuration * 0.82)
+                    bright.timingMode = .easeInEaseOut
+                    glyph.runAction(.repeatForever(.sequence([dim, bright])),
+                                    forKey: "shop-number-pulse")
+                }
+            } else {
+                glyph.removeAction(forKey: "shop-number-pulse")
+                glyph.opacity = 1
+            }
+        }
+        // Flame remains attached at rest; only the flicker stops under Reduce
+        // Motion or when Hot Type is not the active selected finish.
+        let flameEffectActive = numberEffectActive && shopNumberFinish == .flame
+        for flame in shopNumberFlameNodes {
+            if flameEffectActive && !flame.isHidden && !reduceMotion {
+                if flame.action(forKey: "shop-flame-pulse") == nil {
+                    let dim = SCNAction.group([
+                        .fadeOpacity(to: 0.74, duration: 0.36),
+                        .scale(to: 0.92, duration: 0.36)
+                    ])
+                    dim.timingMode = .easeInEaseOut
+                    let bright = SCNAction.group([
+                        .fadeOpacity(to: 1, duration: 0.28),
+                        .scale(to: 1.06, duration: 0.28)
+                    ])
+                    bright.timingMode = .easeInEaseOut
+                    flame.runAction(.repeatForever(.sequence([dim, bright])),
+                                    forKey: "shop-flame-pulse")
+                }
+            } else {
+                flame.removeAction(forKey: "shop-flame-pulse")
+                flame.opacity = 1
+                flame.scale = SCNVector3(1, 1, 1)
+            }
+        }
+        for material in shopNumberGlyphMaterials {
+            material.emission.intensity = numberEffectActive
+                ? (reduceMotion ? 0.48 : 0.82)
+                : (shopNumberFinish.glowColor == nil ? 0 : 0.18)
+        }
+        shopNumberEffectParticles?.birthRate = numberEffectActive
+            && shopNumberFinish == .flame && !reduceMotion ? 7 : 0
+
+        let boardEffectActive = isShopActive && selectedShopCategory == .board
+            && shopBoardFinish == .laser
+        for rule in shopBoardInternalRules {
+            if boardEffectActive && !reduceMotion {
+                if rule.action(forKey: "shop-grid-pulse") == nil {
+                    let dim = SCNAction.fadeOpacity(to: 0.52, duration: 0.9)
+                    dim.timingMode = .easeInEaseOut
+                    let bright = SCNAction.fadeOpacity(to: 1, duration: 1.12)
+                    bright.timingMode = .easeInEaseOut
+                    rule.runAction(.repeatForever(.sequence([dim, bright])),
+                                   forKey: "shop-grid-pulse")
+                }
+            } else {
+                rule.removeAction(forKey: "shop-grid-pulse")
+                rule.opacity = 1
+            }
+        }
+        shopBoardRuleMaterial?.emission.intensity = boardEffectActive
+            ? (reduceMotion ? 0.42 : 0.74)
+            : (shopBoardFinish.glowColor == nil ? 0 : 0.14)
+    }
+
+    private func animateShopProductRefresh(category: CosmeticCategory, animated: Bool) {
+        guard let turntable = shopTurntableNodes[category] else { return }
+        turntable.removeAction(forKey: "shop-product-refresh")
+        turntable.opacity = 1
+        turntable.scale = SCNVector3(1, 1, 1)
+        guard animated, !reduceMotion else { return }
+
+        let tuck = SCNAction.group([
+            .fadeOpacity(to: 0.74, duration: 0.08),
+            .scale(to: 0.94, duration: 0.08)
+        ])
+        tuck.timingMode = .easeIn
+        let reveal = SCNAction.group([
+            .fadeOpacity(to: 1, duration: 0.26),
+            .scale(to: 1, duration: 0.26)
+        ])
+        reveal.timingMode = .easeOut
+        turntable.runAction(.sequence([tuck, reveal]), forKey: "shop-product-refresh")
     }
 
     private func updateShopSelection(category: CosmeticCategory, item: CosmeticItem?, animated: Bool) {
@@ -1927,74 +2813,24 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             let move = SCNAction.move(to: destination,
                                       duration: duration)
             move.timingMode = .easeOut
-            let scale = SCNAction.scale(to: selected ? 1.12 : 0.94, duration: duration)
+            let scale = SCNAction.scale(to: selected ? 1.08 : 0.95, duration: duration)
             scale.timingMode = .easeOut
             sample.runAction(.group([move, scale]), forKey: "sample-selection")
             sample.runAction(.fadeOpacity(to: 1, duration: duration),
                              forKey: "sample-emphasis")
         }
         guard let item else { return }
-        updateShopCounterPreview(category: category, item: item)
         updateShopSample(category: category, item: item)
+        animateShopProductRefresh(category: category, animated: animated)
         shopPriceMaterials[category]?.diffuse.contents = shopPriceTexture(price: item.price)
+        updateShopShowcaseMotion()
     }
 
     private func updateShopPresentation(category: CosmeticCategory, item: CosmeticItem,
-                                        state: BookstoreShopPresentation) {
-        let title: String
-        if state.equipped { title = "EQUIPPED" }
-        else if state.owned { title = "EQUIP" }
-        else if state.affordable { title = "BUY" }
-        else { title = "NEED \(max(0, item.price - state.stampBalance))" }
-        let enabled = !state.equipped && (state.owned || state.affordable)
-
-        let ownership: String
-        if state.equipped { ownership = "OWNED · EQUIPPED · PERMANENT" }
-        else if state.owned { ownership = "OWNED · READY TO EQUIP" }
-        else if state.affordable { ownership = "\(state.stampBalance) → \(state.stampBalance - item.price) STAMPS" }
-        else { ownership = "NEED \(max(0, item.price - state.stampBalance)) MORE STAMPS" }
-
-        setShopText(item.name.uppercased(), text: shopProductNameText, node: shopProductNameNode)
-        setShopText(ownership, text: shopProductDetailText, node: shopProductDetailNode)
-        setShopText("‹  \(state.currentIndex + 1) OF \(max(state.itemCount, 1)) · SWIPE  ›",
-                    text: shopBrowseText, node: shopBrowseNode)
-        setShopText("\(item.price) STAMPS", text: shopPriceText, node: shopPriceNode)
-
-        let visibleAction = state.message == nil ? title : "ADDED"
-        let actionScale: Float = visibleAction.count > 11 ? 0.075 : (visibleAction.count > 8 ? 0.095 : 0.13)
-        shopActionNode?.scale = SCNVector3(actionScale, actionScale, actionScale)
-        setShopText(visibleAction, text: shopActionText, node: shopActionNode)
-        let actionDetail: String
-        if state.message != nil { actionDetail = "EQUIPPED" }
-        else if !state.owned && !state.affordable { actionDetail = "MORE STAMPS" }
-        else { actionDetail = enabled ? "PERMANENT" : "CURRENT SAMPLE" }
-        setShopText(actionDetail,
-                    text: shopActionDetailText, node: shopActionDetailNode)
-        shopActionButtonMaterial?.diffuse.contents = enabled ? rgb(0x58705D) : rgb(0x4B4B43)
-    }
-
-    private func updateShopCounterPreview(category: CosmeticCategory, item: CosmeticItem) {
-        guard let surface = shopCounterSurfaceMaterial else { return }
-        if category == .desk {
-            let skin = CosmeticCatalog.desk(item.id)
-            surface.diffuse.contents = item.id == "dk_baize"
-                ? UIColor(skin.light)
-                : woodTexture(base: UIColor(skin.light))
-            surface.roughness.contents = item.id == "dk_baize" ? 0.94 : 0.70
-        } else {
-            surface.diffuse.contents = woodTexture(base: rgb(0x8A6040))
-            surface.roughness.contents = 0.66
-        }
-        surface.diffuse.wrapS = .repeat
-        surface.diffuse.wrapT = .repeat
-        surface.diffuse.contentsTransform = SCNMatrix4MakeScale(2.2, 3.2, 1)
-        if !reduceMotion, let node = shopCounterSurfaceNode {
-            node.removeAction(forKey: "counter-finish-change")
-            node.opacity = 0.72
-            let settle = SCNAction.fadeOpacity(to: 1, duration: 0.24)
-            settle.timingMode = .easeOut
-            node.runAction(settle, forKey: "counter-finish-change")
-        }
+                                        state _: BookstoreShopPresentation) {
+        // Price stays attached to the physical sample. Product copy and the
+        // buy/equip state belong to the approved SwiftUI paper ticket.
+        shopPriceMaterials[category]?.diffuse.contents = shopPriceTexture(price: item.price)
     }
 
     private func updateNeighborCards(category: CosmeticCategory, item: CosmeticItem) {
@@ -2012,44 +2848,54 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func updateShopSample(category: CosmeticCategory, item: CosmeticItem) {
         switch category {
-        case .desk:
-            let skin = CosmeticCatalog.desk(item.id)
-            let isBaize = item.id == "dk_baize"
-            let colour = UIColor(skin.light)
-            shopDeskMaterial?.diffuse.contents = isBaize ? colour : woodTexture(base: colour)
-            shopDeskLabelMaterial?.diffuse.contents = deskSampleLabelTexture(name: item.name.uppercased())
-            shopDeskGrainNodes.forEach { $0.opacity = isBaize ? 0 : 0.22 }
-            shopDeskSeamNodes.forEach { $0.opacity = isBaize ? 0.42 : 0 }
         case .paper:
             let skin = CosmeticCatalog.paper(item.id)
+            let isUtilityRoll = skin.treatment == .utilityRoll
+            shopPaperIsUtilityRoll = isUtilityRoll
+            shopPaperStackNode?.isHidden = isUtilityRoll
+            shopPaperRollNode?.isHidden = !isUtilityRoll
             shopPaperMaterial?.diffuse.contents = UIColor(skin.page)
             shopPaperBandMaterial?.diffuse.contents = UIColor(skin.edge)
-            shopPaperTopMaterial?.diffuse.contents = paperSampleTexture(
-                name: item.name.uppercased(),
-                paper: UIColor(skin.page),
-                ink: UIColor(skin.edge.mixed(with: Color.black, by: 0.42))
+            shopPaperRollMaterial?.diffuse.contents = UIColor(skin.page)
+            shopPaperTopMaterial?.diffuse.contents = paperStockTexture(
+                skin: skin,
+                label: item.name.uppercased(),
+                size: CGSize(width: 520, height: 640)
             )
         case .board:
             let skin = CosmeticCatalog.board(item.id)
+            shopBoardFinish = skin.finish
             shopBoardMaterial?.diffuse.contents = UIColor(skin.given.mixed(with: skin.selected, by: 0.12))
             shopBoardRuleMaterial?.diffuse.contents = UIColor(skin.bold)
-            let width = Float(max(0.012, min(0.034, skin.hairWidth * 0.018)))
+            shopBoardRuleMaterial?.emission.contents = skin.finish.glowColor.map(UIColor.init) ?? UIColor.black
+            shopBoardRuleMaterial?.emission.intensity = skin.finish == .laser ? 0.72 : 0.18
             for rule in shopBoardInternalRules {
-                if rule.name == "shop-grid-vertical" {
-                    rule.scale.x = width / 0.018
-                } else {
-                    rule.scale.y = width / 0.018
-                }
+                (rule.geometry as? SCNPlane)?.firstMaterial?.diffuse.contents = gridRuleTexture(
+                    skin: skin,
+                    size: CGSize(width: 640, height: 640)
+                )
             }
         case .numbers:
             let skin = CosmeticCatalog.numbers(item.id)
-            shopNumberBodyMaterial?.diffuse.contents = UIColor(skin.givenInk)
-            shopNumberSpecimenMaterial?.diffuse.contents = numberSpecimenTexture(
-                itemID: item.id,
-                ink: UIColor(skin.ink)
-            )
-        case .marker:
-            break
+            shopNumberFinish = skin.finish
+            let emission = skin.finish.glowColor.map(UIColor.init) ?? UIColor.black
+            for material in shopNumberGlyphMaterials {
+                material.diffuse.contents = UIColor(skin.ink)
+                material.emission.contents = emission
+                material.emission.intensity = skin.finish.glowColor == nil ? 0 : 0.78
+                material.roughness.contents = skin.finish == .laser ? 0.18 : 0.46
+                material.metalness.contents = skin.finish == .laser ? 0.28 : 0.08
+            }
+            for glyphNode in shopNumberGlyphNodes {
+                (glyphNode.geometry as? SCNText)?.font = numberUIFont(for: skin.finish, size: 100)
+                centerShopGlyph(glyphNode)
+            }
+            for flameNode in shopNumberFlameNodes {
+                flameNode.isHidden = skin.finish != .flame
+            }
+            shopNumberEffectParticles?.particleColor = skin.finish == .flame
+                ? rgb(0xFF8A32)
+                : UIColor.clear
         }
     }
 
@@ -2126,86 +2972,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
     }
 
-    private func shopProductInfoTexture(item: CosmeticItem, category: CosmeticCategory,
-                                        state: BookstoreShopPresentation) -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 1024, height: 320)).image { context in
-            rgb(0xE7DDC9).setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 1024, height: 320))
-            let cg = context.cgContext
-            cg.setStrokeColor(rgb(0x9A7447).cgColor)
-            cg.setLineWidth(8)
-            cg.stroke(CGRect(x: 10, y: 10, width: 1004, height: 300))
-            cg.setFillColor(rgb(0xA64F43).cgColor)
-            cg.fill(CGRect(x: 36, y: 34, width: 8, height: 252))
-
-            drawShopText("\(category.title.uppercased()) SAMPLE",
-                         rect: CGRect(x: 70, y: 30, width: 640, height: 36),
-                         font: .systemFont(ofSize: 25, weight: .bold),
-                         color: rgb(0xA64F43), kern: 3)
-            drawShopText(item.name,
-                         rect: CGRect(x: 70, y: 68, width: 650, height: 67),
-                         font: .systemFont(ofSize: 53, weight: .semibold),
-                         color: rgb(0x302A22))
-            drawShopText(item.blurb,
-                         rect: CGRect(x: 70, y: 139, width: 650, height: 82),
-                         font: .italicSystemFont(ofSize: 28),
-                         color: rgb(0x625B50))
-
-            let page = "‹  \(state.currentIndex + 1) OF \(max(state.itemCount, 1))  ›"
-            drawCentered(page, in: CGRect(x: 730, y: 67, width: 274, height: 48),
-                         font: .monospacedSystemFont(ofSize: 27, weight: .bold),
-                         color: rgb(0x3C4D3B), kern: 2)
-            drawCentered("SWIPE OR TAP", in: CGRect(x: 736, y: 122, width: 260, height: 36),
-                         font: .systemFont(ofSize: 20, weight: .semibold),
-                         color: rgb(0x706654), kern: 2)
-
-            let ownership: String
-            if state.equipped { ownership = "OWNED · EQUIPPED · PERMANENT" }
-            else if state.owned { ownership = "OWNED · READY TO EQUIP" }
-            else if state.affordable { ownership = "\(state.stampBalance) → \(state.stampBalance - item.price) STAMPS" }
-            else { ownership = "NEED \(max(0, item.price - state.stampBalance)) MORE STAMPS" }
-            drawShopText(ownership,
-                         rect: CGRect(x: 70, y: 265, width: 900, height: 32),
-                         font: .systemFont(ofSize: 21, weight: .bold),
-                         color: rgb(0x556B55), kern: 1.4)
-        }
-    }
-
-    private func shopActionTexture(title: String, enabled: Bool, message: String?) -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 420, height: 344)).image { context in
-            let fill = message == nil
-                ? (enabled ? rgb(0x687D67) : rgb(0x5B574E))
-                : rgb(0x687D67)
-            fill.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 420, height: 344))
-            let cg = context.cgContext
-            cg.setStrokeColor(rgb(0xB5843C).cgColor)
-            cg.setLineWidth(9)
-            cg.stroke(CGRect(x: 12, y: 12, width: 396, height: 320))
-            if message == nil {
-                drawCentered(enabled ? "PRESS" : "STATUS",
-                             in: CGRect(x: 0, y: 72, width: 420, height: 40),
-                             font: .systemFont(ofSize: 22, weight: .semibold),
-                             color: rgb(0xDED3BD), kern: 4)
-            }
-            let actionPointSize: CGFloat = title.count > 8 ? 34 : (title.count > 6 ? 42 : 50)
-            drawCentered(message ?? title,
-                         in: CGRect(x: 22, y: message == nil ? 128 : 106, width: 376, height: 116),
-                         font: .systemFont(ofSize: message == nil ? actionPointSize : 33, weight: .bold),
-                         color: rgb(0xFFF7E7), kern: 1.2)
-        }
-    }
-
-    private func drawShopText(_ text: String, rect: CGRect, font: UIFont,
-                              color: UIColor, kern: CGFloat = 0) {
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .left
-        paragraph.lineBreakMode = .byWordWrapping
-        (text as NSString).draw(with: rect, options: [.usesLineFragmentOrigin, .usesFontLeading],
-                                attributes: [.font: font, .foregroundColor: color,
-                                             .kern: kern, .paragraphStyle: paragraph], context: nil)
-    }
-
     private func shopPriceTexture(price: Int) -> UIImage {
         UIGraphicsImageRenderer(size: CGSize(width: 320, height: 104)).image { context in
             rgb(0xE1D5BD).setFill()
@@ -2218,31 +2984,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             drawCentered(label, in: CGRect(x: 0, y: 33, width: 320, height: 40),
                          font: .systemFont(ofSize: price == 0 ? 28 : 31, weight: .bold),
                          color: rgb(0x40382E), kern: 1)
-        }
-    }
-
-    private func numberSpecimenTexture(itemID: String, ink: UIColor) -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 512, height: 176)).image { context in
-            rgb(0xE5DCC9).setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 512, height: 176))
-            let cg = context.cgContext
-            cg.setStrokeColor(rgb(0x847A69).cgColor)
-            cg.setLineWidth(7)
-            cg.stroke(CGRect(x: 12, y: 12, width: 488, height: 152))
-
-            let font: UIFont
-            switch itemID {
-            case "nb_typewriter": font = .monospacedSystemFont(ofSize: 82, weight: .bold)
-            case "nb_schoolbook": font = .italicSystemFont(ofSize: 88)
-            case "nb_oldstyle": font = .systemFont(ofSize: 86, weight: .heavy)
-            case "nb_stencil": font = .monospacedSystemFont(ofSize: 78, weight: .black)
-            case "nb_neon":
-                cg.setShadow(offset: .zero, blur: 14, color: ink.withAlphaComponent(0.85).cgColor)
-                font = .systemFont(ofSize: 82, weight: .bold)
-            default: font = .systemFont(ofSize: 84, weight: .bold)
-            }
-            drawCentered("2  7  9", in: CGRect(x: 0, y: 42, width: 512, height: 96),
-                         font: font, color: ink, kern: itemID == "nb_stencil" ? 5 : 0)
         }
     }
 
@@ -2878,32 +3619,46 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
     }
 
-    private func deskSampleLabelTexture(name: String) -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 420, height: 130)).image { context in
-            rgb(0xE4D8BC).setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 420, height: 130))
-            let cg = context.cgContext
-            cg.setStrokeColor(rgb(0x8D6A38).cgColor)
-            cg.setLineWidth(8)
-            cg.stroke(CGRect(x: 10, y: 10, width: 400, height: 110))
-            drawCentered(name, in: CGRect(x: 18, y: 26, width: 384, height: 45),
-                         font: .systemFont(ofSize: 31, weight: .bold), color: rgb(0x3B3024), kern: 1.2)
-            drawCentered("DESK SAMPLE", in: CGRect(x: 18, y: 74, width: 384, height: 24),
-                         font: .systemFont(ofSize: 16, weight: .semibold), color: rgb(0x8D4D42), kern: 2)
-        }
-    }
+    /// Bakes the exact page renderer into the physical shop sample. Illustrated
+    /// stocks, onion skin, fibres and perforations therefore cannot diverge
+    /// from the page the player actually buys.
+    private func paperStockTexture(skin: PaperSkin, label: String, size: CGSize) -> UIImage {
+        let cacheKey = ShopSampleTextureCacheKey.paperStock(
+            skinID: skin.id, label: label, size: size
+        )
+        if let cached = shopPaperStockTextureCache[cacheKey] { return cached }
 
-    private func paperSampleTexture(name: String, paper: UIColor, ink: UIColor) -> UIImage {
-        UIGraphicsImageRenderer(size: CGSize(width: 520, height: 640)).image { context in
-            paper.setFill()
-            context.fill(CGRect(x: 0, y: 0, width: 520, height: 640))
+        var loadout = EquippedCosmetics.starting
+        loadout.paperID = skin.id
+        let theme = CosmeticCatalog.theme(for: loadout)
+        let stockRenderer = ImageRenderer(content:
+            ZStack {
+                Rectangle().fill(skin.page)
+                PaperGrain(opacity: skin.grain, seed: 5)
+                PaperStockOverlay(treatment: skin.treatment)
+            }
+            .environment(\.cosmeticTheme, theme)
+            .frame(width: size.width / 2, height: size.height / 2)
+        )
+        stockRenderer.scale = 2
+        let stockImage = stockRenderer.uiImage
+        let ink = UIColor(skin.edge.mixed(with: Color.black, by: 0.42))
+
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            if let stockImage {
+                stockImage.draw(in: CGRect(origin: .zero, size: size))
+            } else {
+                UIColor(skin.page).setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
             let cg = context.cgContext
             cg.setStrokeColor(ink.withAlphaComponent(0.46).cgColor)
             cg.setLineWidth(7)
             cg.stroke(CGRect(x: 22, y: 22, width: 476, height: 596))
             drawCentered("NUMBER CLUB STOCK", in: CGRect(x: 34, y: 70, width: 452, height: 36),
-                         font: .systemFont(ofSize: 22, weight: .semibold), color: ink.withAlphaComponent(0.72), kern: 3)
-            drawCentered(name, in: CGRect(x: 34, y: 142, width: 452, height: 66),
+                         font: .systemFont(ofSize: 22, weight: .semibold),
+                         color: ink.withAlphaComponent(0.72), kern: 3)
+            drawCentered(label, in: CGRect(x: 34, y: 142, width: 452, height: 66),
                          font: .systemFont(ofSize: 44, weight: .bold), color: ink, kern: 1)
             cg.setStrokeColor(ink.withAlphaComponent(0.32).cgColor)
             cg.setLineWidth(3)
@@ -2913,8 +3668,47 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 cg.strokePath()
             }
             drawCentered("PAPER SAMPLE", in: CGRect(x: 34, y: 552, width: 452, height: 30),
-                         font: .systemFont(ofSize: 18, weight: .semibold), color: ink.withAlphaComponent(0.70), kern: 2.4)
+                         font: .systemFont(ofSize: 18, weight: .semibold),
+                         color: ink.withAlphaComponent(0.70), kern: 2.4)
         }
+        shopPaperStockTextureCache[cacheKey] = image
+        return image
+    }
+
+    /// The real 9x9 gameplay rule renderer, baked once per selected finish for
+    /// a transparent SceneKit face.
+    private func gridRuleTexture(skin: BoardSkin, size: CGSize) -> UIImage {
+        let cacheKey = ShopSampleTextureCacheKey.gridRule(skinID: skin.id, size: size)
+        if let cached = shopGridRuleTextureCache[cacheKey] { return cached }
+
+        let renderer = ImageRenderer(content:
+            CosmeticGridRules(
+                skin: skin,
+                side: size.width / 2,
+                cell: size.width / 2 / 9,
+                includesBorder: false,
+                forcesStaticRendering: true
+            )
+            .frame(width: size.width / 2, height: size.height / 2)
+        )
+        renderer.scale = 2
+        let image = renderer.uiImage ?? UIImage()
+        shopGridRuleTextureCache[cacheKey] = image
+        return image
+    }
+
+    /// The shared Hot Type flame treatment is constant art, so the SceneKit
+    /// bridge renders and caches it only once.
+    private func flameCrownTexture(size: CGSize) -> UIImage {
+        if let cached = shopFlameCrownTextureCache { return cached }
+        let renderer = ImageRenderer(content:
+            FlameCrown(size: size.width / 2, intensity: 1)
+                .frame(width: size.width / 2, height: size.height / 2)
+        )
+        renderer.scale = 2
+        let image = renderer.uiImage ?? UIImage()
+        shopFlameCrownTextureCache = image
+        return image
     }
 
     private func shopGlyphTexture(_ glyph: String, ink: UIColor) -> UIImage {

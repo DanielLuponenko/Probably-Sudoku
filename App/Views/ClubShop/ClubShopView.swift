@@ -12,7 +12,7 @@ struct ClubShopView: View {
     var onBack: () -> Void
 
     @Environment(PlayerProfileStore.self) private var profile
-    @State private var category: CosmeticCategory = .desk
+    @State private var category: CosmeticCategory = .paper
     @State private var refused: String?
     @State private var justBought: String?
     @State private var successfulChoice = false
@@ -57,7 +57,11 @@ struct ClubShopView: View {
     /// A drawer pulled out of the cabinet, with the samples laid in it.
     private var counter: some View {
         ZStack {
-            Rectangle().fill(CosmeticCatalog.desk(profile.profile.equipped.deskID).surface)
+            Rectangle().fill(
+                RadialGradient(colors: [Paper.deskLight, Paper.deskDark],
+                               center: .init(x: 0.35, y: 0.1),
+                               startRadius: 40, endRadius: 900)
+            )
             LinearGradient(colors: [.black.opacity(0.30), .clear, .black.opacity(0.55)],
                            startPoint: .top, endPoint: .bottom)
         }
@@ -111,10 +115,7 @@ struct ClubShopView: View {
     private var tabs: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                // Markers are part of the game, not a Club Shop cosmetic. Keep
-                // them out of this player-facing catalogue until they have a
-                // real use here.
-                ForEach(CosmeticCategory.allCases.filter { $0 != .marker }) { option in
+                ForEach(CosmeticCategory.allCases) { option in
                     let selected = option == category
                     Button {
                         withAnimation(.snappy(duration: 0.2)) { category = option }

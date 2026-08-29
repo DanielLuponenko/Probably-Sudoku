@@ -1,0 +1,17 @@
+schema_version: 1
+status: locked
+policy: >-
+  No directory-wide or wildcard exemption is permitted. Every entry must prove
+  that the scoped API use is invisible infrastructure or a documented
+  functional overlay and cannot become a production art fallback.
+required_fields:
+  - file
+  - symbol_or_line_scope
+  - matched_policy
+  - purpose
+  - why_not_visible_cosmetic_art
+  - owner
+  - creation_date
+  - expiry_or_review_date
+  - screenshot_or_test_evidence
+entries: []

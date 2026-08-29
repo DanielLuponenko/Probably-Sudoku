@@ -3,16 +3,21 @@ import ProbablySudokuEngine
 
 /// The desk the book lies on.
 struct DeskView<Content: View>: View {
-    @Environment(\.cosmeticTheme) private var theme
     @ViewBuilder var content: Content
 
     var body: some View {
         ZStack {
-            Rectangle().fill(theme.desk.surface).ignoresSafeArea()
+            Rectangle()
+                .fill(
+                    RadialGradient(colors: [Paper.deskLight, Paper.deskDark],
+                                   center: .init(x: 0.35, y: 0.1),
+                                   startRadius: 40, endRadius: 900)
+                )
+                .ignoresSafeArea()
             WoodGrain().ignoresSafeArea()
             content
         }
-        .background(theme.desk.dark)
+        .background(Paper.deskDark)
     }
 }
 
@@ -236,6 +241,37 @@ struct PaperStockOverlay: View {
             switch treatment {
             case .plain:
                 EmptyView()
+            case .freshWhite:
+                Canvas { context, _ in
+                    var state: UInt64 = 4815
+                    for _ in 0..<42 {
+                        state = state &* 6364136223846793005 &+ 1442695040888963407
+                        let x = CGFloat(state % 10_000) / 10_000 * size.width
+                        state = state &* 6364136223846793005 &+ 1442695040888963407
+                        let y = CGFloat(state % 10_000) / 10_000 * size.height
+                        let fibre = Path(ellipseIn: CGRect(x: x, y: y, width: 1.2, height: 0.55))
+                        context.fill(fibre, with: .color(Paper.ink.opacity(0.035)))
+                    }
+                }
+            case .utilityRoll:
+                Canvas { context, _ in
+                    let perforation: CGFloat = 76
+                    for y in stride(from: perforation, through: size.height, by: perforation) {
+                        var path = Path()
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: size.width, y: y))
+                        context.stroke(path, with: .color(Paper.ink.opacity(0.16)),
+                                       style: StrokeStyle(lineWidth: 0.8, dash: [3, 5]))
+                    }
+                    let step: CGFloat = 28
+                    for y in stride(from: step * 0.5, through: size.height, by: step) {
+                        for x in stride(from: step * 0.5, through: size.width, by: step) {
+                            let mark = Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5,
+                                                             width: 3, height: 3))
+                            context.stroke(mark, with: .color(Paper.ink.opacity(0.055)), lineWidth: 0.6)
+                        }
+                    }
+                }
             case .graph:
                 Canvas { context, _ in
                     let step: CGFloat = 18

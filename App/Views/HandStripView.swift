@@ -61,6 +61,7 @@ struct HandStripView: View {
             .numberReturnMotionFrame(NumberReturnMotionAnchor.hand)
         }
         .animation(.snappy(duration: 0.2), value: model.isReadingLitmus)
+        .cosmeticPulseClock(for: theme.numbers.finish)
     }
 }
 
@@ -78,11 +79,10 @@ private struct NumberTile: View {
     @State private var hasArrived = false
 
     var body: some View {
-        Text("\(digit.rawValue)")
-            .font(theme.numbers.font(27, weight: .medium))
-            .foregroundStyle(isBlocked ? palette.ink.opacity(0.48) : theme.numbers.ink)
-            .shadow(color: theme.numbers.motion.glow?.opacity(0.78) ?? .clear,
-                    radius: theme.numbers.motion.glow == nil ? 0 : 3)
+        CosmeticNumberGlyph(text: "\(digit.rawValue)", skin: theme.numbers,
+                            size: 27, weight: .medium,
+                            color: isBlocked ? palette.ink.opacity(0.48) : theme.numbers.ink,
+                            intensity: isBlocked ? 0.54 : 1)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background {

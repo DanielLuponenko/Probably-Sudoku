@@ -1,0 +1,92 @@
+{
+  "is_error": false,
+  "duration_api_ms": 607173,
+  "num_turns": 38,
+  "stop_reason": "end_turn",
+  "session_id": "6afef190-82d0-4582-9f0a-f3bb805ff6fa",
+  "total_cost_usd": 1.8220357999999999,
+  "usage": {
+    "input_tokens": 64,
+    "cache_creation_input_tokens": 154905,
+    "cache_read_input_tokens": 3258139,
+    "output_tokens": 55066,
+    "output_tokens_details": {
+      "thinking_tokens": 17500
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 154905,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 2341,
+        "cache_read_input_tokens": 154108,
+        "cache_creation_input_tokens": 797,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 797
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-sonnet-5": {
+      "inputTokens": 64,
+      "outputTokens": 55066,
+      "cacheReadInputTokens": 3258139,
+      "cacheCreationInputTokens": 154905,
+      "webSearchRequests": 0,
+      "costUSD": 1.8220357999999999,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "user": 0,
+      "system": 0
+    },
+    "refused": {
+      "depth_limit": 0,
+      "concurrency_limit": 0,
+      "budget": 0
+    },
+    "by_type": {}
+  },
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Task contract checksum matches the manager-provided evidence exactly. All work is complete.\n\nSTATUS: COMPLETE\n\nAGENT_RUN_ID: FA8D4F18-F405-4824-B5EA-3FC2B60C99E4\n\nRESOLVED_MODEL: claude-sonnet (Sonnet-family; this session is the `sonnet-shop-scene-engineer` project-scoped Claude Code agent invoked with `model: sonnet`)\n\nBRANCH: feature/KAN-153-visual-target (worktree `/Users/daniel/.codex/worktrees/NumberClub/KAN-153-visual-001`, base commit `942e0b4890645a306fc4e39140139de27b5dfbbb`)\n\nCOMMIT_OR_PATCH: `ea9a15e208afd1027648149350d471a8fbfeb51f` — \"KAN-153: lock Meshy generation briefs\"\n\nCHANGED_FILES:\n- `docs/meshy-production/GENERATION_BRIEFS.json` (new, sha256 `df868d938f912f92dc5957e7e1d63b4885650337c3a85ac477f6733d796a506c`)\n- `docs/meshy-production/GENERATION_BRIEFS.md` (new, sha256 `fafffbc81be7baa51a71be8f3e9c434fbf5cde145b0e042b56e971caf7a6d953`)\nNo other file was staged, modified, or committed. `git show --stat HEAD` confirms exactly these two files (3,149 insertions, 0 deletions elsewhere). The pre-existing uncommitted changes in `App/`, `CLAUDE.md`, and untracked control-plane files from the assigned worktree remain untouched, unstaged, and uncommitted by this run.\n\nLEDGER_ROWS_AFFECTED: none. `COVERAGE_LEDGER.json`/`.csv` were read-only inputs; no row's status, evidence field, or content was changed. The two new files are `status: \"DRAFT_AWAITING_CODEX_REVIEW\"` and do not claim `APPROVED` for any ledger row.\n\nTEST_COMMANDS_RESULTS:\n- `jq -e . docs/meshy-production/GENERATION_BRIEFS.json` → exit 0, valid JSON.\n- One-shot Ruby deterministic check (`ruby /tmp/validate_briefs.rb`, scratch tool outside the repo, not committed) → `ALL CHECKS PASSED`, `ledger_ids=208 expanded_brief_ids=208 visible=206 dead_code=2 families=43 duplicates=0`. It independently proves: expanded family `canonicalAssetIds` form an exact, duplicate-free 208-ID set identical to `COVERAGE_LEDGER.csv`; exactly 206 visible + 2 dead-code IDs; 13 paper styles (26 IDs), 7 grid styles, 8 number styles × 9 digits (72 IDs, every style has digits 1–9 present), 2 effect leaves; the Phase 4 hardest-case wave has exactly 7 entries with the exact required names and correct member IDs (flame digits 1–9 + both effect leaves, laser digits 1–9, laser grid, `pp_white` shop+gameplay, `pp_utility_roll` shop+gameplay); only `CONTRACT-001`/`MOCKUP-BOOKSTORE-001`/`MOCKUP-BOOKSTORE-002` govern any family's `approvedReferenceIds`, `MOCKUP-SHOP-001/002` and `SCREENSHOT-CLUBSHOP-001` are explicitly excluded; no API-key pattern, no signed-URL pattern, no `completionStatus: APPROVED`/`final_status: APPROVED` claim in either artifact; JSON `status` is `DRAFT_AWAITING_CODEX_REVIEW`; MD contains the literal strings `credits consumed: 0` and `No Meshy call made`.\n- `git diff --check -- docs/meshy-production/GENERATION_BRIEFS.json docs/meshy-production/GENERATION_BRIEFS.md` → exit 0, no whitespace errors.\n- `git status --short --branch --untracked-files=all` → run before and after commit; captured in full above; confirms scope isolation.\n- Cross-checked `task_contract_sha256` from the manager's pre-run evidence against a live `shasum -a 256` of the task file → exact match (`1e3d877995dfe6bcc19d3d9eee9ea2ff7e462fbc2efcc42f8c8d0672daf6e29a`).\n\nSCREENSHOT_PATHS: none required or produced by this specification-only task (no runtime rendering was performed; VISUAL-001 authors briefs, not screenshots).\n\nPERFORMANCE_DATA: not applicable — no runtime code, asset, or build was touched or executed.\n\nREMOVED_REACHABILITY: none. No production/runtime code, procedural path, or reachability graph was modified. The two dead-code IDs (`shop.display.neighborCard.backing`, `shop.display.neighborCard.face`) are explicitly briefed as `disposition: \"REMOVE_OR_REGISTER\"` for a future Phase 12 task; this task did not remove or alter their current (already-unreachable) code.\n\nKNOWN_LIMITATIONS:\n- This artifact is `DRAFT_AWAITING_CODEX_REVIEW`; per the task contract it explicitly does not self-approve Phase 2 and does not authorize production, generation, or Meshy calls.\n- Family boundaries are Codex/agent-defined groupings over the 208 ledger leaf rows (e.g. one `shop-environment-*` family per structural module) rather than one family per leaf; every leaf ID is nonetheless individually enumerated inside its family's `canonicalAssetIds`, and the deterministic check proves the union is the exact, duplicate-free 208-ID ledger set.\n- Exact Meshy model/mode/pricing selection is explicitly deferred to Phase 3 per contract §9 (`phaseOwnershipNotes.meshyModelSelection`); no stale model identifier is pinned here.\n- Positive-direction/material/exclusion text was authored from the catalog's existing in-app names/blurbs (`App/Model/CosmeticTheme.swift`, read-only) and the two approved bookstore mockups' recorded interaction evidence in `REFERENCE_INDEX.md`/`VISUAL_INVARIANTS.md`; it has not yet been independently Sonnet-reviewed (that review is a separate, required next task before any `APPROVED` transition).\n\nBLOCKERS: none. All required inputs were readable, both artifacts were created within the sole writable paths, all required validations passed, and the commit is isolated to exactly the two contracted files.",
+  "ttft_ms": 1952,
+  "ttft_stream_ms": 878,
+  "time_to_request_ms": 71,
+  "type": "result",
+  "duration_ms": 617315,
+  "uuid": "9011a76a-67b5-47d6-aaea-0cc790f420a7"
+}
