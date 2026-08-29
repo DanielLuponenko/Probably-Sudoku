@@ -114,6 +114,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private weak var importedShopCounter: SCNNode?
     private weak var shopBoardShelfNode: SCNNode?
     private weak var shopBoardDisplayNode: SCNNode?
+    // Approved shop dressing, captured from the placement pass. These values
+    // deliberately live in source: they are not per-device preferences.
+    private let approvedBoardShelfOffset = SCNVector3(0.004, 0.048, 0)
+    private let approvedBoardShelfScale: Float = 0.576
+    private let approvedBoardPlaqueOffset = SCNVector3(0.016, 0.040, 0)
     private var importedShopCounterSourceBounds: MeshyAssetBounds?
     private var importedShopCounterBasePosition: SCNVector3?
     private var appliedCounterYaw: Double?
@@ -194,9 +199,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         fieldOfView: 37
     )
     private let shopPose = CameraPose(
-        position: SCNVector3(-0.78, 4.14, 16.46),
-        target: SCNVector3(2.65, 2.08, 8.62),
-        fieldOfView: 53
+        // Head-on, full-fixture framing approved from the placement reference.
+        position: SCNVector3(1.55, 3.62, 13.23),
+        target: SCNVector3(3.62, 1.95, 8.62),
+        fieldOfView: 43
     )
     private let standHomeAngle = Float(atan2(1.65, 8.65))
     // Exact fixed pocket map from the approved spinner mockup. Each inner
@@ -1924,7 +1930,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         guard let bounds = importedShopCounterSourceBounds else { return }
         // Keep the title comfortably inside the actual brass-framed plaque.
         let targetTextWidth = bounds.width * 0.16
-        let headerY = bounds.minimum.y + bounds.height * 0.82
+        // The plaque's visual center sits above the cabinet's geometric 82%
+        // line. Anchor to that center so the raised lettering clears the
+        // lower brass rail instead of reading as dropped against it.
+        let headerY = bounds.minimum.y + bounds.height * 0.85
         let offset = max(bounds.depth * 0.025, 0.02)
 
         for z in [bounds.minimum.z - offset, bounds.maximum.z + offset] {
@@ -1948,8 +1957,8 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             let scale = targetTextWidth / textWidth
             text.scale = SCNVector3(scale, scale, scale)
             text.position = SCNVector3(
-                bounds.centerX - (textBounds.min.x + textBounds.max.x) * 0.5 * scale,
-                headerY - (textBounds.min.y + textBounds.max.y) * 0.5 * scale,
+                bounds.centerX - (textBounds.min.x + textBounds.max.x) * 0.5 * scale + approvedBoardPlaqueOffset.x,
+                headerY - (textBounds.min.y + textBounds.max.y) * 0.5 * scale + approvedBoardPlaqueOffset.y,
                 z
             )
             let faceCamera = SCNBillboardConstraint()
@@ -1968,11 +1977,16 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let frontZ = bounds.minimum.z - max(bounds.depth * 0.50, 0.12)
         shelfBoard.name = "shop-board-shelf"
         shelfBoard.position = SCNVector3(
-            bounds.minimum.x + bounds.width * 0.25,
+            bounds.minimum.x + bounds.width * 0.25 + approvedBoardShelfOffset.x,
             // The board rests against the backing, with its lower edge on
             // the left half of the narrow display shelf.
-            bounds.minimum.y + bounds.height * 0.70,
+            bounds.minimum.y + bounds.height * 0.70 + approvedBoardShelfOffset.y,
             frontZ
+        )
+        shelfBoard.scale = SCNVector3(
+            shelfBoard.scale.x * approvedBoardShelfScale,
+            shelfBoard.scale.y * approvedBoardShelfScale,
+            shelfBoard.scale.z * approvedBoardShelfScale
         )
         let facePlayer = SCNBillboardConstraint()
         shelfBoard.constraints = [facePlayer]
@@ -1981,7 +1995,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
         displayBoard.name = "shop-board-display"
         displayBoard.position = SCNVector3(
-            bounds.centerX,
+            // The board sits forward of the turntable face. Compensate for
+            // the shop's fixed oblique camera so its visual center lands on
+            // the center of the selling platform.
+            bounds.centerX + bounds.width * 0.005,
             bounds.minimum.y + bounds.height * 0.40,
             frontZ
         )
