@@ -1,0 +1,98 @@
+{
+  "provider": "Meshy",
+  "geometryModel": "Meshy Remesh 300k triangle",
+  "textureModel": "meshy-7-retexture-4k-pbr",
+  "geometryTaskID": "01a06220-ad93-71d5-b151-85abe424fd09",
+  "sourceModel": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoards/Meshy_AI_Midnight_Grid_0830061844_generate.glb",
+  "sourceSHA256": "c2fb99e69bc5a9de5f94f7a606952d1533841f6aeb698a658f2e9b27f4915877",
+  "assets": {
+    "stargazer": {
+      "retextureTaskID": "01a0622e-69bd-775e-a56d-7ce9f8e24f7c",
+      "texturePrompt": "Deep midnight-navy enamel board with a complete fine aged-brass 9 by 9 grid, stronger brass 3 by 3 divisions, aged-brass frame and corner fasteners. Restrained hairline celestial constellation engravings and tiny warm star points between grid lines. Satin lacquer, subtle hand wear, premium 1930s observatory- library PBR materials. No digits, readable text, logo, glow, shadows or lighting.",
+      "styleReference": {
+        "path": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/stargazer.png",
+        "sha256": "7e929fce12fc73c7f2c3122c1cf786c43dcf1f0fe3156477d7ce17273a18d285"
+      },
+      "outputs": {
+        "glb": {
+          "filename": "stargazer.glb",
+          "sha256": "1aa0eb2805adceacf531c55d97009c13e588cc89f37fc000fd111b4dec71d525"
+        },
+        "usdz": {
+          "filename": "stargazer.usdz",
+          "sha256": "9009ee127d26ce28082286f578681ea272fbf6e9c9a56ea83fe59531fb460114"
+        },
+        "thumbnail": {
+          "filename": "stargazer.png",
+          "sha256": "0f083e0f5879b843c1c41ea206de51a4524897579065af3989e19c26e2b890a8"
+        }
+      }
+    },
+    "botanica": {
+      "retextureTaskID": "01a0622e-700c-749f-a33f-5a6ffa1fae46",
+      "texturePrompt": "Deep bottle-green enamel board with a complete fine aged-brass 9 by 9 grid, stronger brass 3 by 3 divisions, aged-brass frame and corner fasteners. Restrained engraved fern leaves, seed pods and curling botanical vines confined inside selected empty cells without hiding the grid. Satin lacquer, subtle hand wear, premium private-library PBR materials. No digits, text, logo or lighting.",
+      "styleReference": {
+        "path": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/botanica.png",
+        "sha256": "cf6d7caae0f2d4e27b86b852da2b111cec05408044fd7660913bdf57ca3665be"
+      },
+      "outputs": {
+        "glb": {
+          "filename": "botanica.glb",
+          "sha256": "53d6f4d9ac5ef79b30ffc95f935d9d4b82f19ee733b064aa17333af0c4c2cca9"
+        },
+        "usdz": {
+          "filename": "botanica.usdz",
+          "sha256": "b6d182edbb7a0fe634a45a0865d26d9b3eacc51d9207d2e6f9d350d764c51faa"
+        },
+        "thumbnail": {
+          "filename": "botanica.png",
+          "sha256": "98e54e52424a000dadce193adcb26c3abcf79935fe3babe198d80ef50aedf707"
+        }
+      }
+    },
+    "scribes": {
+      "retextureTaskID": "01a0622e-73bf-724a-8b75-93dbb6667bf7",
+      "texturePrompt": "Warm aged ivory vellum board with a complete precise sepia and aged-brass 9 by 9 grid, stronger 3 by 3 divisions, narrow dark-walnut frame and brass fasteners. Faint illegible brown manuscript notes, botanical marginal sketches and several restrained red proofreader circles across the vellum. Archival realistic PBR materials. No readable words, digits, logo, glow, shadows or painted lighting.",
+      "styleReference": {
+        "path": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/scribes.png",
+        "sha256": "8da084172b54da8ece5da07abd4d71bc1a2e963dd6a65dbc70de65567e51583b"
+      },
+      "outputs": {
+        "glb": {
+          "filename": "scribes.glb",
+          "sha256": "0b5b0a3f46f943c81792b166a5116ca1beede0e1e7c88d4f3e161cc09b705cf1"
+        },
+        "usdz": {
+          "filename": "scribes.usdz",
+          "sha256": "fd629a6c5df4d9d1e70e22409109d61a252cd833510f9f382a23d1f5a9af5e8d"
+        },
+        "thumbnail": {
+          "filename": "scribes.png",
+          "sha256": "d2e77b72727a868d684cf970577986d2fdc95b8ac46ff649064d753ac2b5fb01"
+        }
+      }
+    },
+    "porcelain": {
+      "retextureTaskID": "01a0622e-76bd-712f-906b-dc28178cccff",
+      "texturePrompt": "Warm ivory porcelain-enamel board with a complete fine cobalt-blue and aged-brass 9 by 9 grid, stronger 3 by 3 divisions, thin cobalt keyline, aged-brass frame and corner fasteners. Sparse hand-painted cobalt flourishes only in the outer corners, subtle ceramic depth and restrained period patina, premium realistic PBR materials. No digits, readable text, logo, glow or painted lighting.",
+      "styleReference": {
+        "path": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/porcelain.png",
+        "sha256": "da9f72cc70968364ddf6c7042846c209007f50fb8c23bfca53a1fc8bf545b092"
+      },
+      "outputs": {
+        "glb": {
+          "filename": "porcelain.glb",
+          "sha256": "6fbcbc298312d49476c644ca8a41dcdfff80b9b5a2e2afc251076ed63d85bb41"
+        },
+        "usdz": {
+          "filename": "porcelain.usdz",
+          "sha256": "3746612465d9ac9953b289b83e2f47413f7480ebf15f88ae69e4295929f5193d"
+        },
+        "thumbnail": {
+          "filename": "porcelain.png",
+          "sha256": "9d34da4bff43d7a2e84d0f431b489de8a45a53e0db9414d2bc831a39ab1ef30b"
+        }
+      }
+    }
+  }
+}

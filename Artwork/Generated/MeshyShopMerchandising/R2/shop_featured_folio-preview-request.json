@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated luxury Sudoku folio opened completely flat to 180 degrees like an open book, with the left and right pages side by side in one continuous plane. The entire open book is one shallow landscape slab tilted backward only fifteen degrees for a tabletop presentation. Never an L shape, no page standing perpendicular, no vertical closed book. Two rigid warm-ivory vellum pages in a dark brown leather bookbinder cover, aged-brass center hinge and corner protectors, a precise decorative 9 by 9 brass-line Sudoku grid spanning the open pages with stronger 3 by 3 divisions. Empty grid with no digits. Front-facing, symmetrical, premium 1930s private bookstore proofing object. No text, no letters, no numbers, no logo, no stand, no table, no ground plane, no extra objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 12000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

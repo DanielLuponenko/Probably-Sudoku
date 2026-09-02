@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061b3-319e-777b-b826-214704852091",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Dark polished walnut, aged leather books in burgundy forest-green and umber, restrained gold spine bands without readable lettering, warm ivory fabric lampshade and aged brass lamp base, realistic PBR materials with no painted lighting.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

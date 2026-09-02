@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated upright premium product box for a collectible Sudoku board edition, like a 1930s private bookstore presentation slipcase. Tall rectangular dark clothbound box, gently beveled edges, thin aged brass piping, a centered empty square recessed display window on the front, and one small blank inset nameplate area near the bottom. Closed rigid box, front-facing, symmetrical, stable proportions. No text, no letters, no logo, no board inside the window, no shelf, no ground plane, no other objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 7000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

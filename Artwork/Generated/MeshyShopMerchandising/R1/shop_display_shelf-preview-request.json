@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated long narrow horizontal cabinet display shelf, eight to one width-to-height proportion. Solid dark walnut ledge with softly beveled front molding and a restrained thin aged-brass lip along the front edge. Straight, symmetrical, 1930s private bookstore cabinetry. No wall, no brackets, no products, no text, no logo, no ground plane, no extra objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 5000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

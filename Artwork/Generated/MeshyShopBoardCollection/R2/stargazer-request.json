@@ -1,0 +1,13 @@
+{
+  "input_task_id": "01a06220-ad93-71d5-b151-85abe424fd09",
+  "text_style_prompt": "Deep midnight-navy enamel board with a complete fine aged-brass 9 by 9 grid, stronger brass 3 by 3 divisions, aged-brass frame and corner fasteners. Restrained hairline celestial constellation engravings and tiny warm star points between grid lines. Satin lacquer, subtle hand wear, premium 1930s observatory- library PBR materials. No digits, readable text, logo, glow, shadows or lighting.",
+  "ai_model": "meshy-7",
+  "enable_original_uv": true,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true
+}

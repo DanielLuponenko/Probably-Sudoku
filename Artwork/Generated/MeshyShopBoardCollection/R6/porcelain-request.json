@@ -1,0 +1,17 @@
+{
+  "model_url": "data:application/octet-stream;base64,<preserved source model>",
+  "image_style_url": "data:image/png;base64,<preserved style reference>",
+  "ai_model": "meshy-7",
+  "enable_original_uv": true,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "sourceModel": "Artwork/Generated/MeshyShopBoardCollection/RetextureSource/empty-grid-300k-uv.glb",
+  "sourceSHA256": "cb6c3e8f9cca4294d53139a1504fc00dc6603871ee5df66ad024e18583928b01",
+  "styleReference": "Artwork/Generated/MeshyShopBoardCollection/StyleReferencesR2/porcelain.png",
+  "styleReferenceSHA256": "183a6bf90d4e196365b16e892a90c447738f8c2e383ea8f8bc81106b23260584"
+}

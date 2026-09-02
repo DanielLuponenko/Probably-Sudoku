@@ -1,0 +1,30 @@
+{
+  "id": "01a061ab-e813-76e5-9a2d-df241e58d98a",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 2653134605,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated long narrow horizontal cabinet display shelf, eight to one width-to-height proportion. Solid dark walnut ledge with softly beveled front molding and a restrained thin aged-brass lip along the front edge. Straight, symmetrical, 1930s private bookstore cabinetry. No wall, no brackets, no products, no text, no logo, no ground plane, no extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788345052404,
+  "progress": 100,
+  "started_at": 1788345052407,
+  "finished_at": 1788345155764,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e813-76e5-9a2d-df241e58d98a/output/model.glb?Expires=4941907200&Signature=XQvq~~DeO4EuPeymbztATBJiB9f2kmQOP3ZPz5~D5lPPp0MnSls~DV4YREInEn3zphZmKu0X0nOo5e3Wyw2Vf7cZNU8ka2MGyrpzGZ~vT7ftHLRL9Vufs1~q1MOpTBkhvkZVSOLJLAL1sFj~zT4Nge7n4RWaCsWeXv8z-c8PFP-g0eu6b7A1MxOLyXAcBJrFgMnCDiHLCDE9zOj3huO1MUdDKxlVcp-GlnfVo4VtLkKwCH04f8ibMRK8-3eH24E~5Na1ugJ76d-k0n4naYrYW4rdgKyylWfYWumCj8FT0bxLf83wZ3tHV0AApBqT3FGwiybbBTTHTa70~JrJdusD0w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e813-76e5-9a2d-df241e58d98a/output/model.usdz?Expires=4941907200&Signature=at18O8ghcrs6BoqlyuX6eDRvyNqXXJfany4h2nev1LmvwFe9jSanZi~ZZTEN2AmPX98XBdeao~Y3vkWwW3BWao8dl6qVpEeMJeVlQIhwcuaUgSzqHva65Sa3Ho405KaFZ1Cjtr-iUiRgHBGFjUn5L85lsRUyDBajRiO79tSxQtueBRA0htxdTWNpCo83xmCYDuMGY7h5l7ZiKxailazR9UgECMVmyXZFTlFiMVD3Z0E96sRHUzipm5UOQypB-lIAieTs4SsY6p~DW7Fz-Avh8GOlxEUyQqtbgRvDc5RY7hXhLJjo-eT7e8g6FXgKjfOdo3x4NhdzFMew9mSceCRKbA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e813-76e5-9a2d-df241e58d98a/output/preview.png?Expires=4941907200&Signature=mxLjttaQdcl6rrpuWS4DhPLjP97WixSEaRKOVLJrfYwrtL0r8X6lXLcTFVwKnsmksLVgIiqxfoeUtStjbmK6LVLYGevAGTW1A94p3so21IB37YXh-5BBmgcwYShBcGk~-vIR7ur4G5WM19tuRvCIaIeHu8n2LxE1kfbjg-V4DIYOfx6-lMT-cKqxtasT1XAvvyVVH48zIU-lh4-SQPAKgmzIZiZHc4KSs5Om76joX~vF-ZTPiWZ5OTplyOrXfOOmtudsyvqGxuxfbgJGvFJOfjYk0Jmy3ZUErowSRZgH-CTVBd8Jggj7gpUV1OqK~abTb8GK4n0w0peE6-ZHIKd~EA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e813-76e5-9a2d-df241e58d98a/output/preview_alpha.png?Expires=4941907200&Signature=Kuz6hvwZszEqGpScHNNYKhfpHOC2o3jjqOcx~C4i3MfNNv3upACksMySgS4QLU0Gz4~~lewLO-~SD5kV3eSG6eoN9i4Y2Hv5Jd5I7aibjEXKgVq~lGsn2-aQs5N58t17jf~vZ7kqlBCj7ml-dMBl709qsOwmfqnKWymgn63i9m7~jzPd82-BtnOu9-5~boGGKMXux4vo3Uq351o3Z4vbbDLugD-555GEMuweEXVen1p69kWO-YgWJcGIdObtFEms3RWjkx-72aZlIL0MWUuEo5JnMNagKyokrF1G6Hqkt3yLl6FRuJpVG5XBcm3NuZQqtMi~jHbPTE05HXjjPFXSpA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

@@ -1,0 +1,40 @@
+{
+  "provider": "Meshy",
+  "model": "meshy-7-image-to-3d-ultra-4k-pbr",
+  "taskID": "01a06292-0890-72d9-8680-a8483e7c725e",
+  "consumedCredits": 35,
+  "reference": {
+    "path": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferencesR4/classic.png",
+    "sha256": "8cd9f4411bd935f751573741d30953da15202b64de91db50e039764d7384b39d"
+  },
+  "outputs": {
+    "glb": {
+      "bytes": 40779024,
+      "sha256": "dfbe32645aa9dca5c859a763ddcb43d0dd62426e8d3e02ad1a278b257f51ccdf"
+    },
+    "usdz": {
+      "bytes": 40239298,
+      "sha256": "8099905d7698a72bd2115f28cbf3c655c49f6f8c303ea5bc05af630c8b657c7e"
+    },
+    "thumbnail": {
+      "bytes": 112175,
+      "sha256": "e37a12a0344fc44648fea32a478c9cf7cdf81a8c9c9476b57f3417fb10d9155d"
+    },
+    "base_color": {
+      "bytes": 18572877,
+      "sha256": "8a7f181d92cffacb25b9fef8e1a5c7aee89e829a1a9c0e2c7749c5b015482df6"
+    },
+    "metallic": {
+      "bytes": 1638717,
+      "sha256": "df64225491e40bfb582927661296f775ef899d5d4a59d189ac89c8b8db84c0af"
+    },
+    "roughness": {
+      "bytes": 1546158,
+      "sha256": "4b8a6cb0182bb909f0dc6891c3130de7e4645cdcd185c1493f8a9305fc72e0fa"
+    },
+    "normal": {
+      "bytes": 20469324,
+      "sha256": "1c44baed700ff59283658eb20ca600ff2448b3fea1de16a735f9093a0badd31c"
+    }
+  }
+}

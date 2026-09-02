@@ -1,0 +1,24 @@
+{
+  "image_url": "data:image/png;base64,<preserved reference image>",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_texture": true,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "image_enhancement": false,
+  "should_remesh": true,
+  "save_pre_remeshed_model": true,
+  "topology": "triangle",
+  "target_polycount": 150000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "multi_view_thumbnails": true,
+  "moderation": true,
+  "referencePath": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferencesR4/classic.png",
+  "referenceSHA256": "8cd9f4411bd935f751573741d30953da15202b64de91db50e039764d7384b39d",
+  "intent": "One square Sudoku board body with raised 9x9 grid rails, stronger 3x3 rails, a narrow frame and physical corner fasteners."
+}

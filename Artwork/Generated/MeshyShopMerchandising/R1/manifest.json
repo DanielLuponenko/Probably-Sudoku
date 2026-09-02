@@ -1,0 +1,98 @@
+{
+  "shop_board_frame": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061ab-d5e8-741c-a2a7-cfaa41fec2fc",
+    "refineID": "01a061af-0a0e-738c-8915-04db675fdcd0",
+    "geometryPrompt": "Single isolated square wall-mounted presentation frame for one luxury 9 by 9 Sudoku board material sample. Thin aged-brass outer frame, four small round brass corner screw heads, shallow dark walnut backing, and a large empty square center recess intended to hold a separate board. Front-facing, perfectly symmetrical, very shallow depth, crisp bevels, 1930s private bookstore cabinet hardware. No board, no grid, no text, no letters, no logo, no wall, no stand, no ground plane, no extra objects.",
+    "texturePrompt": "Aged brushed brass trim and screw heads, dark polished walnut backing, restrained hand-worn edges, realistic PBR response, no painted shadows, no text, no logo, empty center recess.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_product_box": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061ab-dc07-700d-bb96-9d805270860b",
+    "refineID": "01a061af-0f43-70e9-91ad-d56fe9fa86e2",
+    "geometryPrompt": "Single isolated upright premium product box for a collectible Sudoku board edition, like a 1930s private bookstore presentation slipcase. Tall rectangular dark clothbound box, gently beveled edges, thin aged brass piping, a centered empty square recessed display window on the front, and one small blank inset nameplate area near the bottom. Closed rigid box, front-facing, symmetrical, stable proportions. No text, no letters, no logo, no board inside the window, no shelf, no ground plane, no other objects.",
+    "texturePrompt": "Deep bottle-green book cloth with subtle weave, aged brass edge piping, dark green inset window backing, tiny warm wear on corners, premium realistic PBR materials, no painted lighting, no text or logo.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_nameplate": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061ab-e249-7343-a476-69dac2448ff3",
+    "refineID": "01a061af-1461-7038-9e6a-74008916d0eb",
+    "geometryPrompt": "Single isolated small horizontal nameplate body for a luxury bookstore cabinet display. Thin aged-brass rectangular frame with clipped corners, deep bottle-green enamel center, four tiny brass rivets, shallow mounting depth, front-facing and perfectly symmetrical. Blank center for dynamic product text. No text, no letters, no logo, no wall, no shelf, no ground plane, no extra objects.",
+    "texturePrompt": "Aged brushed brass frame and rivets, deep matte bottle-green enamel center, refined 1930s private-club patina, realistic PBR materials, no painted highlights, no lettering.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_display_shelf": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061ab-e813-76e5-9a2d-df241e58d98a",
+    "refineID": "01a061af-18bf-7365-abdd-43ae46d9df79",
+    "geometryPrompt": "Single isolated long narrow horizontal cabinet display shelf, eight to one width-to-height proportion. Solid dark walnut ledge with softly beveled front molding and a restrained thin aged-brass lip along the front edge. Straight, symmetrical, 1930s private bookstore cabinetry. No wall, no brackets, no products, no text, no logo, no ground plane, no extra objects.",
+    "texturePrompt": "Rich dark walnut grain, satin hand-rubbed finish, thin aged-brass front lip, subtle edge wear, realistic PBR materials, no painted lighting.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_header_plaque": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061ab-edfe-7273-b3ca-3d6e1d6e4732",
+    "refineID": "01a061af-1d40-70c8-baf8-ddae168dcb36",
+    "geometryPrompt": "Single isolated wide horizontal sign plaque for a luxury 1930s private bookstore cabinet, four to one width-to-height proportion. Deep recessed bottle-green leather or enamel center panel, thin aged-brass inner border, and dark walnut outer molding with crisp shallow bevels. Blank center for dynamic heading text, front-facing and symmetrical. No text, no letters, no logo, no wall, no shelf, no ground plane, no extra objects.",
+    "texturePrompt": "Deep bottle-green matte leather center, warm aged-brass keyline, rich walnut molding, subtle period patina, realistic PBR response, no painted lighting, no lettering.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_featured_folio": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061ab-f3d9-7288-a3b2-f4e7062505fb",
+    "refineID": "01a061af-213f-72e2-b02d-7522f798d52b",
+    "geometryPrompt": "Single isolated open luxury Sudoku folio presented upright at a gentle backward reading angle. Two rigid warm-ivory vellum pages in a dark brown leather bookbinder cover, aged-brass center hinge and corner protectors, a precise decorative 9 by 9 brass-line Sudoku grid spanning the open pages with stronger 3 by 3 divisions. Empty grid with no digits. Front-facing, symmetrical, stable tabletop-display proportions, premium 1930s private bookstore proofing object. No text, no letters, no numbers, no logo, no stand, no table, no ground plane, no extra objects.",
+    "texturePrompt": "Warm ivory vellum pages, dark hand-tooled brown leather cover, restrained aged-brass hinge, corners and grid rules, subtle tactile wear, clean realistic PBR materials with no painted shadows, no text or numbers.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  }
+}

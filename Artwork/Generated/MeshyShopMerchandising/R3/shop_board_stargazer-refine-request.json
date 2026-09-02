@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061da-2336-752c-8018-3e86e0de8e7c",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Very dark midnight blue enamel, fine aged-brass grid frame screws and celestial engraving, sparse warm star points, subtle lacquer wear, realistic premium PBR materials, no painted shadows, no text or numbers.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

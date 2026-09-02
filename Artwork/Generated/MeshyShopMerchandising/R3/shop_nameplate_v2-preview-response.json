@@ -1,0 +1,30 @@
+{
+  "id": "01a061da-4165-7381-b76e-b51e1c48b874",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 1299805259,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated compact horizontal product nameplate, exact three-to-one width to height and extremely shallow depth. Deep bottle-green enamel center dominates the face, surrounded by one very thin aged-brass keyline and a narrow dark-walnut outer bevel, with only two tiny brass mounting pins at the far left and right. Blank center for dynamic two-line product text. Front-facing, symmetrical, refined 1930s private-library cabinet hardware. No text, letters, logo, wall, shelf, ground plane or extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788348090205,
+  "progress": 100,
+  "started_at": 1788348090219,
+  "finished_at": 1788348167309,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-4165-7381-b76e-b51e1c48b874/output/model.glb?Expires=4941907200&Signature=MJ0RXo3c1aJoXGqBMeADr8PVb3idoRyGbjtMTQdSY74N3b7xEPOFUKgVhE-hqdMKy5jSqiuQNyihiCx3Un-I9VLbtTIdmK3c-VshVPRsXja9ij13xnR1tcHPiznysA5TddRHaY5ki9j7YEsMXEQWuoSB2YGXrYCVKIMX0f4CvZYPOvlFxrXvae-B2OCG5KagiXPj5l5rjb9Jop4bGNTdb5ax9JzUhaffV3WukPgO3PMb09klgVht2tQ4~8LT1HXDf-pfVWLr2wuGdjD3FvVHctugNUK-1eZxWLhT~eDxRySPU-YvPfun~BUaFx4d9nch~btdjNfCqLZB2cZAndlxIg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-4165-7381-b76e-b51e1c48b874/output/model.usdz?Expires=4941907200&Signature=O3ExmFNdWU057ykNtlgXobnF8jCrHr6L1LTyDUFjySeeuzHnl3J5GaxM4E~4yl9bbQngFQi50GgMyRWfg1cvnTdrhyYWYvyosGMZFOOSsrvXIAYxMhroe2S3k69Klogi5nTsGH2MqFZnlWzhZzp1ChMU8clFBpmGhptLs6VCtxLQ07kfjuqpJuJooiF-s3i2bWAYanVVIzxreeHFyW~mSRLQX6Bw9AMf8p-dU9n~UmsS5jZi68FcwjoFvQqbGIJEy8j-wHPl~ISJpAWpLsfco5NS2XIG5o9sfSJEjOLDJ7jTuko5jmCLf6b8BoAj8aDR~Mzic039SADMh6J63zAVOg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-4165-7381-b76e-b51e1c48b874/output/preview.png?Expires=4941907200&Signature=jezauf1RNaT4U9FWNJ81Eq1vvQu6SyleZSjIoSqjibO6LRe1F~y4B7DOAkFAO0mcD08Ff3wZ1pgnu4VBiHxWbZQC0gpndpPcbbDe9sccbi~rxwg~lv-OniLy6x5exMY4ivxkwHkSo~Fzeaq51m3xq6Gk0PSHqvaelr2i8shpnMVEe8HIqMcpP7rTVuZ9Y0EeMuvd2sYqYt46kh6Rp3B95oNZrG~E-jpG8ajBrOibsrKsjhS~xydyeYRpxhCB4MhoC5RweUr4O8jjhR3SQWfAxru54OqwqKOmVtAGM6gG7nvl15ZFnRFBBwXdlcWdGqoqy6t46sVooRRc5jJoKy-j4w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-4165-7381-b76e-b51e1c48b874/output/preview_alpha.png?Expires=4941907200&Signature=MPnVAcRpvIslhGx4kjVY2VudHq~dkWe2yPHt59uFOGYl17cnviU2q4zyYadba-EoNRWB1Fost8EsfrK-1T9UB2E3nuWt0Rh7OHwb2OMkn79gaCJm--OZkDtS1tucGo4SY9Lxchug0Xc-2NAT-lEHakNMSyV8cF7H-FDJoSGMX1gpFB8JMsXyXJyz13u8OtVcKwL7covq6Yuj2KskPdXsCY9ai7p42PWqW3mEHKkL-8q3XgyLKctaQDw1JoiJtdSZjbRv9v7kwB6tzKnV~UdvlfLhqPsMRmQq-GZIM0nmV4BTWO1vO8pXLbiTkSoPGlNUnKUiQcqlAnWQXSWkzHJYWA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

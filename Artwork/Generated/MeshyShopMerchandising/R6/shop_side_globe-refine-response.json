@@ -1,0 +1,36 @@
+{
+  "id": "01a061f6-32b3-752d-912a-d4d06eb5c182",
+  "type": "text-to-3d-refine",
+  "mode": "refine",
+  "name": "",
+  "model_type": "standard",
+  "seed": 922131344,
+  "art_style": "realistic",
+  "texture_richness": "high",
+  "prompt": "Single isolated small antique celestial globe for a 1930s private library. Cream parchment sphere with restrained sepia celestial-map markings, held by one thin aged-brass meridian ring on a compact turned brass pedestal and dark walnut circular base. Upright, front-facing, symmetrical, premium realistic craftsmanship, designed as subtle background dressing beside a display cabinet. No table, shelf, wall, floor, books, readable text, logo or extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "Warm aged parchment sphere, faint illegible sepia constellations, aged satin brass ring and pedestal, dark walnut base, premium realistic PBR materials, no painted lighting, no readable labels.",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788349920923,
+  "progress": 100,
+  "started_at": 1788349920928,
+  "finished_at": 1788349981967,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/model.glb?Expires=4941907200&Signature=ZrhnsiWijR29uhU2zjoL8LF6T2EacdKGx5klPaXdBCvpF6JoDvvzSAu3xAs6CUk-7HYY9NZCR-kp91coy172OZVwDSBBnYfo92VNpByZNb-8mLEBjb1KwCZamCoWk0jbjT-nT-5BZz495bEZvFykdcyGnRGFBdW6XirNGtGobGZEI~wU6tgw0m2iyJnXU17mE8BP7WhLBS~Q6SvcWgg7ourhHYMGcFMf4-0GGzVI4NWYPiHC2x3WxYFrp13LZ3sOkz1nkw-fIH6Tn6WH7b7oAYzyyMqFQl0aoCGRpNYXB2p~YxseDD~1UJ3PGZD4oFa6Gahw9Yc7sg2~8QWMV941Iw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/model.usdz?Expires=4941907200&Signature=JqeX220uK8zJ4eQzpitADyg1QeOcFFPFG~EpS7V~p~AbIqCEN-wRmBYwTcyOr8pa3XZT8ugtNqt4puSO~lwNRG96IGdefvXZowu3-HyAZ7q~M2NEgnstYOBHotczZg47u8I1tsGRfMUJFgC81TPSVJGugkAJC5aZQbnCwO33ial7yv8wF6r-663Eb5kAoKZJqp-dUVa~b7~Ws5mhcoG3XTTxpSjJwaaO8V9ezBlZPpeA5xnXnsQtKyJkyOjbegm3TolmCr8MhyOV~Sp2yIoeIOh3I-yiKlYQWxQ2OmTi70z4jh6Jt-i1AR-PPLMaFdYtIijs0PluAKTQjOCIjBFwaA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/preview.png?Expires=4941907200&Signature=ew5BQaEcaMKegYbMkBObgDWDnX3xKQg6JT7Zgi2oapz-qi7s-nAli2dHuKIkAgxFFb8YZzvfE5ijPBy3rK5ZYhJtq1-sHFHl~GA94hh7xViz-M2L8glIebIeEDWBKFQ4~njp0L6Bd-Nh2SFvSLnZq4batXeLiFcUppyQdFbHuuKESr04LA-QJNwG9bB7Iz6tqZvP17xVv9LKODqSQ0cZCTQ4CI5eXe3l4bH08Vh1G4ttUqIjWaz1UDs-mZNLT549kWewvRy~B8QAJic9XJUc4uEB8QT0wx9~Hv1MNZKR46xQZyp-W9w4GsTOzMyAxLQJLO-XEFKl86SqPDAgMGUM~w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/preview_alpha.png?Expires=4941907200&Signature=KPMusOaNeGCWIxzvKAaQin3E7tym9VAeuRcEntnG2iQ~RzD25o1My5F~02rh~vJwmKrW8mIXOfan3Wvv7r3ijBYRxmYqXW-Kc1nFaQ0P2wWxXLGt3YQDUg8MDzYIpt7WMEIplGPSIDONt5SvrXxHZB-EHhm9a-24D4dfRN~pcWpzv1QUAiXU25UhQm3IWytrZzpkp305Rr9-axPd2nS5uOpzrVIaFH2RxZ-Gw7Lrz3rYvq24C18p7Gdz9NZfvMLAB1NqDaDbOXB0VKumg6gdamYCaeI7lME4SRonq0bEXDwDKzSEn85kxlXZ-utsBFUZauGAk1CZmkCRLFRQCtw30Q__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [
+    {
+      "base_color": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/texture_0.png?Expires=4941907200&Signature=MTR2nDgl~OhXvXVqVR1NOZ~rKlOnHUdRrsZhg0emPPq8aBZtoZxLDQsO9A0lipB~6x65N7nw~2Uh4WmQdKlYNQfsY8Q8QEReAJb~4s~Zr~kDqAz4pZXwhpqH7izXn2We50FZUrLUYJ69x~r6uwZX2xmLqXL4te8YcEPdyGR8Iwn50Nm2gpW2HrlGdVgnpdi9jmYHV~8t7fgEpuuHIp7JmNwvN0fesr3udE1ZwEicHVmocZxJnL2he4hX11KEFv5JSxihpTIOkRaZXfzomWNtXzBIu7VdByfji56DqAslqxRmQgB51XiaFZgCzzhJzvvBbzycJNt4VOrgBsoyxzDyGg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "metallic": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/texture_0_metallic.png?Expires=4941907200&Signature=EIS1Rs-B8Hi4ti8~BXzNUzXO-Yg8nGZ1tpLsefSGcJ8eCXxe-FhzLXsX6Qu-2p~kgpgdB-3MxwpsQ7UU6ambQB22KeshXvKUjHtsfrxCX-Tzg7ILiso0vuxM1xCGEHnfZlv7MBFiRhXLS~ps~XLID4mxtyJvNxX~Y7eo6UACe~JNkHBhSwtMho6ngRD0nzIF~3mUs5DKV3wol~vuuCCX5yFG4tMFLmUtvKOxgk4C2dXJiMI-WGmOAb3MSgNczX5XVTErJd6uDrg8Vj0LN8W0SygSxWHyTu3lv16jb~xskzW03YJswEB8-FCSDF1y21AzIhJHydBepHnLDSu3KnP~rg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "roughness": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/texture_0_roughness.png?Expires=4941907200&Signature=ZPNm3SXi1-CWie1fRMXq4KjqizVKRXqi00eNC3wDQPK2EmM~dMppbT01NQ-O46LgHLjzKqi8ff6TbJd7rKiTiMA~v9PQ7tFY3YtcGRJFiPUM2CTMv8jUErJy4XgbVIvHjX1yqjyySWm9pvxBOBWNzBdAXdhkaSQlkzPYRIYF6uzGcAtu7X-f1ndJx0ojF9y1yJXUbHLZtPl7wL3e0pEC4C6BxbaBoub3M-OZseaIAtRqkrUMiJSwEG0LIjirs-Nr7CfcuqLWhB66q-XZk-WsLejx59U8qgHz1pasSY2R4CgrjqDKWqH8XDJLWQfpiwt6CJjFCvbd7ASBkONIwvc4jQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "normal": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061f6-32b3-752d-912a-d4d06eb5c182/output/texture_0_normal.png?Expires=4941907200&Signature=hLexbCoKf-UjSwxzFgFjNSG1ZgMcjbmq0-BO53m9PspOS1HWaUQ-aF27kEvriEfRrkgFH77QKK9zFWzVgOPRXQhhQmWqM4bwp5t4-Y-ZLmkaMVL-OdaJeGLyL4UPtgh0hpAYCqxS19qGY~uzB-scjrbnd3zgrox3xOuOEviYtDMSkQhH5eIW07vrfvd~dP1--WVgjNhoCXk7PppzoAJScfsGMgvmc41UQmLMW1GQ5BY7LRq9u3431181wNsFCRfrhi5Njm4X3n~DPBDTokswGHVZ8G2DjekrgJQxIuVy7Os9ADJ7Chg6hQnYDi~ZE5Vdrib6cCM4F8dhqQ9cCQ3gtA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+  ],
+  "consumed_credits": 10
+}

@@ -1,0 +1,30 @@
+{
+  "id": "01a061de-6731-75c0-afab-5aa600161045",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 2734115914,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated square antique manuscript Sudoku board plaque, exactly one-to-one square and very shallow. The entire front is visibly aged cream vellum densely covered with faded illegible brown calligraphic notes, proofreader symbols, tiny botanical marginal sketches, ink stains and several obvious restrained red wax- pencil circles and correction marks. A complete regular 9 by 9 sepia grid remains clearly visible over the manuscript, with stronger lines every third row and column. Thin aged-brass inner keyline, narrow dark-walnut frame, four brass corner screws. Front-facing, orthographic, symmetrical, archival private-library craftsmanship. No readable words, no modern typography, no logo, no stand, no wall, no floor, no other objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788348363822,
+  "progress": 100,
+  "started_at": 1788348363834,
+  "finished_at": 1788348483043,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061de-6731-75c0-afab-5aa600161045/output/model.glb?Expires=4941907200&Signature=UjVfPVUC~cTtYUIkheHrghnSEb5GL~By3jTC4nqwxjOmHXpP~0CBhJMuXg9CAKdCwnKZ3t6Ary2ltCE8yq43l-pW5V0ffOOlFY3kBaNfkfkKutd~13tHct7zFncRgmtclOGoA0s-~GHTY2-~xZU5XtIWrwQywXoCEozEMyEwJ9jz1sZFGduyPWzRdivFDm1b4BdgqnQOvE8x3RMEx9k~kfo~7J~DsLKwZLchCPI9q4QoDCtq1sJgUGUU7QFeMv9rEy7tLWuXzWTDrQM1XUdmn3mL7QwF3ePSjll4cZQ5oV5HXuudDiLu762GiJ~G5ieYF3kSr6fxhsn1jhyP1PITAg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061de-6731-75c0-afab-5aa600161045/output/model.usdz?Expires=4941907200&Signature=iq6FRZj3B3p6Q1VRMybR17--P9~pvDeeMeS9Q-CcdIFw41gvomLnq89iLoTKJ2Zj645ut66y2~6fKqIoYcam0kiHy0iVnwa2cI4BVnmnWKqnzn5x5bkBc7oZwBUDMtlnfVQY~7L4-o15C1pEHb1ZKDucQ1NCc5daNPhi8qEqjqq46oNCobcDgwaOHeGOx~Y9Mf5MkNM9AzyxwCgmR4qzWsBc0DdFHxmdT2V-jJfz2JI6ptOI2iavdfXTcSzvLfmhHdRcO3UU~FdZMKjbkQIA-T1tL7Yg4YWfyyKTp851aGVPQemHnnG7JShRAoFLevHW-j~iIG5-sDlzH56XQdHzfg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061de-6731-75c0-afab-5aa600161045/output/preview.png?Expires=4941907200&Signature=FI9ZV2ZTAQrTexbJdOc9hlohrfBQfzoAn5LNUqeS55MUZOI9KJhH~Pxgk-NHNolqE8l29hYqzPIwo7SshGKa3VCsUZ2VGJPeZES8o7FbNGrdkAt2MytMAfHjHXSkKyDjXuT5z6UioANnVV7XXY5Jx1xzeoGFOsTSBxW8Jk7af9dA~tsP0~Dw79N0kw1-tbrqnmq0-1VHGKUj8m~YS9eVA3xK1qZZCPgSmDP9SfMc4ksnMppMPpxwLpP~JlVNGWIbuNeNRv~p5IAoI87s~-Qhx8-i44grMlGS0lJGVBu3aQpyAqZ9T6wFS-TI0hfvj~5gOSbxMxmiBm6L8pxyQEgjfQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061de-6731-75c0-afab-5aa600161045/output/preview_alpha.png?Expires=4941907200&Signature=kBOsxICtufGX6T02u-zKg1weUqklik9XV6Jru933TZBT6eKXfkdtT3wf8H9869g4EvW1h88qQoNCK5PdVALSx0zet9aUGHnSkRdUGz~uJhZfG~PpYmUxpUYpZ0QG4rJJ4fG5dL5jmPbqER7TG0x5gn-xcPyFcf7SxWsa8cxqFkxtFYX9G3WpkerYFgepQiuYmkD0-Ls~3JRGHGCWjRI5kPlHKUTvjCPqWP15oNAqoqSQWwajvysE4GJ8FRxn35eYh1SnEe3FQzgPEvpLkmZbYS0kdKTrai2HhVRIMqu5YB27I3e5aBYOnGv8Clw5VR5dsQJhUjEphdIf0JSXFeVmJg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

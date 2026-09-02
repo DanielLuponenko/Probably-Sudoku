@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Deep bottle-green enamel playing surface, an exact regular 9 by 9 aged-brass grid with stronger divisions every third row and column, four small brass corner screws, and restrained engraved botanical vines, fern leaves and seed motifs curling through selected empty cells without obscuring the grid. Thin aged-brass perimeter frame. Front-facing, orthographic, symmetrical, private botanical-library craftsmanship. No numbers, letters, text, logo, stand, wall, ground plane or extra objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 15000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

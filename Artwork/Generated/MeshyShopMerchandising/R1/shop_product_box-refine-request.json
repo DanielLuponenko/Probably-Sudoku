@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061ab-dc07-700d-bb96-9d805270860b",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Deep bottle-green book cloth with subtle weave, aged brass edge piping, dark green inset window backing, tiny warm wear on corners, premium realistic PBR materials, no painted lighting, no text or logo.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

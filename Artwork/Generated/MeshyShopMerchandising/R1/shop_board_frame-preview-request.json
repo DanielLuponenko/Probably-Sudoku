@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated square wall-mounted presentation frame for one luxury 9 by 9 Sudoku board material sample. Thin aged-brass outer frame, four small round brass corner screw heads, shallow dark walnut backing, and a large empty square center recess intended to hold a separate board. Front-facing, perfectly symmetrical, very shallow depth, crisp bevels, 1930s private bookstore cabinet hardware. No board, no grid, no text, no letters, no logo, no wall, no stand, no ground plane, no extra objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 7000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

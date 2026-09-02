@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061f4-6e58-77d8-8cd4-f5ce9f2d1f7d",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Warm ivory pleated fabric with subtle weave, aged satin brass stem and base, soft period patina, premium realistic PBR materials, no painted light rays, no glowing halo, no text or logo.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

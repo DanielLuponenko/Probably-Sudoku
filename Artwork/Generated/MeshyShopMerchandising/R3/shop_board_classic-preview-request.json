@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Warm ivory enamel playing surface with an exact regular 9 by 9 grid made from fine raised aged-brass rules, stronger brass divisions after every third row and column, tiny round brass nodes at intersections, four small brass corner screws, and a very thin dark walnut and brass perimeter frame. Front-facing, perfectly orthographic and symmetrical, refined 1930s private-library craftsmanship. No numbers, no letters, no text, no logo, no stand, no wall, no ground plane, no other object.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 14000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

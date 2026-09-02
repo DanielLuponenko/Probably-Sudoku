@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061b3-245b-7450-b0a7-d5f8882de28e",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Deep bottle-green matte leather center, warm aged-brass keyline, rich walnut molding, subtle period patina, realistic PBR response, no painted lighting, no lettering.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

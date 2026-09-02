@@ -1,0 +1,16 @@
+{
+  "input_task_id": "01a06220-ad93-71d5-b151-85abe424fd09",
+  "image_style_url": "data:image/png;base64,<preserved style reference>",
+  "ai_model": "meshy-7",
+  "enable_original_uv": true,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "styleReferencePath": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/botanica.png",
+  "styleReferenceSHA256": "cf6d7caae0f2d4e27b86b852da2b111cec05408044fd7660913bdf57ca3665be",
+  "intendedStylePrompt": "Deep bottle-green enamel board with a complete fine aged-brass 9 by 9 grid, stronger brass 3 by 3 divisions, aged-brass frame and corner fasteners. Restrained engraved fern leaves, seed pods and curling botanical vines confined inside selected empty cells without hiding the grid. Satin lacquer, subtle hand wear, premium private-library PBR materials. No digits, text, logo or lighting."
+}

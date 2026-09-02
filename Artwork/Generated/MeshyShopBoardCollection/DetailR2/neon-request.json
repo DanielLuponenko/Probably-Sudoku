@@ -1,0 +1,17 @@
+{
+  "provider": "Meshy",
+  "operation": "retexture",
+  "taskID": "01a062dc-bf9f-70fe-a45f-abe380d8afe5",
+  "inputTaskID": "01a06220-ad93-71d5-b151-85abe424fd09",
+  "sourceModel": "Artwork/Generated/MeshyShopBoardCollection/RetextureSource/empty-grid-300k-uv.glb",
+  "sourceSHA256": "cb6c3e8f9cca4294d53139a1504fc00dc6603871ee5df66ad024e18583928b01",
+  "styleReference": "Artwork/Generated/MeshyShopBoardCollection/DetailR2/StyleReferences/neon.png",
+  "styleReferenceSHA256": "b0ccc13e0cfc5d97dae5c10d94da6fa55853233481095843a2ab57450cb3c510",
+  "aiModel": "meshy-7",
+  "enableOriginalUV": true,
+  "enablePBR": true,
+  "textureResolution": "4k",
+  "targetFormats": ["glb", "usdz"],
+  "alphaThumbnail": true,
+  "creditCost": 10
+}

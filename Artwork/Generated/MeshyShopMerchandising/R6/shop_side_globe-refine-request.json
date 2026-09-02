@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061f4-7580-7584-87da-43f2e4751876",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Warm aged parchment sphere, faint illegible sepia constellations, aged satin brass ring and pedestal, dark walnut base, premium realistic PBR materials, no painted lighting, no readable labels.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

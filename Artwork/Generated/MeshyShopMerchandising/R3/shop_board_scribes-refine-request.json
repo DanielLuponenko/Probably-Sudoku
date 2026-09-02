@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061da-3029-7572-b5d8-3941c04ee436",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Warm mottled vellum, sepia ink grid, faint illegible manuscript marginalia, small restrained red proof marks, dark walnut and aged brass frame with corner screws, realistic premium PBR materials, no painted lighting, no readable text or digits.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

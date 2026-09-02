@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061e9-9966-7797-aed8-78c0b2fbd9d4",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Warm ivory vellum panels, dark hand-tooled brown leather edge, aged brushed brass hinge grid nodes and corners, dark walnut number tiles with crisp ivory embossed digits, subtle hand wear, premium realistic PBR materials, no painted lighting.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}
