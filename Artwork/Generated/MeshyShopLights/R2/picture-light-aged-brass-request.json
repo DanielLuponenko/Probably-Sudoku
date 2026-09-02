@@ -1,0 +1,13 @@
+{
+  "provider": "Meshy",
+  "operation": "retexture",
+  "inputTaskID": "01a060db-c6ff-77d8-8f6c-1203719d131f",
+  "aiModel": "latest",
+  "textStylePrompt": "Authentic 1930s private-bookstore picture light: aged brushed brass cylindrical housing and end caps, subtle dark bronze mounting hardware, warm ivory frosted-glass diffuser along the lower face. Refined premium furniture hardware, restrained patina, crisp metal-versus-glass separation, no wood, no painted patterns, no text, no baked glow or cast shadows.",
+  "enableOriginalUV": true,
+  "enablePBR": true,
+  "textureResolution": "4k",
+  "removeLighting": true,
+  "targetFormats": ["glb", "usdz"],
+  "alphaThumbnail": true
+}

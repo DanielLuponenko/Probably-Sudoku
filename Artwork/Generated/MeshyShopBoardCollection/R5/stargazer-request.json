@@ -1,0 +1,17 @@
+{
+  "model_url": "data:application/octet-stream;base64,<preserved source model>",
+  "image_style_url": "data:image/png;base64,<preserved style reference>",
+  "ai_model": "meshy-7",
+  "enable_original_uv": true,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "sourceModel": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/RetextureSource/empty-grid-300k-uv.glb",
+  "sourceSHA256": "cb6c3e8f9cca4294d53139a1504fc00dc6603871ee5df66ad024e18583928b01",
+  "styleReference": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/stargazer.png",
+  "styleReferenceSHA256": "7e929fce12fc73c7f2c3122c1cf786c43dcf1f0fe3156477d7ce17273a18d285"
+}

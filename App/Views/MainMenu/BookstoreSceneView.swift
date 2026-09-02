@@ -5,6 +5,16 @@ import ProbablySudokuEngine
 private final class BookstoreSCNView: SCNView {
     var onViewportChange: ((CGSize) -> Void)?
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if let screen = window?.screen {
+            // SceneKit can retain the 1x drawable created during the initial
+            // SwiftUI sizing pass. Force the Metal surface to native device
+            // scale once the view reaches its real window.
+            contentScaleFactor = screen.scale
+        }
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         onViewportChange?(bounds.size)

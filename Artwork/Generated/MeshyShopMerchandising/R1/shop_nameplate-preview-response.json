@@ -1,0 +1,30 @@
+{
+  "id": "01a061ab-e249-7343-a476-69dac2448ff3",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 3993214849,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated small horizontal nameplate body for a luxury bookstore cabinet display. Thin aged-brass rectangular frame with clipped corners, deep bottle-green enamel center, four tiny brass rivets, shallow mounting depth, front-facing and perfectly symmetrical. Blank center for dynamic product text. No text, no letters, no logo, no wall, no shelf, no ground plane, no extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788345050831,
+  "progress": 100,
+  "started_at": 1788345050834,
+  "finished_at": 1788345173804,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e249-7343-a476-69dac2448ff3/output/model.glb?Expires=4941907200&Signature=jBhkACm3QxaB207~b4lZ6z1K-3qpkm4woT6mbgxiijmt~geXFirhDMYg6sRsIxGtguZ13SkDjsqRIjYLMG1A~UQ1OCK~yvGqTQKrKb84DVaGQWEOmOY~eqfzN~bUngf4w6RFbKDci~EwIeaTYfHhrfnsiaF9BnTpFwnBVgfd-LOLyrSm8zAxomxqgJzl9ZwnDIVXajtFAf7Q2rOib-t9lmC8Md4BkXsDVeH~yDIl-ugvv~fbjc2e7FyeFgvfsMzcdEpw0motuNZercv0v~5Znf2yawcNWL1z0aoNz0kOfdQ~3JVp~VCZl6TXu~LJMpg05HInzILHGrpqHdqxvGAr-w__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e249-7343-a476-69dac2448ff3/output/model.usdz?Expires=4941907200&Signature=nCYMolh9xhgdTb8H98JSP9kE2vxVihH4z8-cMdfZofjZCijB5gOI19QqGU~NH6R9IS~CMiycWEitfD8g4bMkjkNvdxWS8HfZ0xIlscOQ7xvV8kcfglFdFjoA3C-sRA3q44VfnjRT4FzQ7kKR9AL1VsF~zeDrhoOVJ8GZW4OcecM5Y6AWGSfcXhjzYzVrlgOaGL12RBA7lT33oP-sBLg5FxMHfDSO-~5o3~zW6uyvZyyCIg~Q-GEFQrIN35UssMpslWHHsE27xxMoGA2tVmAzEp8IujS9Bel6r9x1sK8QmbIb2OY37qT2xfNeBaim8NKQKbWv2BxyVq6JJQugzwVzYg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e249-7343-a476-69dac2448ff3/output/preview.png?Expires=4941907200&Signature=OFpVP-6inBXmwm4Cta~U3Wluw1nbUxZ6ZKbt7tZrSeLmYpWDIfX99q2Cik2jLWpe12CfWanAMSzDo1~EWEJBpaHTPrxcQr97yur4-bi-4qHzQDjpTAQQEXytIXTq132Dy3u3tO-MOZ67RSrb0e~0G5~4IeVi3qfDwkRFQg5-msTpIl9P0sH5zxbE-WwbrAeZgbk-qF8R9SUEq-3UMGTVT43W9s3c4LNpQlm1kw1liqvEzBNLRoIJPGvFk2SCc2TrkhX~eUfR4idrgRKv6x2w227U6KprHNtf8oiq6pqMj61j9f7fLTN3jX7XEklU14nywzsTkGltH2ityyYvnS0Cvw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-e249-7343-a476-69dac2448ff3/output/preview_alpha.png?Expires=4941907200&Signature=f0SAdN5BQaG~gt9EuHRh4AoyqPWlOuZ4etHBaalCmziqs8g3F-9giHWmnE9fSYcpDWr~BnjlmxuWNcw9O0CX-GuMnjFZR0V~M5uaY45QkS2RO6mQnAKVNiGBi-qFiWE-048AFzTFCLY8zWZUNryvLa-vecD14DgZ7UP~TRz3GjbjEddVkL1J33VHqYBrfHx2YsnJ-GMb3vkLrjsmTDTbGUMOM9~L~HF7XMlaX3LhovFsjRSlbX7SQyB3PxCmYP3FUNgz1F16EP0vUVvJ54hn9MCwR4JLWfthytqZ99pvyS607Ldks80Tll-d0f5eHibEirB1aGWqbQJgR17~1jW8kQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

@@ -1,0 +1,98 @@
+{
+  "shop_board_classic": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061da-1cee-729a-9d28-f7e458bcbedb",
+    "refineID": "01a061dc-0810-77dc-8fa6-65756bdd4edb",
+    "geometryPrompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Warm ivory enamel playing surface with an exact regular 9 by 9 grid made from fine raised aged-brass rules, stronger brass divisions after every third row and column, tiny round brass nodes at intersections, four small brass corner screws, and a very thin dark walnut and brass perimeter frame. Front-facing, perfectly orthographic and symmetrical, refined 1930s private-library craftsmanship. No numbers, no letters, no text, no logo, no stand, no wall, no ground plane, no other object.",
+    "texturePrompt": "Warm ivory enamel or vellum playing field, aged brushed brass grid nodes frame and screws, narrow dark walnut edge, subtle handmade patina, premium realistic PBR materials, no painted lighting, no text, no numbers.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_board_stargazer": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061da-2336-752c-8018-3e86e0de8e7c",
+    "refineID": "01a061dc-0cfe-7269-9715-02ba8ec16b6e",
+    "geometryPrompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Deep midnight-navy enamel playing surface, an exact regular 9 by 9 aged-brass grid with stronger divisions every third row and column, tiny brass corner screws, and delicate engraved celestial constellation lines and small star points woven between but never replacing the grid. Thin aged-brass perimeter frame. Front-facing, orthographic, symmetrical, 1930s observatory-library style. No numbers, letters, text, logo, stand, wall, ground plane or extra objects.",
+    "texturePrompt": "Very dark midnight blue enamel, fine aged-brass grid frame screws and celestial engraving, sparse warm star points, subtle lacquer wear, realistic premium PBR materials, no painted shadows, no text or numbers.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_board_botanica": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061da-298f-74b7-ac93-12cb18549e7a",
+    "refineID": "01a061dc-1179-73b4-9be1-c9b9573a3643",
+    "geometryPrompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Deep bottle-green enamel playing surface, an exact regular 9 by 9 aged-brass grid with stronger divisions every third row and column, four small brass corner screws, and restrained engraved botanical vines, fern leaves and seed motifs curling through selected empty cells without obscuring the grid. Thin aged-brass perimeter frame. Front-facing, orthographic, symmetrical, private botanical-library craftsmanship. No numbers, letters, text, logo, stand, wall, ground plane or extra objects.",
+    "texturePrompt": "Deep matte bottle-green enamel, warm aged-brass grid frame screws and engraved botanical details, lightly hand-worn edges, realistic premium PBR materials, no painted lighting, no text or numbers.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_board_scribes": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061da-3029-7572-b5d8-3941c04ee436",
+    "refineID": "01a061dc-162e-76e4-808b-190cffc6889a",
+    "geometryPrompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Aged warm vellum manuscript playing surface mounted inside a thin dark walnut and aged-brass frame, an exact regular 9 by 9 sepia-ink grid with stronger divisions every third row and column, four small brass corner screws, subtle handwritten proofreader marks, faded botanical marginalia and a few restrained red wax-pencil annotations around empty cells. Front-facing, orthographic, symmetrical, archival 1930s private-library object. No readable words, no numbers, no logo, no stand, no wall, no ground plane, no extra objects.",
+    "texturePrompt": "Warm mottled vellum, sepia ink grid, faint illegible manuscript marginalia, small restrained red proof marks, dark walnut and aged brass frame with corner screws, realistic premium PBR materials, no painted lighting, no readable text or digits.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_product_box_v2": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061da-38dd-748a-9f76-38dc27635db2",
+    "refineID": "01a061dc-1d26-71a6-b45e-ef09a368f73c",
+    "geometryPrompt": "Single isolated upright premium product box for a collectible Sudoku board edition, exact four-to-five width-to-height proportion, noticeably broad rather than tall and skinny. Closed rigid clothbound slipcase with shallow depth, deep bottle-green book cloth, crisp beveled edges, thin aged-brass piping, a large centered empty square recessed display window on the upper front, and a blank shallow title area below it. Front-facing, symmetrical, stable, refined 1930s private-bookstore packaging. No text, letters, logo, board, shelf, ground plane or other objects.",
+    "texturePrompt": "Deep bottle-green woven book cloth, thin aged-brass edge piping and window trim, dark inset backing, restrained hand wear, premium realistic PBR materials, no painted lighting, no text or logo.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  },
+  "shop_nameplate_v2": {
+    "provider": "Meshy",
+    "geometryModel": "meshy-7-ultra",
+    "textureModel": "meshy-7-pbr",
+    "previewID": "01a061da-4165-7381-b76e-b51e1c48b874",
+    "refineID": "01a061dc-21aa-7255-9652-11ade17193c7",
+    "geometryPrompt": "Single isolated compact horizontal product nameplate, exact three-to-one width to height and extremely shallow depth. Deep bottle-green enamel center dominates the face, surrounded by one very thin aged-brass keyline and a narrow dark-walnut outer bevel, with only two tiny brass mounting pins at the far left and right. Blank center for dynamic two-line product text. Front-facing, symmetrical, refined 1930s private-library cabinet hardware. No text, letters, logo, wall, shelf, ground plane or extra objects.",
+    "texturePrompt": "Deep matte bottle-green enamel, thin aged-brass keyline and pins, dark walnut bevel, subtle period patina, premium realistic PBR materials, no painted lighting or text.",
+    "previewCredits": 25,
+    "refineCredits": 10,
+    "modelFormats": [
+      "glb",
+      "usdz"
+    ],
+    "textureURLsPreservedInResponse": true
+  }
+}

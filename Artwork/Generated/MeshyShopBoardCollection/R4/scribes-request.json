@@ -1,0 +1,16 @@
+{
+  "input_task_id": "01a06220-ad93-71d5-b151-85abe424fd09",
+  "image_style_url": "data:image/png;base64,<preserved style reference>",
+  "ai_model": "meshy-7",
+  "enable_original_uv": false,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "styleReferencePath": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/StyleReferences/scribes.png",
+  "styleReferenceSHA256": "8da084172b54da8ece5da07abd4d71bc1a2e963dd6a65dbc70de65567e51583b",
+  "intendedStylePrompt": "Warm aged ivory vellum board with a complete precise sepia and aged-brass 9 by 9 grid, stronger 3 by 3 divisions, narrow dark-walnut frame and brass fasteners. Faint illegible brown manuscript notes, botanical marginal sketches and several restrained red proofreader circles across the vellum. Archival realistic PBR materials. No readable words, digits, logo, glow, shadows or painted lighting."
+}

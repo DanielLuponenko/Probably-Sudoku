@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated compact horizontal product nameplate, exact three-to-one width to height and extremely shallow depth. Deep bottle-green enamel center dominates the face, surrounded by one very thin aged-brass keyline and a narrow dark-walnut outer bevel, with only two tiny brass mounting pins at the far left and right. Blank center for dynamic two-line product text. Front-facing, symmetrical, refined 1930s private-library cabinet hardware. No text, letters, logo, wall, shelf, ground plane or extra objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 5000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

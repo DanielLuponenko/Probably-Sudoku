@@ -70,6 +70,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private let standKeyLight = SCNLight()
     private let roomCoolFillLight = SCNLight()
     private var practicalLights: [SCNLight] = []
+    private let shopPendantLight = SCNLight()
     private let focusedBookLight = SCNLight()
     private let focusedBookLightNode = SCNNode()
     private let editions: [BookEdition]
@@ -109,15 +110,28 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var shopBoardFinish: BoardFinish = .printed
     private var shopMeshyTurntablePrototype: SCNNode?
     private var didLoadShopMeshyTurntable = false
-    private var shopMeshyBoardPrototype: SCNNode?
-    private var didLoadShopMeshyBoard = false
+    private var shopMeshyBoardPrototypes: [String: SCNNode] = [:]
+    private var shopMeshyPropPrototypes: [String: SCNNode] = [:]
+    private var shopMeshyPendantPrototype: SCNNode?
+    private var shopMeshyPictureLightPrototype: SCNNode?
+    private var shopPictureLights: [SCNLight] = []
+    // Audited directly from the authored Meshy meshes. Emitter coordinates
+    // are in each fixture's mesh1 object space.
+    private let meshyPendantBulbCenter = SCNVector3(0, -0.857, 0.020)
+    private let meshyPendantBulbHalfExtents = SCNVector3(0.135, 0.105, 0.115)
+    private let meshyPendantLightOrigin = SCNVector3(0, -0.946, 0.020)
+    private let meshyPictureLightDiffuserCenter = SCNVector3(0, 0, 0.183)
+    private let meshyPictureLightDiffuserHalfExtents = SCNVector3(0.685, 0.075, 0.035)
+    private let meshyPictureLightOrigin = SCNVector3(0, 0, 0.220)
     private weak var importedShopCounter: SCNNode?
     private weak var shopBoardShelfNode: SCNNode?
     private weak var shopBoardDisplayNode: SCNNode?
+    private var shopBoardDisplayHomePosition: SCNVector3?
+    private var shopBoardDisplayTargetSize: Float = 0
     // Approved shop dressing, captured from the placement pass. These values
     // deliberately live in source: they are not per-device preferences.
-    private let approvedBoardShelfOffset = SCNVector3(0.004, 0.048, 0)
-    private let approvedBoardShelfScale: Float = 0.576
+    private let approvedBoardShelfOffset = SCNVector3(0, 0.048, 0)
+    private let approvedBoardShelfScale: Float = 0.38
     private let approvedBoardPlaqueOffset = SCNVector3(0.016, 0.040, 0)
     private var importedShopCounterSourceBounds: MeshyAssetBounds?
     private var importedShopCounterBasePosition: SCNVector3?
@@ -131,6 +145,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var shopFlameCrownTextureCache: UIImage?
     private var shopPaperStockTextureCache: [String: UIImage] = [:]
     private var shopGridRuleTextureCache: [String: UIImage] = [:]
+    private var shopBoardLabelTextureCache: [String: UIImage] = [:]
     private var shopDustSystem: SCNParticleSystem?
     private var shopDustEmitterNode: SCNNode?
     private weak var sceneView: SCNView?
@@ -199,10 +214,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         fieldOfView: 37
     )
     private let shopPose = CameraPose(
-        // Head-on, full-fixture framing approved from the placement reference.
+        // The reference is a portrait merchandising composition: the pendant
+        // nearly touches the top edge and the cabinet feet finish just above
+        // the bottom edge. A tighter vertical field of view gives the real 3D
+        // fixture that same presence without scaling or flattening the asset.
         position: SCNVector3(1.55, 3.62, 13.23),
         target: SCNVector3(3.62, 1.95, 8.62),
-        fieldOfView: 43
+        fieldOfView: 39.25
     )
     private let standHomeAngle = Float(atan2(1.65, 8.65))
     // Exact fixed pocket map from the approved spinner mockup. Each inner
@@ -232,8 +250,16 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         view.pointOfView = cameraNode
         view.isOpaque = false
         view.backgroundColor = .clear
-        view.antialiasingMode = .multisampling4X
+        // Native 3x output already resolves the small brass/grid edges well.
+        // 4x MSAA made this full-screen 3D shop shade four samples per pixel;
+        // 2x preserves edge quality while materially reducing fill cost.
+        view.antialiasingMode = .multisampling2X
         view.preferredFramesPerSecond = 60
+        #if DEBUG
+        // Opt-in only: capture authoritative SceneKit FPS/draw-call/triangle
+        // evidence without shipping a diagnostic overlay to players.
+        view.showsStatistics = ProcessInfo.processInfo.arguments.contains("-shopPerfHUD")
+        #endif
         // This scene mixes SceneKit transactions, physical light changes and
         // SwiftUI overlays. SceneKit does not reliably schedule the first or
         // intermediate frames for that combination when on-demand rendering
@@ -250,7 +276,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(didPan(_:)))
-        pan.maximumNumberOfTouches = 1
+        pan.maximumNumberOfTouches = 2
         pan.delegate = self
         view.addGestureRecognizer(pan)
 
@@ -443,9 +469,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             else { finish() }
         case .transitioningToShop:
             setRoomLighting(shopFocused: true, animated: true)
+            setShopProductFocusLighting(false, animated: true)
             animateCamera(to: resolvedShopPose, destination: .shopping)
         case .shopping:
             setRoomLighting(shopFocused: true, animated: false)
+            setShopProductFocusLighting(false, animated: false)
             apply(resolvedShopPose)
         case .transitioningShopToStore:
             setRoomLighting(shopFocused: false, animated: true)
@@ -458,12 +486,43 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         SCNTransaction.begin()
         SCNTransaction.animationDuration = animated && !reduceMotion ? 1.2 : 0.01
         SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        roomAmbientLight.intensity = shopFocused ? 230 : 285
-        roomWarmLight.intensity = shopFocused ? 46 : 55
-        roomCoolFillLight.intensity = shopFocused ? 60 : 80
+        // The shop's practical fixtures need highlight roll-off at the bulb,
+        // brass trim and vellum instead of the hard white clipping produced by
+        // the non-HDR room camera. Bloom is only the camera response around the
+        // emissive fixture meshes; all illumination still comes from the three
+        // fixture-mounted SCNLight children below.
+        cameraNode.camera?.wantsHDR = shopFocused
+        cameraNode.camera?.exposureOffset = shopFocused ? -0.12 : 0
+        cameraNode.camera?.averageGray = shopFocused ? 0.20 : 0.18
+        cameraNode.camera?.whitePoint = shopFocused ? 2.35 : 1.0
+        cameraNode.camera?.bloomIntensity = shopFocused ? 0.10 : 0.12
+        // Only the authored bulb/diffuser emitters cross this threshold. Gold
+        // lettering and brass trim stay crisp instead of blooming like lamps.
+        cameraNode.camera?.bloomThreshold = shopFocused ? 1.45 : 1.0
+        cameraNode.camera?.bloomBlurRadius = shopFocused ? 6 : 6
+        // Product focus is handled separately, so browsing opens bright.
+        roomAmbientLight.intensity = shopFocused ? 330 : 285
+        roomWarmLight.intensity = shopFocused ? 55 : 55
+        roomCoolFillLight.intensity = shopFocused ? 24 : 80
         standKeyLight.intensity = shopFocused ? 15 : 30
         for practical in practicalLights {
             practical.intensity = shopFocused ? 7 : 8
+        }
+        SCNTransaction.commit()
+    }
+
+    private func setShopProductFocusLighting(_ focused: Bool, animated: Bool) {
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = animated && !reduceMotion ? 0.30 : 0.01
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        // Browsing uses the bright, warm shop composition. Selecting a board
+        // transitions only the close-up to the quieter pool of light.
+        roomAmbientLight.intensity = focused ? 230 : 330
+        roomWarmLight.intensity = focused ? 38 : 55
+        roomCoolFillLight.intensity = focused ? 18 : 24
+        shopPendantLight.intensity = focused ? 22 : 34
+        for pictureLight in shopPictureLights {
+            pictureLight.intensity = focused ? 8 : 12
         }
         SCNTransaction.commit()
     }
@@ -656,6 +715,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         if currentPhase == .shopping,
            let pan = gestureRecognizer as? UIPanGestureRecognizer {
+            if let board = shopBoardDisplayNode, !board.isHidden {
+                return true
+            }
             let velocity = pan.velocity(in: pan.view)
             // UIKit can report zero before a slow drag establishes direction;
             // admit that case, but reject gestures already known to be vertical.
@@ -701,7 +763,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 boardPanStartAngle = board.presentation.eulerAngles.y
                 board.eulerAngles.y = boardPanStartAngle
             case .changed:
-                board.eulerAngles.y = boardPanStartAngle + Float(gesture.translation(in: gesture.view).x) * 0.012
+                let translation = gesture.translation(in: gesture.view)
+                if abs(translation.x) >= abs(translation.y) {
+                    board.eulerAngles.y = boardPanStartAngle + Float(translation.x) * 0.012
+                }
             case .ended, .cancelled, .failed:
                 startBoardAutoRotation()
             default:
@@ -843,11 +908,22 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func handleShopTap(at point: CGPoint, in view: SCNView) {
+        if let displayBoard = shopBoardDisplayNode, !displayBoard.isHidden {
+            dismissShopBoard(displayBoard)
+            return
+        }
         for result in view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue]) {
             var node: SCNNode? = result.node
             while let candidate = node {
-                if candidate.name == "shop-board-shelf" {
+                if let name = candidate.name,
+                   name.hasPrefix("shop-board-shelf:") {
+                    configureShopBoardDisplay(from: candidate)
                     presentShopBoard()
+                    return
+                }
+                if candidate.name == "shop-board-shelf" {
+                    // The empty shelf backing is not merchandise. Only a hit
+                    // on one of the eight real board bodies opens the plinth.
                     return
                 }
                 if candidate.name == "shop-action" {
@@ -1041,8 +1117,14 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         camera.wantsHDR = false
         camera.wantsExposureAdaptation = false
         camera.exposureOffset = 0
-        camera.bloomIntensity = 0.03
-        camera.bloomThreshold = 1.15
+        camera.bloomIntensity = 0.12
+        camera.bloomThreshold = 1.0
+        camera.bloomBlurRadius = 6
+        camera.screenSpaceAmbientOcclusionIntensity = 0.18
+        camera.screenSpaceAmbientOcclusionRadius = 4
+        camera.screenSpaceAmbientOcclusionBias = 0.025
+        camera.screenSpaceAmbientOcclusionDepthThreshold = 0.08
+        camera.screenSpaceAmbientOcclusionNormalThreshold = 0.24
         cameraNode.camera = camera
         cameraNode.position = storePose.position
         let look = SCNLookAtConstraint(target: cameraTarget)
@@ -1070,17 +1152,16 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let walnut = woodMaterial(color: rgb(0x2B160D), roughness: 0.74, repeatX: 3, repeatY: 9)
         let walnutLit = woodMaterial(color: rgb(0x4A2817), roughness: 0.67, repeatX: 2, repeatY: 8)
         let walnutEdge = woodMaterial(color: rgb(0x1A0C07), roughness: 0.82, repeatX: 2, repeatY: 7)
-        let floorMaterial = woodMaterial(color: rgb(0x121116), roughness: 0.76, repeatX: 4, repeatY: 14)
-        let runnerMaterial = material(color: rgb(0x0D2D28), roughness: 0.9)
-        // These approved graphic surfaces are intentionally print-lit. Their
-        // appearance must not change when the physical focus light is added.
-        floorMaterial.lightingModel = .constant
-        runnerMaterial.lightingModel = .constant
+        // The mockup finishes on warm polished hardwood, not a blue-black
+        // graphic strip. Keep the existing modeled planks and runner, but let
+        // their real roughness and grain respond to the room practicals.
+        let floorMaterial = woodMaterial(color: rgb(0x4A2818), roughness: 0.58, repeatX: 4, repeatY: 14)
+        let runnerMaterial = material(color: rgb(0x24382F), roughness: 0.84)
         let brass = material(color: rgb(0x8B5C19), roughness: 0.38, metalness: 0.72)
 
         let floor = node(box: SCNVector3(12.4, 0.14, 30), material: floorMaterial)
         floor.position = SCNVector3(0, -0.09, 2)
-        floor.castsShadow = false
+        floor.castsShadow = true
         scene.rootNode.addChildNode(floor)
 
         for x in stride(from: -5.7 as Float, through: 5.7, by: 0.72) {
@@ -1429,6 +1510,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         roomAmbientLight.type = .ambient
         roomAmbientLight.color = UIColor(red: 0.55, green: 0.48, blue: 0.42, alpha: 1)
         roomAmbientLight.intensity = 285
+        roomAmbientLight.categoryBitMask = 1
         let ambientNode = SCNNode()
         ambientNode.light = roomAmbientLight
         scene.rootNode.addChildNode(ambientNode)
@@ -1438,6 +1520,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         roomWarmLight.intensity = 55
         roomWarmLight.attenuationStartDistance = 2
         roomWarmLight.attenuationEndDistance = 15
+        roomWarmLight.categoryBitMask = 1
         // Deferred light shadows intermittently invalidate SceneKit's render
         // pass on the current iOS renderer, producing a completely black home
         // aisle. Geometry still receives the neutral room and focused lights;
@@ -1455,6 +1538,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         standKeyLight.attenuationEndDistance = 18
         standKeyLight.spotInnerAngle = 48
         standKeyLight.spotOuterAngle = 92
+        standKeyLight.categoryBitMask = 1
         let standKeyNode = SCNNode()
         standKeyNode.light = standKeyLight
         standKeyNode.position = SCNVector3(1.8, 5.7, -2.2)
@@ -1471,6 +1555,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         roomCoolFillLight.intensity = 80
         roomCoolFillLight.attenuationStartDistance = 2
         roomCoolFillLight.attenuationEndDistance = 11
+        roomCoolFillLight.categoryBitMask = 1
         let coolFillNode = SCNNode()
         coolFillNode.light = roomCoolFillLight
         coolFillNode.position = SCNVector3(-3.4, 3.2, 3.5)
@@ -1483,6 +1568,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             practical.intensity = 8
             practical.attenuationStartDistance = 1
             practical.attenuationEndDistance = 9
+            practical.categoryBitMask = 1
             practicalLights.append(practical)
             let lightNode = SCNNode()
             lightNode.light = practical
@@ -1533,13 +1619,18 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             importedShopCounter = importedCounter
             importedShopCounterBasePosition = importedCounter.position
             shopRoot.addChildNode(importedCounter)
+            addShopBackdropDressing(to: importedCounter)
+            addCounterFacade(to: importedCounter)
             addBoardHeader(to: importedCounter)
             addBoardShelf(to: importedCounter)
+            addImportedShopPendant(to: importedCounter)
             shopRoot.enumerateChildNodes { node, _ in
-                node.categoryBitMask = 1
+                // Category 2 is illuminated only by the three Meshy fixtures.
+                // The room rig is category 1, so it cannot create a detached
+                // highlight on the product row or selling platform.
+                node.categoryBitMask = 2
                 node.castsShadow = true
             }
-            addImportedShopLighting()
             return
         }
 
@@ -1882,7 +1973,16 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                     node.castsShadow = true
                     node.geometry?.materials.forEach { material in
                         material.lightingModel = .physicallyBased
+                        // Meshy's counter albedo already contains the mockup's
+                        // bottle-green leather inserts and walnut surround.
+                        // Preserve that authored color under the fixture rig:
+                        // the provider's very strong baked occlusion otherwise
+                        // crushes the lower door to black on the phone display.
+                        material.diffuse.intensity = 1.14
+                        material.ambientOcclusion.intensity = 0.68
+                        material.normal.intensity = 1.04
                         material.roughness.intensity = max(0.32, material.roughness.intensity)
+                        self.configureImportedTextureSampling(material)
                     }
                 }
                 shopMeshyTurntablePrototype = prototype
@@ -1891,129 +1991,1058 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         return shopMeshyTurntablePrototype?.clone()
     }
 
-    private func makeMeshyShopBoard(targetLargestDimension: Float) -> SCNNode? {
-        if !didLoadShopMeshyBoard {
-            didLoadShopMeshyBoard = true
-            if let url = Bundle.main.url(forResource: "ClubShopBoard", withExtension: "usdz"),
+    /// Covers the visibly warped lower face of the original all-in-one shop
+    /// mesh with a dedicated, low-poly Meshy cabinet whose rails, panels and
+    /// legs were generated from a straight-on orthographic reference. The
+    /// original counter remains the structural upper display and tabletop;
+    /// this child occupies only the lower-front depth layer.
+    private func addCounterFacade(to counter: SCNNode) {
+        guard let bounds = importedShopCounterSourceBounds,
+              let facade = makeMeshyShopProp(
+                resourceName: "MeshyShopCounterFacade",
+                targetLargestDimension: 1
+              )
+        else { return }
+
+        let (minimum, maximum) = facade.boundingBox
+        let sourceWidth = maximum.x - minimum.x
+        let sourceHeight = maximum.y - minimum.y
+        let sourceDepth = maximum.z - minimum.z
+        guard sourceWidth > 0.0001,
+              sourceHeight > 0.0001,
+              sourceDepth > 0.0001
+        else { return }
+
+        let targetWidth = bounds.width * 0.995
+        let targetHeight = bounds.height * 0.45
+        let targetDepth = bounds.depth * 0.10
+        let xScale = targetWidth / sourceWidth
+        let yScale = targetHeight / sourceHeight
+        let zScale = targetDepth / sourceDepth
+        let targetFrontZ = bounds.maximum.z + max(bounds.depth * 0.055, 0.025)
+
+        facade.name = "meshy-shop-counter-facade"
+        facade.scale = SCNVector3(xScale, yScale, zScale)
+        facade.position = SCNVector3(
+            bounds.centerX - (minimum.x + maximum.x) * 0.5 * xScale,
+            bounds.minimum.y - minimum.y * yScale,
+            targetFrontZ - maximum.z * zScale
+        )
+        facade.enumerateChildNodes { node, _ in
+            node.categoryBitMask = 2
+            node.castsShadow = true
+            node.geometry?.materials.forEach { material in
+                material.diffuse.intensity = 0.98
+                material.ambientOcclusion.intensity = 0.82
+                material.normal.intensity = 1.08
+                material.roughness.intensity = max(0.38, material.roughness.intensity)
+                self.configureImportedTextureSampling(material)
+            }
+        }
+        counter.addChildNode(facade)
+    }
+
+    private func makeMeshyShopBoard(resourceName: String, targetLargestDimension: Float) -> SCNNode? {
+        if shopMeshyBoardPrototypes[resourceName] == nil {
+            if let url = Bundle.main.url(forResource: resourceName, withExtension: "usdz"),
                let authoredScene = try? SCNScene(url: url) {
                 let prototype = SCNNode()
                 for child in authoredScene.rootNode.childNodes {
                     prototype.addChildNode(child.clone())
                 }
-                let (minimum, maximum) = prototype.boundingBox
-                let largest = max(maximum.x - minimum.x, maximum.y - minimum.y, maximum.z - minimum.z)
-                if largest > 0.0001 {
-                    let scale = targetLargestDimension / largest
-                    prototype.scale = SCNVector3(scale, scale, scale)
-                    prototype.position = SCNVector3(
-                        -(minimum.x + maximum.x) * 0.5 * scale,
-                        -minimum.y * scale,
-                        -(minimum.z + maximum.z) * 0.5 * scale
-                    )
-                }
                 prototype.enumerateChildNodes { node, _ in
                     node.castsShadow = true
-                    node.renderingOrder = 20
                     node.geometry?.materials.forEach { material in
                         material.lightingModel = .physicallyBased
                         material.isDoubleSided = true
-                        material.readsFromDepthBuffer = false
+                        material.readsFromDepthBuffer = true
+                        material.writesToDepthBuffer = true
+                        self.configureImportedTextureSampling(material)
                     }
                 }
-                shopMeshyBoardPrototype = prototype
+                shopMeshyBoardPrototypes[resourceName] = prototype
             }
         }
-        return shopMeshyBoardPrototype?.clone()
+        guard let board = shopMeshyBoardPrototypes[resourceName]?.clone() else { return nil }
+        let (minimum, maximum) = board.boundingBox
+        let largest = max(maximum.x - minimum.x, maximum.y - minimum.y, maximum.z - minimum.z)
+        guard largest > 0.0001 else { return board }
+        let scale = targetLargestDimension / largest
+        board.scale = SCNVector3(scale, scale, scale)
+        board.position = SCNVector3(
+            -(minimum.x + maximum.x) * 0.5 * scale,
+            -minimum.y * scale,
+            -(minimum.z + maximum.z) * 0.5 * scale
+        )
+        return board
+    }
+
+    /// Loads one of the authored Meshy shop props, preserves its textured
+    /// materials, and returns a uniformly scaled clone centered on its visible
+    /// bounds.  Callers own placement; no billboard or screen-space offsets
+    /// are involved, so every prop participates in the same real depth and
+    /// three-light pass as the imported counter.
+    private func makeMeshyShopProp(resourceName: String,
+                                   targetLargestDimension: Float) -> SCNNode? {
+        if shopMeshyPropPrototypes[resourceName] == nil,
+           let url = Bundle.main.url(forResource: resourceName, withExtension: "usdz"),
+           let authoredScene = try? SCNScene(url: url) {
+            let prototype = SCNNode()
+            for child in authoredScene.rootNode.childNodes {
+                prototype.addChildNode(child.clone())
+            }
+            prototype.enumerateChildNodes { node, _ in
+                node.castsShadow = true
+                node.geometry?.materials.forEach { material in
+                    material.lightingModel = .physicallyBased
+                    material.isDoubleSided = true
+                    material.readsFromDepthBuffer = true
+                    material.writesToDepthBuffer = true
+                    material.roughness.intensity = max(0.28, material.roughness.intensity)
+                    self.configureImportedTextureSampling(material)
+                }
+            }
+            shopMeshyPropPrototypes[resourceName] = prototype
+        }
+
+        guard let prop = shopMeshyPropPrototypes[resourceName]?.clone() else { return nil }
+        let (minimum, maximum) = prop.boundingBox
+        let largest = max(maximum.x - minimum.x, maximum.y - minimum.y, maximum.z - minimum.z)
+        guard largest > 0.0001 else { return prop }
+        let scale = targetLargestDimension / largest
+        prop.scale = SCNVector3(scale, scale, scale)
+        prop.position = SCNVector3(
+            -(minimum.x + maximum.x) * 0.5 * scale,
+            -(minimum.y + maximum.y) * 0.5 * scale,
+            -(minimum.z + maximum.z) * 0.5 * scale
+        )
+        return prop
+    }
+
+    private func configureImportedTextureSampling(_ material: SCNMaterial) {
+        let properties = [
+            material.diffuse,
+            material.normal,
+            material.roughness,
+            material.metalness,
+            material.ambientOcclusion,
+            material.emission
+        ]
+        for property in properties {
+            property.minificationFilter = .linear
+            property.magnificationFilter = .linear
+            property.mipFilter = .linear
+            property.maxAnisotropy = 16
+        }
+    }
+
+    /// Preserve Meshy's authored maps while making their fine engraving and
+    /// leather/paper relief survive the small on-shelf presentation. This is
+    /// a material-response adjustment only; no generated pattern or flat
+    /// replacement artwork is introduced.
+    private func enhanceShopBoardMaterials(_ board: SCNNode) {
+        board.enumerateChildNodes { node, _ in
+            node.geometry?.materials.forEach { material in
+                // Preserve the 4K albedo/normal detail instead of letting the
+                // warm practicals bleach ivory, brass and porcelain into the
+                // same white square. Higher roughness gives the mockup's soft
+                // hand-finished highlights while the real mesh relief remains.
+                material.diffuse.intensity = 0.84
+                material.normal.intensity = 1.22
+                material.ambientOcclusion.intensity = 1.20
+                material.roughness.intensity = 1.15
+                material.metalness.intensity = 0.85
+            }
+        }
+    }
+
+    /// Fits the actual Meshy board to one exact physical box. Every catalog
+    /// asset therefore has the same width, height and thickness even when the
+    /// provider exported different source bounds.
+    private func fitShopBoardComponent(_ component: SCNNode,
+                                       physicalSize: Float,
+                                       physicalDepth: Float) -> Bool {
+        let (minimum, maximum) = component.boundingBox
+        let sourceWidth = maximum.x - minimum.x
+        let sourceHeight = maximum.y - minimum.y
+        let sourceDepth = maximum.z - minimum.z
+        guard sourceWidth > 0.0001,
+              sourceHeight > 0.0001,
+              sourceDepth > 0.0001
+        else { return false }
+
+        let xScale = physicalSize / sourceWidth
+        let yScale = physicalSize / sourceHeight
+        let zScale = physicalDepth / sourceDepth
+        component.scale = SCNVector3(xScale, yScale, zScale)
+        component.position = SCNVector3(
+            -(minimum.x + maximum.x) * 0.5 * xScale,
+            -(minimum.y + maximum.y) * 0.5 * yScale,
+            -(minimum.z + maximum.z) * 0.5 * zScale
+        )
+        return true
+    }
+
+    /// Builds every merchandised board through one geometry path. There is no
+    /// shared green holder or backing card: the real Meshy asset itself fills
+    /// the complete square and is normalized to the same 3D dimensions.
+    private func makeUniformShopBoardMerchandise(resourceName: String,
+                                                 title: String,
+                                                 subtitle: String,
+                                                 frameSize: Float,
+                                                 counterDepth: Float) -> SCNNode? {
+        guard let surface = makeMeshyShopProp(
+            resourceName: resourceName,
+            targetLargestDimension: frameSize
+        )
+        else { return nil }
+
+        let uniformDepth = frameSize * 0.055
+        guard fitShopBoardComponent(
+            surface,
+            physicalSize: frameSize,
+            physicalDepth: uniformDepth
+        ) else { return nil }
+
+        let mountingZ = counterDepth * 0.020
+        surface.name = "meshy-shop-board-physical-body"
+        surface.position.z += mountingZ
+        enhanceShopBoardMaterials(surface)
+        surface.enumerateChildNodes { node, _ in
+            // These boards sit almost flush to the cabinet backing. Their
+            // tiny relief shadows are invisible at shelf scale but previously
+            // replayed hundreds of thousands of triangles into every shadow
+            // map. The selected full-size clone re-enables shadows below.
+            node.castsShadow = false
+        }
+
+        let physicalBody = SCNNode()
+        physicalBody.name = "shop-board-physical-body"
+        physicalBody.addChildNode(surface)
+
+        let product = SCNNode()
+        product.name = "shop-board-shelf:\(resourceName)"
+        product.addChildNode(physicalBody)
+
+        #if DEBUG
+        let physicalBounds = physicalBody.boundingBox
+        let physicalWidth = physicalBounds.max.x - physicalBounds.min.x
+        let physicalHeight = physicalBounds.max.y - physicalBounds.min.y
+        let physicalThickness = physicalBounds.max.z - physicalBounds.min.z
+        assert(abs(physicalWidth - frameSize) < 0.0005,
+               "Every shop board must have the same physical width")
+        assert(abs(physicalHeight - frameSize) < 0.0005,
+               "Every shop board must have the same physical height")
+        assert(abs(physicalThickness - uniformDepth) < 0.0005,
+               "Every shop board must have the same physical thickness")
+        #endif
+
+        let label = makeShopBoardLabel(
+            title: title,
+            subtitle: subtitle,
+            width: frameSize * 0.94
+        )
+        label.position = SCNVector3(
+            0,
+            -frameSize * 0.70,
+            counterDepth * 0.028
+        )
+        product.addChildNode(label)
+        return product
+    }
+
+    /// Builds the mockup's lower merchandising tier from a real Meshy product
+    /// box plus a real, uniformly fitted board preview. A hidden full-size
+    /// board body remains attached to the merchandise node solely as the
+    /// canonical object promoted to the selling platform; the visible shelf
+    /// presentation is the authored bottle-green package, not a fake backing
+    /// card or a second exposed board row.
+    private func makeBoxedShopBoardMerchandise(resourceName: String,
+                                               title: String,
+                                               subtitle: String,
+                                               boardPhysicalSize: Float,
+                                               boxWidth: Float,
+                                               boxHeight: Float,
+                                               counterDepth: Float) -> SCNNode? {
+        guard let boardSurface = makeMeshyShopProp(
+            resourceName: resourceName,
+            targetLargestDimension: boardPhysicalSize
+        ) else { return nil }
+
+        let uniformDepth = boardPhysicalSize * 0.055
+        guard fitShopBoardComponent(
+            boardSurface,
+            physicalSize: boardPhysicalSize,
+            physicalDepth: uniformDepth
+        ) else { return nil }
+        enhanceShopBoardMaterials(boardSurface)
+
+        // This source body is never shown on the shelf. Keeping it at the
+        // same exact dimensions as the four upper boards guarantees that a
+        // lower-tier selection arrives on the plinth at the canonical size.
+        let physicalBody = SCNNode()
+        physicalBody.name = "shop-board-physical-body"
+        // Opacity keeps the canonical body out of the shelf render while
+        // preserving its transformed bounding box for debug invariants and
+        // platform fitting. SceneKit reports an empty/unstable aggregate box
+        // for a hidden parent during scene construction.
+        physicalBody.opacity = 0
+        physicalBody.categoryBitMask = 0
+        physicalBody.addChildNode(boardSurface)
+
+        let product = SCNNode()
+        product.name = "shop-board-shelf:\(resourceName)"
+        product.addChildNode(physicalBody)
+
+        let boxDepth = boxWidth * 0.12
+        guard let box = makeMeshyShopProp(
+            resourceName: "MeshyShopProductBox",
+            targetLargestDimension: boxHeight
+        ) else { return nil }
+        let (boxMinimum, boxMaximum) = box.boundingBox
+        let sourceWidth = boxMaximum.x - boxMinimum.x
+        let sourceHeight = boxMaximum.y - boxMinimum.y
+        let sourceDepth = boxMaximum.z - boxMinimum.z
+        guard sourceWidth > 0.0001,
+              sourceHeight > 0.0001,
+              sourceDepth > 0.0001
+        else { return nil }
+        box.scale = SCNVector3(
+            boxWidth / sourceWidth,
+            boxHeight / sourceHeight,
+            boxDepth / sourceDepth
+        )
+        box.position = SCNVector3(
+            -(boxMinimum.x + boxMaximum.x) * 0.5 * box.scale.x,
+            -(boxMinimum.y + boxMaximum.y) * 0.5 * box.scale.y,
+            -(boxMinimum.z + boxMaximum.z) * 0.5 * box.scale.z
+        )
+        box.name = "meshy-shop-product-box:\(resourceName)"
+        box.enumerateChildNodes { node, _ in
+            node.categoryBitMask = 2
+            node.castsShadow = true
+            node.geometry?.materials.forEach { material in
+                // Preserve the package's leather grain and aged-brass piping
+                // while avoiding the pale mint cast of the raw provider render.
+                material.multiply.contents = UIColor(
+                    red: 0.50,
+                    green: 0.58,
+                    blue: 0.50,
+                    alpha: 1
+                )
+                material.diffuse.intensity = 0.72
+                material.normal.intensity = 1.18
+                material.roughness.intensity = 1.22
+                material.metalness.intensity = 0.82
+            }
+        }
+        product.addChildNode(box)
+
+        // Reuse the exact selected board geometry for the inset preview, then
+        // fit every preview to one shared window. Source-export dimensions can
+        // no longer make one catalog item appear physically larger than another.
+        let preview = physicalBody.clone()
+        preview.name = "shop-box-board-preview"
+        preview.opacity = 1
+        preview.categoryBitMask = 2
+        let previewSize = boxWidth * 0.54
+        let previewScale = previewSize / boardPhysicalSize
+        preview.scale = SCNVector3(previewScale, previewScale, previewScale)
+        preview.position = SCNVector3(
+            0,
+            boxHeight * 0.075,
+            boxDepth * 0.57 + counterDepth * 0.006
+        )
+        preview.enumerateChildNodes { node, _ in
+            node.categoryBitMask = 2
+            node.castsShadow = false
+        }
+        product.addChildNode(preview)
+
+        let copy = makeShopBoxLabel(
+            title: title,
+            subtitle: subtitle,
+            width: boxWidth * 0.53
+        )
+        copy.name = "shop-product-box-copy:\(title.lowercased())"
+        copy.position = SCNVector3(
+            0,
+            -boxHeight * 0.355,
+            boxDepth * 0.58 + counterDepth * 0.008
+        )
+        product.addChildNode(copy)
+
+        #if DEBUG
+        let physicalBounds = physicalBody.boundingBox
+        assert(abs((physicalBounds.max.x - physicalBounds.min.x) - boardPhysicalSize) < 0.0005,
+               "Boxed shop boards must retain the canonical physical width")
+        assert(abs((physicalBounds.max.y - physicalBounds.min.y) - boardPhysicalSize) < 0.0005,
+               "Boxed shop boards must retain the canonical physical height")
+        assert(abs((physicalBounds.max.z - physicalBounds.min.z) - uniformDepth) < 0.0005,
+               "Boxed shop boards must retain the canonical physical thickness")
+        #endif
+        return product
+    }
+
+    /// The mockup is framed by a real bookstore, not a flat brown void. The
+    /// tall Meshy bookcases stay recessed behind the counter while separately
+    /// authored lamp and globe props occupy the narrow visible side margins.
+    /// Keeping these pieces independent avoids exposing an oversized bookcase
+    /// post merely to make one small prop visible.
+    private func addShopBackdropDressing(to counter: SCNNode) {
+        guard let bounds = importedShopCounterSourceBounds else { return }
+
+        let backdrop = SCNNode()
+        backdrop.name = "meshy-shop-library-backdrop"
+        counter.addChildNode(backdrop)
+
+        let libraryHeight = bounds.height * 0.88
+        let libraryRearZ = bounds.minimum.z - max(bounds.depth * 0.15, 0.075)
+        let libraryCenterY = bounds.minimum.y + bounds.height * 0.51
+
+        if let leftLibrary = makeMeshyShopProp(
+            resourceName: "MeshyShopLibraryLeft",
+            targetLargestDimension: libraryHeight
+        ) {
+            let fixture = SCNNode()
+            fixture.name = "meshy-shop-library-left"
+            fixture.position = SCNVector3(
+                bounds.centerX - bounds.width * 0.70,
+                libraryCenterY,
+                libraryRearZ
+            )
+            fixture.addChildNode(leftLibrary)
+            backdrop.addChildNode(fixture)
+        }
+
+        if let rightLibrary = makeMeshyShopProp(
+            resourceName: "MeshyShopLibraryRight",
+            targetLargestDimension: libraryHeight
+        ) {
+            let fixture = SCNNode()
+            fixture.name = "meshy-shop-library-right"
+            fixture.position = SCNVector3(
+                bounds.centerX + bounds.width * 0.70,
+                libraryCenterY,
+                libraryRearZ
+            )
+            fixture.addChildNode(rightLibrary)
+            backdrop.addChildNode(fixture)
+        }
+
+        // These are real Meshy meshes, not composited decorations. Their
+        // lower halves tuck behind the cabinet stiles so the lamp and globe
+        // appear to rest on furniture just outside the central display bay.
+        let sidePropY = bounds.minimum.y + bounds.height * 0.66
+        let sidePropZ = bounds.minimum.z - max(bounds.depth * 0.07, 0.035)
+        if let lamp = makeMeshyShopProp(
+            resourceName: "MeshyShopSideLamp",
+            targetLargestDimension: bounds.height * 0.18
+        ) {
+            let fixture = SCNNode()
+            fixture.name = "meshy-shop-side-lamp"
+            fixture.position = SCNVector3(
+                bounds.centerX - bounds.width * 0.54,
+                sidePropY,
+                sidePropZ
+            )
+            fixture.addChildNode(lamp)
+            backdrop.addChildNode(fixture)
+        }
+
+        if let globe = makeMeshyShopProp(
+            resourceName: "MeshyShopSideGlobe",
+            targetLargestDimension: bounds.height * 0.16
+        ) {
+            let fixture = SCNNode()
+            fixture.name = "meshy-shop-side-globe"
+            fixture.position = SCNVector3(
+                bounds.centerX + bounds.width * 0.56,
+                sidePropY,
+                sidePropZ
+            )
+            fixture.addChildNode(globe)
+            backdrop.addChildNode(fixture)
+        }
+    }
+
+    private func makeMeshyShopPendant(targetLargestDimension: Float) -> SCNNode? {
+        if shopMeshyPendantPrototype == nil,
+           let url = Bundle.main.url(forResource: "MeshyShopPendant", withExtension: "usdz"),
+           let authoredScene = try? SCNScene(url: url) {
+            let prototype = SCNNode()
+            for child in authoredScene.rootNode.childNodes {
+                prototype.addChildNode(child.clone())
+            }
+            prototype.enumerateChildNodes { node, _ in
+                node.castsShadow = true
+                node.renderingOrder = 4
+                node.geometry?.materials.forEach { material in
+                    // Preserve Meshy's authored PBR response. The bulb mask
+                    // below only powers the emitter region; the shade and
+                    // brass still respond to the physical scene lighting.
+                    material.lightingModel = .physicallyBased
+                    material.roughness.intensity = max(0.46, material.roughness.intensity)
+                    material.isDoubleSided = true
+                    material.readsFromDepthBuffer = true
+                    material.writesToDepthBuffer = true
+                    self.configureImportedTextureSampling(material)
+                }
+            }
+            prototype.enumerateChildNodes { node, _ in
+                guard node.geometry != nil else { return }
+                self.applyMeshyBulbEmissiveMask(
+                    to: node,
+                    objectSpaceCenter: self.meshyPendantBulbCenter,
+                    objectSpaceHalfExtents: self.meshyPendantBulbHalfExtents,
+                    emissiveColor: SCNVector3(1.0, 0.60, 0.20)
+                )
+            }
+            shopMeshyPendantPrototype = prototype
+        }
+
+        guard let pendant = shopMeshyPendantPrototype?.clone() else { return nil }
+        let (minimum, maximum) = pendant.boundingBox
+        let largest = max(maximum.x - minimum.x, maximum.y - minimum.y, maximum.z - minimum.z)
+        guard largest > 0.0001 else { return pendant }
+
+        let scale = targetLargestDimension / largest
+        pendant.scale = SCNVector3(scale, scale, scale)
+        pendant.position = SCNVector3(
+            -(minimum.x + maximum.x) * 0.5 * scale,
+            -(minimum.y + maximum.y) * 0.5 * scale,
+            -(minimum.z + maximum.z) * 0.5 * scale
+        )
+        return pendant
+    }
+
+    private func makeMeshyShopPictureLight(targetLargestDimension: Float) -> SCNNode? {
+        if shopMeshyPictureLightPrototype == nil,
+           let url = Bundle.main.url(forResource: "MeshyShopPictureLight", withExtension: "usdz"),
+           let authoredScene = try? SCNScene(url: url) {
+            let prototype = SCNNode()
+            for child in authoredScene.rootNode.childNodes {
+                prototype.addChildNode(child.clone())
+            }
+            prototype.enumerateChildNodes { node, _ in
+                node.castsShadow = true
+                node.renderingOrder = 4
+                node.geometry?.materials.forEach { material in
+                    // Keep the authored brass/diffuser PBR maps so the fixture
+                    // has the same material depth as the illuminated cabinet.
+                    material.lightingModel = .physicallyBased
+                    material.diffuse.intensity = 1.10
+                    material.ambientOcclusion.intensity = 0.62
+                    material.normal.intensity = 1.08
+                    material.metalness.intensity = 1.10
+                    material.roughness.intensity = max(0.38, material.roughness.intensity)
+                    // A spotlight cannot illuminate geometry behind its own
+                    // optical axis. Feed a restrained amount of the authored
+                    // brass albedo back into the fixture surface so the real
+                    // housing reflects its powered diffuser instead of reading
+                    // as a black rectangle. The actual scene illumination still
+                    // comes exclusively from the three SCNLight children.
+                    material.emission.contents = material.diffuse.contents
+                    material.emission.intensity = 0.055
+                    material.isDoubleSided = true
+                    material.readsFromDepthBuffer = true
+                    material.writesToDepthBuffer = true
+                    self.configureImportedTextureSampling(material)
+                }
+            }
+            prototype.enumerateChildNodes { node, _ in
+                guard node.geometry != nil else { return }
+                self.applyMeshyBulbEmissiveMask(
+                    to: node,
+                    objectSpaceCenter: self.meshyPictureLightDiffuserCenter,
+                    objectSpaceHalfExtents: self.meshyPictureLightDiffuserHalfExtents,
+                    emissiveColor: SCNVector3(1.0, 0.68, 0.28)
+                )
+            }
+            shopMeshyPictureLightPrototype = prototype
+        }
+
+        guard let pictureLight = shopMeshyPictureLightPrototype?.clone() else { return nil }
+        let (minimum, maximum) = pictureLight.boundingBox
+        let largest = max(maximum.x - minimum.x, maximum.y - minimum.y, maximum.z - minimum.z)
+        guard largest > 0.0001 else { return pictureLight }
+
+        let scale = targetLargestDimension / largest
+        pictureLight.scale = SCNVector3(scale, scale, scale)
+        pictureLight.position = SCNVector3(
+            -(minimum.x + maximum.x) * 0.5 * scale,
+            -(minimum.y + maximum.y) * 0.5 * scale,
+            -(minimum.z + maximum.z) * 0.5 * scale
+        )
+        return pictureLight
     }
 
     private func addBoardHeader(to counter: SCNNode) {
         guard let bounds = importedShopCounterSourceBounds else { return }
-        // Keep the title comfortably inside the actual brass-framed plaque.
-        let targetTextWidth = bounds.width * 0.16
-        // The plaque's visual center sits above the cabinet's geometric 82%
-        // line. Anchor to that center so the raised lettering clears the
-        // lower brass rail instead of reading as dropped against it.
+
+        let frontZ = bounds.maximum.z + max(bounds.depth * 0.055, 0.025)
         let headerY = bounds.minimum.y + bounds.height * 0.85
-        let offset = max(bounds.depth * 0.025, 0.02)
 
-        for z in [bounds.minimum.z - offset, bounds.maximum.z + offset] {
-            let geometry = SCNText(
-                string: "Board",
-                extrusionDepth: CGFloat(max(bounds.width * 0.004, 0.008))
+        // Mount the audited Meshy bottle-green plaque inside the counter's
+        // existing architectural surround. The imported counter's native
+        // center is nearly black; this real shallow plaque supplies the green
+        // leather/enamel field, beveled walnut and brass lip seen in the
+        // reference while the counter remains the structural frame.
+        if let plaque = makeMeshyShopProp(
+            resourceName: "MeshyShopHeaderPlaque",
+            targetLargestDimension: bounds.width * 0.64
+        ) {
+            plaque.name = "meshy-shop-board-header-plaque"
+            plaque.position = SCNVector3(
+                bounds.centerX,
+                headerY,
+                frontZ + bounds.depth * 0.018
             )
-            geometry.font = UIFont(name: "Georgia-Bold", size: 1) ?? .boldSystemFont(ofSize: 1)
-            geometry.alignmentMode = CATextLayerAlignmentMode.center.rawValue
-            geometry.flatness = 0.18
-            let material = SCNMaterial()
-            material.lightingModel = .physicallyBased
-            material.diffuse.contents = UIColor(red: 0.89, green: 0.72, blue: 0.37, alpha: 1)
-            material.metalness.contents = 0.7
-            material.roughness.contents = 0.34
-            geometry.materials = [material]
-
-            let text = SCNNode(geometry: geometry)
-            let textBounds = geometry.boundingBox
-            let textWidth = max(textBounds.max.x - textBounds.min.x, 0.001)
-            let scale = targetTextWidth / textWidth
-            text.scale = SCNVector3(scale, scale, scale)
-            text.position = SCNVector3(
-                bounds.centerX - (textBounds.min.x + textBounds.max.x) * 0.5 * scale + approvedBoardPlaqueOffset.x,
-                headerY - (textBounds.min.y + textBounds.max.y) * 0.5 * scale + approvedBoardPlaqueOffset.y,
-                z
-            )
-            let faceCamera = SCNBillboardConstraint()
-            faceCamera.freeAxes = .Y
-            text.constraints = [faceCamera]
-            counter.addChildNode(text)
+            plaque.scale.y *= 0.84
+            plaque.enumerateChildNodes { node, _ in
+                node.castsShadow = true
+                node.geometry?.materials.forEach { material in
+                    // Preserve the authored walnut, brass and bottle-green
+                    // separation while softening the nearby practicals.
+                    material.multiply.contents = UIColor(white: 0.58, alpha: 1)
+                    material.diffuse.intensity = 0.68
+                    material.normal.intensity = 0.90
+                    material.ambientOcclusion.intensity = 0.88
+                    material.roughness.intensity = 1.35
+                    material.metalness.intensity = 0.45
+                }
+            }
+            counter.addChildNode(plaque)
         }
+
+        // Product names are permitted dynamic copy. A high-resolution print
+        // layer is sharper and much cheaper than an extruded SCNText mesh, and
+        // it cannot flare white under the pendant specular highlight.
+        let titleFormat = UIGraphicsImageRendererFormat()
+        titleFormat.opaque = false
+        titleFormat.scale = 1
+        let titleImage = UIGraphicsImageRenderer(
+            size: CGSize(width: 1024, height: 300),
+            format: titleFormat
+        ).image { _ in
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            let shadow = NSShadow()
+            shadow.shadowColor = UIColor.black.withAlphaComponent(0.55)
+            shadow.shadowBlurRadius = 8
+            shadow.shadowOffset = CGSize(width: 0, height: 4)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont(name: "Georgia-Bold", size: 190)
+                    ?? .boldSystemFont(ofSize: 190),
+                .foregroundColor: UIColor(red: 0.88, green: 0.61, blue: 0.21, alpha: 1),
+                .paragraphStyle: paragraph,
+                .shadow: shadow,
+            ]
+            NSAttributedString(string: "Board", attributes: attributes).draw(
+                in: CGRect(x: 0, y: 30, width: 1024, height: 240)
+            )
+        }
+        let titleMaterial = SCNMaterial()
+        titleMaterial.lightingModel = .constant
+        titleMaterial.diffuse.contents = titleImage
+        titleMaterial.diffuse.minificationFilter = .linear
+        titleMaterial.diffuse.magnificationFilter = .linear
+        titleMaterial.diffuse.mipFilter = .linear
+        titleMaterial.transparencyMode = .aOne
+        titleMaterial.isDoubleSided = true
+        titleMaterial.readsFromDepthBuffer = true
+        titleMaterial.writesToDepthBuffer = false
+
+        let titlePlane = SCNPlane(
+            width: CGFloat(bounds.width * 0.19),
+            height: CGFloat(bounds.width * 0.056)
+        )
+        titlePlane.firstMaterial = titleMaterial
+        let title = SCNNode(geometry: titlePlane)
+        title.name = "shop-header-title"
+        title.renderingOrder = 31
+        title.position = SCNVector3(
+            bounds.centerX,
+            headerY,
+            frontZ + bounds.depth * 0.060
+        )
+        title.castsShadow = false
+        counter.addChildNode(title)
     }
 
     private func addBoardShelf(to counter: SCNNode) {
-        guard let bounds = importedShopCounterSourceBounds,
-              let shelfBoard = makeMeshyShopBoard(targetLargestDimension: bounds.width * 0.28),
-              let displayBoard = makeMeshyShopBoard(targetLargestDimension: bounds.width * 0.42)
-        else { return }
+        guard let bounds = importedShopCounterSourceBounds else { return }
 
-        let frontZ = bounds.minimum.z - max(bounds.depth * 0.50, 0.12)
-        shelfBoard.name = "shop-board-shelf"
-        shelfBoard.position = SCNVector3(
-            bounds.minimum.x + bounds.width * 0.25 + approvedBoardShelfOffset.x,
-            // The board rests against the backing, with its lower edge on
-            // the left half of the narrow display shelf.
-            bounds.minimum.y + bounds.height * 0.70 + approvedBoardShelfOffset.y,
+        // The shop camera looks along the counter's local +Z axis. The old
+        // implementation mounted this row behind `minimum.z` and then forced
+        // it through the cabinet with depth testing disabled. Mount it on the
+        // actual front face so the board meshes enter SceneKit's light pass.
+        let frontZ = bounds.maximum.z + max(bounds.depth * 0.055, 0.025)
+        let shelf = SCNNode()
+        shelf.name = "shop-board-shelf"
+        let rowCenterY = bounds.minimum.y + bounds.height * 0.745
+        shelf.position = SCNVector3(
+            bounds.centerX,
+            rowCenterY,
             frontZ
         )
-        shelfBoard.scale = SCNVector3(
-            shelfBoard.scale.x * approvedBoardShelfScale,
-            shelfBoard.scale.y * approvedBoardShelfScale,
-            shelfBoard.scale.z * approvedBoardShelfScale
-        )
-        let facePlayer = SCNBillboardConstraint()
-        shelfBoard.constraints = [facePlayer]
-        counter.addChildNode(shelfBoard)
-        shopBoardShelfNode = shelfBoard
+        // Each visible item remains its authored Meshy board, but every source
+        // is fitted to the same physical box below. This keeps the artwork and
+        // real bevels while removing source-export size differences.
+        let topBoardResources = [
+            "MeshyShopClassicV3",
+            "MeshyShopStargazerEdition",
+            "MeshyShopBotanicaEdition",
+            "MeshyShopScribesEdition"
+        ]
+        let topBoardLabels = [
+            ("CLASSIC", "IVORY & BRASS"),
+            ("STARGAZER", "MIDNIGHT BLUE"),
+            ("BOTANICA", "BOTTLE GREEN"),
+            ("SCRIBES", "MANUSCRIPT")
+        ]
+        let lowerBoardResources = [
+            "MeshyShopMidnightV3",
+            "MeshyShopGoldenV3",
+            "MeshyShopNeonV3",
+            "MeshyShopPorcelainV2"
+        ]
+        let lowerBoardLabels = [
+            ("MIDNIGHT", "LUNAR OBSIDIAN"),
+            ("GOLDEN", "BOTANICAL BRASS"),
+            ("NEON", "MALACHITE INLAY"),
+            ("PORCELAIN", "COBALT & IVORY")
+        ]
+        // Four equal centers across the real inner cabinet opening. At this
+        // spacing the outside frame edges remain symmetric with the visible
+        // left and right stiles instead of bunching near the middle.
+        let spacing = bounds.width * 0.190
+        let frameSize = bounds.width * 0.165
+        let merchandiseDepth = bounds.depth * 0.018
+        for (index, resourceName) in topBoardResources.enumerated() {
+            guard let board = makeUniformShopBoardMerchandise(
+                resourceName: resourceName,
+                title: topBoardLabels[index].0,
+                subtitle: topBoardLabels[index].1,
+                frameSize: frameSize,
+                counterDepth: bounds.depth
+            ) else { continue }
+            board.position = SCNVector3(
+                (Float(index) - 1.5) * spacing,
+                0,
+                merchandiseDepth
+            )
+            shelf.addChildNode(board)
+        }
 
+        // Match the mockup's product hierarchy: four framed boards above and
+        // four boxed editions below. The package is real Meshy geometry and
+        // each inset is a normalized clone of the corresponding real board.
+        let productRowY = bounds.minimum.y + bounds.height * 0.575 - rowCenterY
+        let boxWidth = frameSize * 0.90
+        let boxHeight = frameSize * 1.24
+        for (index, resourceName) in lowerBoardResources.enumerated() {
+            let x = (Float(index) - 1.5) * spacing
+            guard let product = makeBoxedShopBoardMerchandise(
+                resourceName: resourceName,
+                title: lowerBoardLabels[index].0,
+                subtitle: lowerBoardLabels[index].1,
+                boardPhysicalSize: frameSize,
+                boxWidth: boxWidth,
+                boxHeight: boxHeight,
+                counterDepth: bounds.depth
+            ) else { continue }
+            product.position = SCNVector3(x, productRowY, merchandiseDepth)
+            shelf.addChildNode(product)
+        }
+
+        if let lowerShelf = makeMeshyShopProp(
+            resourceName: "MeshyShopDisplayShelf",
+            targetLargestDimension: bounds.width * 0.75
+        ) {
+            let lowerShelfFixture = SCNNode()
+            lowerShelfFixture.name = "meshy-shop-lower-display-shelf"
+            lowerShelfFixture.position = SCNVector3(
+                0,
+                bounds.minimum.y + bounds.height * 0.505 - rowCenterY,
+                bounds.depth * 0.008
+            )
+            // Meshy's shelf includes realistic front-to-back mass, but the
+            // counter needs the mockup's slim display rail. Keep the authored
+            // mesh and material while fitting that rail to this cabinet bay.
+            lowerShelfFixture.scale = SCNVector3(1, 0.42, 0.16)
+            lowerShelfFixture.addChildNode(lowerShelf)
+            shelf.addChildNode(lowerShelfFixture)
+        }
+
+        counter.addChildNode(shelf)
+        shopBoardShelfNode = shelf
+
+        // The platform starts truly empty. This stable container receives a
+        // clone of the exact physical board the player taps; there is no
+        // generic or duplicated display-board asset hiding here.
+        let displayBoard = SCNNode()
         displayBoard.name = "shop-board-display"
-        displayBoard.position = SCNVector3(
+        let displayPosition = SCNVector3(
             // The board sits forward of the turntable face. Compensate for
             // the shop's fixed oblique camera so its visual center lands on
             // the center of the selling platform.
-            bounds.centerX + bounds.width * 0.005,
-            bounds.minimum.y + bounds.height * 0.40,
-            frontZ
+            bounds.centerX + bounds.width * 0.017,
+            bounds.minimum.y + bounds.height * 0.52,
+            frontZ + bounds.depth * 0.10
         )
+        displayBoard.position = displayPosition
         displayBoard.isHidden = true
         counter.addChildNode(displayBoard)
         shopBoardDisplayNode = displayBoard
+        shopBoardDisplayHomePosition = displayBoard.position
+        shopBoardDisplayTargetSize = bounds.width * 0.24
+    }
+
+    /// Promotes the tapped physical shelf board to the selling platform. The
+    /// label stays mounted on the shelf; only the real Meshy board body moves
+    /// into the close-up, preserving that product's geometry and PBR maps.
+    private func configureShopBoardDisplay(from merchandise: SCNNode) {
+        guard let display = shopBoardDisplayNode,
+              let sourceBody = merchandise.childNode(
+                withName: "shop-board-physical-body",
+                recursively: false
+              )
+        else { return }
+
+        display.childNodes.forEach { $0.removeFromParentNode() }
+        let body = sourceBody.clone()
+        body.name = "shop-board-selected-physical-body"
+        body.isHidden = false
+        body.opacity = 1
+        body.categoryBitMask = 2
+        let (minimum, maximum) = body.boundingBox
+        let width = maximum.x - minimum.x
+        let height = maximum.y - minimum.y
+        let largest = max(width, height)
+        guard largest > 0.0001 else { return }
+
+        let scale = shopBoardDisplayTargetSize / largest
+        body.scale = SCNVector3(scale, scale, scale)
+        body.position = SCNVector3(
+            -(minimum.x + maximum.x) * 0.5 * scale,
+            -(minimum.y + maximum.y) * 0.5 * scale,
+            -(minimum.z + maximum.z) * 0.5 * scale
+        )
+        body.enumerateChildNodes { node, _ in
+            node.categoryBitMask = 2
+            node.castsShadow = true
+        }
+        display.addChildNode(body)
+    }
+
+    private func makeShopBoardLabel(title: String, subtitle: String, width: Float) -> SCNNode {
+        let label = SCNNode()
+        label.name = "shop-board-label:\(title.lowercased())"
+
+        if let plate = makeMeshyShopProp(
+            resourceName: "MeshyShopNameplate",
+            targetLargestDimension: width
+        ) {
+            plate.enumerateChildNodes { node, _ in
+                node.geometry?.materials.forEach { material in
+                    // The reference uses restrained bottle-green plaques with
+                    // thin brass edges; the typography, not the whole plate,
+                    // should carry the visual highlight.
+                    material.diffuse.intensity = 0.52
+                    material.multiply.contents = UIColor(white: 0.42, alpha: 1)
+                    material.emission.contents = UIColor.black
+                    material.emission.intensity = 0
+                    material.roughness.intensity = 1.28
+                    material.metalness.intensity = 0.65
+                }
+            }
+            label.addChildNode(plate)
+        }
+
+        // Product names/descriptions are allowed dynamic copy, but the old
+        // extruded glyphs intersected Meshy's irregular green inset and showed
+        // the plate through their faces. A transparent two-line print layer
+        // keeps the real Meshy brass plate underneath while producing the
+        // crisp gold typography seen in the reference.
+        let copyMaterial = SCNMaterial()
+        // The plate and its brass fasteners remain physically lit. Keep the
+        // printed copy color-managed so the two tiny lines retain the same
+        // legibility as the reference at phone scale instead of disappearing
+        // in the plaque's shadow.
+        copyMaterial.lightingModel = .constant
+        copyMaterial.diffuse.contents = shopBoardLabelTexture(
+            title: title,
+            subtitle: subtitle
+        )
+        copyMaterial.diffuse.minificationFilter = .linear
+        copyMaterial.diffuse.magnificationFilter = .linear
+        copyMaterial.diffuse.mipFilter = .linear
+        copyMaterial.transparencyMode = .aOne
+        copyMaterial.isDoubleSided = true
+        copyMaterial.readsFromDepthBuffer = true
+        copyMaterial.writesToDepthBuffer = false
+
+        let copyPlane = SCNPlane(
+            width: CGFloat(width * 0.88),
+            height: CGFloat(width * 0.235)
+        )
+        copyPlane.firstMaterial = copyMaterial
+        let copy = SCNNode(geometry: copyPlane)
+        copy.name = "shop-board-label-copy"
+        copy.renderingOrder = 30
+        copy.position = SCNVector3(0, -width * 0.004, width * 0.325)
+        label.addChildNode(copy)
+        return label
+    }
+
+    private func shopBoardLabelTexture(title: String, subtitle: String) -> UIImage {
+        let key = "\(title)|\(subtitle)"
+        if let cached = shopBoardLabelTextureCache[key] { return cached }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(
+            size: CGSize(width: 1024, height: 256),
+            format: format
+        ).image { _ in
+            let centered = NSMutableParagraphStyle()
+            centered.alignment = .center
+            let titleFont = UIFont(name: "Georgia-Bold", size: 128)
+                ?? .boldSystemFont(ofSize: 128)
+            let subtitleFont = UIFont(name: "AvenirNext-DemiBold", size: 72)
+                ?? .systemFont(ofSize: 72, weight: .semibold)
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: titleFont,
+                .foregroundColor: UIColor(red: 0.97, green: 0.76, blue: 0.34, alpha: 1),
+                .paragraphStyle: centered,
+            ]
+            let subtitleAttributes: [NSAttributedString.Key: Any] = [
+                .font: subtitleFont,
+                .foregroundColor: UIColor(red: 0.88, green: 0.68, blue: 0.31, alpha: 1),
+                .paragraphStyle: centered,
+                .kern: 1.5,
+            ]
+            NSAttributedString(string: title, attributes: titleAttributes).draw(
+                in: CGRect(x: 0, y: 2, width: 1024, height: 142)
+            )
+            NSAttributedString(string: subtitle, attributes: subtitleAttributes).draw(
+                in: CGRect(x: 0, y: 142, width: 1024, height: 92)
+            )
+        }
+        shopBoardLabelTextureCache[key] = image
+        return image
+    }
+
+    private func makeShopBoxLabel(title: String, subtitle: String, width: Float) -> SCNNode {
+        let label = SCNNode()
+
+        func makeLine(_ string: String,
+                      font: UIFont,
+                      targetWidth: Float,
+                      y: Float) -> SCNNode {
+            let geometry = SCNText(string: string, extrusionDepth: 0.0012)
+            geometry.font = font
+            geometry.alignmentMode = CATextLayerAlignmentMode.center.rawValue
+            geometry.flatness = 0.15
+            let material = SCNMaterial()
+            material.lightingModel = .constant
+            let gold = UIColor(red: 0.84, green: 0.61, blue: 0.23, alpha: 1)
+            material.diffuse.contents = gold
+            material.readsFromDepthBuffer = true
+            material.writesToDepthBuffer = true
+            geometry.materials = Array(repeating: material, count: 5)
+
+            let node = SCNNode(geometry: geometry)
+            node.renderingOrder = 30
+            let bounds = geometry.boundingBox
+            let textWidth = max(bounds.max.x - bounds.min.x, 0.001)
+            let scale = targetWidth / textWidth
+            node.scale = SCNVector3(scale, scale, scale)
+            node.position = SCNVector3(
+                -(bounds.min.x + bounds.max.x) * 0.5 * scale,
+                y - (bounds.min.y + bounds.max.y) * 0.5 * scale,
+                0
+            )
+            return node
+        }
+
+        label.addChildNode(makeLine(
+            title,
+            font: UIFont(name: "Georgia-Bold", size: 1) ?? .boldSystemFont(ofSize: 1),
+            targetWidth: width,
+            y: width * 0.10
+        ))
+        label.addChildNode(makeLine(
+            subtitle,
+            font: UIFont(name: "AvenirNext-DemiBold", size: 1) ?? .systemFont(ofSize: 1, weight: .semibold),
+            targetWidth: width * 0.88,
+            y: -width * 0.10
+        ))
+        return label
     }
 
     private func presentShopBoard() {
         guard let shelfBoard = shopBoardShelfNode, let displayBoard = shopBoardDisplayNode else { return }
-        shelfBoard.isHidden = true
+        setShopProductFocusLighting(true, animated: true)
+        // Inspection is a focus state inside the shop, not a modal replacement
+        // scene. Keep the complete collection in the background so the player
+        // never loses context when a board moves to the plinth.
+        shelfBoard.isHidden = false
+        shelfBoard.removeAllActions()
+        shelfBoard.runAction(
+            // Keep every catalog item fully present during inspection. The
+            // fixture rig supplies the quieter focus state; fading the shelf
+            // itself made products look as if they had disappeared.
+            .fadeOpacity(to: 1, duration: reduceMotion ? 0.01 : 0.24),
+            forKey: "board-shelf-focus"
+        )
         displayBoard.isHidden = false
         displayBoard.opacity = 0
         displayBoard.runAction(.fadeIn(duration: reduceMotion ? 0.01 : 0.22), forKey: "board-reveal")
+        focusCameraOnBoardDisplay()
         startBoardAutoRotation()
+    }
+
+    private func dismissShopBoard(_ displayBoard: SCNNode) {
+        guard let shelfBoard = shopBoardShelfNode else { return }
+        setShopProductFocusLighting(false, animated: true)
+        displayBoard.removeAllActions()
+        displayBoard.position = shopBoardDisplayHomePosition ?? displayBoard.position
+        displayBoard.eulerAngles = SCNVector3Zero
+        displayBoard.isHidden = true
+        shelfBoard.isHidden = false
+        shelfBoard.removeAllActions()
+        shelfBoard.runAction(
+            .fadeOpacity(to: 1, duration: reduceMotion ? 0.01 : 0.18),
+            forKey: "board-shelf-return"
+        )
+
+        let pose = resolvedShopPose
+        cameraNode.position = cameraNode.presentation.position
+        cameraTarget.position = cameraTarget.presentation.position
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = reduceMotion ? 0.01 : 0.30
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        cameraTarget.position = pose.target
+        cameraNode.camera?.fieldOfView = pose.fieldOfView
+        SCNTransaction.commit()
+    }
+
+    private func focusCameraOnBoardDisplay() {
+        let pose = resolvedShopPose
+        cameraNode.position = cameraNode.presentation.position
+        cameraTarget.position = cameraTarget.presentation.position
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = reduceMotion ? 0.01 : 0.30
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        // Keep the same camera position and scene orientation. A modestly
+        // narrower field of view and a lower target put the platform and its
+        // board in the visual center rather than altering the shop's rig.
+        cameraTarget.position = SCNVector3(pose.target.x, pose.target.y - 0.32, pose.target.z)
+        cameraNode.camera?.fieldOfView = max(31.5, pose.fieldOfView - 6.5)
+        SCNTransaction.commit()
     }
 
     private func startBoardAutoRotation() {
@@ -2030,39 +3059,217 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         makeMeshyShopCounter()
     }
 
-    private func addImportedShopLighting() {
-        let target = SCNNode()
-        target.position = SCNVector3(3.60, 2.05, 8.62)
-        scene.rootNode.addChildNode(target)
+    /// Marks a bounded region of an already-imported Meshy mesh's own
+    /// authored surface as a powered light emitter. This is a material
+    /// shader mask applied to the mesh's existing single material; it adds
+    /// no procedural overlay geometry. The mask runs entirely in the
+    /// fragment stage: SceneKit's Metal backend does not wire an ad hoc
+    /// `varying` declared in a `.geometry` shader modifier through to a
+    /// `.fragment` modifier (it compiles but leaves the identifier
+    /// undeclared at the Metal Shading Language level), so this recovers
+    /// the fragment's own object-space position by inverse-transforming
+    /// SceneKit's built-in per-fragment `_surface.position` (view space)
+    /// with the standard `u_inverseModelViewTransform` uniform SceneKit
+    /// always provides, instead of interpolating a custom varying.
+    /// `objectSpaceCenter` and `objectSpaceHalfExtents` are expressed in
+    /// the mesh's own authored (object-space) coordinates, matching the
+    /// fixture-local offsets already used to anchor the real SCNLight.
+    private func applyMeshyBulbEmissiveMask(to node: SCNNode,
+                                             objectSpaceCenter: SCNVector3,
+                                             objectSpaceHalfExtents: SCNVector3,
+                                             emissiveColor: SCNVector3) {
+        func literal(_ value: Float) -> String { String(format: "%.6f", value) }
+        let fragmentModifier = """
+        vec3 meshyBulbObjectSpacePosition = (u_inverseModelViewTransform * vec4(_surface.position, 1.0)).xyz;
+        vec3 meshyBulbCenter = vec3(\(literal(objectSpaceCenter.x)), \(literal(objectSpaceCenter.y)), \(literal(objectSpaceCenter.z)));
+        vec3 meshyBulbHalfExtents = vec3(\(literal(objectSpaceHalfExtents.x)), \(literal(objectSpaceHalfExtents.y)), \(literal(objectSpaceHalfExtents.z)));
+        vec3 meshyBulbDelta = abs(meshyBulbObjectSpacePosition - meshyBulbCenter);
+        vec3 meshyBulbFalloff = vec3(
+            1.0 - smoothstep(meshyBulbHalfExtents.x * 0.7, meshyBulbHalfExtents.x, meshyBulbDelta.x),
+            1.0 - smoothstep(meshyBulbHalfExtents.y * 0.7, meshyBulbHalfExtents.y, meshyBulbDelta.y),
+            1.0 - smoothstep(meshyBulbHalfExtents.z * 0.7, meshyBulbHalfExtents.z, meshyBulbDelta.z)
+        );
+        float meshyBulbMask = meshyBulbFalloff.x * meshyBulbFalloff.y * meshyBulbFalloff.z;
+        vec3 meshyBulbColor = vec3(\(literal(emissiveColor.x)), \(literal(emissiveColor.y)), \(literal(emissiveColor.z)));
+        _output.color.rgb = mix(_output.color.rgb, meshyBulbColor, meshyBulbMask);
+        _output.color.rgb += meshyBulbColor * meshyBulbMask * 0.6;
+        """
+        node.geometry?.materials.forEach { material in
+            material.shaderModifiers = [.fragment: fragmentModifier]
+        }
+    }
 
-        let key = SCNLight()
-        key.type = .spot
-        key.color = UIColor(red: 1, green: 0.83, blue: 0.60, alpha: 1)
-        key.intensity = 420
-        key.attenuationStartDistance = 1
-        key.attenuationEndDistance = 12
-        key.spotInnerAngle = 42
-        key.spotOuterAngle = 78
-        key.castsShadow = false
-        let keyNode = SCNNode()
-        keyNode.light = key
-        keyNode.position = SCNVector3(0.75, 5.80, 13.15)
-        let keyLook = SCNLookAtConstraint(target: target)
-        keyLook.isGimbalLockEnabled = true
-        keyNode.constraints = [keyLook]
-        scene.rootNode.addChildNode(keyNode)
+    private func addImportedShopPendant(to counter: SCNNode) {
+        guard let bounds = importedShopCounterSourceBounds else { return }
 
-        let fill = SCNLight()
-        fill.type = .omni
-        fill.color = UIColor(red: 0.72, green: 0.83, blue: 0.92, alpha: 1)
-        fill.intensity = 105
-        fill.attenuationStartDistance = 1
-        fill.attenuationEndDistance = 9
-        fill.castsShadow = false
-        let fillNode = SCNNode()
-        fillNode.light = fill
-        fillNode.position = SCNVector3(5.65, 3.35, 10.10)
-        scene.rootNode.addChildNode(fillNode)
+        let pendantSize = bounds.height * 0.15
+        guard let pendant = makeMeshyShopPendant(targetLargestDimension: pendantSize)
+        else { return }
+
+        let frontZ = bounds.maximum.z + max(bounds.depth * 0.055, 0.025)
+
+        // All shop lighting now lives in counter-local space. The fixture,
+        // its bulb anchor, its SceneKit light and its target therefore share
+        // one stable transform and follow the counter as a single assembly.
+        let lightRig = SCNNode()
+        lightRig.name = "shop-three-fixture-light-rig"
+        counter.addChildNode(lightRig)
+
+        // The featured board is physically mounted forward of the imported
+        // counter face. Aim at that exact presentation depth; targeting the
+        // recessed backing made the beam cross and overexpose the header before
+        // it ever reached the platform.
+        let platformPresentationZ = frontZ + bounds.depth * 0.12
+
+        let platformTarget = SCNNode()
+        platformTarget.name = "shop-pendant-platform-target"
+        platformTarget.position = SCNVector3(
+            bounds.centerX,
+            bounds.minimum.y + bounds.height * 0.48,
+            platformPresentationZ
+        )
+        lightRig.addChildNode(platformTarget)
+
+        let pendantFixture = SCNNode()
+        pendantFixture.name = "meshy-shop-pendant-fixture"
+        pendantFixture.position = SCNVector3(
+            bounds.centerX,
+            bounds.minimum.y + bounds.height * 1.01,
+            frontZ + bounds.depth * 0.08
+        )
+        pendantFixture.addChildNode(pendant)
+        lightRig.addChildNode(pendantFixture)
+
+        guard let pendantEmitterMesh = pendant.childNode(withName: "mesh1", recursively: true)
+        else { return }
+        let bulbAnchor = SCNNode()
+        bulbAnchor.name = "meshy-shop-pendant-bulb-anchor"
+        // Convert the audited bulb point out of Meshy's internal mesh space.
+        // The anchor belongs to the stable fixture node so its look-at
+        // orientation cannot inherit USD mesh rotation or normalization.
+        bulbAnchor.position = pendantFixture.convertPosition(
+            meshyPendantLightOrigin,
+            from: pendantEmitterMesh
+        )
+        pendantFixture.addChildNode(bulbAnchor)
+
+        shopPendantLight.type = .spot
+        shopPendantLight.color = UIColor(red: 1, green: 0.86, blue: 0.67, alpha: 1)
+        shopPendantLight.intensity = 34
+        shopPendantLight.attenuationStartDistance = 0.15
+        shopPendantLight.attenuationEndDistance = 7.6
+        // The pendant carries the central product/platform pool. Keep enough
+        // falloff at the edge to reveal the cabinet without clipping the wood.
+        shopPendantLight.spotInnerAngle = 86
+        shopPendantLight.spotOuterAngle = 132
+        shopPendantLight.categoryBitMask = 2
+        shopPendantLight.castsShadow = true
+        shopPendantLight.shadowMode = .forward
+        shopPendantLight.shadowRadius = 4
+        shopPendantLight.shadowSampleCount = 4
+        shopPendantLight.shadowMapSize = CGSize(width: 1024, height: 1024)
+        shopPendantLight.shadowBias = 0.004
+        shopPendantLight.shadowColor = UIColor.black.withAlphaComponent(0.12)
+
+        bulbAnchor.light = shopPendantLight
+        let pendantAim = SCNLookAtConstraint(target: platformTarget)
+        pendantAim.localFront = SCNVector3(0, 0, -1)
+        pendantAim.isGimbalLockEnabled = true
+        bulbAnchor.constraints = [pendantAim]
+
+        addImportedShopPictureLights(to: lightRig, bounds: bounds, frontZ: frontZ)
+
+        #if DEBUG
+        let mountedSpotlights = lightRig.childNodes(passingTest: { node, _ in
+            node.light?.type == .spot
+        })
+        assert(mountedSpotlights.count == 3, "The shop must contain exactly three fixture-mounted spotlights")
+        assert(bulbAnchor.parent === pendantFixture,
+               "The pendant spotlight anchor must belong to its stable fixture node")
+        #endif
+    }
+
+    private func addImportedShopPictureLights(to lightRig: SCNNode,
+                                               bounds: MeshyAssetBounds,
+                                               frontZ: Float) {
+        let fixtureSize = bounds.width * 0.18
+        let xOffsets: [Float] = [-0.22, 0.22]
+        // Match the front depth used by the board/label meshes in
+        // `addBoardShelf`; this keeps each bar's optical axis on the products.
+        let productPresentationZ = frontZ + bounds.depth * 0.045
+        shopPictureLights.removeAll()
+        for xOffset in xOffsets {
+            guard let fixture = makeMeshyShopPictureLight(
+                targetLargestDimension: fixtureSize
+            ) else { continue }
+
+            let fixtureNode = SCNNode()
+            fixtureNode.name = xOffset < 0
+                ? "meshy-shop-picture-light-left-fixture"
+                : "meshy-shop-picture-light-right-fixture"
+            fixtureNode.position = SCNVector3(
+                bounds.centerX + bounds.width * xOffset,
+                bounds.minimum.y + bounds.height * 0.94,
+                frontZ + bounds.depth * 0.045
+            )
+            fixtureNode.addChildNode(fixture)
+            lightRig.addChildNode(fixtureNode)
+
+            let target = SCNNode()
+            target.name = xOffset < 0
+                ? "shop-picture-light-left-product-target"
+                : "shop-picture-light-right-product-target"
+            target.position = SCNVector3(
+                bounds.centerX + bounds.width * xOffset * 0.90,
+                bounds.minimum.y + bounds.height * 0.665,
+                productPresentationZ
+            )
+            lightRig.addChildNode(target)
+
+            let source = SCNLight()
+            source.type = .spot
+            source.color = UIColor(red: 1, green: 0.88, blue: 0.70, alpha: 1)
+            source.intensity = 12
+            source.attenuationStartDistance = 0.12
+            source.attenuationEndDistance = 6.8
+            // Each bar is a real, fixture-owned product light. A controlled
+            // cone keeps its energy on the two merchandise rows instead of
+            // blowing out the header bevel above them.
+            source.spotInnerAngle = 50
+            source.spotOuterAngle = 84
+            source.categoryBitMask = 2
+            // The pendant owns the one soft hero shadow. Running the entire
+            // multi-million-triangle cabinet through two additional picture-
+            // light shadow maps added no readable contact detail at phone size
+            // and was the dominant browse-frame cost.
+            source.castsShadow = false
+
+            let bulbAnchor = SCNNode()
+            bulbAnchor.name = xOffset < 0
+                ? "meshy-shop-picture-light-left-bulb-anchor"
+                : "meshy-shop-picture-light-right-bulb-anchor"
+            guard let diffuserMesh = fixture.childNode(withName: "mesh1", recursively: true)
+            else { continue }
+            // Preserve the authored Meshy emitter location, but move the
+            // anchor into the stable fixture coordinate system before aiming.
+            bulbAnchor.position = fixtureNode.convertPosition(
+                meshyPictureLightOrigin,
+                from: diffuserMesh
+            )
+            bulbAnchor.light = source
+            fixtureNode.addChildNode(bulbAnchor)
+
+            let barAim = SCNLookAtConstraint(target: target)
+            barAim.localFront = SCNVector3(0, 0, -1)
+            barAim.isGimbalLockEnabled = true
+            bulbAnchor.constraints = [barAim]
+            shopPictureLights.append(source)
+
+            #if DEBUG
+            assert(bulbAnchor.parent === fixtureNode,
+                   "Each picture-light anchor must belong to its stable fixture node")
+            #endif
+        }
     }
 
     @discardableResult
@@ -2553,27 +3760,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         wallWashNode.constraints = [wallLook]
         shopWallRoot.addChildNode(wallWashNode)
 
-        let traceMaterial = shopLightTraceMaterial(opacity: 0.055)
-        let trace = SCNNode(geometry: openConeGeometry(
-            topRadius: 0.12, bottomRadius: 1.82, height: 3.40, segments: 40,
-            material: traceMaterial
-        ))
-        trace.position = SCNVector3(0.45, 2.77, 0.78)
-        trace.eulerAngles.z = -0.075
-        trace.castsShadow = false
-        trace.renderingOrder = 1
-        shopRoot.addChildNode(trace)
-
-        let softTrace = SCNNode(geometry: openConeGeometry(
-            topRadius: 0.16, bottomRadius: 2.35, height: 3.72, segments: 40,
-            material: shopLightTraceMaterial(opacity: 0.020)
-        ))
-        softTrace.position = SCNVector3(0.45, 2.62, 0.72)
-        softTrace.eulerAngles.z = -0.075
-        softTrace.castsShadow = false
-        softTrace.renderingOrder = 1
-        shopRoot.addChildNode(softTrace)
-
         let dust = SCNParticleSystem()
         dust.birthRate = reduceMotion ? 0 : 3
         dust.particleLifeSpan = 7
@@ -2599,51 +3785,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         shopRoot.addChildNode(dustNode)
         shopDustSystem = dust
         shopDustEmitterNode = dustNode
-    }
-
-    private func shopLightTraceMaterial(opacity: CGFloat) -> SCNMaterial {
-        let material = SCNMaterial()
-        material.lightingModel = .constant
-        material.diffuse.contents = UIColor(red: 1, green: 0.90, blue: 0.74, alpha: opacity)
-        material.transparency = 1
-        material.transparencyMode = .aOne
-        material.blendMode = .alpha
-        material.writesToDepthBuffer = false
-        material.readsFromDepthBuffer = true
-        material.isDoubleSided = true
-        return material
-    }
-
-    /// Side faces only. SCNCone includes opaque end caps on some SceneKit
-    /// render paths, which is what made the earlier light trace read as a
-    /// solid triangle instead of suspended light.
-    private func openConeGeometry(topRadius: Float, bottomRadius: Float, height: Float,
-                                  segments: Int, material: SCNMaterial) -> SCNGeometry {
-        var vertices: [SCNVector3] = []
-        vertices.reserveCapacity((segments + 1) * 2)
-        for index in 0...segments {
-            let angle = Float(index) / Float(segments) * 2 * .pi
-            let cosine = cos(angle)
-            let sine = sin(angle)
-            vertices.append(SCNVector3(cosine * topRadius, height / 2, sine * topRadius))
-            vertices.append(SCNVector3(cosine * bottomRadius, -height / 2, sine * bottomRadius))
-        }
-
-        var indices: [Int32] = []
-        indices.reserveCapacity(segments * 6)
-        for index in 0..<segments {
-            let top = Int32(index * 2)
-            let bottom = top + 1
-            let nextTop = top + 2
-            let nextBottom = top + 3
-            indices.append(contentsOf: [top, bottom, nextTop, nextTop, bottom, nextBottom])
-        }
-        let geometry = SCNGeometry(
-            sources: [SCNGeometrySource(vertices: vertices)],
-            elements: [SCNGeometryElement(indices: indices, primitiveType: .triangles)]
-        )
-        geometry.firstMaterial = material
-        return geometry
     }
 
     private func updateShopShowcaseMotion() {

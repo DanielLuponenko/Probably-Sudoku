@@ -1,0 +1,13 @@
+{
+  "input_task_id": "01a06218-03df-743f-a372-f25f210b6311",
+  "text_style_prompt": "Deep bottle-green enamel board with a complete fine aged-brass 9 by 9 grid, stronger brass 3 by 3 divisions, aged-brass frame and corner fasteners. Restrained engraved fern leaves, seed pods and curling botanical vines confined inside selected empty cells without hiding the grid. Satin lacquer, subtle hand wear, premium private-library PBR materials. No digits, text, logo or lighting.",
+  "ai_model": "meshy-7",
+  "enable_original_uv": true,
+  "enable_pbr": true,
+  "texture_resolution": "4k",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true
+}

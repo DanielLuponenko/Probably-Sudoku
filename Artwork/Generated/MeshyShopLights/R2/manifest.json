@@ -1,0 +1,60 @@
+{
+  "provider": "Meshy",
+  "purpose": "Upgrade both reused Club Shop picture-light fixtures to the mockup's aged-brass and warm-frosted-glass finish without replacing their audited geometry or light anchors.",
+  "source": {
+    "taskID": "01a060db-c6ff-77d8-8f6c-1203719d131f",
+    "preservedRuntimeOutput": "Artwork/Generated/MeshyShopLights/R1/picture-light-original.usdz",
+    "sha256": "a3e1762b84525efccc0fb642ec8c9fa93a04545bff1d4e036756bd427da543b4"
+  },
+  "retexture": {
+    "taskID": "01a06318-7eec-77a6-96d8-49cf0c383e9f",
+    "creditsConsumed": 10,
+    "model": "latest",
+    "originalUV": true,
+    "pbr": true,
+    "textureResolution": "4k",
+    "removeLighting": true
+  },
+  "outputs": {
+    "usdz": {
+      "path": "Artwork/Generated/MeshyShopLights/R2/picture-light-aged-brass.usdz",
+      "bytes": 21052939,
+      "sha256": "46e970939fcf5e65822c8503db5a710974bb93164b411a56b753d08d913682c0"
+    },
+    "baseColor": {
+      "path": "Artwork/Generated/MeshyShopLights/R2/picture-light-aged-brass_textures/base_color.png",
+      "bytes": 23044684,
+      "sha256": "79db12c7051a9f50bc7be805c81c1a0bbd2b5725a7d0b7a3f84415b62eba31fa"
+    },
+    "metallic": {
+      "path": "Artwork/Generated/MeshyShopLights/R2/picture-light-aged-brass_textures/metallic.png",
+      "bytes": 963291,
+      "sha256": "5a00b4be76aa1fde75d9b2b19146283e71c8f1369af3b36076dc3029d8d88b31"
+    },
+    "roughness": {
+      "path": "Artwork/Generated/MeshyShopLights/R2/picture-light-aged-brass_textures/roughness.png",
+      "bytes": 944776,
+      "sha256": "0c35a4a67d148edf9f03ab7c17a61614a5f2acc6e99cf4742e694c313c05b9b1"
+    },
+    "normal": {
+      "path": "Artwork/Generated/MeshyShopLights/R2/picture-light-aged-brass_textures/normal.png",
+      "bytes": 16361099,
+      "sha256": "ef422cd284f54b9f2bdded97b899471f1b0abdfdb819c436a74b9a702fa8cf6c"
+    }
+  },
+  "runtime": {
+    "resource": "MeshyShopPictureLight",
+    "path": "App/Resources/Shop3D/MeshyShopPictureLight.usdz",
+    "sha256": "46e970939fcf5e65822c8503db5a710974bb93164b411a56b753d08d913682c0",
+    "usage": "One canonical asset cloned for the left and right stable fixture nodes; each clone retains its own fixture-owned SCNLight anchor."
+  },
+  "verification": {
+    "usdchecker": "passed",
+    "runtimeBuild": "passed",
+    "focusedTests": "passed 5 of 5",
+    "simulatorScreenshot": "Artwork/Generated/MeshyShopLights/R2/runtime-fixture-lighting.png",
+    "simulatorScreenshotSHA256": "8570a69f3bc0420e69763cb22da7c73fb61d11bd412dfabb0e76159bce931ee5",
+    "runtimeLightRig": "exactly three fixture-owned SCNLight spots: one pendant and one per picture-light clone; no fake beam geometry",
+    "visualApproval": "pending user review"
+  }
+}

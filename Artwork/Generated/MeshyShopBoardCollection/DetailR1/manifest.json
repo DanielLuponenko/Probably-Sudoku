@@ -1,0 +1,255 @@
+{
+  "provider": "Meshy",
+  "model": "meshy-7-retexture-4k-pbr",
+  "sourceModel": "/Users/daniel/NumberClub/Artwork/Generated/MeshyShopBoardCollection/RetextureSource/empty-grid-300k-uv.glb",
+  "sourceSHA256": "cb6c3e8f9cca4294d53139a1504fc00dc6603871ee5df66ad024e18583928b01",
+  "sourceUVPolicy": "preserve-original",
+  "assets": {
+    "stargazer": {
+      "retextureTaskID": "01a062bc-35ff-7456-b58f-711102ac7a78",
+      "textStylePrompt": "Luxury 1930s private-observatory Sudoku board. Deep midnight-navy vitreous enamel, crisp aged-brass grid and rim. Large high-contrast engraved celestial map circles, constellation arcs, star points and a few sunbursts visibly span selected cells without obscuring the exact grid. Motifs must read clearly at small product-thumbnail scale. Realistic worn PBR metal and enamel. No text, letters, numbers, logo, painted lighting, background or extra objects.",
+      "outputs": {
+        "glb": {
+          "filename": "stargazer.glb",
+          "bytes": 41695420,
+          "sha256": "cd532a3da6201cd386e6e62b7c4955ecc384bb0be1f43ee00ba0ac2b4dade0a4"
+        },
+        "usdz": {
+          "filename": "stargazer.usdz",
+          "bytes": 40825771,
+          "sha256": "73831fa8ee5dfbcb4892dcf478648882c06eb0740f9cd9da7f2db23ddca67c92"
+        },
+        "thumbnail": {
+          "filename": "stargazer.png",
+          "bytes": 193527,
+          "sha256": "3d0d7975553ce70ed627aad70ae76d10aa934f1dae4e6910a5dac4efe7550d19"
+        },
+        "base_color": {
+          "filename": "stargazer-base-color.png",
+          "bytes": 26997611,
+          "sha256": "4f2e8739a52f78252754daba37b534aa9f73e788fbac7d5e4b8027008b43bb08"
+        },
+        "metallic": {
+          "filename": "stargazer-metallic.png",
+          "bytes": 1819415,
+          "sha256": "2ac91aa340eee094b89edf6297aff2a54f0e79c66e5cf8c2906ff892ededf7ff"
+        },
+        "roughness": {
+          "filename": "stargazer-roughness.png",
+          "bytes": 1839078,
+          "sha256": "bd608704c11fe07c9040c70c23110a4d62f820891744120976d097b057dde554"
+        },
+        "normal": {
+          "filename": "stargazer-normal.png",
+          "bytes": 23443114,
+          "sha256": "233b677ff1e9e4fd48319ca94692ddc88338f0f4ab3048f68fb4c5b18cf93135"
+        }
+      }
+    },
+    "botanica": {
+      "retextureTaskID": "01a062bc-4855-720a-affa-54da5f8f684b",
+      "textStylePrompt": "Luxury 1930s botanical-library Sudoku board. Deep bottle-green enamel and aged-brass grid. Bold clearly visible engraved fern fronds, curling vines, seed pods and small leaf clusters cross selected cells while the exact grid stays dominant. Motifs must read at small product-thumbnail scale. Realistic PBR brass patina, enamel depth and hand-worn edges. No text, letters, numbers, logo, painted lighting, background or extra objects.",
+      "outputs": {
+        "glb": {
+          "filename": "botanica.glb",
+          "bytes": 40430660,
+          "sha256": "86ae66db583a5dcb93db4d5323021a6c428fdbc23388057369a91e4018015758"
+        },
+        "usdz": {
+          "filename": "botanica.usdz",
+          "bytes": 39085738,
+          "sha256": "b6c933efe2c29e165b3a8aa70175a49c6803aee39eea2a6b64c14a6a3882b32d"
+        },
+        "thumbnail": {
+          "filename": "botanica.png",
+          "bytes": 271156,
+          "sha256": "45e659934f9b34888d5468b2348e668f4faa2a6868de7fdb11ba65d56b85b029"
+        },
+        "base_color": {
+          "filename": "botanica-base-color.png",
+          "bytes": 26644905,
+          "sha256": "f569813fae041ef0d12057bd70f36796ad708774e8d8c4653d591ccab9489048"
+        },
+        "metallic": {
+          "filename": "botanica-metallic.png",
+          "bytes": 397522,
+          "sha256": "8d00831fd304356d6c7f085e40ff09f889282f1505a8b314366af21ae44040e4"
+        },
+        "roughness": {
+          "filename": "botanica-roughness.png",
+          "bytes": 1647268,
+          "sha256": "cdeb0518aa9999e80bcaa4be5044feb0f1f5c45dfecd8e6d60c27a930a64c472"
+        },
+        "normal": {
+          "filename": "botanica-normal.png",
+          "bytes": 22512247,
+          "sha256": "c2497a1836dbf2e90c7b19341c62296151c1651c8756b8387d49a27670493401"
+        }
+      }
+    },
+    "scribes": {
+      "retextureTaskID": "01a062bc-59fe-751f-a880-54d05beb82b7",
+      "textStylePrompt": "Luxury archival manuscript Sudoku board. Warm aged ivory vellum, sepia exact grid, large legible-as-marks but deliberately unreadable calligraphic strokes, botanical marginal sketches, restrained red wax-pencil circles, underlines and proofreader marks clearly visible at small product-thumbnail scale. Dark walnut and aged-brass edge treatment, realistic PBR paper fibers and patina. No readable words, letters, digits, logo, painted lighting, background or extra objects.",
+      "outputs": {
+        "glb": {
+          "filename": "scribes.glb",
+          "bytes": 41026536,
+          "sha256": "0f6120303ee90ae08891f7e896b724a9db7ee85ec49553dffb94f5f039e84504"
+        },
+        "usdz": {
+          "filename": "scribes.usdz",
+          "bytes": 39653294,
+          "sha256": "0099d81b6d01e1ed7489d53cd8ce20f570d3d076251bed1b7d51b33715124de4"
+        },
+        "thumbnail": {
+          "filename": "scribes.png",
+          "bytes": 153392,
+          "sha256": "07b546c71ff62cf9fcaa5da2d02a464f842aeb8c280335743263860d6c7fe456"
+        },
+        "base_color": {
+          "filename": "scribes-base-color.png",
+          "bytes": 27051786,
+          "sha256": "0ce0dea27fa933b48d8764e2f6a8a66ceaf80f69c4997052b574376d5817708b"
+        },
+        "metallic": {
+          "filename": "scribes-metallic.png",
+          "bytes": 23457,
+          "sha256": "86b8e58669e19add27f645297293c43150bbd720fdebc396624e7a4f6886da1b"
+        },
+        "roughness": {
+          "filename": "scribes-roughness.png",
+          "bytes": 1325878,
+          "sha256": "bed4843b64230c6ecf7226db6a2a29847468e856d2d07fdbc01ffb93b5e43ebf"
+        },
+        "normal": {
+          "filename": "scribes-normal.png",
+          "bytes": 23636089,
+          "sha256": "8a8863d477baf9d2bef64309ea9ef117077734a129319d3562156ac57bfc074e"
+        }
+      }
+    },
+    "midnight": {
+      "retextureTaskID": "01a062bc-6b55-70ab-8153-f8ad53de9ce2",
+      "textStylePrompt": "Luxury midnight edition Sudoku board distinct from a blue constellation board. Near-black obsidian lacquer with cool silver and pale-brass exact grid, bold moon phase discs, eclipse rings and sparse silver comet engravings visibly occupying selected cells. High contrast at small product-thumbnail scale, realistic PBR black lacquer, silver inlay and restrained wear. No text, letters, numbers, logo, painted lighting, background or extra objects.",
+      "outputs": {
+        "glb": {
+          "filename": "midnight.glb",
+          "bytes": 41933480,
+          "sha256": "f09d59df614abc6684bff77561ffb28cd5974ea62e8dbc86fbf5aec8bf56b5a2"
+        },
+        "usdz": {
+          "filename": "midnight.usdz",
+          "bytes": 40932443,
+          "sha256": "c6dd5bcd587948bac3b8f9ceca8bcfafad04c446c3a852f32769e10332cc00c1"
+        },
+        "thumbnail": {
+          "filename": "midnight.png",
+          "bytes": 313293,
+          "sha256": "7acbaad5e92620e683256c735488fbb75d30ba27aada241c0adfdd4c8dbe4e0b"
+        },
+        "base_color": {
+          "filename": "midnight-base-color.png",
+          "bytes": 26485635,
+          "sha256": "88b375e13ff239546c81481fdcd68bb4b707c12c020b28ee211b2a9b41d6149d"
+        },
+        "metallic": {
+          "filename": "midnight-metallic.png",
+          "bytes": 1253439,
+          "sha256": "c2fbca240ad76e706340c2e0c2d76fb0107fa690e329784a3e066ad526b5d00e"
+        },
+        "roughness": {
+          "filename": "midnight-roughness.png",
+          "bytes": 1779781,
+          "sha256": "7ed54407f679c57a09158ccbe596c08c773379d266a090ad50556c9c6db7b254"
+        },
+        "normal": {
+          "filename": "midnight-normal.png",
+          "bytes": 24036216,
+          "sha256": "f839cdc47873588b3bbbe58b26b91673f2c680bcf15ef37e2804e40b384abc79"
+        }
+      }
+    },
+    "golden": {
+      "retextureTaskID": "01a062bc-7c99-7645-b088-0133dcc43fd9",
+      "textStylePrompt": "Luxury Golden Grid Sudoku board. Deep oxblood-burgundy leather enamel with an aged-gold exact grid, bold embossed sunbursts, small heraldic rosettes and fine gold filigree visibly decorating selected cells. High contrast and readable at small product-thumbnail scale, realistic PBR leather grain, brass patina and hand-worn edges. No text, letters, numbers, logo, painted lighting, background or extra objects.",
+      "outputs": {
+        "glb": {
+          "filename": "golden.glb",
+          "bytes": 42837380,
+          "sha256": "b826b9bb9af99690a1fcaad4df259616d6286c6513316b709d3c5179d7f14e33"
+        },
+        "usdz": {
+          "filename": "golden.usdz",
+          "bytes": 41532772,
+          "sha256": "8e11966d83a240464f5fe03db49559020044fbc7d1f990619649f72806cd532d"
+        },
+        "thumbnail": {
+          "filename": "golden.png",
+          "bytes": 334331,
+          "sha256": "29468140f56107382ab4afae8e7946f04269dac7e14b3414c5ae71e5ce481daf"
+        },
+        "base_color": {
+          "filename": "golden-base-color.png",
+          "bytes": 28314929,
+          "sha256": "eef3540d5a6a462e4b5e7536ebec863e5b44c7380732e0c6d597a1c8457c8f16"
+        },
+        "metallic": {
+          "filename": "golden-metallic.png",
+          "bytes": 356821,
+          "sha256": "fe456e9f5ace735a729a5ac68d62853e3bfa3db55df003ef011dddf73bc320d7"
+        },
+        "roughness": {
+          "filename": "golden-roughness.png",
+          "bytes": 1838090,
+          "sha256": "5df532d534cc9a501c4f70787e5685cc89add8c722df4c01e24723071bb7a223"
+        },
+        "normal": {
+          "filename": "golden-normal.png",
+          "bytes": 24534037,
+          "sha256": "6d7f892d89045c5fb0fe3a5e51eb9b39bf4e2ac1d25076886cf4558cd16c6712"
+        }
+      }
+    },
+    "neon": {
+      "retextureTaskID": "01a062bc-8e30-747c-a4a8-da825afd8995",
+      "textStylePrompt": "Luxury malachite Art Deco Sudoku board, not science fiction. Rich emerald and malachite stone enamel, aged-brass exact grid, bold turquoise-green geometric fan inlays, stepped corner motifs and diagonal Deco arcs clearly visible across selected cells at small product-thumbnail scale. Realistic PBR stone, enamel and brass. No glow, text, letters, numbers, logo, painted lighting, background or extra objects.",
+      "outputs": {
+        "glb": {
+          "filename": "neon.glb",
+          "bytes": 40570368,
+          "sha256": "63799e574638a75c3256c379fac5d264a06c918c8037e00bb63871ff84dfb99a"
+        },
+        "usdz": {
+          "filename": "neon.usdz",
+          "bytes": 39349078,
+          "sha256": "d911ae870376120b59f8bcf97bfc4e88a809950478d5a72099ef41c1fd6557f8"
+        },
+        "thumbnail": {
+          "filename": "neon.png",
+          "bytes": 237408,
+          "sha256": "e726220ed0a40596ac7f7ebfd3cbd9f9b5992e6930b9fec0cdab72d9638e1aeb"
+        },
+        "base_color": {
+          "filename": "neon-base-color.png",
+          "bytes": 26995452,
+          "sha256": "9d13d8f2bdfec41b624c7badb98a861bf367737efb60e21434f7956804bba932"
+        },
+        "metallic": {
+          "filename": "neon-metallic.png",
+          "bytes": 537244,
+          "sha256": "f3bb929013e3182d063fcb245222cec8c38f6a579c09e51f923b2df0186ed1ed"
+        },
+        "roughness": {
+          "filename": "neon-roughness.png",
+          "bytes": 1850455,
+          "sha256": "8a0a61c51cb27646ea2f4db060ee6ea8d405cf9d6a48375ce6a0bd2fd1beb982"
+        },
+        "normal": {
+          "filename": "neon-normal.png",
+          "bytes": 23208126,
+          "sha256": "390554c7e728272e5d8337060498e9e0caa21af42393e29e8ccb2aa6e51b2896"
+        }
+      }
+    }
+  }
+}

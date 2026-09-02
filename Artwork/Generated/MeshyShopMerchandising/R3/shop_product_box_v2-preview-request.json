@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated upright premium product box for a collectible Sudoku board edition, exact four-to-five width-to-height proportion, noticeably broad rather than tall and skinny. Closed rigid clothbound slipcase with shallow depth, deep bottle-green book cloth, crisp beveled edges, thin aged-brass piping, a large centered empty square recessed display window on the upper front, and a blank shallow title area below it. Front-facing, symmetrical, stable, refined 1930s private-bookstore packaging. No text, letters, logo, board, shelf, ground plane or other objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 9000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

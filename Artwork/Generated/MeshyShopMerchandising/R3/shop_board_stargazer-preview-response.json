@@ -1,0 +1,30 @@
+{
+  "id": "01a061da-2336-752c-8018-3e86e0de8e7c",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 714294414,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Deep midnight-navy enamel playing surface, an exact regular 9 by 9 aged-brass grid with stronger divisions every third row and column, tiny brass corner screws, and delicate engraved celestial constellation lines and small star points woven between but never replacing the grid. Thin aged-brass perimeter frame. Front-facing, orthographic, symmetrical, 1930s observatory-library style. No numbers, letters, text, logo, stand, wall, ground plane or extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788348082299,
+  "progress": 100,
+  "started_at": 1788348082311,
+  "finished_at": 1788348187223,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-2336-752c-8018-3e86e0de8e7c/output/model.glb?Expires=4941907200&Signature=Y1GXyRMp4IutLjHA2g-tpGDbeAI9-d~sI-NsbMB1ezwQKi5mA-p2iYKzdM7w-QdUj9ZDEKhUKQG0EMegHasY8A4kqWJnBgnmzNetJgnuqYtmAZLuVslJU-rOsay3gPHeyXhjQ6nCDQGp9X4XSs3kGvhKa8zKE8JETs0soAvQp1PKSWbwU8Rh7SLp6YxR34ml0ZquMIGzVKwnUShOFCZiiOKEzXXg-bX~6YNifv6JiZ9qcPMOHiKO-0ErC6lXpsuBP99Itm-bK-UEx1ey9UkMyOQlOa6dlxmt9JXGkxoQ9pOnsJ3VeUOsplVnCs5q4nfmpWhE60X-rZoJ4LIzTyMvWA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-2336-752c-8018-3e86e0de8e7c/output/model.usdz?Expires=4941907200&Signature=jbYs12PC5vP~Kpn6keRottGGl01yxFHgl68z2i4WIfDCbpH97ZgjjYlVCe3vzYBuev-cGHd6GDCHBvuiD11dB3cbc8oavyJlvvx~RgHAKhL-YH~MYsVQRKHyBkJpYiCHQ4SeN4s3bIPv02PIGNE-x4a5UbYPk3eH2OQfi0Hgsp4W7yVb9uhWzAmtzHNV5ClwU2Ymo~VzGs6d-~SwQWboSVzYngwUICe4WADU2o7B~pjIVhDwxx89W-ARgiBQVNEyX29XAeXBAX5JcZaUcForRT9ywv3TNsP7R8NjP~uGgh-y9gUzO2OMkzIC-h8YpkGkFFzJpvBzLjONxCfrx8kBGg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-2336-752c-8018-3e86e0de8e7c/output/preview.png?Expires=4941907200&Signature=kVzgZfr1srgvzzwLFfXXbJ3idB1EMv-sWalhTy5x1nTZDgMvvLh8T1eQVkAdHgAzs8GeLr4lhHhkezMN3crnU6SD4uY3jqWLZtwKqgYKG9XnjmFmlIFOpWu2Fbw9J0PlwaOgWlShfNhd64qPCb66jdK8Rc28a9a77sIO~qfXRxX5BCMNa3kqEyhK9riSNzDw7T1yJx1T8iq1RdEv1PukyDmzKi9r93pSArrQTFIewl3neuqcqEl2w7TOL5HvzqgufSUJ6FMFu6BEocJ8LmSz0QPcirOi5IFOMPvaByiyS5vlHz3lMzHQUdMQLNfhX5PqPN5iDAAMeg3lNq3mjXb8qw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-2336-752c-8018-3e86e0de8e7c/output/preview_alpha.png?Expires=4941907200&Signature=l7LeJ~FGOvq-D4eypvQbSCDE-xcgX4L7Kd-QbJlN5d4Ho-1CMo0MBPIqR7yfYlNDzmAZ9mqCdMY2CWgXm5-GnVDePEbL~BnxSF9C5F51myOIavY~ZjhMlsSXiuXIsG1g6swmmccSAjb4h-evUGLc9xkqmbCtmzfWhuGXqmEPVUi-tlHIpyhqZAjrWfAGNfgPmy8Ol~~pU00SSUh9p864qtXP4IHrxiYpzRd0QY95u49MbxIH4CIS4m4T-JSDBwfvohFg8cclYwjl-clyKpREjepu-EPZVdOAk-YJujtUNs0ulkJwHryQeZxaMM1EBAfc~93CyvQtJld2q82u8A5cEg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

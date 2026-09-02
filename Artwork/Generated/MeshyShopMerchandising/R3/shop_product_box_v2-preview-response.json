@@ -1,0 +1,30 @@
+{
+  "id": "01a061da-38dd-748a-9f76-38dc27635db2",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 2345218055,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated upright premium product box for a collectible Sudoku board edition, exact four-to-five width-to-height proportion, noticeably broad rather than tall and skinny. Closed rigid clothbound slipcase with shallow depth, deep bottle-green book cloth, crisp beveled edges, thin aged-brass piping, a large centered empty square recessed display window on the upper front, and a blank shallow title area below it. Front-facing, symmetrical, stable, refined 1930s private-bookstore packaging. No text, letters, logo, board, shelf, ground plane or other objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788348088461,
+  "progress": 100,
+  "started_at": 1788348088475,
+  "finished_at": 1788348199792,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-38dd-748a-9f76-38dc27635db2/output/model.glb?Expires=4941907200&Signature=C59R4quUIcxpPB93IF9q2vRW990N9zn4Jw1GMyN7Eg25rqTvA1UAa7swKzCAvf5k-6I7HG70V2ZPvjwSmRbHKJsTZiYH8zNtV269VNewGguJxC1RzizvmDT-FLUPHHnF6WPBnwzaIdCjnKMZ-Gb5q2UKHQXQNOFqyN-H8Y0ujeNChmkgdyGyUGkKvsk9qR~xmP~hSlA8deoPEUMmU8GERDyE2Vmn9YyO7h8mJgknYggQDfyxvYTi-HhyGoE2L2dSdjiGBQ7R32T69WUquH~9d-1mX9birkgoj~QfaOK90hQZGBsHBn7rN72sJTTlXCFgkgJ8DqGhuU4~FEhhLMwtCg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-38dd-748a-9f76-38dc27635db2/output/model.usdz?Expires=4941907200&Signature=pA7k1JY-9SsUYLG5fMum9nXTPMfBqnqMNnfLIOGnOo4CbZylWn-UbPbiZ22NnekfW~YfjaSY39vVw2BomcR6ZW-cTdJm6~IHB3TL4lqh-Ohsx6DB3SyXurykb2u0kr0LI6SlkJrRfOh2yV-CVMW1xR6hWsTNl21NKRL8n5ILjvd-8m6jYgRmXhEeA26N3xrG-yvk50KRkQGX-DA9YxKOPlBOBuv-y9pSbWAIQTDe0sq6II8BKhw60YiGy5oe8jS3QGcoDpbHuBp02XD7sj9lEIjMTomnlG7qucisX4VHFCnDvCq7a3N5I4D47R~PRiEdENYBSfMRDC5y1881IpUHjQ__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-38dd-748a-9f76-38dc27635db2/output/preview.png?Expires=4941907200&Signature=UcsHfCtCDysRmw2BzA6NYB3-PRPiUggSdTRuQhSsehPtgTGAeAgX694HGdggZKoDCbC75t93hdJyX8IoVu-8fWjeRJtE8CoYbulUgxsrTGd66X-N6dbMP9WB63A1eFDaJNZ7AxZgnFWm8q0ZJQ93T2fXWB4LDSnKDWfrtzqWNq-u0VriPuNSu~ySzIMvM2NyU0kspkqpRLknV-DF7U4Xb2bQ-lqAbiwngAFqcaCmwQlHvfegFdCR2bnexNM36Ys4g~aKAGoCOtfIweXpFz6Jgg~4rjehHVWP1DxI8DlJxJf~00LclFMcUZjax6YcLJaIKl9Lxx77UuDAVJxrd8~CsA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-38dd-748a-9f76-38dc27635db2/output/preview_alpha.png?Expires=4941907200&Signature=N9UYIanf2Ja9gCT2DMWv7t29ttX~3wn8DhNzTz-mjeWwbLjBAG4Dtg2elO991PESeK5UjjxVU7tDL3jjrHwyMrwxSV2xBDpuphkzYcLWK3LbDjVsuc0v9iE~PUZWTfWhbbcP6mhiP~vyKQQVSD~lVMmGwUb-hIzwuZCceiw754E1kHjA8Q9h6n-OUm-s1azEOWJB2d2IrzuUlwsB1Y6risIWMlXcYDksqng6e-StbKCt8c98fUkbxTu6R8qVzH7zh6jSZcvN54OyK3NeR7StozVD0IGJdV3RZWEBKSTky9ARW2VPZ5xTOnNDbcmj1dKQ6WcXAH9OEqCyT8fENZdNfg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

@@ -1,0 +1,30 @@
+{
+  "id": "01a061ab-edfe-7273-b3ca-3d6e1d6e4732",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 4184539557,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated wide horizontal sign plaque for a luxury 1930s private bookstore cabinet, four to one width-to-height proportion. Deep recessed bottle-green leather or enamel center panel, thin aged-brass inner border, and dark walnut outer molding with crisp shallow bevels. Blank center for dynamic heading text, front-facing and symmetrical. No text, no letters, no logo, no wall, no shelf, no ground plane, no extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788345053902,
+  "progress": 100,
+  "started_at": 1788345053906,
+  "finished_at": 1788345165073,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-edfe-7273-b3ca-3d6e1d6e4732/output/model.glb?Expires=4941907200&Signature=JidaANZoZJkmn~fek8xbF616BxkGVDyVKPVPv3YZrbGVqWnw8JEUVn~0s8T5x1X3-8tK8Fp63XerFb1IofINUg7ohKv27nnRaa11WeceCYWXcccx8WMnDSsZArfV~APjQgehN4APPGnOEf5fPbe~NYQtzZ2X4gG3QoT1sTDRm5ogUOPPyPGYuG70u-9YFI~B8OUR1gFxsKOirYW-QKGsgMebAchjYOaZ4sTyfU965dT~q5qLsNhb9l0lkKas0K233-xorIXjpr1hxWuCoezchaGo4GyzRQUZXOioCHr-muoyczlIM2NlPgs7qCx~IAkS19EzXM7tC5Zt07dE7mKcoA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-edfe-7273-b3ca-3d6e1d6e4732/output/model.usdz?Expires=4941907200&Signature=Tijcrr~B-NldwDw9wQfKn0BwFfa3ZFBqJucJ6TwuvfqhZTgTZ6wDRPP9eQrAaZvt-fGmOVhQ4OqVDdDGPSJea8Q1OLJG3-bNgnIDCdQNBWyJyqc03ZVE5wX3Xx-ESIMbE2Yz20ArkWxEzILXVDX70l-TwLW~wGtNyV0X8Do8sh3AvIiUwh8c48vZfQ7j6k81L71-lQI~2M0nMq1l8ZkHWiupZxGqU9FCl1Cbxj3Gwd3Ysk~0mCXgdxJwYBv7WEoufkks7~e56ybgik2ebRmivPODWenGfUr0gYJ0rJBaQz0PpeGZ0UEgGTgR10noa2RoGeM1YQWHRx37h1kFJZYfSw__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-edfe-7273-b3ca-3d6e1d6e4732/output/preview.png?Expires=4941907200&Signature=fIWYeJJldA63iC2eCIk2XKaWQ-sx06A3axkH7tZDZk-H1XiSQuApKzpeFgewFocM6vlg8U1TPE9b57WFRSS7pbGdd~Gt64Q1aF34h-tAsT7kfCPffv-DHGadvNtPolImcBN2XJf8xxonmI3YqsfT0ogZ-i9LjPbT5L9D6XtICa7m1U24KiZmOo8NPyZdSQ-rm3sxOse9JK8seDRZalblxWx4f2Mox7DYMUD9cRccOaE0xuOdCI3HPzGQIgOA6cGVYCK8YCkhDiaKHqJPMhGCjCQN1pmWkzEYNU860C4-u9WNw3q0XLuiSBkdBYU6gcf-Io72EqEhC2aIiNME8Lj-dA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-edfe-7273-b3ca-3d6e1d6e4732/output/preview_alpha.png?Expires=4941907200&Signature=V6Bivl8w2cxp03PstaBIWB3CYzPq7OWjr6sgzaw4i0UeOHItTTR4fzlukTC4UKaSFJHjjNgx2Evt1vhOsHPgKsZKaAw3W7un3u2NwmnbFiDN~mOboSLUy6NLe1WjQvxPF-r7kQPxXxOzP8DBYdZq12QFRuLJLqsFHeFykFENY8-vicgMOoqwa8wyfi9HvKzJI1VHU2c~kiq0PnvX4BDZww~4foxxcUFm9kTgGTJ6FCYrXqRFLySIc~p3yue~QHTWFJ3u5Oi0FOW5EzLDYdDS8MwvYVd4-8fAJzOFhlbLAHQ4Ph1mOQESpktC-blK3iw7sBf1vG4JZYeLeH1KN6WI1g__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

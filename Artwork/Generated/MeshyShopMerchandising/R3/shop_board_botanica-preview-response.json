@@ -1,0 +1,30 @@
+{
+  "id": "01a061da-298f-74b7-ac93-12cb18549e7a",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 1716710946,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated square luxury Sudoku board edition plaque, exact one-to-one square silhouette and very shallow depth. Deep bottle-green enamel playing surface, an exact regular 9 by 9 aged-brass grid with stronger divisions every third row and column, four small brass corner screws, and restrained engraved botanical vines, fern leaves and seed motifs curling through selected empty cells without obscuring the grid. Thin aged-brass perimeter frame. Front-facing, orthographic, symmetrical, private botanical-library craftsmanship. No numbers, letters, text, logo, stand, wall, ground plane or extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788348084050,
+  "progress": 100,
+  "started_at": 1788348084065,
+  "finished_at": 1788348195817,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-298f-74b7-ac93-12cb18549e7a/output/model.glb?Expires=4941907200&Signature=TQ2zH333DhoJDW4akQW4APZfND~OY3g5heRgahaAaZyN9nY2po2XCRauPIRVWnJAMC9~AGQ6eHRZO7WAQNvYUrfMvtpc4fdLaGV-UY6k7-rZeq3aNsBdOJI72r2DFFwTIbVhSt1E16LnebSbWeTsml3fVXWWFQGfkPyBbqhwseMNWBgXGtgJfLFPolrn3D7nyFWGA9~U1mM5q9gonpcfVfGfEaUy0pf6dMHEc6~x1vPLLoQjSu9rozBdq3J2GLs94adLxcPzfsKHtzXj4iqMBeb9YutpGj7Fu8r2gOCp-d~sTWq6V7Of0eVugyMPAlqsvDzt0~rBXczmiwWdUiYCwA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-298f-74b7-ac93-12cb18549e7a/output/model.usdz?Expires=4941907200&Signature=MRIOazzAr0d8mvE98s84e83Q6RjhGpqSR7ogQik5H5i2NtMUB1GYJqpQMaxhRRyBeddMzcWZ0LlY56Gu4iuYXKXPkJ9NMUuWaH5Mq1gT8Z94LwpR6pIbiZL3fQA1lfhJB5i416hbGyPfH0f0ne6tqhPf2f7cEVfmhwAlAtZs04Js4fmuFyR3Qn5PaMEf9iJOiyPVb0v5wpLBHHfhPG42WX4Gr8xwKUYdABy4iVs6BbjMFYEjbk--icr5dO-Ya3sx4YxJW~elN6sSF2csLA7bFd~qC7TS7fT-iWcUAlCkP6yv7Ou-mFN4-UULHc2ut3L6ZxnWZspNtE7T6IMvKdZ1hQ__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-298f-74b7-ac93-12cb18549e7a/output/preview.png?Expires=4941907200&Signature=Wyptj7gEbd1nL2s7PsVHi-zp4Y8qlb-VAxHgnDMiE7J6TTS3-ZyO3f2liGJL-8jiVRDyCRmNFuxPYNc20KL0uw~H3yzyvk10qIeLhVR8EYTiDxCVexBANglJYAcHpKueeiWQo2sdLunllIWdL2IV98EQZ6OT4IyiV3NW2plQQqWzWwdHxqajzWsnkug7tM4qwD4uNnLZGP6mpxi2SIakz8guv1hPWlZZOQsXvZDMI~WJvNA4xfv2tKuHEsFwDTa92fmL5ssBqfwIu4uirvfarYZn5UnqIhwpTrokrQmooYLAYArzILUzqokYrPgjdOGPPNcq9bu0yf1fNwEFtf0sQQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061da-298f-74b7-ac93-12cb18549e7a/output/preview_alpha.png?Expires=4941907200&Signature=LE~epk5uRc8Qc8g1kZLw7j5YO2fhNxw69TKVOpKIjivyH~08aVvDXp82udwbxkaUnu7~5yp0SAcnrEA3893h8N4dmS2ZKCbJyoeGpcfOSWgZbHtScGGmhPNPnj3F-w30DaoJq6weEiokILifkyUl35-2Q7~nG6O0IzKL4ZDZBejiL0zVRFW6f~3Ux~q~hwSP3-fNv9vA8YcSdQEOKHym2L9ruGkKs~TuxN7DFmPsn~MP6gS-caUPUprZtvvsVw6llFOGDsdzcKbr~HoEbTN7PH-EX5S~P2UFIiIiClcdJkE02KuJv6y0QbL6i8b2CB2rMaI1ubFbr3YteRPnwjGSxw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

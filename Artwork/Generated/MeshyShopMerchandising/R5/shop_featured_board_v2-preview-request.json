@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated luxury fold-open Sudoku demonstration board. Broad four-to-three landscape silhouette: two rigid warm-ivory vellum panels opened nearly flat with a visible aged-brass center hinge, dark-brown leather edge and brass corners. One complete regular 9 by 9 raised brass grid spans both panels, with stronger divisions every third row and column and tiny brass intersection nodes. Seven small dark-walnut square number tiles sit in scattered cells, each with one crisp ivory digit chosen from 1 2 3 6 and 8. Tilted back twenty degrees, front-facing, symmetrical 1930s private-library craft. No stand, platform, table, wall, logo, readable words or extra objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 18000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

@@ -1,0 +1,79 @@
+{
+  "provider": "Meshy",
+  "purpose": "Replace the warped lower Club Shop cabinet face with a dedicated low-poly facade whose drawer, door, columns, feet and brass borders remain straight and symmetrical under the runtime light rig.",
+  "reference": {
+    "generator": "OpenAI ImageGen",
+    "sourceDirection": "Approved Club Shop mockup lower proofing-counter cabinet, isolated as a straight-on orthographic product reference",
+    "originalPath": "Artwork/Generated/MeshyShopCounterFacade/R1/counter-facade-reference.png",
+    "originalSHA256": "65dc2d00051be0b1c5268bb68e1497e20212e076549888e85927a48aacfa5e96",
+    "alphaPreparedPath": "Artwork/Generated/MeshyShopCounterFacade/R1/counter-facade-reference-alpha.png",
+    "alphaPreparedSHA256": "651115267ff8848a0a2da001b8f5058fcf464b9e08020c9a5fe4b110f7b4d288"
+  },
+  "geometryPilot": {
+    "taskID": "01a0633a-7172-7077-bc19-b2d3afaf1241",
+    "creditsConsumed": 5,
+    "model": "meshy-t2",
+    "modelType": "smart-topology",
+    "topology": "triangle",
+    "targetPolycount": 15000,
+    "outputPath": "Artwork/Generated/MeshyShopCounterFacade/R1/counter-facade-mesh-only.usdz",
+    "outputSHA256": "8056d37f7c9107f4e570db172205fb4aa2576139929637bc948986dde33f7dc4"
+  },
+  "rejectedTexturePass": {
+    "taskID": "01a0633e-ff87-75ba-a68d-4fd51051678f",
+    "creditsConsumed": 10,
+    "model": "meshy-6",
+    "reasonRejected": "Text-only retexture invented a two-door seam and washed the bottle-green panels gray; preserved for audit but never copied to runtime.",
+    "outputPath": "Artwork/Generated/MeshyShopCounterFacade/R1/counter-facade-pbr.usdz",
+    "outputSHA256": "120d566c76d4300440b454a879b4c2321e366ada998ac4240b3c0eebbe1d92c0"
+  },
+  "acceptedGeneration": {
+    "taskID": "01a06347-3e8c-7645-8601-4fa196514eca",
+    "creditsConsumed": 15,
+    "model": "meshy-t2",
+    "modelType": "smart-topology",
+    "topology": "triangle",
+    "targetPolycount": 15000,
+    "pbr": true,
+    "textureResolution": "4k",
+    "removeLighting": true,
+    "source": "counter-facade-reference-alpha.png",
+    "outputPath": "Artwork/Generated/MeshyShopCounterFacade/R1/counter-facade-direct-pbr.usdz",
+    "outputBytes": 17236337,
+    "outputSHA256": "4787d4cb5a18a7b372f0946cc1400ae0cbfa845a673cdf575ef3f3439834a71a"
+  },
+  "runtime": {
+    "resource": "MeshyShopCounterFacade",
+    "path": "App/Resources/Shop3D/MeshyShopCounterFacade.usdz",
+    "sha256": "4787d4cb5a18a7b372f0946cc1400ae0cbfa845a673cdf575ef3f3439834a71a",
+    "usage": "Dedicated lower-front renderable depth layer, fitted over the original counter below the selling platform and lit by the same three fixture-owned SceneKit spotlights."
+  },
+  "textures": {
+    "baseColorSHA256": "9aab0fd1b308581fdc8f2eab8cc895735ff4f3b3a992a4854dca837215cda010",
+    "normalSHA256": "03727e701a5d8d8f31794f55f056fdf3cb049406e93da39a06736e0c211ed65f",
+    "roughnessSHA256": "422b6788dcc6ed5fc974622bf9a5af1eec5d24cfe57808ecc3f9c926422de711",
+    "metallicSHA256": "cb04828e5cba43571dfcd9d554dd7a4a2aa073da124985a0618f25174884bb03",
+    "emissionSHA256": "e80cab7b02152a71530526a5a988d9de0299ca4651fd366b75eb71f5512b9a23"
+  },
+  "creditsConsumedTotal": 30,
+  "verification": {
+    "usdchecker": "passed (non-fatal duplicate-connectable metadata warning only)",
+    "runtimeBuild": "passed for iPhone 17 Pro simulator, iOS 26.3.1",
+    "focusedTests": "5 passed, 0 failed: ShopCameraFramingTests",
+    "interaction": "verified: selected Stargazer moves to the platform while all eight shelf products remain rendered; background touch restores the product and empties the platform",
+    "performance": "60 FPS, approximately 230-236 draw calls and 12.4-12.5M triangles after the shop render-path pass; baseline was 37 FPS and 383 draw calls",
+    "simulatorBrowseScreenshot": {
+      "path": "Artwork/Generated/MeshyShopCounterFacade/R1/runtime-browse.png",
+      "sha256": "b20dfca1a77963ccdf1832c600c377f98ba0faec163fe2a6d6308f0a68792f14"
+    },
+    "simulatorSelectedScreenshot": {
+      "path": "Artwork/Generated/MeshyShopCounterFacade/R1/runtime-selected-stargazer.png",
+      "sha256": "d611f0ecb2fefae91fbe729e259ced3d13a6e489c5a3a0b4fca076b7e91188ad"
+    },
+    "finalPresentationScreenshot": {
+      "path": "Artwork/Generated/MeshyShopCounterFacade/R1/runtime-final-no-hud.png",
+      "sha256": "08e8e8b800261a095d6cb4986cb6c4f82daea837ab6212c7f7e134242f10dd7f"
+    },
+    "visualApproval": "pending user review"
+  }
+}

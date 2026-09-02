@@ -1,0 +1,18 @@
+{
+  "mode": "preview",
+  "prompt": "Single isolated square antique manuscript Sudoku board plaque, exactly one-to-one square and very shallow. The entire front is visibly aged cream vellum densely covered with faded illegible brown calligraphic notes, proofreader symbols, tiny botanical marginal sketches, ink stains and several obvious restrained red wax- pencil circles and correction marks. A complete regular 9 by 9 sepia grid remains clearly visible over the manuscript, with stronger lines every third row and column. Thin aged-brass inner keyline, narrow dark-walnut frame, four brass corner screws. Front-facing, orthographic, symmetrical, archival private-library craftsmanship. No readable words, no modern typography, no logo, no stand, no wall, no floor, no other objects.",
+  "model_type": "standard",
+  "ai_model": "meshy-7",
+  "ultra_mode": true,
+  "should_remesh": true,
+  "topology": "triangle",
+  "target_polycount": 15000,
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "auto_size": false,
+  "origin_at": "center",
+  "alpha_thumbnail": true,
+  "moderation": true
+}

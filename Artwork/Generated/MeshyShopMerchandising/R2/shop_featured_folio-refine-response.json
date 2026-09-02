@@ -1,0 +1,36 @@
+{
+  "id": "01a061b6-613e-73d3-8c15-db2435c2dbf4",
+  "type": "text-to-3d-refine",
+  "mode": "refine",
+  "name": "",
+  "model_type": "standard",
+  "seed": 3390065876,
+  "art_style": "realistic",
+  "texture_richness": "high",
+  "prompt": "Single isolated luxury Sudoku folio opened completely flat to 180 degrees like an open book, with the left and right pages side by side in one continuous plane. The entire open book is one shallow landscape slab tilted backward only fifteen degrees for a tabletop presentation. Never an L shape, no page standing perpendicular, no vertical closed book. Two rigid warm-ivory vellum pages in a dark brown leather bookbinder cover, aged-brass center hinge and corner protectors, a precise decorative 9 by 9 brass-line Sudoku grid spanning the open pages with stronger 3 by 3 divisions. Empty grid with no digits. Front-facing, symmetrical, premium 1930s private bookstore proofing object. No text, no letters, no numbers, no logo, no stand, no table, no ground plane, no extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "Warm ivory vellum pages, dark hand-tooled brown leather cover, restrained aged-brass hinge, corners and grid rules, subtle tactile wear, clean realistic PBR materials with no painted shadows, no text or numbers.",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788345737725,
+  "progress": 100,
+  "started_at": 1788345737734,
+  "finished_at": 1788345793775,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/model.glb?Expires=4941907200&Signature=JWd9beqGHG1NqCJL55ze7hIsMXKQEvOz8CZgQ0B38fCSfz5fULfy9GaIe2ZMa4aGLbNC7uUyTjij9HrhmcTurXyOXSL3sCt25-mK1pyHl81u4R6tLwOTBvJqU69TB5sjKPRblOsqjzMQxpbncxrZBBXougpdEqxdZ0m-Wx6jkG56MDxuFMaZWVX1k9H1zX0Gu40K9ahje~JhZ~pvy2BQI9v76UPY~0FhLwNiaJSW-fHb1RW1z8kui1uUJm6W0H6dCYOeu~uKlGLPGVlKxv324dD1yQUblNmvFpg6O3qUwfeoGuktB~TN18bqo2cwjCJ8rmMZVRT6rMhzrmbj43jFPw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/model.usdz?Expires=4941907200&Signature=b3FfWEljVORQl4Nt-TB6ZoJe3cqeWbSiquv1-POXcaT~dgGf5NDRHTMVmmKHFwfGmXYQjaRNez3HiDtjONlmzXvWvwbxd6Y2VVMp71vAdQ6Z3oh4FNZW6RlaZ6zJb28PQUf~R9EZTxmY6PfqjmpF44v8T53ezuhiWldQiGhN1YTLL04o1HniuuXwoJ9e-srRPDLyZUcsLI99G9p8LVj0D2fdnFOw2yHKioLhQLnRTnOEkutEzOmQSs0fZ2Bumi~meM~em0AU~9pABkuRGzXUEU0goMWTsvrIlp~SrA4KqRrzji58TnKKLp7fHzSYutI2gHkoBnR5DBImv3dBxAtoOA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/preview.png?Expires=4941907200&Signature=m4HeGDK0riAeZHdTYu7JutVWe3X4OmC4jgSCQFN-V~6Lt9OGJPf1gO7k8w3~eHjurq~Nj4KvMoy3N3e1s8Rzzj1r8QUVIcn3rwEkqKE6g6njAn5ArRho0~JU0AbRZcTUYq-aGfstoAn-TzH6XDFZ4cIFU2gOXcWOTs-4lR8IZR7MEeGPCFhxz-jEk93wFByiVmNBYwAijMxor5r6-~Y7jX~tM9MMacmbSUgFbZZKJUov7Zpat8axrw2KZu-vsB1zUept-Fa7mKfcS3I~QGYK42jKuZ1LaiRvX0JMHR~hK-zM6Zf8dU6KPUi~kBUqA3PfVVPJ9bZLHG3KapLQ-EjA3A__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/preview_alpha.png?Expires=4941907200&Signature=UToTf5T5OhbWvflcOexK-0qPnll95mUacb7GltHMpSEOb1LelmaxHQsygmlFmm6KGqIjuyBHpx5qR756Fsq-usGN~Nwck81fQhUMrBVbBNLIbfc-TodIY7z4G3PmIb-eGMgDM-iIMhngI0tWvTphYJHS~MbOY2lf6CbqmKshBXl~45tPDxyMj5nx28is~gSLjQuPswSg-g-URUsky2dRarn1y7vUVnNBm5Yfnv7pXzhVc1I4JempJ-DXDZ9X2eXe6Dt-0XtAjisUva81V~6TOFQINhalITpOv2usgpItdHduYKcTEx8IsdOuUwh3O-sme0yL0ueqUJJhmrNNPMbJtQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [
+    {
+      "base_color": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/texture_0.png?Expires=4941907200&Signature=eBYomIxC1zMTXriEuUz-ggsXFY4kfiPLPljdt0pOPN9KtU6nfkbOB-QtgiHVGX2Vcqkevtz-GSY0~091JhvHYfz4Kq6bq-njVDn4gEjzLUTFHV-LCNpf9Lm-cNHC8YlS~Li~aWSkTeqsq7VfgRLgSMDSaaDNVdgc3OBc~MgD09zTYvETYf-qAbljD8oKExT9GG1T1Pt9nz5zstq8Y-Uv3hRpGQWa32WyiwWCL9jsr2ZWKMW7wN0frRAhkWLXnA8jcwKgbX6iqp6xQZ5~XnRLaRmVYg-ds9dy6cLVD0Tar6VICTUK9amn2qoavRLPBLW3nJdiWloGFK0IBo6uNfQRcA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "metallic": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/texture_0_metallic.png?Expires=4941907200&Signature=nr--r5sMuWMwk2cavMaoj1zGuMfW4~MkmyKV5yYFNy8tJOi6qvdUD04XC7eC8lsLfk4lPyO1Qp1dGcICrLfKLpocOdpKVsoRx2vn0vTT4nl~p1tiSZvGGWZAMO63ASIMrsml6PMPDeGmgu8tk9sC1WPHZNqO5h1i9rx5HOJ4s~a6OAQUjlfSjHmhwjz7EV5200glLPXZRwVjzo2-M7k4gi5HNhYqV3q~pxCDQVbE3KQF6McqqbPwWbcp3iSE2OgEJM7kpNevhLbm65DKV0~tu6x8-jKCTnC1twTE4ogM41pPV0YgrpcIrNyXYwchEmcfZa5i8UW3GfUOjFEr5LgZ8g__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "roughness": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/texture_0_roughness.png?Expires=4941907200&Signature=UuslBsrB~vexOgrlc3qbmdGpOWEntp67ni6Ac6CgHaf17n3BDygt16gfHk2WoXrBThjGLBs7t0q-Ky1qQMbwVtoa9Jw36D-TybWIvilycGTeWETNDn3H9vKVVNkOVknuEzJGdIOuKm5K40DNxILaFZickivDSXxSL68PmdMkkTrXskCiX733FqjCqaL2UDGyBLDEPLIjOgdSvnlIziIQbFNlhj5SEt7LQAqvf1Z7auqkPJ0p3Gd8z32IiHxfQILhl8hIwrgwMyvzjH0nMTPvpHhwM-0wn8EX4x0TuZy~Eyu-arlPnnj~H42QtdnrPlSKMG8HOpfqgJ7BMbv994xPtA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "normal": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061b6-613e-73d3-8c15-db2435c2dbf4/output/texture_0_normal.png?Expires=4941907200&Signature=OYrPLBZoG5o8gsciM8kDtytc4mJoVR~p2wcutfWnX8v5QjcCXptakqQensi4FyZofY~CJhRn~Bn7-HDUV5T5QQcwFOp-ETwRWGBL-Gb7LfhnU--B0d8i8T0P4mfHBhahYXiFdnZ025q3Li3pF40VxLIPRskimPJ4ekzwecvAudgSf17-qWToMCQzj4G4JBtmPs77I9yA8AY25HeD5hOh1Mf5C4WYGo8izI0-Owdzbx6r9VXBPt~Hb86nOFjL7SpXrSOAvSTDNnl66rnPTMq~JVnyYn9uqZtfbXfOSmokULoxkjyT2buRYOzJYFilG8ePXbLJN9mHKNQyOzkVVHIaZg__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+  ],
+  "consumed_credits": 10
+}

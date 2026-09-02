@@ -1,0 +1,36 @@
+{
+  "id": "01a061ea-ef8f-72e2-b1fc-1a1795fb5618",
+  "type": "text-to-3d-refine",
+  "mode": "refine",
+  "name": "",
+  "model_type": "standard",
+  "seed": 2221218161,
+  "art_style": "realistic",
+  "texture_richness": "high",
+  "prompt": "Single isolated luxury fold-open Sudoku demonstration board. Broad four-to-three landscape silhouette: two rigid warm-ivory vellum panels opened nearly flat with a visible aged-brass center hinge, dark-brown leather edge and brass corners. One complete regular 9 by 9 raised brass grid spans both panels, with stronger divisions every third row and column and tiny brass intersection nodes. Seven small dark-walnut square number tiles sit in scattered cells, each with one crisp ivory digit chosen from 1 2 3 6 and 8. Tilted back twenty degrees, front-facing, symmetrical 1930s private-library craft. No stand, platform, table, wall, logo, readable words or extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "Warm ivory vellum panels, dark hand-tooled brown leather edge, aged brushed brass hinge grid nodes and corners, dark walnut number tiles with crisp ivory embossed digits, subtle hand wear, premium realistic PBR materials, no painted lighting.",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788349182800,
+  "progress": 100,
+  "started_at": 1788349182808,
+  "finished_at": 1788349237545,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/model.glb?Expires=4941907200&Signature=VEg8t8QUKT-qnKIMIuIiH-zeNgMHSy1HgJPbDu3pSitQ8rR2gVs1SA48Z-cK738~ekkgPpz3G0fqHxbOg03GeULBhtYuoeTwlAwmRE2ehrIfwlDS8fHqbUgxo2rJ5G6l5Kg90sTiLxpn7XNCRTjg5T4M9CXElNDOOPgjmT4Rt~lFstK6Z0oP8LBiQPYKtA3xTfkKFISOgGXxuMQbJR1yD0LqOoclC4~pNJfy4Xg5aZdaN6vs5674JquyrMkRbm8awE0DipEcb~n-ElE-L-Ft5d8DTO1l3LUyuUm~aguf6WP2cDfiGqbCjl13QQq1oRA4iWBqTcXc-JlRbS1CoBS7gA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/model.usdz?Expires=4941907200&Signature=DQzxX-UHUqm1KU~TJzSSA7JM4kb~LL4xZK8jib-m~AzWcfFQuzcnYJPA3--~ZyGDGaIH44y05x2y~ZYzEaElNKV2zfDyLsAHjjSsfD9aO9gte0yrRrn3mz-lG3qyXnT~82EygCTQDEHQ8d0dAPytNV8DSyKM6D~Tv-~2IcwjTXZwcjqLhv00sQseQO9mQ7ozXtNuA6oC7MCfWYktYZxKXrZsRe3GoIr2eKKTRc42l47qMaZydV6bGiW5PcI9HLetmQIFhYsokhoYT-qm7so0748QNvWkfbHd5FLX2j~G6cHGrJ6tYhKHZOOrSXtNBL9fNB1ch1uG6SMMOlRQEeGMlA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/preview.png?Expires=4941907200&Signature=Rr~dFuCNYwVPLPOxTlPpc7G4l2cBzFP-sg4ztEtKqfyXI0gAjbkUAVjnXUphvW73OWEmnbJ-QCwSX3MHkO-O4vpWuOfQdT5wQ-14V419H9AcvnTMcR~17IzQH7-lRnQnnB6~ebAb17byQzDlGGRpMbUYwGTdf~oVLMYQdZaoy3zlxO5PlgBFaa1mRbo5xZBsYDcD-ZbI8LC547IX-dIj56zPyrdnn7uEsHQd9PFPC6gL6HUgUnsR8CJZ~61~K7AZeHfUMsp-CExlZC0rM6F5mDqdZL0eP84dE2d9KfOezezg-gURSAl1~tPGK4g1y1px-kaJvBCw9B~GeobsJkK7KA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/preview_alpha.png?Expires=4941907200&Signature=GEsN8TQ-sT2uFfeS5ZhAn0M7dqOf~CqckeG21OzyNOrJnbh2-laLPsZdTB-uWo8hwdHIW74w2TgpW6fEOpL225KW-Xczs5DIhNQ0znB0D~~PwkJjVRMEtrTh6lG9WSccGJRrZlwDoaFZ3mNYIA5NvCoh~IN7qxw~92ClKGj9Qr2YkNpsNWTXPVT5LS0-RF~DN3qBQq1N50qwUsgpUgKZon4d8nw3axew~VonKS56NuYAQFH652Fpbr-pyQuUUhntgd1QVya0xLzrt-rcyK7ydyKYDPnzsLGvKXCFgcWcokMjo-EdM6lAR3tpBQ4fSuQHIVSW7Zcm0rdEINAY8xI2sA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [
+    {
+      "base_color": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/texture_0.png?Expires=4941907200&Signature=hL8~A~d1j2FOPU9Kg9Q0J8Olj1KO3B3HXmaGlVDzd3Uv9wh4vGKksJfsobJ3EP3mSjG7dDOu3sxJallpzhArZuvyVgplAQsov8-ouV8qN0bQVPRDdzL4QWTc46w8tHVnYWZIR-pTNTwBH7dpD~xWkMYuXrL0RcG4XmuahVqRyZ2JJ69WzETCa~~0psaSkZfSsRXx99p2lHgIM~HaNaY3zFAwX-z53Kc~bbd5Ssuy8TWT9~vGjojqlf0Tz7jjbgzJP1Eeahu41w847LHq3L9zvQwjWY6B5f6DHHhqCnI~9Q~Do7WO57IcbNB~3SH7pUd4qlqqdpEnYpQDNvgUADdwCA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "metallic": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/texture_0_metallic.png?Expires=4941907200&Signature=kuYeTocIeh4vdGDRvLNfItieRgIy3qdsoa93XbAdTpq4TdBzuMW5dOYfP~RlnG6XCG5tKGQBEV1zn7W4UYGTaZc6T4atdvSwafhMW6H1HmLMESFAkmpTyaseoTM3xpC587CX1fzBcnSHMY6OhNIAoYCX0Ihg9hlK9dPGxFyC~zN7ObY33lWP7oEyG5MCqAk1rx2THDAvEFg7WH~2YAEVc9uZbUuv2lWBA8~QvtcYKReSDm-EYHAJEFC3EQESeZruEfyop6I4z2Bov7-wj0hLAaQiXWpY-STXU3LfLv4s4jjIM22QP-0ebNeI1fAipHJLgJhRrGeD0yaA6qsvNZmwRA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "roughness": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/texture_0_roughness.png?Expires=4941907200&Signature=KGtdccbkNCSRfq~sXMzKhHUa1G2sClNakhQ79qnZaUzM2R3fyHMzK-p01hVvcZ2YOpEdLKq6JSt7xcM0l3PWMqgOUFb50iqaBsI-E77HVKBGbiHIgl1sTw2QiIzESUgDo3o0XPDurPhgTPJ5f~u27JKKnwNJ9CL8VFmedq2MI0RwIuh17DdSjuiSWQbG~L3v5Zuh-rdQCBEPRduemUGpsZOb36oVQenB--0-jwTKoO2K-I3EsK1kZxiLxcQkVwQlQvGX7txWTrQqAGSJvbD1ha~Cpv~rIuiMmLWotR361c8mLSoeDo8Z4vuczk3SIr~gDQ~4pZFp2AGPoC4Eqs--yQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "normal": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ea-ef8f-72e2-b1fc-1a1795fb5618/output/texture_0_normal.png?Expires=4941907200&Signature=AyPN0HNZN6UWwx~cB4umdENBuVVp7bgJwTOLjrWV3-cy12ZCNINu9gU56pZIUmrTtzjROIp7aODGZBXMmbzBQS8X5HCSbHV3Px2663UYEw8JBsWd6DaAcNrJ-pgb0oZ9ZBqLOiHNpmMeXcE~cBsxft9zsXW5IxqQbUMityEXP3PKpqLwD0bT6XLAzCZyfaicRoyQmSqjskbgnBK5ydyGOlnbvwwub7WIdp9layBSln16yhnjQE8~lg~EmoEpRk0Pb4vwVhsyNqnRgAa7TwOb-Se1EZ25jKnPdUPyIk9MYDHA~qIDsn~ITFdawcO~XA16NlaF1yxALJD7-sR47oh02A__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+  ],
+  "consumed_credits": 10
+}

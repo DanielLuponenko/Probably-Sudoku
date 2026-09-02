@@ -1,0 +1,30 @@
+{
+  "id": "01a061ab-d5e8-741c-a2a7-cfaa41fec2fc",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 3214786492,
+  "art_style": "realistic",
+  "texture_richness": "",
+  "prompt": "Single isolated square wall-mounted presentation frame for one luxury 9 by 9 Sudoku board material sample. Thin aged-brass outer frame, four small round brass corner screw heads, shallow dark walnut backing, and a large empty square center recess intended to hold a separate board. Front-facing, perfectly symmetrical, very shallow depth, crisp bevels, 1930s private bookstore cabinet hardware. No board, no grid, no text, no letters, no logo, no wall, no stand, no ground plane, no extra objects.",
+  "negative_prompt": "",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1788345047849,
+  "progress": 100,
+  "started_at": 1788345047856,
+  "finished_at": 1788345168924,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-d5e8-741c-a2a7-cfaa41fec2fc/output/model.glb?Expires=4941907200&Signature=K9NFhD~0yhJPCqMd-8v35KhN1dkKBgcoDOT9A9nzCJJW3hHNrLDFBtsrZjit1hO70f9~BWz2eyZK7eS5AuF0SlbKtGNZCSffdAXm3gILsPei6eyXZ5UvzbPs70YASmBWRP~lcunjWpBx2yXJkJtK7Xgx0syOxVuiUL6V1FNtV6PeGD512eKHfF237kTJq9-v6A3Co5K-AvP4xd81VYovZp~lujvlVUW68QSb8-5TKhpX6lGFLOkhwkswyz2j1eYvJGq-ee7gMYiMIoh1H9GIKS62fuOU~-uPv4UlyX-t5yfzMF-QO9ickNgmWZMO-AsnQ3EYMm40mddTPbpYqRd2Dg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+    "usdz": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-d5e8-741c-a2a7-cfaa41fec2fc/output/model.usdz?Expires=4941907200&Signature=Y1mBenEVz2YyeAROl04cvtwrzrYuhEaTQV23aoGRpZc7J5Vc8bglpzLZ2NbwIK3vqqwez7d98DysFToRq0sUbtOIc2V5EgElWCGejvr1UxNaHDqfNLrJdEER0dOMKeqWwUdzZ8CVRP75P1jSN8wzjF7xZOJJml7qUNjA-AVQRI53~CO91wS6UN2YxaCC3MLpkiwo5oJzt35LOHABNrPVhZvWddpF2CYYGnLFHt4cjklSINVC8cojzgma73AApmmVVqUbfMIM5uGFcjcn8WfQTlxXAsUZbSbTB6RWz88w2cG0mhkndJQtCWiuARGhi17p03Q2C3ZnTOoiQXVi6oSpmA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-d5e8-741c-a2a7-cfaa41fec2fc/output/preview.png?Expires=4941907200&Signature=RBk3COGr63TnFIDaFJut8BZhgCi8atVeZoBq2VVXKFBD~OxuVQpUjYMrtjquyfAaWiht8G1dpeR-iMyD56u9CxgjkJ---4n9GnjM7k1c-CecEjsyNxVGA9~-QZ31Utkhbqy6FtXxSsqMDC8QVTZAlsb3Nv-lDwh1jGaUXVOjubDidIvTMCkBYDlq-Gag~DZ29-EYMIh-BQ5hNnwgIl-tFjPoO4G471US5BVjVsLTbqkP4uKpVs~xX-BYAdO3wPtgfNDXVzhCal43CDSVxxUVhMjJecX2lWeT9LTNXkVGmgry7PK~4hQYZGcILhhS5SYvQBD2ej4-FpwD8AMvliofxA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "alpha_thumbnail_url": "https://assets.meshy.ai/339fb9ec-935f-4c47-ac95-6e2dbb5ed9bf/tasks/01a061ab-d5e8-741c-a2a7-cfaa41fec2fc/output/preview_alpha.png?Expires=4941907200&Signature=SeJLWeY0t2nIUER~etVNdA~uWofN7cq-KRsTcVzmlW1FRHKPVzogLMdwIB-484FjDgsI7L5SK5r3owmsV6eMf9HmZBynp5C5TZGMWB4atZjTXvHFrFC7hyoYX9pYGc7lY-C3n~-Ks5P60NHAEuFYOYaagrNkIhRI7GdhKXIqIoGjwbkJg~9GcPmpBx8b915DBxCLf4YsZHiGfzH24LSlv7Cw6CzqOrxYx6tKkU18WuWeTL6cyASDh9DRXU5Q8yvDtCGLiQb-HKhTYpFcSDUj8hOqmsj6U6lVw4m7DPsy4cNA4xqcFMepLf03n~MsSJ871921QFmVPAXhDU-BQp1CSQ__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "video_url": "",
+  "texture_urls": [],
+  "consumed_credits": 25,
+  "ultra_mode": true
+}

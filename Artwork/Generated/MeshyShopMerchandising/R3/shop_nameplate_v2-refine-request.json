@@ -1,0 +1,14 @@
+{
+  "mode": "refine",
+  "preview_task_id": "01a061da-4165-7381-b76e-b51e1c48b874",
+  "ai_model": "meshy-7",
+  "enable_pbr": true,
+  "texture_resolution": "2k",
+  "texture_prompt": "Deep matte bottle-green enamel, thin aged-brass keyline and pins, dark walnut bevel, subtle period patina, premium realistic PBR materials, no painted lighting or text.",
+  "target_formats": [
+    "glb",
+    "usdz"
+  ],
+  "alpha_thumbnail": true,
+  "moderation": true
+}

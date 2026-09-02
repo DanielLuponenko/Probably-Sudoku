@@ -1,0 +1,26 @@
+{
+  "shop_board_classic": {
+    "previewID": "01a061da-1cee-729a-9d28-f7e458bcbedb",
+    "refineID": "01a061dc-0810-77dc-8fa6-65756bdd4edb"
+  },
+  "shop_board_stargazer": {
+    "previewID": "01a061da-2336-752c-8018-3e86e0de8e7c",
+    "refineID": "01a061dc-0cfe-7269-9715-02ba8ec16b6e"
+  },
+  "shop_board_botanica": {
+    "previewID": "01a061da-298f-74b7-ac93-12cb18549e7a",
+    "refineID": "01a061dc-1179-73b4-9be1-c9b9573a3643"
+  },
+  "shop_board_scribes": {
+    "previewID": "01a061da-3029-7572-b5d8-3941c04ee436",
+    "refineID": "01a061dc-162e-76e4-808b-190cffc6889a"
+  },
+  "shop_product_box_v2": {
+    "previewID": "01a061da-38dd-748a-9f76-38dc27635db2",
+    "refineID": "01a061dc-1d26-71a6-b45e-ef09a368f73c"
+  },
+  "shop_nameplate_v2": {
+    "previewID": "01a061da-4165-7381-b76e-b51e1c48b874",
+    "refineID": "01a061dc-21aa-7255-9652-11ade17193c7"
+  }
+}
