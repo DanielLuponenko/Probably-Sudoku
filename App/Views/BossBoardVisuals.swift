@@ -50,9 +50,197 @@ struct BossBoardDesign {
     }
 }
 
+/// A render-only projection of public rules. No random choices, Marker
+/// locations or hidden solution digits enter the overlay.
+struct BossBoardFeedback: Equatable {
+    let boss: BossModifier?
+    let censoredSquares: Set<Square>
+    let fouled: Set<Square>
+    let greyed: Set<Square>
+    let clockIsUrgent: Bool
+
+    init(puzzle: PuzzleState?, secondsLeft: Double? = nil) {
+        boss = puzzle?.boss
+        if let puzzle, puzzle.boss?.censorsARandomDigit == true,
+           let digit = puzzle.censoredDigit {
+            censoredSquares = Set(Square.all.filter { puzzle.board[$0] == digit })
+        } else {
+            censoredSquares = []
+        }
+        fouled = boss?.foulsSquaresEachTurn == true
+            ? Set(puzzle?.bossTurn?.fouled.keys.map { $0 } ?? []) : []
+        greyed = boss?.greysARowEachTurn == true || boss?.greysABoxEachTurn == true
+            ? puzzle?.bossTurn?.greyed ?? [] : []
+        clockIsUrgent = boss == .tikTak && secondsLeft.map { $0 <= 30 } == true
+    }
+
+    var showsFog: Bool { boss?.hidesMarkedSquares == true }
+}
+
+/// Mounted above cell backgrounds and below the printed grid rules. Mist
+/// stays translucent; restriction strokes use only each cell's margin, never
+/// its number. There are no ambient timers or continuously redrawing loops.
+struct BossBoardOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private let feedback: BossBoardFeedback
+    private let reduceMotionOverride: Bool?
+
+    private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
+
+    init(puzzle: PuzzleState?, secondsLeft: Double? = nil, reduceMotionOverride: Bool? = nil) {
+        feedback = BossBoardFeedback(puzzle: puzzle, secondsLeft: secondsLeft)
+        self.reduceMotionOverride = reduceMotionOverride
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let side = min(proxy.size.width, proxy.size.height)
+            let cell = side / 9
+            ZStack(alignment: .topLeading) {
+                if let boss = feedback.boss {
+                    BossEdgeImpression(boss: boss, urgent: feedback.clockIsUrgent)
+                    if feedback.showsFog {
+                        BossFogVeil()
+                            .blur(radius: 6)
+                            .transition(reduceMotion ? .identity : .opacity)
+                    }
+                    BossRestrictionOutline(squares: feedback.greyed)
+                        .stroke(Paper.inkSoft.opacity(0.65), lineWidth: max(1, cell * 0.038))
+                        .padding(1)
+                        .id(feedback.greyed)
+                        .transition(reduceMotion ? .identity : .opacity)
+                    ForEach(feedback.fouled.sorted(by: { $0.index < $1.index }), id: \.index) { square in
+                        InkBlot()
+                            .frame(width: cell * 0.72, height: cell * 0.54)
+                            .position(x: (CGFloat(square.col) + 0.5) * cell,
+                                      y: (CGFloat(square.row) + 0.5) * cell)
+                            .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.65)))
+                    }
+                    ForEach(feedback.censoredSquares.sorted(by: { $0.index < $1.index }), id: \.index) { square in
+                        // An editorial underline marks a known zero-scoring
+                        // digit. It is not a bar over a playable square.
+                        Rectangle()
+                            .fill(Paper.redPencil.opacity(0.65))
+                            .frame(width: cell * 0.38, height: max(1, cell * 0.035))
+                            .position(x: (CGFloat(square.col) + 0.5) * cell,
+                                      y: (CGFloat(square.row) + 0.84) * cell)
+                    }
+                }
+            }
+            .frame(width: side, height: side)
+            .clipped()
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: feedback.boss)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: feedback.greyed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: feedback.fouled)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: feedback.clockIsUrgent)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Four soft strata, drawn once. Every location receives the same treatment
+/// regardless of Marker ownership; Fog cannot disclose a hidden square.
+private struct BossFogVeil: View {
+    var body: some View {
+        Canvas { context, size in
+            for band in 0..<4 {
+                let centerY = size.height * (0.12 + CGFloat(band) * 0.25)
+                let rect = CGRect(x: -size.width * 0.18, y: centerY - size.height * 0.11,
+                                  width: size.width * 1.36, height: size.height * 0.22)
+                var path = Path()
+                path.addEllipse(in: rect)
+                let direction: CGFloat = band.isMultiple(of: 2) ? 1 : -1
+                context.fill(path, with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: Paper.inkSoft.opacity(0), location: 0),
+                        .init(color: Paper.inkSoft.opacity(0.10), location: 0.34),
+                        .init(color: Paper.page.opacity(0.23), location: 0.55),
+                        .init(color: Paper.inkSoft.opacity(0), location: 1)
+                    ]),
+                    startPoint: CGPoint(x: size.width * (direction > 0 ? 0 : 1), y: centerY - size.height * 0.11),
+                    endPoint: CGPoint(x: size.width * (direction > 0 ? 1 : 0), y: centerY + size.height * 0.11)
+                ))
+            }
+        }
+    }
+}
+
+/// Printer's edge marks distinguish standing modifiers without pretending
+/// those Bosses block any board cells. All strokes remain at the perimeter.
+private struct BossEdgeImpression: View {
+    let boss: BossModifier
+    let urgent: Bool
+
+    var body: some View {
+        Canvas { context, size in
+            let design = BossBoardDesign(boss: boss)
+            let frame = CGRect(origin: .zero, size: size).insetBy(dx: 3, dy: 3)
+            let color = urgent ? Paper.redPencil : design.ink
+            let weight: CGFloat = boss == .heavyLifter ? 3.5 : (urgent ? 2.5 : 1.2)
+            let dash: [CGFloat] = switch boss {
+            case .censor: [12, 3]
+            case .editor: [4, 3]
+            case .deadline, .tikTak: [1, 4]
+            case .fog: [16, 12]
+            case .critic, .erratum: [7, 3, 1, 3]
+            case .mirror, .collector: []
+            case .paywall, .buffborger: [2, 2]
+            case .heavyLifter: []
+            case .unluckyLucky: [8, 6]
+            case .sashimi: [18, 4]
+            case .overPusher: [1, 7]
+            case .accountant: [5, 3, 1, 3]
+            case .handyDandy: [6, 2, 6, 8]
+            case .grayTheGarry, .garryTheGray: []
+            }
+            context.stroke(Path(frame), with: .color(color.opacity(urgent ? 0.70 : 0.33)),
+                           style: StrokeStyle(lineWidth: weight, dash: dash))
+            if boss == .mirror || boss == .collector {
+                context.stroke(Path(frame.insetBy(dx: 2.5, dy: 2.5)),
+                               with: .color(color.opacity(0.19)), lineWidth: 0.75)
+            }
+        }
+    }
+}
+
+/// Draw only exposed cell edges. A grey row/box is outlined where the engine
+/// put it, not as nine unrelated tiles or a hard-coded central decoration.
+struct BossRestrictionOutline: Shape {
+    let squares: Set<Square>
+
+    func path(in rect: CGRect) -> Path {
+        let cell = min(rect.width, rect.height) / 9
+        let indices = Set(squares.map(\.index))
+        var path = Path()
+        for square in squares {
+            let x = rect.minX + CGFloat(square.col) * cell
+            let y = rect.minY + CGFloat(square.row) * cell
+            if square.row == 0 || !indices.contains(square.index - 9) {
+                path.move(to: CGPoint(x: x, y: y))
+                path.addLine(to: CGPoint(x: x + cell, y: y))
+            }
+            if square.row == 8 || !indices.contains(square.index + 9) {
+                path.move(to: CGPoint(x: x, y: y + cell))
+                path.addLine(to: CGPoint(x: x + cell, y: y + cell))
+            }
+            if square.col == 0 || !indices.contains(square.index - 1) {
+                path.move(to: CGPoint(x: x, y: y))
+                path.addLine(to: CGPoint(x: x, y: y + cell))
+            }
+            if square.col == 8 || !indices.contains(square.index + 1) {
+                path.move(to: CGPoint(x: x + cell, y: y))
+                path.addLine(to: CGPoint(x: x + cell, y: y + cell))
+            }
+        }
+        return path
+    }
+}
+
 /// Printed below the grid contents. Variants use inexpensive paths and simple
 /// transforms, so the same layer remains safe when several squares are fouled.
 struct BossBoardUnderprint: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var boss: BossModifier?
     var fouled: Set<Square>
     var greyed: Set<Square>
@@ -70,15 +258,19 @@ struct BossBoardUnderprint: View {
                         .frame(width: cell * 0.78, height: cell * 0.60)
                         .position(x: (CGFloat(square.col) + 0.5) * cell,
                                   y: (CGFloat(square.row) + 0.5) * cell)
+                        .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.75)))
                 }
                 ForEach(greyed.sorted(by: { $0.index < $1.index }), id: \.index) { square in
                     Rectangle()
                         .fill(Paper.ink.opacity(0.07))
                         .frame(width: cell, height: cell)
                         .offset(x: CGFloat(square.col) * cell, y: CGFloat(square.row) * cell)
+                        .transition(reduceMotion ? .identity : .opacity)
                 }
             }
             .frame(width: side, height: side)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: fouled)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: greyed)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -110,7 +302,9 @@ struct BossBoardUnderprint: View {
             CornerClock().frame(width: cell * 2.15, height: cell * 2.15)
                 .offset(x: side - cell * 2.25, y: cell * 0.1)
         case .fog:
-            FogStrata().opacity(0.24)
+            // The visible mist belongs above cell backgrounds. Keeping it
+            // beneath opaque Given cells made this Boss look inactive.
+            Color.clear
         case .critic:
             RedPencilMarks(side: side)
         case .mirror:
@@ -152,9 +346,11 @@ struct BossBoardUnderprint: View {
         case .handyDandy:
             HandCross(side: side)
         case .grayTheGarry:
-            Rectangle().fill(Paper.ink.opacity(0.035)).frame(height: cell * 1.05).offset(y: side * 0.48)
+            // Only the engine's actual greyed squares carry this treatment.
+            // A fixed middle stripe suggested a second, nonexistent lock.
+            Color.clear
         case .garryTheGray:
-            Rectangle().fill(Paper.ink.opacity(0.035)).frame(width: cell * 3.05, height: cell * 3.05).offset(x: cell * 2.98, y: cell * 2.98)
+            Color.clear
         }
     }
 }
@@ -176,19 +372,6 @@ private struct CornerClock: View {
             Rectangle().fill(Paper.redPencil.opacity(0.28)).frame(width: 1.5, height: 28).offset(y: -10)
             Rectangle().fill(Paper.redPencil.opacity(0.28)).frame(width: 20, height: 1.5).rotationEffect(.degrees(35)).offset(x: 8, y: 5)
         }
-    }
-}
-
-private struct FogStrata: View {
-    var body: some View {
-        VStack(spacing: 18) {
-            ForEach(0..<5, id: \.self) { index in
-                Capsule().fill(Paper.ink.opacity(0.055 + Double(index) * 0.008))
-                    .frame(height: 22).offset(x: index.isMultiple(of: 2) ? -30 : 34)
-            }
-        }
-        .rotationEffect(.degrees(-8))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

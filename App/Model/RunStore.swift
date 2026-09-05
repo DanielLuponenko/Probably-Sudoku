@@ -35,12 +35,12 @@ enum RunStore {
 
     // MARK: - The run in progress
 
-    static func save(_ game: Game) {
+    static func save(_ game: Game, publishToCloud: Bool = true) {
         // A finished or abandoned Book is not worth resuming into.
         guard game.run.outcome == nil else { clearRun(); return }
         guard let data = try? game.encoded() else { return }
         try? data.write(to: runURL, options: .atomic)
-        CloudSync.shared.publish(run: data)
+        if publishToCloud { CloudSync.shared.publish(run: data) }
     }
 
     static func loadRun() -> Game? {

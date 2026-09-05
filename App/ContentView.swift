@@ -2,7 +2,11 @@ import SwiftUI
 import ProbablySudokuEngine
 
 struct ContentView: View {
-    @State private var model: GameModel? = ContentView.debugModel()
+    @State private var model: GameModel?
+    // @State retains its value, but its initial-value expression still runs
+    // whenever SwiftUI constructs this view. Dealing a debug Puzzle there
+    // writes profile state and can cause another construction/deal cycle.
+    @State private var didInitializeDebugLaunch = false
     /// The obstacle level chosen with the Book.
     @State private var chosenObstacle: Obstacle = .none
     /// A saved run that should resume after the selected cover opens. A new
@@ -39,8 +43,8 @@ struct ContentView: View {
             seed = arguments[index + 1]
         }
         let model = GameModel(seed: seed)
-        // Deal/exhaust only in GameView's one-shot task, never in this view
-        // initializer (which can be evaluated again during SwiftUI updates).
+        // The rescue fixture deals/exhausts in GameView's one-shot task so
+        // its presentation follows the mounted game's normal lifecycle.
         if arguments.contains("-rewardedRescue") { return model }
         // Direct visual QA for the in-run catalogue page. This is Debug-only
         // and still opens a real ShopState through the normal game action.
@@ -213,6 +217,13 @@ struct ContentView: View {
                 .accessibilityHidden(true)
                 .zIndex(100)
             }
+        }
+        .task {
+            guard !Task.isCancelled, !didInitializeDebugLaunch else { return }
+            // Set the latch before the factory's profile/persistence writes.
+            // A reappearance must not replace an existing or abandoned run.
+            didInitializeDebugLaunch = true
+            model = Self.debugModel()
         }
         .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.22), value: isShowingRunDecision)
         .onChange(of: isShowingBook, initial: true) { _, isShowingBook in
@@ -553,7 +564,7 @@ private struct GameView: View {
                 if !turning { reconcileFinishedPuzzle() }
             }
             .overlay(alignment: .top) {
-                IslandBar(coins: model.coins, controls: controls)
+                IslandBar(coins: model.coins, controls: controls, charge: model.lastCoinCharge)
                     .ignoresSafeArea(edges: .top)
             }
             .allowsHitTesting(!flipper.isFlipping && !model.hasRewardedRescueInFlight)
@@ -700,7 +711,9 @@ private struct GameView: View {
             PuzzleBriefingView(model: source)
         case .puzzle:
             if let puzzle = source.puzzle {
-                PuzzlePageView(model: source, puzzle: puzzle)
+                PuzzlePageView(model: source, puzzle: puzzle,
+                               isClockRunning: scenePhase == .active && !isPresentingSlip
+                                && !flipper.isFlipping && !source.hasRewardedRescueInFlight)
                     .environment(\.levelPalette,
                                  .forDisplay(slot: puzzle.slot).resolved(for: profile.theme.paper))
             }
@@ -749,8 +762,9 @@ private struct GameView: View {
                 .background(Capsule().fill(Paper.ink.opacity(0.92)))
                 .padding(.bottom, 22)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .task {
+                .task(id: message) {
                     try? await Task.sleep(for: .seconds(2.2))
+                    guard !Task.isCancelled, model.message == message else { return }
                     model.clearMessage()
                 }
         }

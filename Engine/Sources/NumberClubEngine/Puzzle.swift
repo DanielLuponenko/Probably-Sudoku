@@ -65,6 +65,10 @@ public struct PuzzleState: Codable, Sendable {
     public var score: Int
     public var target: Int
     public var cluesRemaining: Int
+    /// Paid Clues reveal destinations without moving any numbers. Keep the
+    /// reveals with the saved Puzzle so reopening it cannot lose a paid hint.
+    /// A later placement on one of these squares keeps Clue scoring/Onyx rules.
+    public var clueReveals: Set<Square> = []
     /// Correct-play points held until the Turn closes.
     public var pendingBase: Int = 0
     /// The best held-item multiplier earned this Turn. Square-local
@@ -72,6 +76,9 @@ public struct PuzzleState: Codable, Sendable {
     public var pendingMult: Double = 1
 
     public var boss: BossModifier?
+    /// Tik Tak's remaining active-play time. Nil in older saves and on
+    /// untimed Puzzles; the app supplies elapsed time, never a wall deadline.
+    public var clockSecondsRemaining: Double?
     public var censoredDigit: Digit?
     /// Obstacle III — the number that cannot be played this Turn. A digit
     /// rather than a Hand position, because positions shift as the Hand is
@@ -94,7 +101,7 @@ public struct PuzzleState: Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case level, slot, difficulty, board, pool, hand, handSize, turnNumber,
              turnsMax, rewardedRescueUsed, tossedThisPuzzle, tossAllowance, score, target,
-             cluesRemaining, pendingBase, pendingMult, boss,
+             cluesRemaining, clueReveals, pendingBase, pendingMult, boss, clockSecondsRemaining,
              censoredDigit, blockedDigit, obstacleBlockedDigits, bossTurn, phase, keepFillingCoins,
              itemState, armedFlags
     }
@@ -120,6 +127,7 @@ public struct PuzzleState: Codable, Sendable {
         self.target = target
         self.cluesRemaining = cluesRemaining
         self.boss = boss
+        self.clockSecondsRemaining = boss?.secondsAllowed
         self.censoredDigit = censoredDigit
         self.blockedDigit = blockedDigit
         self.obstacleBlockedDigits = obstacleBlockedDigits
@@ -147,9 +155,11 @@ public struct PuzzleState: Codable, Sendable {
         score = try c.decode(Int.self, forKey: .score)
         target = try c.decode(Int.self, forKey: .target)
         cluesRemaining = try c.decode(Int.self, forKey: .cluesRemaining)
+        clueReveals = try c.decodeIfPresent(Set<Square>.self, forKey: .clueReveals) ?? []
         pendingBase = try c.decodeIfPresent(Int.self, forKey: .pendingBase) ?? 0
         pendingMult = try c.decodeIfPresent(Double.self, forKey: .pendingMult) ?? 1
         boss = try c.decodeIfPresent(BossModifier.self, forKey: .boss)
+        clockSecondsRemaining = try c.decodeIfPresent(Double.self, forKey: .clockSecondsRemaining)
         censoredDigit = try c.decodeIfPresent(Digit.self, forKey: .censoredDigit)
         blockedDigit = try c.decodeIfPresent(Digit.self, forKey: .blockedDigit)
         obstacleBlockedDigits = try c.decodeIfPresent(Set<Digit>.self, forKey: .obstacleBlockedDigits) ?? []
@@ -373,6 +383,7 @@ public enum PlacementError: Error, Equatable, Sendable {
     case numberNotInHand
     case noCluesLeft
     case cluesDisabled
+    case noClueDestination
     case tossAllowanceSpent
     case numberBlocked
     case squareBarred

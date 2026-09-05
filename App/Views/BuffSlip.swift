@@ -10,6 +10,7 @@ struct BuffSlip: View {
     var onDone: () -> Void
 
     @State private var chosen: Digit?
+    @State private var useError: String?
 
     private var buff: OwnedBuff? {
         model.run.buffs.indices.contains(index) ? model.run.buffs[index] : nil
@@ -77,9 +78,19 @@ struct BuffSlip: View {
                     .font(Print.body(12))
                     .foregroundStyle(Paper.inkFaint)
 
+                if let useError {
+                    Text(useError)
+                        .font(Print.body(12))
+                        .foregroundStyle(Paper.redPencil)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 PaperButton(title: "Use", kind: .primary, isEnabled: canUse) {
-                    model.useBuff(at: index, digit: chosen)
-                    onDone()
+                    if model.useBuff(at: index, digit: chosen) {
+                        onDone()
+                    } else {
+                        useError = model.message
+                    }
                 }
             }
         }

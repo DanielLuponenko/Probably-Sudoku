@@ -23,7 +23,7 @@ public enum Buffs {
     public static let all: [ItemDef] = [
 
         buff(peek, "Peek", .common, 3,
-             "Grants a free Clue",
+             "Gain 1 Clue: reveal a legal square for a number in your Hand. That placement scores 0 unless marked with Onyx",
              onUse: { _, r in r.extraClues += 1 }),
 
         buff(redraw, "Redraw", .common, 3,
@@ -53,7 +53,7 @@ public enum Buffs {
         buff(birdSeed, "Bird Seed", .uncommon, 4,
              "+1 coin per Line Clear for the rest of the Level",
              hooks: [.lineClear: { c, r in
-                 if (c.runState[birdSeed] ?? 0) > 0 { r.coins += 1 }
+                 if c.runState[birdSeed] == Double(c.level) { r.coins += 1 }
              }],
              onUse: { c, r in r.runStateWrites[birdSeed] = Double(c.level) }),
 

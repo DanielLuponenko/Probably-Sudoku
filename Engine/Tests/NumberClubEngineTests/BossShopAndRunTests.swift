@@ -63,8 +63,11 @@ final class BossModifierTests: XCTestCase {
         game.run.puzzle?.boss = .paywall
         game.run.puzzle?.cluesRemaining = 0
         game.give(buff: Buffs.peek)
-        _ = try game.useBuff(at: 0)
+        XCTAssertThrowsError(try game.useBuff(at: 0)) {
+            XCTAssertEqual($0 as? PlacementError, .cluesDisabled)
+        }
         XCTAssertEqual(game.puzzle?.cluesRemaining, 0)
+        XCTAssertEqual(game.run.buffs.map(\.defID), [Buffs.peek])
     }
 
     func testTheCriticDoublesTheWrongPlacementPenalty() throws {

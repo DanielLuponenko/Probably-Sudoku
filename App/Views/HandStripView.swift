@@ -13,11 +13,12 @@ struct HandStripView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(model.isReadingLitmus ? "Litmus: select a number to inspect blanks" : "Numbers Drawn")
+                Text(model.isChoosingClue ? "Clue: choose a number" :
+                     model.isReadingLitmus ? "Litmus: select a number to inspect blanks" : "Numbers Drawn")
                     .font(Print.caption(12))
                     .tracking(1.4)
                     .textCase(.uppercase)
-                    .foregroundStyle(model.isReadingLitmus ? palette.accent : palette.ink.opacity(0.7))
+                    .foregroundStyle(model.isReadingLitmus || model.isChoosingClue ? palette.accent : palette.ink.opacity(0.7))
                 Spacer()
                 // Keep the animation destination without introducing a
                 // visible control that is absent from the paper-board design.
@@ -106,12 +107,13 @@ private struct NumberTile: View {
                                             : (isSelected ? palette.accent : theme.board.hair),
                                   lineWidth: isSelected ? 2 : 1)
             }
-            .animation(.snappy(duration: 0.18), value: isSelected)
             .scaleEffect(hasArrived || reduceMotion || !shouldAnimateArrival
                          ? 1 : theme.numbers.motion.arrivalScale)
-            .offset(y: hasArrived || reduceMotion || !shouldAnimateArrival
-                    ? (isSelected ? -4 : 0) : theme.numbers.motion.arrivalOffset)
+            .offset(y: reduceMotion ? 0 : (hasArrived || !shouldAnimateArrival
+                    ? (isSelected ? -4 : 0) : theme.numbers.motion.arrivalOffset))
             .opacity(hasArrived || reduceMotion || !shouldAnimateArrival ? 1 : 0)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: isSelected)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isBlocked)
             .onAppear {
                 guard shouldAnimateArrival && !reduceMotion else {
                     hasArrived = true

@@ -17,7 +17,8 @@ struct BookmarkRow: View {
     /// card, because the card no longer owns its own tap.
     @State private var explaining: Int?
     /// A press that has not yet become either a tap or a pull.
-    @State private var pressing: Int?
+    @State private var press = BookmarkPressState()
+    @State private var holdTask: Task<Void, Never>?
 
 
     struct Pulled: Equatable {
@@ -96,6 +97,10 @@ struct BookmarkRow: View {
             .animation(.snappy(duration: 0.14), value: pulled?.overBin)
         }
         .frame(height: Self.visible + Self.tuck)
+        .onDisappear {
+            cancelHold()
+            pulled = nil
+        }
     }
 
     /// Where the counter is, in the row's own space.
@@ -126,9 +131,8 @@ struct BookmarkRow: View {
         return DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
             .onChanged { value in
                 if pulled == nil {
-                    guard pressing != token else { return }
-                    pressing = token
-                    hold(token: token, kind: kind, index: index,
+                    guard let generation = press.begin(itemKey: token) else { return }
+                    hold(token: token, generation: generation, kind: kind, index: index,
                          defID: defID, price: price, from: value.location)
                     return
                 }
@@ -136,7 +140,7 @@ struct BookmarkRow: View {
                 carry(to: value.location, width: width)
             }
             .onEnded { _ in
-                pressing = nil
+                cancelHold()
                 guard pulled != nil else { tap(); return }
                 drop()
             }
@@ -148,16 +152,25 @@ struct BookmarkRow: View {
 
     /// A quarter of a second down and it comes loose. Long enough that a tap
     /// is never mistaken for a pull, short enough that it does not feel stuck.
-    private func hold(token: Int, kind: ItemKind, index: Int,
+    private func hold(token: Int, generation: Int, kind: ItemKind, index: Int,
                       defID: String, price: Int, from point: CGPoint) {
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(220))
-            guard pressing == token, pulled == nil else { return }
+        holdTask?.cancel()
+        holdTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(220)) }
+            catch { return }
+            guard !Task.isCancelled, press.isCurrent(itemKey: token, generation: generation),
+                  pulled == nil else { return }
             withAnimation(.snappy(duration: 0.18)) {
                 pulled = Pulled(kind: kind, index: index, defID: defID,
                                 price: price, point: point)
             }
         }
+    }
+
+    private func cancelHold() {
+        holdTask?.cancel()
+        holdTask = nil
+        press.cancel()
     }
 
     /// Letting go. Over the counter it sells; anywhere else it goes back.
@@ -184,7 +197,7 @@ struct BookmarkRow: View {
             ForEach(0..<ItemKind.bookmark.capacity, id: \.self) { slot in
                 if slot < model.run.bookmarks.count {
                     let owned = model.run.bookmarks[slot]
-                    Bookmark(def: owned.def, colour: Paper.pageWarm,
+                    InventoryBookmark(def: owned.def, colour: Paper.pageWarm,
                              ink: Paper.ink, flagged: false, slot: slot,
                              pulling: pulled?.kind == .bookmark && pulled?.index == slot,
                              asleep: model.sleepingBookmark == slot,
@@ -214,7 +227,7 @@ struct BookmarkRow: View {
                     // Board, not paper: a Buff is a thing you take out and
                     // spend on a square, and it should not look like the five
                     // cards that simply sit there working.
-                    Bookmark(def: buff.def, colour: Paper.coverBoard,
+                    InventoryBookmark(def: buff.def, colour: Paper.coverBoard,
                              ink: Paper.page, flagged: true,
                              slot: ItemKind.bookmark.capacity + slot,
                              pulling: pulled?.kind == .buff && pulled?.index == index,
@@ -240,6 +253,29 @@ struct BookmarkRow: View {
             }
         }
         .frame(height: Self.visible + Self.tuck, alignment: .top)
+    }
+}
+
+/// A delayed hold belongs to one touch, not merely one bookmark slot. Reusing
+/// a slot after release must never make an older 220 ms callback current again.
+struct BookmarkPressState: Equatable {
+    private(set) var activeItemKey: Int?
+    private(set) var generation = 0
+
+    mutating func begin(itemKey: Int) -> Int? {
+        guard activeItemKey != itemKey else { return nil }
+        generation += 1
+        activeItemKey = itemKey
+        return generation
+    }
+
+    func isCurrent(itemKey: Int, generation: Int) -> Bool {
+        activeItemKey == itemKey && self.generation == generation
+    }
+
+    mutating func cancel() {
+        activeItemKey = nil
+        generation += 1
     }
 }
 
@@ -328,7 +364,8 @@ private struct BookmarkShape: Shape {
     }
 }
 
-private struct Bookmark: View {
+struct InventoryBookmark: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var def: ItemDef
     var colour: Color
     /// What is printed on it, which has to change with the stock.
@@ -421,11 +458,16 @@ private struct Bookmark: View {
         .animation(.snappy(duration: 0.16), value: pulling)
         .animation(.bouncy(duration: 0.26, extraBounce: 0.16), value: fired)
         .scaleEffect(fired ? 1.12 : 1)
-        // Anchored to this bookmark, so the arrow points at the one that was
-        // tapped rather than at the middle of the row.
-        .popover(isPresented: $explaining, arrowEdge: .bottom) {
+        // The row is near the top of the screen. A top-edge arrow puts the
+        // explanation below its bookmark, where the whole card has room.
+        .popover(isPresented: $explaining, arrowEdge: .top) {
             ItemDetailCard(def: def)
+                // The native popover creates a presentation host. Forward the
+                // source's size explicitly so accessibility text keeps its
+                // scrollable layout across that boundary.
+                .environment(\.dynamicTypeSize, dynamicTypeSize)
                 .presentationCompactAdaptation(.popover)
+                .presentationBackground(Paper.page)
         }
         .accessibilityLabel("\(def.name). \(def.text)")
     }
@@ -464,24 +506,44 @@ private struct EmptyBookmark: View {
 /// What an item actually does, on a torn slip of paper.
 struct ItemDetailCard: View {
     var def: ItemDef
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     var body: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // A bounded native scroll region preserves the complete copy
+                // at the largest sizes, including on a 320-point phone.
+                ScrollView { printedContent }
+                    .frame(width: 260, height: 360)
+            } else {
+                printedContent
+                    .frame(width: 260)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .background(Paper.page)
+    }
+
+    private var printedContent: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Image(systemName: ItemIcon.symbol(for: def.id))
-                    .font(.system(size: 15))
+                    .font(.system(size: 17 * textScale))
                     .foregroundStyle(Paper.ink)
+                    .accessibilityHidden(true)
                 Text(def.name)
-                    .font(Print.subheading(15))
+                    .font(Print.subheading(17 * textScale))
                     .foregroundStyle(Paper.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
             }
             Text(def.text)
-                .font(Print.body(13))
+                .font(Print.body(14 * textScale))
                 .foregroundStyle(Paper.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
-        .frame(maxWidth: 260, alignment: .leading)
-        .background(Paper.page)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

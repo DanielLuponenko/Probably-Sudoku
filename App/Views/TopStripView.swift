@@ -10,10 +10,18 @@ import ProbablySudokuEngine
 struct IslandBar: View {
     var coins: Int
     var controls: [StripControl]
+    var charge: GameModel.CoinCharge? = nil
 
     var body: some View {
         HStack(spacing: 6) {
             CoinBadge(count: coins)
+                .overlay(alignment: .bottomTrailing) {
+                    if let charge {
+                        CoinChargeReceipt(amount: charge.amount)
+                            .id(charge.id)
+                            .offset(y: 16)
+                    }
+                }
             Spacer(minLength: 0)
             ForEach(controls) { control in
                 RoundIconButton(control: control)
@@ -27,7 +35,9 @@ struct IslandBar: View {
 }
 
 struct StripControl: Identifiable {
-    let id = UUID()
+    /// The HUD's semantic buttons survive score/coin updates without being
+    /// removed and recreated while a finger or VoiceOver focus is on them.
+    var id: String { systemImage }
     var systemImage: String
     var label: String
     var badge: String?
@@ -71,6 +81,7 @@ struct RoundIconButton: View {
 
 /// The brass token the game counts in.
 struct CoinBadge: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var count: Int
 
     var body: some View {
@@ -87,13 +98,42 @@ struct CoinBadge: View {
             .frame(width: 26, height: 26)
             .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
 
-            RollingNumber(value: count, size: 19, weight: .bold, color: Paper.page,
-                          grouped: false)
+            // Coins are spendable now, not queued score. Show the authoritative
+            // balance immediately instead of rolling through intermediate digits.
+            Text(String(count))
+                .font(Print.numeral(19, weight: .bold))
+                .foregroundStyle(Paper.page)
                 .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
-                .contentTransition(.numericText())
+                .contentTransition(.numericText(value: Double(count)))
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: count)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(count) coins")
+    }
+}
+
+/// A brief receipt ties Accountant's fee to the placement even if a Marker
+/// earns a coin on that same action and leaves the net balance unchanged.
+private struct CoinChargeReceipt: View {
+    var amount: Int
+    @State private var visible = true
+
+    var body: some View {
+        Text("−\(amount) coin")
+            .font(Print.caption(10))
+            .foregroundStyle(Paper.page)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(Paper.redPencil))
+            .opacity(visible ? 1 : 0)
+            .task {
+                try? await Task.sleep(for: .milliseconds(950))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.2)) { visible = false }
+            }
+            .allowsHitTesting(false)
+            .accessibilityLabel("Accountant charged \(amount) coin")
+            .accessibilityHidden(!visible)
     }
 }
 
