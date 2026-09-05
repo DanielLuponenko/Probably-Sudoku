@@ -36,6 +36,20 @@ struct BookEdition: Identifiable, Equatable {
     var isWritten: Bool { true }
     var isUnlocked: Bool { true }
 
+    /// Local visual QA can sample all nine Obstacles on Volume 1. Every Book
+    /// on a physical device or in Release uses the player's existing ladder.
+    func unlockedObstacleRawValue(progressUnlockedThrough: Int) -> Int {
+        #if DEBUG && targetEnvironment(simulator)
+        if id == Self.first.id { return Obstacle.allCases.count }
+        #endif
+        return min(Obstacle.allCases.count, max(Obstacle.none.rawValue, progressUnlockedThrough))
+    }
+
+    func availableObstacle(_ requested: Obstacle, progressUnlockedThrough: Int) -> Obstacle {
+        requested.rawValue <= unlockedObstacleRawValue(progressUnlockedThrough: progressUnlockedThrough)
+            ? requested : .none
+    }
+
     /// Lines the Book writes in the margins while you play.
     let marginalia: [String]
 

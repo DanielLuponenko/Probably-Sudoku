@@ -87,7 +87,7 @@ final class GameModel {
 
     private(set) var game: Game {
         willSet {
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             recordQAUndoSnapshot()
             #endif
         }
@@ -100,6 +100,7 @@ final class GameModel {
     /// A terminal Book outcome can cause more than one presentation update.
     /// Record permanent consequences once, at the model boundary.
     private var didRecordTerminalOutcome = false
+    private var rewardedRescue = RewardedRescueSession()
     /// Captured before the profile is updated. The profile records that the
     /// lesson started, while this model keeps its six lines visible for the
     /// current first Puzzle.
@@ -115,7 +116,7 @@ final class GameModel {
     /// on the briefing page. It is applied only after that Puzzle has been
     /// dealt, so the marker always targets a real blank without starting play
     /// from a settings sheet.
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     private var pendingQAMarker: String?
     #endif
 
@@ -236,6 +237,48 @@ final class GameModel {
         return min(1, Double(puzzle.score) / Double(puzzle.target))
     }
     var coins: Int { run.coins }
+
+    var canOfferRewardedRescue: Bool {
+        animatesHandArrival && !wantsMenu && game.canClaimRewardedRescue
+    }
+    var hasRewardedRescueInFlight: Bool { rewardedRescue.isActive }
+
+    func beginRewardedRescue() -> UUID? {
+        guard canOfferRewardedRescue, page == .results else { return nil }
+        return rewardedRescue.begin(for: game)
+    }
+
+    @discardableResult
+    func receiveRewardedRescue(_ ticket: UUID) -> Bool {
+        guard animatesHandArrival, !wantsMenu else { return false }
+        // Mutating the single Game value runs the normal atomic save path:
+        // the +3 budget and consumed reward are persisted together, before
+        // the ad closes. Relaunching now resumes the rewarded puzzle.
+        return rewardedRescue.receive(ticket, game: &game)
+    }
+
+    func hasEarnedRewardedRescue(_ ticket: UUID) -> Bool {
+        rewardedRescue.hasEarned(ticket)
+    }
+
+    func finishRewardedRescue(_ ticket: UUID) {
+        guard rewardedRescue.finish(ticket, game: game), !wantsMenu else { return }
+        refreshHandCards()
+        clearSelection()
+        lastOutcome = nil
+        message = "Three more turns. Make them count."
+        // Preserve a running boss clock; only a restored pending offer lacks
+        // its presentation timer, just like the existing resume path.
+        if secondsLeft == nil { startClock() }
+        page = .puzzle
+    }
+
+    func declineRewardedRescue() {
+        guard !hasRewardedRescueInFlight else { return }
+        rewardedRescue.invalidate()
+        guard game.declineRewardedRescue() else { return }
+        showResults()
+    }
 
     var bookCompletionSummary: BookCompletionSummary? {
         guard run.outcome == .bookCompleted else { return nil }
@@ -645,7 +688,7 @@ final class GameModel {
 
     /// Finishing a Puzzle turns the page rather than throwing up a panel.
     func showResults() {
-        if let puzzle {
+        if let puzzle, puzzle.phase != .outOfTurns {
             report(puzzle.score, to: .highestPuzzleScore)
             report(puzzle.level, to: .highestLevelReached)
         }
@@ -689,6 +732,7 @@ final class GameModel {
 
     /// Shop → the next puzzle, the second page turn.
     func continueToNextPuzzle() {
+        rewardedRescue.invalidate()
         guard game.advance() else {
             isTrackingAchievementPuzzle = false
             page = .results
@@ -705,9 +749,10 @@ final class GameModel {
     /// Clipping an actual choice rather than something revealed after the
     /// board, pool, and Boss have already been rolled.
     func beginPuzzle() {
+        rewardedRescue.invalidate()
         do {
             try game.startPuzzle()
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             applyPendingQAMarker()
             #endif
             isTrackingAchievementPuzzle = true
@@ -732,6 +777,7 @@ final class GameModel {
     }
 
     func skipCurrentPuzzle() {
+        rewardedRescue.invalidate()
         do {
             lastClipping = try game.skipPuzzle()
             PlayerProfileStore.shared.recordSkipsUsed(game.run.skipsUsed)
@@ -818,10 +864,12 @@ final class GameModel {
     /// had abandoned. Putting a Book down needs no button: closing the app
     /// keeps it, and the shelf offers to continue.
     func abandonRun() {
+        rewardedRescue.invalidate()
         RunStore.clearRun()
         wantsMenu = true
     }
 
+    #if DEBUG && targetEnvironment(simulator)
     /// Restarts in place, without going back to the cover. Used by QA only.
     func startNewBook(book: Book? = nil) {
         game = Game(seed: Self.randomSeed(), book: book ?? game.run.book,
@@ -837,6 +885,7 @@ final class GameModel {
         armFirstRunTutorialIfEligible()
         page = .briefing
     }
+    #endif
 
     func clearMessage() { message = nil }
 
@@ -849,8 +898,8 @@ final class GameModel {
         }
     }
 
-    #if DEBUG
-    // QA shortcuts. Compiled out of release builds, as are the engine calls.
+    #if DEBUG && targetEnvironment(simulator)
+    // QA shortcuts never compile into Release or physical-device builds.
     private static let qaUndoLimit = 20
     private var qaUndoStack: [Game] = []
     private var isRestoringQAUndo = false

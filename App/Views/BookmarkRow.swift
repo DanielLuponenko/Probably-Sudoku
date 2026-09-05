@@ -70,7 +70,7 @@ struct BookmarkRow: View {
                 }
             }
             .coordinateSpace(name: Self.space)
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             // `-pullSell` runs the whole thing — works one loose, carries it
             // to the counter through the same code a finger goes through, and
             // lets go — so the drop can be proved without a touch.

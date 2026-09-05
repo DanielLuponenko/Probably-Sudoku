@@ -6,6 +6,9 @@ public enum PuzzlePhase: String, Codable, Sendable {
     case won
     /// Playing on past the target: score is frozen, clears bank coins instead.
     case keepFilling
+    /// The first exhausted Turn budget awaits the one-time rescue decision.
+    /// This is not a failed Book until the player declines or loses again.
+    case outOfTurns
     case failed
     case cashedOut
 }
@@ -51,6 +54,9 @@ public struct PuzzleState: Codable, Sendable {
     public var handSize: Int
     public var turnNumber: Int
     public var turnsMax: Int
+    /// A rewarded rescue belongs to this Puzzle, including across a save/load.
+    /// Its extra Turns are already included in `turnsMax` once claimed.
+    public var rewardedRescueUsed: Bool = false
     /// How many numbers have gone back to the Pool this Puzzle (§5.1).
     public var tossedThisPuzzle: Int
     /// Per Puzzle, not per Turn.
@@ -87,7 +93,7 @@ public struct PuzzleState: Codable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case level, slot, difficulty, board, pool, hand, handSize, turnNumber,
-             turnsMax, tossedThisPuzzle, tossAllowance, score, target,
+             turnsMax, rewardedRescueUsed, tossedThisPuzzle, tossAllowance, score, target,
              cluesRemaining, pendingBase, pendingMult, boss,
              censoredDigit, blockedDigit, obstacleBlockedDigits, bossTurn, phase, keepFillingCoins,
              itemState, armedFlags
@@ -135,6 +141,7 @@ public struct PuzzleState: Codable, Sendable {
         handSize = try c.decode(Int.self, forKey: .handSize)
         turnNumber = try c.decode(Int.self, forKey: .turnNumber)
         turnsMax = try c.decode(Int.self, forKey: .turnsMax)
+        rewardedRescueUsed = try c.decodeIfPresent(Bool.self, forKey: .rewardedRescueUsed) ?? false
         tossedThisPuzzle = try c.decode(Int.self, forKey: .tossedThisPuzzle)
         tossAllowance = try c.decode(Int.self, forKey: .tossAllowance)
         score = try c.decode(Int.self, forKey: .score)

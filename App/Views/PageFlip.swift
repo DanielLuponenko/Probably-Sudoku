@@ -119,7 +119,7 @@ final class PageFlipper {
         resume?()
     }
 
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     /// Deterministic inspection of the same mesh used in normal play.
     func hold(from model: GameModel, at progress: Double,
               _ change: @escaping () -> Void) {

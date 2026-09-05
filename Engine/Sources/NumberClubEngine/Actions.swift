@@ -287,6 +287,7 @@ public enum Actions {
     @discardableResult
     public static func useClue(_ run: inout RunState, square: Square) throws -> PlacementOutcome {
         guard var puzzle = run.puzzle else { throw PlacementError.puzzleNotPlayable }
+        guard puzzle.phase != .outOfTurns else { throw PlacementError.puzzleNotPlayable }
         guard puzzle.boss?.disablesClues != true else { throw PlacementError.cluesDisabled }
         guard puzzle.cluesRemaining > 0 else { throw PlacementError.noCluesLeft }
         guard puzzle.board.isBlank(square) else { throw PlacementError.squareNotBlank }
@@ -317,6 +318,7 @@ public enum Actions {
     @discardableResult
     public static func useBuff(_ run: inout RunState, index: Int, digit: Digit? = nil) throws -> Bool {
         guard var puzzle = run.puzzle else { throw PlacementError.puzzleNotPlayable }
+        guard puzzle.phase != .outOfTurns else { throw PlacementError.puzzleNotPlayable }
         guard run.buffs.indices.contains(index) else { return false }
         guard puzzle.boss?.disablesBuffs != true else { throw PlacementError.buffsDisabled }
 
@@ -352,6 +354,8 @@ public enum Actions {
         public var coinsGained = 0
         public var numbersDrawn = 0
         public var turnsExhausted = false
+        /// The Turn did not meet the target. Inspect the Puzzle phase to
+        /// distinguish a pending rescue (`outOfTurns`) from terminal failure.
         public var puzzleFailed = false
         /// Obstacle III only: the number barred for the coming Turn.
         public var blockedDigit: Digit?
@@ -421,9 +425,11 @@ public enum Actions {
             turn.turnsExhausted = true
             switch puzzle.phase {
             case .playing where puzzle.score < puzzle.target:
-                puzzle.phase = .failed
                 turn.puzzleFailed = true
-                run.outcome = .failed          // §7 — a failed Puzzle ends the Book
+                // The usual banking, refill, and next-Turn restrictions above
+                // have already run once. Pause that exact state for the offer;
+                // claiming a reward must not redraw or reroll it a second time.
+                puzzle.phase = puzzle.rewardedRescueUsed ? .failed : .outOfTurns
             case .keepFilling:
                 // Keep Filling runs on the Turns you had left, so when they are
                 // gone the Puzzle is over and the banked coins are paid out.
@@ -437,6 +443,42 @@ public enum Actions {
         run.puzzle = puzzle
         endBookIfPuzzleFailed(&run)
         return turn
+    }
+
+    // MARK: - One-time rewarded rescue
+
+    public static func canClaimRewardedRescue(_ run: RunState) -> Bool {
+        pendingRewardedRescue(in: run) != nil
+    }
+
+    /// Resume the already-prepared next Turn without replaying its effects or
+    /// touching any random stream. The app owns ad verification and identity;
+    /// this rule only accepts the currently pending, unused Puzzle rescue.
+    @discardableResult
+    public static func claimRewardedRescue(_ run: inout RunState) -> Bool {
+        guard var puzzle = pendingRewardedRescue(in: run) else { return false }
+        puzzle.turnsMax += 3
+        puzzle.rewardedRescueUsed = true
+        puzzle.phase = .playing
+        run.puzzle = puzzle
+        return true
+    }
+
+    @discardableResult
+    public static func declineRewardedRescue(_ run: inout RunState) -> Bool {
+        guard var puzzle = pendingRewardedRescue(in: run) else { return false }
+        puzzle.phase = .failed
+        run.puzzle = puzzle
+        run.outcome = .failed
+        return true
+    }
+
+    private static func pendingRewardedRescue(in run: RunState) -> PuzzleState? {
+        guard run.outcome == nil, let puzzle = run.puzzle,
+              puzzle.phase == .outOfTurns, !puzzle.rewardedRescueUsed,
+              puzzle.turnNumber > puzzle.turnsMax,
+              puzzle.score < puzzle.target, !puzzle.board.isFull else { return nil }
+        return puzzle
     }
 
     // MARK: - Ending a Puzzle (§7)

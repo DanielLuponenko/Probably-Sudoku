@@ -1,9 +1,9 @@
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
 import SwiftUI
 import ProbablySudokuEngine
 
-/// Shortcuts for exercising the game by hand. Debug builds only — the whole
-/// file is compiled out of a release build, as are the engine calls behind it.
+/// Shortcuts for exercising the game by hand in Debug simulator builds only.
+/// The whole panel is compiled out of Release and every physical-device build.
 /// Deliberately styled as a tester's tool rather than as part of the book, so
 /// it can never be mistaken for a feature.
 struct QAPanel: View {
@@ -56,7 +56,7 @@ struct QAPanel: View {
                 } header: {
                     Text("Loadout")
                 } footer: {
-                    Text("Selections are Debug-only. Each replaces its own QA slot; a marker picked before play is placed on the upcoming board's first blank.")
+                    Text("Selections are simulator-only. Each replaces its own QA slot; a marker picked before play is placed on the upcoming board's first blank.")
                 }
 
                 Section("Achievements") {

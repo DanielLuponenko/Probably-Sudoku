@@ -141,7 +141,7 @@ struct SettingsSlip: View {
     @State private var confirmingAbandon = false
     @State private var showingHelp = false
     @State private var copied = false
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     @State private var showingQA = false
     #endif
 
@@ -197,6 +197,8 @@ struct SettingsSlip: View {
                     PaperButton(title: "How to play", kind: .quiet) { showingHelp = true }
                 }
 
+                AdsPrivacySection()
+
                 SlipSection(
                     title: "This run",
                     note: confirmingAbandon
@@ -229,7 +231,7 @@ struct SettingsSlip: View {
                     }
                 }
 
-                #if DEBUG
+                #if DEBUG && targetEnvironment(simulator)
                 SlipSection(title: "Development") {
                     PaperButton(title: "QA tools", kind: .quiet) { showingQA = true }
                 }
@@ -237,15 +239,15 @@ struct SettingsSlip: View {
             }
         }
         .accessibilityAddTraits(.isModal)
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         .sheet(isPresented: $showingQA) { QAPanel(model: model) }
+        #endif
         .overlay {
             if showingHelp {
                 HelpSlip { withAnimation(.snappy(duration: 0.2)) { showingHelp = false } }
             }
         }
         .animation(.snappy(duration: 0.22), value: showingHelp)
-        #endif
     }
 }
 
@@ -333,6 +335,7 @@ struct HelpSlip: View {
             ]
             case .failure: return [
                 "If a Puzzle fills below its target, the Book ends. There are exactly enough numbers for the Blanks, so it cannot recover.",
+                "If you run out of Turns, you may watch an optional ad for three extra Turns, once per Puzzle. Closing an ad early does not earn the reward. You can always end the Book without watching.",
                 "Every Book is playable from the shelf. Finish a different Book to unlock the next Obstacle."
             ]
             }
@@ -382,6 +385,34 @@ struct HelpSlip: View {
 
     private func select(_ topic: Topic) {
         withAnimation(.snappy(duration: 0.18)) { selectedTopic = topic }
+    }
+}
+
+/// The same privacy entry stays available at the front door and inside a Book.
+/// Opening Settings refreshes consent status, but never loads or shows an ad.
+struct AdsPrivacySection: View {
+    private let ads = RewardedAdService.shared
+    @Environment(\.cosmeticTheme) private var theme
+
+    var body: some View {
+        SlipSection(title: "Optional ads") {
+            Text("This testing version uses test videos for the three-turn reward. No purchase is needed.")
+                .font(Print.body(12.5))
+                .foregroundStyle(theme.paper.softInk)
+                .fixedSize(horizontal: false, vertical: true)
+            if ads.privacyOptionsRequired {
+                PaperButton(title: "Ad privacy choices", kind: .quiet,
+                            isEnabled: !ads.isPresentingPrivacyOptions && !ads.isPresenting) {
+                    Task { await ads.presentPrivacyOptions() }
+                }
+            }
+            Link("Google advertising privacy information",
+                 destination: URL(string: "https://policies.google.com/technologies/ads")!)
+                .font(Print.body(12.5))
+                .foregroundStyle(theme.paper.ink)
+                .frame(minHeight: 44, alignment: .leading)
+        }
+        .task { await ads.refreshPrivacyStatus() }
     }
 }
 

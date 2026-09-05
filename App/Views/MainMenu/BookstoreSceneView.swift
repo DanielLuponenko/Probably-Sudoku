@@ -2,18 +2,28 @@ import SceneKit
 import SwiftUI
 import ProbablySudokuEngine
 
-private final class BookstoreSCNView: SCNView {
+final class BookstoreSCNView: SCNView {
     var onViewportChange: ((CGSize) -> Void)?
     private var onFirstFrame: (() -> Void)?
     private var firstFrameObserver: BookstoreFirstFrameObserver?
     private var hasAppliedSceneUpdate = false
     private var hasReportedFirstFrame = false
+    private var isSceneVisible = true
+
+    /// Warm the actual destination once, then stop its hidden render loop while
+    /// the studio camera moves. The prepared drawable survives the handoff.
+    func updateRenderActivity(isSceneVisible: Bool) {
+        self.isSceneVisible = isSceneVisible
+        let shouldRender = isSceneVisible || !hasReportedFirstFrame
+        isPlaying = shouldRender
+        rendersContinuously = shouldRender
+    }
 
     func updateFirstFrameReporting(_ callback: (() -> Void)?) {
         onFirstFrame = callback
         hasAppliedSceneUpdate = true
         guard !hasReportedFirstFrame else { return }
-        guard callback != nil else {
+        guard callback != nil || !isSceneVisible else {
             firstFrameObserver?.invalidate()
             firstFrameObserver = nil
             delegate = nil
@@ -24,6 +34,7 @@ private final class BookstoreSCNView: SCNView {
                 guard let self, !self.hasReportedFirstFrame, self.window != nil,
                       self.bounds.width >= 100, self.bounds.height >= 100 else { return }
                 self.hasReportedFirstFrame = true
+                self.updateRenderActivity(isSceneVisible: self.isSceneVisible)
                 self.firstFrameObserver?.invalidate()
                 self.firstFrameObserver = nil
                 self.delegate = nil
@@ -210,6 +221,7 @@ struct BookstoreSceneView: UIViewRepresentable {
     var onBookFocusChanged: (BookstoreBookFocus) -> Void
     var onTransitionFinished: (BookstoreScenePhase) -> Void
     var onFirstFrame: (() -> Void)? = nil
+    var isSceneVisible = true
 
     func makeCoordinator() -> BookstoreSceneCoordinator {
         BookstoreSceneCoordinator(editions: editions)
@@ -229,7 +241,7 @@ struct BookstoreSceneView: UIViewRepresentable {
 
     func updateUIView(_ view: SCNView, context: Context) {
         context.coordinator.updateViewport(view.bounds.size)
-        view.isPlaying = true
+        (view as? BookstoreSCNView)?.updateRenderActivity(isSceneVisible: isSceneVisible)
         view.setNeedsDisplay()
         context.coordinator.update(
             phase: phase,

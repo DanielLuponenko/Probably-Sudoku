@@ -301,13 +301,14 @@ final class RulesTests: XCTestCase {
         XCTAssertEqual(game.puzzle?.turnNumber, 2)
     }
 
-    func testRunningOutOfTurnsBelowTargetFailsThePuzzleAndEndsTheBook() throws {
+    func testRunningOutOfTurnsBelowTargetPausesBeforeEndingTheBook() throws {
         var game = try startedGame()
         for _ in 0..<game.puzzle!.turnsMax {
             _ = try? game.endTurn()
         }
-        XCTAssertEqual(game.puzzle?.phase, .failed)
-        XCTAssertEqual(game.run.outcome, .failed)
+        XCTAssertEqual(game.puzzle?.phase, .outOfTurns)
+        XCTAssertNil(game.run.outcome)
+        XCTAssertFalse(game.isOver)
     }
 
     func testMorningEditionPaysOutAtEachTurnEnd() throws {
@@ -419,10 +420,12 @@ final class FailureTests: XCTestCase {
         }
     }
 
-    func testRunningOutOfTurnsAlsoEndsTheBook() throws {
+    func testDecliningTheTurnExhaustionRescueEndsTheBook() throws {
         var game = Game(seed: "fail-by-turns")
         try game.startPuzzle()
         for _ in 0..<game.puzzle!.turnsMax { _ = try? game.endTurn() }
+        XCTAssertEqual(game.puzzle?.phase, .outOfTurns)
+        XCTAssertTrue(game.declineRewardedRescue())
         XCTAssertEqual(game.puzzle?.phase, .failed)
         XCTAssertEqual(game.run.outcome, .failed)
     }

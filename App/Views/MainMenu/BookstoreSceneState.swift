@@ -54,7 +54,7 @@ enum BookstoreDebugDestination {
     case shop
 
     static var current: BookstoreDebugDestination {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-bookstoreHalfway") { return .halfwayToStand }
         if arguments.contains("-bookstoreStand") || arguments.contains("-bookRack") { return .stand }

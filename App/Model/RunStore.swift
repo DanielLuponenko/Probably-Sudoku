@@ -54,7 +54,7 @@ enum RunStore {
     }
 
     static func conflict() -> Conflict? {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("-presentRunConflict") {
             var local = Game(seed: "local-conflict")
             var remote = Game(seed: "remote-conflict", book: .slightlyHarder)

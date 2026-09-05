@@ -160,6 +160,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var shopPanStartTransform = SCNMatrix4Identity
     private var reduceMotion = false
     private var selectedObstacle: Obstacle = .none
+    // Gestures can move selectedIndex before SwiftUI delivers its next update.
+    // Remember whose preview is actually baked into the current textures.
+    private var renderedSelectedEditionID: String?
+    /// Saved progress (or the explicit QA override), before per-Book access.
     private var unlockedObstacleRawValue = Obstacle.none.rawValue
     private var onSelectEdition: ((String) -> Void)?
     private var onRequestBookFocus: ((String) -> Void)?
@@ -261,7 +265,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // 2x preserves edge quality while materially reducing fill cost.
         view.antialiasingMode = .multisampling2X
         view.preferredFramesPerSecond = 60
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         // Opt-in only: capture authoritative SceneKit FPS/draw-call/triangle
         // evidence without shipping a diagnostic overlay to players.
         view.showsStatistics = ProcessInfo.processInfo.arguments.contains("-shopPerfHUD")
@@ -277,6 +281,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         view.accessibilityElementsHidden = true
         Task { @MainActor in
             await Task.yield()
+            guard view.isPlaying else { return }
             view.play(nil)
             view.setNeedsDisplay()
         }
@@ -350,16 +355,23 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         self.onBookFocusChanged = onBookFocusChanged
         self.onTransitionFinished = onTransitionFinished
 
-        if self.selectedObstacle != selectedObstacle
-            || self.unlockedObstacleRawValue != unlockedObstacleRawValue {
-            self.selectedObstacle = selectedObstacle
-            self.unlockedObstacleRawValue = unlockedObstacleRawValue
-            updateObstacleTabs()
-        }
-
+        let previousEditionID = renderedSelectedEditionID ?? editions[0].id
         if let index = editions.firstIndex(where: { $0.id == selectedEditionID }) {
             selectedIndex = index
             updateBookHighlight(selectedID: selectedEditionID)
+        }
+        let progressChanged = self.unlockedObstacleRawValue != unlockedObstacleRawValue
+        let selectionChanged = previousEditionID != editions[selectedIndex].id
+        renderedSelectedEditionID = editions[selectedIndex].id
+        let obstacleChanged = self.selectedObstacle != selectedObstacle
+        self.selectedObstacle = selectedObstacle
+        self.unlockedObstacleRawValue = unlockedObstacleRawValue
+        if progressChanged {
+            updateObstacleTabs()
+        } else if selectionChanged || obstacleChanged {
+            // A selection only changes these two covers, not every book on
+            // the rack. Keep their unrelated textures intact during the lift.
+            updateObstacleTabs(editionIDs: [previousEditionID, editions[selectedIndex].id])
         }
 
         let shopSelectionChanged = selectedShopCategory != shopCategory || selectedShopItemID != shopItem?.id
@@ -898,8 +910,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             while let candidate = node {
                 if let name = candidate.name,
                    let (editionID, obstacle) = obstacleHit(from: name),
-                   focusedBook?.id == editionID {
-                    if obstacle.rawValue <= unlockedObstacleRawValue {
+                   focusedBook?.id == editionID,
+                   let edition = editions.first(where: { $0.id == editionID }) {
+                    if obstacle.rawValue <= edition.unlockedObstacleRawValue(
+                        progressUnlockedThrough: unlockedObstacleRawValue
+                    ) {
                         onSelectObstacle?(obstacle)
                     } else {
                         onShowObstacleInfo?(obstacle)
@@ -4480,8 +4495,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         var nodes: [Int: SCNNode] = [:]
 
         for obstacle in Obstacle.allCases {
-            let unlocked = obstacle.rawValue <= unlockedObstacleRawValue
-            let selected = obstacle == selectedObstacle
+            let unlocked = obstacle.rawValue <= edition.unlockedObstacleRawValue(
+                progressUnlockedThrough: unlockedObstacleRawValue
+            )
+            let selected = obstacle == (edition.id == editions[selectedIndex].id ? selectedObstacle : .none)
             let geometry = SCNBox(
                 width: tabWidth,
                 height: tabHeight,
@@ -4511,8 +4528,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         obstacleTabNodes[edition.id] = nodes
     }
 
-    private func updateObstacleTabs() {
+    private func updateObstacleTabs(editionIDs: Set<String>? = nil) {
         for edition in editions {
+            if let editionIDs, !editionIDs.contains(edition.id) { continue }
             guard let material = coverMaterials[edition.id] else { continue }
             material.diffuse.contents = liveBookTexture(for: edition)
         }
@@ -4678,6 +4696,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     /// pocket only selects a book, while the full-size LiveBook owns obstacle
     /// interaction after it has been brought forward.
     private func liveBookTexture(for edition: BookEdition) -> UIImage? {
+        let unlockedThrough = edition.unlockedObstacleRawValue(
+            progressUnlockedThrough: unlockedObstacleRawValue
+        )
+        let displayedObstacle = edition.id == editions[selectedIndex].id ? selectedObstacle : .none
         let bookWidth: CGFloat = 480
         let bookHeight = bookWidth * 1.4
         let canvas = CGSize(width: bookWidth * 1.20, height: bookHeight + bookWidth * 0.045)
@@ -4687,9 +4709,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                     edition: edition,
                     ribbons: LiveBook.RibbonStrip(
                         levels: Obstacle.allCases,
-                        selected: selectedObstacle,
-                        isUnlocked: { [unlockedObstacleRawValue] obstacle in
-                            obstacle.rawValue <= unlockedObstacleRawValue
+                        selected: displayedObstacle,
+                        isUnlocked: { obstacle in
+                            obstacle.rawValue <= unlockedThrough
                         },
                         onPick: { _ in },
                         onShowInfo: { _ in }

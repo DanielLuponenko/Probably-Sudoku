@@ -47,6 +47,8 @@ struct AppSettingsSlip: View {
                     PaperButton(title: "How to play", kind: .quiet) { showingHelp = true }
                 }
 
+                AdsPrivacySection()
+
                 SlipSection(title: "Accessibility",
                             note: "Every number, price and label in the game is live text, so "
                                 + "Dynamic Type, VoiceOver and Increase Contrast all reach it. "

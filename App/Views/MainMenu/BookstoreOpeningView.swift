@@ -4,6 +4,7 @@ import ProbablySudokuEngine
 struct BookstoreOpeningView: View {
     var onOpenBook: (BookEdition, Obstacle) -> Void
     var onFirstFrame: (() -> Void)?
+    var isSceneVisible: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(PlayerProfileStore.self) private var profile
@@ -66,9 +67,10 @@ struct BookstoreOpeningView: View {
     }
 
     init(onOpenBook: @escaping (BookEdition, Obstacle) -> Void,
-         onFirstFrame: (() -> Void)? = nil) {
+         onFirstFrame: (() -> Void)? = nil, isSceneVisible: Bool = true) {
         self.onOpenBook = onOpenBook
         self.onFirstFrame = onFirstFrame
+        self.isSceneVisible = isSceneVisible
         // Approved, fixed Club Shop framing. These are source defaults rather
         // than per-simulator preferences so every player sees the same stand.
         _counterYaw = State(initialValue: -0.988)
@@ -78,7 +80,7 @@ struct BookstoreOpeningView: View {
         _cameraSide = State(initialValue: 5.19)
         var initialCategory: CosmeticCategory = .paper
         var initialSelections: [CosmeticCategory: String] = [:]
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if let at = arguments.firstIndex(of: "-shopCategory"), at + 1 < arguments.count,
            let requested = CosmeticCategory(rawValue: arguments[at + 1]) {
@@ -115,7 +117,7 @@ struct BookstoreOpeningView: View {
                     editions: books,
                     selectedEditionID: selectedBook.id,
                     selectedObstacle: obstacle,
-                    unlockedObstacleRawValue: unlockedObstacleRawValue,
+                    unlockedObstacleRawValue: progressUnlockedObstacleRawValue,
                     turnCommand: BookstoreTurnCommand(serial: turnSerial, selectedIndex: selectedIndex),
                     focusCommand: BookstoreFocusCommand(serial: focusSerial, editionID: selectedBook.id),
                     returnFocusCommand: BookstoreReturnFocusCommand(serial: returnFocusSerial),
@@ -142,7 +144,8 @@ struct BookstoreOpeningView: View {
                     },
                     onBookFocusChanged: bookFocusChanged,
                     onTransitionFinished: transitionFinished,
-                    onFirstFrame: onFirstFrame
+                    onFirstFrame: onFirstFrame,
+                    isSceneVisible: isSceneVisible
                 )
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
@@ -241,7 +244,7 @@ struct BookstoreOpeningView: View {
         .sensoryFeedback(.success, trigger: shopPurchaseFeedback)
         .sensoryFeedback(.warning, trigger: shopRefusalFeedback)
         .task {
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-menuSettings") {
                 try? await Task.sleep(for: .milliseconds(500))
@@ -546,6 +549,9 @@ struct BookstoreOpeningView: View {
     private func selectEdition(_ id: String) {
         guard let index = books.firstIndex(where: { $0.id == id }) else { return }
         selectedIndex = index
+        obstacle = selectedBook.availableObstacle(
+            obstacle, progressUnlockedThrough: progressUnlockedObstacleRawValue
+        )
     }
 
     private func focusSelectedBook() {
@@ -555,7 +561,7 @@ struct BookstoreOpeningView: View {
     private func requestBookFocus(_ id: String) {
         guard phase == .choosingBook, focusedEditionID == nil,
               let index = books.firstIndex(where: { $0.id == id }) else { return }
-        selectedIndex = index
+        selectEdition(books[index].id)
         // Resolve the binding before SceneKit starts moving. Its update applies
         // these print textures before processing focusSerial, including when
         // Reduce Motion skips extraction and goes straight to presentation.
@@ -592,12 +598,13 @@ struct BookstoreOpeningView: View {
     }
 
     private var unlockedObstacleRawValue: Int {
-        // Volume 1 is the obstacle sampler: all nine sewn bookmarks can be
-        // tried before a player commits to opening their first Book.
-        if selectedBook.id == BookEdition.first.id {
-            return Obstacle.allCases.count
-        }
-        #if DEBUG
+        selectedBook.unlockedObstacleRawValue(progressUnlockedThrough: progressUnlockedObstacleRawValue)
+    }
+
+    /// Send the progress ceiling to the rack, not the selected Book's sampler
+    /// override. Each shelf cover resolves its own effective access.
+    private var progressUnlockedObstacleRawValue: Int {
+        #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("-unlockAll") {
             return Obstacle.allCases.count
         }
