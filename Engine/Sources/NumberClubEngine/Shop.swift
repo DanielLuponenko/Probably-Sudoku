@@ -130,7 +130,11 @@ public enum Shop {
     }
 
     static func firstRerollCost(for run: RunState) -> Int {
-        run.owns(bookmark: Bookmarks.auctionNotices) ? 0 : ShopState.firstRerollCost
+        hasFreeFirstReroll(run) ? 0 : ShopState.firstRerollCost
+    }
+
+    private static func hasFreeFirstReroll(_ run: RunState) -> Bool {
+        run.book.benefit.hasFreeFirstReroll || run.owns(bookmark: Bookmarks.auctionNotices)
     }
 
     public enum ShopError: Error, Equatable, Sendable {
@@ -152,7 +156,7 @@ public enum Shop {
         fresh.rerollsUsed = used
         // 2 coins, then 3, then 4… within this Shop. Auction Notices only ever
         // discounts the first reroll, so subsequent ones climb from the base.
-        fresh.rerollCost = ShopState.firstRerollCost + used - (run.owns(bookmark: Bookmarks.auctionNotices) ? 1 : 0)
+        fresh.rerollCost = ShopState.firstRerollCost + used - (hasFreeFirstReroll(run) ? 1 : 0)
         run.shop = fresh
     }
 

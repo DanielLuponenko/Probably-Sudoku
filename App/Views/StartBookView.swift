@@ -15,7 +15,7 @@ struct StartBookView: View {
     /// Back to the club room. Optional so the shelf still stands on its own in
     /// a preview, and so nothing about the Books themselves changed.
     var onBack: (() -> Void)? = nil
-    /// A finished Book returns the shelf focused on the newly unlocked volume.
+    /// A finished Book returns the shelf focused on the suggested next volume.
     /// Normal shelf entry retains its existing debug/default position.
     private let initialIndex: Int
 
@@ -169,7 +169,7 @@ struct StartBookView: View {
             // What the Book gives you. §3's boards are not a separate choice
             // — the Book you pick up is the board you play on.
             HStack(spacing: 8) {
-                Text(book.isWritten ? book.shelfLabel : "Not written yet")
+                Text(book.shelfLabel)
                     .font(Print.caption(10))
                     .tracking(1.8)
                     .textCase(.uppercase)
@@ -183,7 +183,7 @@ struct StartBookView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.8)
 
-            if let saved = resumable, book.isWritten, book.isUnlocked,
+            if let saved = resumable,
                saved.run.book == book.rule {
                 VStack(spacing: 8) {
                     PaperButton(title: "Continue the Book",
@@ -193,11 +193,8 @@ struct StartBookView: View {
                         onStart(book, obstacle)
                     }
                 }
-            } else if book.isWritten, book.isUnlocked {
-                PaperButton(title: "Open the Book", kind: .primary) { onStart(book, obstacle) }
             } else {
-                PaperButton(title: book.isWritten ? "Finish the previous Book" : "Not written yet",
-                            kind: .quiet, isEnabled: false) {}
+                PaperButton(title: "Open the Book", kind: .primary) { onStart(book, obstacle) }
             }
 
         }

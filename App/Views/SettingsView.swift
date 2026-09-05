@@ -136,6 +136,7 @@ struct SlipSection<Content: View>: View {
 struct SettingsSlip: View {
     @Environment(\.cosmeticTheme) private var theme
     @Bindable var model: GameModel
+    var onAbandon: () -> Void
     var onClose: () -> Void
     @State private var confirmingAbandon = false
     @State private var showingHelp = false
@@ -217,8 +218,7 @@ struct SettingsSlip: View {
                                     withAnimation { confirmingAbandon = false }
                                 }
                                 PaperButton(title: "Abandon", kind: .danger) {
-                                    onClose()
-                                    model.abandonRun()
+                                    onAbandon()
                                 }
                             }
                         }
@@ -333,7 +333,7 @@ struct HelpSlip: View {
             ]
             case .failure: return [
                 "If a Puzzle fills below its target, the Book ends. There are exactly enough numbers for the Blanks, so it cannot recover.",
-                "A completed Book unlocks the next one. Obstacles are a separate choice when you open a Book."
+                "Every Book is playable from the shelf. Finish a different Book to unlock the next Obstacle."
             ]
             }
         }

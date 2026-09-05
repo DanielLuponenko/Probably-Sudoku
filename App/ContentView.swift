@@ -24,6 +24,7 @@ struct ContentView: View {
     @State private var pendingBookReplacement: BookReplacement?
     @State private var closingBook: BookEdition?
     @State private var completionSummary: GameModel.BookCompletionSummary?
+    @State private var menuReturn = MenuReturnTransition()
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
@@ -88,25 +89,38 @@ struct ContentView: View {
                                     onFinish: finishBookClosing)
                 } else if let model, !model.wantsMenu {
                     GameView(model: model, reduceMotion: reduceMotion,
-                             onBookCompletion: beginBookClosing)
+                             onBookCompletion: beginBookClosing, onAbandon: abandonGame)
                 } else if let book = opening {
-                    LiveBookOpening(edition: book, reduceMotion: reduceMotion) {
+                    LiveBookOpening(edition: book,
+                                    obstacle: openingSavedRun?.run.obstacle ?? chosenObstacle,
+                                    reduceMotion: reduceMotion) {
                         begin(book)
                     }
                 } else {
                     switch frontDoor {
-                case .studioIntro:
-                    StudioSplashView(reduceMotion: reduceMotion) {
-                        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
-                    }
-                    .transition(.opacity)
+                case .studioIntro, .mainMenu:
+                    ZStack {
+                        // Prepare the book scene beneath the logo, preserving its identity
+                        // across the handoff instead of constructing it on the white frame.
+                        MainMenuView(
+                            onBookSelected: { book, obstacle in
+                                openBookOrAskAboutConflict(book, obstacle: obstacle)
+                            },
+                            onFirstFrame: { [token = menuReturn.token] in
+                                if let token { revealMenu(token: token) }
+                            }
+                        )
+                        .allowsHitTesting(frontDoor == .mainMenu)
+                        .accessibilityHidden(frontDoor == .studioIntro)
 
-                case .mainMenu:
-                    MainMenuView(
-                        onBookSelected: { book, obstacle in
-                            openBookOrAskAboutConflict(book, obstacle: obstacle)
+                        if frontDoor == .studioIntro {
+                            StudioSplashView(reduceMotion: reduceMotion) {
+                                withAnimation(.easeOut(duration: 0.12)) { frontDoor = .mainMenu }
+                            }
+                            .transition(.opacity)
+                            .zIndex(1)
                         }
-                    )
+                    }
                     .transition(.opacity)
 
                 case .bookShelf:
@@ -144,8 +158,8 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 }
             }
-            .allowsHitTesting(!isShowingRunDecision)
-            .accessibilityHidden(isShowingRunDecision)
+            .allowsHitTesting(!isShowingRunDecision && !menuReturn.isActive)
+            .accessibilityHidden(isShowingRunDecision || menuReturn.isActive)
 
             if showingRunConflict, let conflict = pendingRunConflict {
                 Color.black.opacity(0.48)
@@ -180,11 +194,25 @@ struct ContentView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.965)))
                 .zIndex(40)
             }
+
+            if let snapshot = menuReturn.snapshot {
+                GeometryReader { proxy in
+                    Image(uiImage: snapshot)
+                        .resizable()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                }
+                .ignoresSafeArea()
+                .opacity(menuReturn.opacity)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .zIndex(100)
+            }
         }
         .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.22), value: isShowingRunDecision)
         .onChange(of: isShowingBook, initial: true) { _, isShowingBook in
             gameCenter.setAccessPointVisible(!isShowingBook)
         }
+        .onDisappear { menuReturn.cancel() }
     }
 
     /// Game Center belongs to the club room and shelf, never on an open Book.
@@ -195,6 +223,29 @@ struct ContentView: View {
 
     private var isShowingRunDecision: Bool {
         showingRunConflict || pendingBookReplacement != nil
+    }
+
+    private func abandonGame(_ model: GameModel) {
+        // Capture before removing the slip/game. The abandoned model can exit
+        // immediately; its frozen pixels cover the scene's cold first render.
+        let snapshot = MenuReturnTransition.captureCurrentScreen()
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            menuReturn.begin(snapshot: snapshot)
+            frontDoor = .mainMenu
+            model.abandonRun()
+        }
+    }
+
+    private func revealMenu(token: UUID) {
+        guard menuReturn.token == token, menuReturn.opacity == 1 else { return }
+        withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.22),
+                      completionCriteria: .removed) {
+            _ = menuReturn.destinationDidRender(token: token)
+        } completion: {
+            menuReturn.finish(token: token)
+        }
     }
 
     /// Deals the first Puzzle behind the veil, then lifts it.
@@ -445,6 +496,7 @@ private struct GameView: View {
     @Bindable var model: GameModel
     var reduceMotion: Bool
     var onBookCompletion: (GameModel) -> Void
+    var onAbandon: (GameModel) -> Void
     @State private var flipper = PageFlipper()
     @State private var showingSettings = false
     @State private var showingRunInfo = false
@@ -505,7 +557,7 @@ private struct GameView: View {
             .overlay {
                 // In-world, on the desk — not a system sheet sliding up over it.
                 if showingSettings {
-                    SettingsSlip(model: model) {
+                    SettingsSlip(model: model, onAbandon: { onAbandon(model) }) {
                         withAnimation(.snappy(duration: 0.2)) { showingSettings = false }
                     }
                 }
@@ -692,7 +744,7 @@ private struct GameView: View {
 
 #Preview("Puzzle") {
     GameView(model: GameModel(seed: "preview", book: .noPressure), reduceMotion: false,
-             onBookCompletion: { _ in })
+             onBookCompletion: { _ in }, onAbandon: { $0.abandonRun() })
         .environment(PageFlipper())
 }
 

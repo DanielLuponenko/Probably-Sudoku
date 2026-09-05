@@ -106,9 +106,30 @@ enum RunStore {
 
     // MARK: - What is unlocked
 
-    private struct Progress: Codable {
+    struct Progress: Codable {
         var unlockedObstacle: Int = 1
+        // Retain the old contiguous-volume counter for older app readers.
         var booksCompleted: Int = 0
+        // Optional so the previous two-field save still decodes unchanged.
+        // Raw IDs preserve unknown future volumes instead of losing progress.
+        var completedBookIDs: Set<String>? = nil
+
+        var completedBooks: Set<String> {
+            completedBookIDs ?? Set(Book.allCases.filter {
+                $0.volume <= booksCompleted
+            }.map(\.rawValue))
+        }
+
+        @discardableResult
+        mutating func recordCompletion(of book: Book) -> Bool {
+            var completed = completedBooks
+            guard completed.insert(book.rawValue).inserted else { return false }
+            completedBookIDs = completed
+            booksCompleted = Book.allCases.sorted { $0.volume < $1.volume }
+                .prefix { completed.contains($0.rawValue) }.count
+            unlockedObstacle = min(Obstacle.allCases.count, unlockedObstacle + 1)
+            return true
+        }
     }
 
     private static func progress() -> Progress {
@@ -133,15 +154,13 @@ enum RunStore {
         obstacle.rawValue <= progress().unlockedObstacle
     }
 
-    static var booksCompleted: Int { progress().booksCompleted }
+    static var booksCompleted: Int { progress().completedBooks.count }
 
-    /// Called when a Book is finished. Only the next locked volume advances
-    /// progress, so replaying Book 1 cannot skip the Book 2 requirement.
+    /// Books can be played in any order. A distinct completed volume advances
+    /// the Obstacle ladder once; replaying it does not grant another unlock.
     static func recordBookCompleted(_ book: Book) {
         var value = progress()
-        guard book.volume == value.booksCompleted + 1 else { return }
-        value.booksCompleted += 1
-        value.unlockedObstacle = min(Obstacle.allCases.count, value.unlockedObstacle + 1)
+        guard value.recordCompletion(of: book) else { return }
         write(value)
     }
 }

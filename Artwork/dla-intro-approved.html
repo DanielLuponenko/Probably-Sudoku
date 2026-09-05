@@ -1,0 +1,78 @@
+<div id="dla-dot-flow">
+  <style>
+    #dla-dot-flow .stage {display:block;width:100%;aspect-ratio:16/10;background:#11100f;border-radius:16px}
+    #dla-dot-flow .controls {display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
+  </style>
+  <canvas class="stage" width="1000" height="625" role="img" aria-label="The DlA logo contains This is not an i inside its red l. One continuous camera move rotates and zooms directly into the dot of the final i until cream fills the screen."></canvas>
+  <div class="controls"><button class="btn btn-primary" type="button">Play intro</button><span class="text-small text-muted" aria-live="polite">One continuous move into the i’s dot · 3.8 seconds</span></div>
+</div>
+<script>
+(() => {
+  const root=document.getElementById('dla-dot-flow');
+  const canvas=root.querySelector('canvas'),ctx=canvas.getContext('2d');
+  const button=root.querySelector('button'),status=root.querySelector('[aria-live]');
+  const cream='#fff4d7',ink='#11100f',red='#ee2632';
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp=n=>Math.max(0,Math.min(1,n));
+  const smooth=n=>{const x=clamp(n);return x*x*x*(x*(x*6-15)+10)};
+  const mix=(a,b,t)=>a+(b-a)*t;
+  let frame=0;
+  ctx.font='15px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  const prefix='This is not an ';
+  const prefixWidth=ctx.measureText(prefix).width;
+  const iMetrics=ctx.measureText('i');
+  const textWidth=prefixWidth+iMetrics.width;
+  const iStart=-textWidth/2+prefixWidth;
+  // Measure the disconnected dot at high resolution to center the camera inside it.
+  const glyph=document.createElement('canvas');glyph.width=512;glyph.height=800;
+  const gc=glyph.getContext('2d');gc.font='600px sans-serif';gc.fillText('i',80,650);
+  const pixels=gc.getImageData(0,0,512,800).data;
+  let left=512,right=0,top=-1,bottom=0;
+  for(let y=0;y<800;y++){
+    let occupied=false;
+    for(let x=0;x<512;x++)if(pixels[(y*512+x)*4+3]>127){occupied=true;left=Math.min(left,x);right=Math.max(right,x)}
+    if(occupied){if(top<0)top=y;bottom=y}else if(top>=0)break;
+  }
+  const dotX=iStart+((left+right+1)/2-80)/40;
+  const dotY=5+((top+bottom+1)/2-650)/40;
+  const targetX=498.8+dotY*0.9,targetY=278.4-dotX*0.9;
+  function shape(d){ctx.fillStyle=cream;ctx.fill(new Path2D(d),'evenodd')}
+  function draw(ms){
+    ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;
+    ctx.fillStyle=ink;ctx.fillRect(0,0,1000,625);
+    if(reduced){
+      drawScene(0.47);
+      ctx.globalAlpha=smooth((ms-2600)/900);ctx.fillStyle=cream;ctx.fillRect(0,0,1000,625);ctx.globalAlpha=1;
+      return;
+    }
+    drawScene(clamp((ms-350)/3200));
+  }
+  function drawScene(progress){
+    ctx.save();
+    // A single advancing camera: rotate and approach the dot together, never stop to pan.
+    const aim=smooth(progress/0.68);
+    const rotation=smooth(progress/0.66)*Math.PI/2;
+    const magnification=Math.exp(Math.log(4500)*Math.pow(progress,2.3));
+    ctx.translate(500,312.5);ctx.rotate(rotation);ctx.scale(magnification,magnification);
+    ctx.translate(-mix(500,targetX,aim),-mix(312.5,targetY,aim));
+    ctx.translate(245,174);ctx.scale(0.9,0.9);
+    shape('M0 0H77Q174 0 174 99V134Q174 233 77 233H0ZM52 52V181H77Q122 181 122 134V99Q122 52 77 52Z');
+    ctx.save();ctx.translate(390,0);shape('M65 0H109L174 233H122L108 185H66L52 233H0ZM87 58L60 135H114Z');ctx.restore();
+    ctx.fillStyle=red;ctx.fillRect(256,0,52,233);
+    ctx.save();ctx.translate(282,116);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle=cream;ctx.font='15px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    ctx.fillText(prefix,-textWidth/2,5);ctx.fillText('i',iStart,5);
+    ctx.restore();
+    ctx.fillStyle=cream;ctx.font='22px monospace';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillText('G A M E   S T U D I O',285,302);
+    ctx.restore();
+  }
+  function play(){
+    cancelAnimationFrame(frame);button.textContent='Replay intro';status.textContent=reduced?'Reduced motion · gentle transition':'Playing intro';
+    const start=performance.now();
+    function tick(now){const t=Math.min(now-start,3800);draw(t);if(t<3800)frame=requestAnimationFrame(tick);else status.textContent='Game handoff · preview complete'}
+    frame=requestAnimationFrame(tick);
+  }
+  button.addEventListener('click',play);draw(0);
+})();
+</script>

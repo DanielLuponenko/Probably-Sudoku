@@ -1,4 +1,5 @@
 import SwiftUI
+import ProbablySudokuEngine
 
 /// Opening the Book.
 ///
@@ -11,6 +12,7 @@ import SwiftUI
 /// swings on its joint.
 struct LiveBookOpening: View {
     var edition: BookEdition
+    var obstacle: Obstacle
     var reduceMotion: Bool
     var onFinish: () -> Void
 
@@ -31,7 +33,8 @@ struct LiveBookOpening: View {
                 ShelfBackdrop(book: edition)
 
                 GeometryReader { proxy in
-                    LiveBook(edition: edition, openAngle: angle, epigraph: epigraph)
+                    LiveBook(edition: edition, openAngle: angle,
+                             selectedObstacle: obstacle, epigraph: epigraph)
                         .frame(width: proxy.size.width * 0.72)
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .scaleEffect(1 + closing * 1.35, anchor: .center)

@@ -76,7 +76,7 @@ struct BookCompletionView: View {
             Text(summary.edition.title)
                 .pageHeading(30)
                 .multilineTextAlignment(.center)
-            Text("The cover is back on the shelf. Your next volume is ready.")
+            Text("The cover is back on the shelf. Pick any Book for your next run.")
                 .font(Print.body(13))
                 .foregroundStyle(Paper.inkSoft)
                 .multilineTextAlignment(.center)
@@ -101,11 +101,11 @@ struct BookCompletionView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if let nextBook = summary.nextBook, nextBook.isWritten {
-                Label("\(nextBook.title) is now unlocked", systemImage: "lock.open.fill")
+                Label("Try next: \(nextBook.title)", systemImage: "book")
                     .font(Print.subheading(13))
                     .foregroundStyle(Paper.sageDeep)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel("Next Book unlocked: \(nextBook.title)")
+                    .accessibilityLabel("Suggested next Book: \(nextBook.title)")
             }
 
             PaperButton(title: "Return to Shelf", kind: .primary, action: onReturnToShelf)

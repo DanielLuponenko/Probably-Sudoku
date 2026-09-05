@@ -162,12 +162,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var selectedObstacle: Obstacle = .none
     private var unlockedObstacleRawValue = Obstacle.none.rawValue
     private var onSelectEdition: ((String) -> Void)?
+    private var onRequestBookFocus: ((String) -> Void)?
     private var onSelectObstacle: ((Obstacle) -> Void)?
     private var onShowObstacleInfo: ((Obstacle) -> Void)?
     private var onSelectShopCategory: ((CosmeticCategory) -> Void)?
     private var onStepShopItem: ((Int) -> Void)?
     private var onBuyOrEquipShopItem: (() -> Void)?
-    private var onBookFocusChanged: ((String?) -> Void)?
+    private var onBookFocusChanged: ((BookstoreBookFocus) -> Void)?
     private var onTransitionFinished: ((BookstoreScenePhase) -> Void)?
     private var focusedBook: FocusedBook?
     // A Book leaves the stand during the focus transition. Lock its rotation
@@ -228,13 +229,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         fieldOfView: 39.25
     )
     private let standHomeAngle = Float(atan2(1.65, 8.65))
-    // Exact fixed pocket map from the approved spinner mockup. Each inner
-    // array is one 90-degree face, ordered top-to-bottom.
+    // Four faces, each with a published Book in all three pockets.
+    // Keep the same tier/face ordering so extraction uses the correct path.
     private let pocketSlots: [[Int?]] = [
         [0, 4, 8],
-        [1, 5, nil],
-        [2, 6, nil],
-        [3, 7, nil]
+        [1, 5, 9],
+        [2, 6, 10],
+        [3, 7, 11]
     ]
     private let shelfTitles = [
         "QUIET GRID", "NINE ROOMS", "MISTAKES", "PUZZLES", "SEVEN",
@@ -314,6 +315,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         turnCommand: BookstoreTurnCommand,
         focusCommand: BookstoreFocusCommand,
         returnFocusCommand: BookstoreReturnFocusCommand,
+        isLiveBookPresented: Bool,
         shopCategory: CosmeticCategory,
         shopItem: CosmeticItem?,
         shopPresentation: BookstoreShopPresentation,
@@ -326,18 +328,20 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         reduceMotion: Bool,
         debugCameraPosition: BookstoreDebugCameraPosition?,
         onSelectEdition: @escaping (String) -> Void,
+        onRequestBookFocus: @escaping (String) -> Void,
         onSelectObstacle: @escaping (Obstacle) -> Void,
         onShowObstacleInfo: @escaping (Obstacle) -> Void,
         onSelectShopCategory: @escaping (CosmeticCategory) -> Void,
         onStepShopItem: @escaping (Int) -> Void,
         onBuyOrEquipShopItem: @escaping () -> Void,
-        onBookFocusChanged: @escaping (String?) -> Void,
+        onBookFocusChanged: @escaping (BookstoreBookFocus) -> Void,
         onTransitionFinished: @escaping (BookstoreScenePhase) -> Void
     ) {
         let motionPreferenceChanged = self.reduceMotion != reduceMotion
         self.reduceMotion = reduceMotion
         shopDustSystem?.birthRate = reduceMotion ? 0 : 3
         self.onSelectEdition = onSelectEdition
+        self.onRequestBookFocus = onRequestBookFocus
         self.onSelectObstacle = onSelectObstacle
         self.onShowObstacleInfo = onShowObstacleInfo
         self.onSelectShopCategory = onSelectShopCategory
@@ -439,6 +443,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 returnFocusedBook()
             }
         }
+        // Hide the physical print only in the same SwiftUI update that installs
+        // the matching interactive cover. It stays visible for the whole lift.
+        focusedBook?.book.isHidden = isLiveBookPresented
         if motionPreferenceChanged {
             updateShopShowcaseMotion()
             if reduceMotion {
@@ -473,6 +480,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             animateCamera(to: standPose, destination: .choosingBook)
             rotateStand(to: selectedIndex, animated: !reduceMotion)
         case .transitioningToStore:
+            // Invalidate a physical tap still rotating toward its pocket.
+            focusGeneration += 1
+            if focusedBook == nil { isStandRotationLocked = false }
             let finish = { [weak self] in
                 guard let self else { return }
                 self.animateCamera(to: self.storePose, destination: .store)
@@ -905,9 +915,15 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                     }
                     guard focusedBook == nil, !isStandRotationLocked else { return }
                     isStandRotationLocked = true
+                    focusGeneration += 1
+                    let generation = focusGeneration
                     onSelectEdition?(id)
                     rotateStand(to: index, animated: !reduceMotion) { [weak self] in
-                        self?.focusBook(id: id)
+                        guard let self, self.currentPhase == .choosingBook,
+                              self.focusGeneration == generation else { return }
+                        // SwiftUI resolves the saved obstacle before issuing the
+                        // focus command, just as the accessible Select button does.
+                        self.onRequestBookFocus?(id)
                     }
                     return
                 }
@@ -980,13 +996,34 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         guard currentPhase == .choosingBook,
               focusedBook == nil,
               let book = editionBookNodes[id],
-              let originParent = book.parent
+              let originParent = book.parent,
+              let view = sceneView,
+              let cover = book.childNodes.first(where: {
+                  $0.geometry is SCNPlane && $0.eulerAngles.y == 0
+              }),
+              let plane = cover.geometry as? SCNPlane
         else { return }
 
         isStandRotationLocked = true
+        focusGeneration += 1
+        let generation = focusGeneration
 
         let originTransform = book.simdTransform
+        let pocketTransform = originParent.simdWorldTransform
         let worldTransform = book.simdWorldTransform
+        // Measure the tilted Book's lowest corner in its actual wire pocket.
+        // A larger/taller lower-tier volume needs more lift than the top one.
+        let bounds = book.boundingBox
+        let lowestPoint = [bounds.min.x, bounds.max.x].flatMap { x in
+            [bounds.min.y, bounds.max.y].flatMap { y in
+                [bounds.min.z, bounds.max.z].map { z in
+                    book.convertPosition(SCNVector3(x, y, z), to: originParent).y
+                }
+            }
+        }.min() ?? bounds.min.y
+        let lift = BookstoreExtractionPath.liftDistance(lowestPoint: lowestPoint)
+        let up = originParent.simdConvertVector(SIMD3<Float>(0, 1, 0), to: nil)
+        let outward = originParent.simdConvertVector(SIMD3<Float>(0, 0, 1), to: nil)
         book.removeFromParentNode()
         scene.rootNode.addChildNode(book)
         book.simdWorldTransform = worldTransform
@@ -998,13 +1035,87 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             originParent: originParent,
             originTransform: originTransform
         )
-        // LiveBook is the source for both the shelf face and the selected
-        // presentation. Hide the physical backing immediately and let that
-        // one view perform the entire zoom; a SceneKit move followed by a
-        // SwiftUI replacement was the visible "adjust" at the end.
-        book.isHidden = true
-        onBookFocusChanged?(id)
+        // Project the exact LiveBook canvas into the camera plane. Both views
+        // use this destination, rather than a guessed shelf scale/offset.
+        let layout = BookstoreSelectionLayout(viewport: viewportSize)
+        let camera = cameraNode.presentation
+        let depth = view.projectPoint(camera.convertPosition(SCNVector3(0, 0, -3), to: nil)).z
+        let center = view.unprojectPoint(SCNVector3(
+            Float(layout.coverCenter.x), Float(layout.coverCenter.y), depth
+        ))
+        let right = view.unprojectPoint(SCNVector3(
+            Float(layout.coverCenter.x + layout.canvasSize.width * 0.5),
+            Float(layout.coverCenter.y), depth
+        ))
+        let centerPosition = SIMD3<Float>(center.x, center.y, center.z)
+        let rightPosition = SIMD3<Float>(right.x, right.y, right.z)
+        let targetScale = SIMD3<Float>(repeating:
+            2 * simd_distance(centerPosition, rightPosition) / Float(plane.width))
+        let targetOrientation = camera.simdWorldOrientation
+        let targetPosition = centerPosition
+            - targetOrientation.act(cover.simdPosition * targetScale)
+        let startPosition = book.simdPosition
+        let startScale = book.simdScale
+        let startOrientation = book.simdOrientation
+        let path = BookstoreExtractionPath(
+            origin: startPosition,
+            lifted: startPosition + up * lift,
+            destination: targetPosition,
+            outward: outward,
+            up: up
+        )
+        let tier = editions.firstIndex(where: { $0.id == id }).flatMap { index in
+            pocketSlots.lazy.compactMap { $0.firstIndex(of: index) }.first
+        } ?? 0
+        var targetPose = BookstoreExtractionPose(transform: worldTransform)
+        targetPose.position = targetPosition
+        targetPose.orientation = targetOrientation
+        targetPose.scale = targetScale
+        let lowerPath = tier > 0 ? BookstoreLowerPocketPath(
+            origin: BookstoreExtractionPose(transform: originTransform),
+            destination: BookstoreExtractionPose(transform: simd_inverse(pocketTransform) * targetPose.transform),
+            minimum: SIMD3(bounds.min.x, bounds.min.y, bounds.min.z),
+            maximum: SIMD3(bounds.max.x, bounds.max.y, bounds.max.z)
+        ) : nil
+        let finish = { [weak self] in
+            guard let self, self.focusGeneration == generation,
+                  self.focusedBook?.id == id else { return }
+            self.notifyBookFocus(.presented(id), generation: generation)
+        }
+        if reduceMotion {
+            book.simdPosition = targetPosition
+            book.simdScale = targetScale
+            book.simdOrientation = targetOrientation
+            finish()
+        } else {
+            notifyBookFocus(.extracting(id), generation: generation)
+            let duration = lowerPath == nil ? BookstoreExtractionPath.duration : BookstoreLowerPocketPath.duration
+            let extraction = SCNAction.customAction(duration: duration) { node, elapsed in
+                let progress = Float(elapsed / duration)
+                if let lowerPath {
+                    node.simdWorldTransform = pocketTransform * lowerPath.pose(at: progress).transform
+                    return
+                }
+                let presenting = path.presentationProgress(at: progress)
+                node.simdPosition = path.position(at: progress)
+                node.simdScale = simd_mix(startScale, targetScale, SIMD3(repeating: presenting))
+                node.simdOrientation = simd_slerp(startOrientation, targetOrientation, presenting)
+            }
+            book.runAction(extraction, forKey: "book-extraction") {
+                Task { @MainActor in finish() }
+            }
+        }
         setLighting(focused: true, bookID: id)
+    }
+
+    private func notifyBookFocus(_ focus: BookstoreBookFocus, generation: Int) {
+        // Focus can begin in updateUIView (the accessible Select button).
+        // Publishing synchronously there loses SwiftUI state updates and can
+        // leave the physical book hidden with no interactive cover at all.
+        Task { @MainActor [weak self] in
+            guard let self, self.focusGeneration == generation else { return }
+            self.onBookFocusChanged?(focus)
+        }
     }
 
     private func returnFocusedBook(completion: (() -> Void)? = nil) {
@@ -1014,12 +1125,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             return
         }
 
-        // The Book never visibly leaves its pocket now, so return it there in
-        // the same update that dismisses LiveBook. This also releases the
-        // rotation lock immediately, rather than leaving a half-second window
-        // in which a second tap was required.
+        // Cancellation is synchronous: no queued extraction completion may
+        // recreate a selected cover after Back or a background tap.
         focusGeneration += 1
-        onBookFocusChanged?(nil)
+        notifyBookFocus(.shelf, generation: focusGeneration)
+        focus.book.removeAction(forKey: "book-extraction")
         focus.book.isHidden = false
         focus.book.removeFromParentNode()
         focus.originParent.addChildNode(focus.book)
@@ -4134,7 +4244,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
         let blackMetal = material(color: rgb(0x111313), roughness: 0.28, metalness: 0.88)
         let edgeMetal = material(color: rgb(0x353A39), roughness: 0.22, metalness: 0.92)
-        let brass = material(color: rgb(0x8B5C19), roughness: 0.34, metalness: 0.78)
 
         let base = SCNCone(topRadius: 1.46, bottomRadius: 1.76, height: 0.34)
         base.firstMaterial = blackMetal
@@ -4182,59 +4291,71 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             }
         }
 
-        let topCap = SCNCylinder(radius: 0.16, height: 0.14)
-        topCap.firstMaterial = brass
-        let topCapNode = SCNNode(geometry: topCap)
-        topCapNode.position.y = 5.68
-        standRoot.addChildNode(topCapNode)
-
         addStandSign()
         addEditionBooks()
         addFillerBooks()
     }
 
     private func addStandSign() {
-        let plaqueMaterial = self.material(color: rgb(0x252525), roughness: 0.32, metalness: 0.88)
+        // The mast/header is stationary; only the book pockets rotate. A sign
+        // attached to standRoot disappears edge-on and shows a blank back.
+        let header = SCNNode()
+        header.name = "stand-title-plaque"
+        header.position = SCNVector3(standRoot.position.x, 5.60, standRoot.position.z)
+        header.eulerAngles.y = standHomeAngle
+        scene.rootNode.addChildNode(header)
+
+        let plaqueMaterial = self.material(color: rgb(0x20251F), roughness: 0.72, metalness: 0.18)
         let plaque = node(box: SCNVector3(1.54, 0.48, 0.08), material: plaqueMaterial, chamfer: 0.04)
-        plaque.position = SCNVector3(0, 5.60, 0)
-        standRoot.addChildNode(plaque)
+        // Mount the entire plaque in FRONT of the pole (radius 0.055).
+        // Its old printed face at z=0.052 was cut through by the metal shaft.
+        plaque.position.z = 0.105
+        header.addChildNode(plaque)
 
         let plateMaterial = SCNMaterial()
         plateMaterial.diffuse.contents = signTexture()
         plateMaterial.lightingModel = .constant
-        plateMaterial.isDoubleSided = true
+        plateMaterial.diffuse.mipFilter = .linear
         let plate = SCNPlane(width: 1.40, height: 0.37)
         plate.firstMaterial = plateMaterial
         let plateNode = SCNNode(geometry: plate)
-        plateNode.position = SCNVector3(0, 5.60, 0.052)
-        standRoot.addChildNode(plateNode)
+        plateNode.name = "stand-title-print"
+        plateNode.position.z = 0.157
+        header.addChildNode(plateNode)
     }
 
     private func signTexture() -> UIImage {
-        let size = CGSize(width: 512, height: 256)
+        // Match the physical 1.40:0.37 face exactly. The old 512:256 texture
+        // stretched every letter almost twice as wide, flattening the title.
+        let size = CGSize(width: 1008, height: 1008 * 0.37 / 1.40)
         return UIGraphicsImageRenderer(size: size).image { context in
             let cg = context.cgContext
-            cg.setFillColor(rgb(0x262525).cgColor)
+            cg.setFillColor(rgb(0x242A23).cgColor)
             cg.fill(CGRect(origin: .zero, size: size))
-            cg.setStrokeColor(rgb(0xA5977D).cgColor)
-            cg.setLineWidth(8)
-            cg.stroke(CGRect(x: 12, y: 12, width: 488, height: 232))
+            cg.setStrokeColor(rgb(0xA9B797).cgColor)
+            cg.setLineWidth(4)
+            let border = UIBezierPath(roundedRect:
+                CGRect(origin: .zero, size: size).insetBy(dx: 14, dy: 14), cornerRadius: 8)
+            cg.addPath(border.cgPath)
+            cg.strokePath()
 
             let paragraph = NSMutableParagraphStyle()
             paragraph.alignment = .center
             ("PROBABLY" as NSString).draw(
-                in: CGRect(x: 0, y: 55, width: 512, height: 82),
+                in: CGRect(x: 36, y: 48, width: size.width - 72, height: 148),
                 withAttributes: [
-                    .font: UIFont.systemFont(ofSize: 68, weight: .heavy),
-                    .foregroundColor: rgb(0xEFE8D9),
+                    .font: UIFont.systemFont(ofSize: 126, weight: .heavy),
+                    .foregroundColor: rgb(0xFFF8E9),
+                    .kern: 2,
                     .paragraphStyle: paragraph
                 ]
             )
             ("SUDOKU BOOKS" as NSString).draw(
-                in: CGRect(x: 0, y: 145, width: 512, height: 48),
+                in: CGRect(x: 36, y: 187, width: size.width - 72, height: 66),
                 withAttributes: [
-                    .font: UIFont.systemFont(ofSize: 29, weight: .semibold),
-                    .foregroundColor: rgb(0x9EAF90),
+                    .font: UIFont.systemFont(ofSize: 48, weight: .semibold),
+                    .foregroundColor: rgb(0xD0DABB),
+                    .kern: 6,
                     .paragraphStyle: paragraph
                 ]
             )
@@ -4243,8 +4364,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func addEditionBooks() {
         guard !editions.isEmpty else { return }
-        // Fixed pockets, matching the reference spinner's slot table exactly:
-        // 1/5/9 on the front, 2/6/empty on the next face, and so on.
+        // Volumes 1/5/9 face front, then 2/6/10, 3/7/11, and 4/8/12.
         let levels: [Float] = [4.76, 3.40, 1.87]
         for face in pocketSlots.indices {
             for tier in pocketSlots[face].indices {
