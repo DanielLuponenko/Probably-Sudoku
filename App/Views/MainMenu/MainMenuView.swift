@@ -6,8 +6,10 @@ import ProbablySudokuEngine
 struct MainMenuView: View {
     var onBookSelected: (BookEdition, Obstacle) -> Void
     var onFirstFrame: (() -> Void)? = nil
+    var isSceneVisible = true
 
     var body: some View {
-        BookstoreOpeningView(onOpenBook: onBookSelected, onFirstFrame: onFirstFrame)
+        BookstoreOpeningView(onOpenBook: onBookSelected, onFirstFrame: onFirstFrame,
+                             isSceneVisible: isSceneVisible)
     }
 }

@@ -25,12 +25,13 @@ struct ContentView: View {
     @State private var closingBook: BookEdition?
     @State private var completionSummary: GameModel.BookCompletionSummary?
     @State private var menuReturn = MenuReturnTransition()
+    @State private var introSceneReady = false
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
     /// `-seed <value>` to land on the same Book every time.
     private static func debugModel() -> GameModel? {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         guard arguments.contains("-skipStartScreen") else { return nil }
         var seed = GameModel.randomSeed()
@@ -38,6 +39,9 @@ struct ContentView: View {
             seed = arguments[index + 1]
         }
         let model = GameModel(seed: seed)
+        // Deal/exhaust only in GameView's one-shot task, never in this view
+        // initializer (which can be evaluated again during SwiftUI updates).
+        if arguments.contains("-rewardedRescue") { return model }
         // Direct visual QA for the in-run catalogue page. This is Debug-only
         // and still opens a real ShopState through the normal game action.
         if arguments.contains("-shop") {
@@ -74,7 +78,7 @@ struct ContentView: View {
     }
 
     private static func debugOpening() -> BookEdition? {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         return ProcessInfo.processInfo.arguments.contains("-playOpening") ? .first : nil
         #else
         return nil
@@ -107,14 +111,16 @@ struct ContentView: View {
                                 openBookOrAskAboutConflict(book, obstacle: obstacle)
                             },
                             onFirstFrame: { [token = menuReturn.token] in
+                                introSceneReady = true
                                 if let token { revealMenu(token: token) }
-                            }
+                            },
+                            isSceneVisible: frontDoor == .mainMenu
                         )
                         .allowsHitTesting(frontDoor == .mainMenu)
                         .accessibilityHidden(frontDoor == .studioIntro)
 
                         if frontDoor == .studioIntro {
-                            StudioSplashView(reduceMotion: reduceMotion) {
+                            StudioSplashView(reduceMotion: reduceMotion, isReadyToAnimate: introSceneReady) {
                                 withAnimation(.easeOut(duration: 0.12)) { frontDoor = .mainMenu }
                             }
                             .transition(.opacity)
@@ -533,7 +539,7 @@ private struct GameView: View {
                 // page, so the book turns to the result the same way it turns
                 // to anything else.
                 guard model.page == .puzzle,
-                      phase == .won || phase == .failed else { return }
+                      phase == .won || phase == .failed || phase == .outOfTurns else { return }
                 Task {
                     await flipper.flip(from: model, reduceMotion: reduceMotion) {
                         model.showResults()
@@ -550,10 +556,10 @@ private struct GameView: View {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
-            .allowsHitTesting(!flipper.isFlipping)
+            .allowsHitTesting(!flipper.isFlipping && !model.hasRewardedRescueInFlight)
             // A paper slip covers the whole desk. Keep its obscured controls
             // out of VoiceOver navigation until the slip is closed.
-            .accessibilityHidden(isPresentingSlip || flipper.isFlipping)
+            .accessibilityHidden(isPresentingSlip || flipper.isFlipping || model.hasRewardedRescueInFlight)
             .overlay {
                 // In-world, on the desk — not a system sheet sliding up over it.
                 if showingSettings {
@@ -576,7 +582,15 @@ private struct GameView: View {
             .animation(.snappy(duration: 0.22), value: showingRunInfo)
             .animation(.snappy(duration: 0.22), value: usingBuff)
             .task {
-                #if DEBUG
+                #if DEBUG && targetEnvironment(simulator)
+                if ProcessInfo.processInfo.arguments.contains("-rewardedRescue") {
+                    // Real exhaustion and real Google demo ads. No synthetic
+                    // reward callback, and never present on physical phones.
+                    guard model.puzzle == nil else { return }
+                    model.beginPuzzle()
+                    while model.puzzle?.phase == .playing { model.endTurn() }
+                    return
+                }
                 if ProcessInfo.processInfo.arguments.contains("-qa") { showingSettings = true }
                 if ProcessInfo.processInfo.arguments.contains("-runInfo") { showingRunInfo = true }
                 if ProcessInfo.processInfo.arguments.contains("-achievements") {
@@ -672,7 +686,8 @@ private struct GameView: View {
         // A suspended/cancelled turn may never present its first frame. A
         // terminal puzzle still needs its result page when the app returns.
         guard scenePhase == .active, !flipper.isFlipping, model.page == .puzzle,
-              model.puzzle?.phase == .won || model.puzzle?.phase == .failed else { return }
+              model.puzzle?.phase == .won || model.puzzle?.phase == .failed
+                || model.puzzle?.phase == .outOfTurns else { return }
         model.showResults()
     }
 

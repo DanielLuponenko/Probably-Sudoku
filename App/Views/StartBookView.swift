@@ -47,7 +47,7 @@ struct StartBookView: View {
 
     /// `-shelfPage 5` opens on that page of the shelf.
     private static func debugIndex() -> Int {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if let at = arguments.firstIndex(of: "-shelfPage"), at + 1 < arguments.count,
            let page = Int(arguments[at + 1]) { return page }
@@ -62,7 +62,7 @@ struct StartBookView: View {
 
     /// `-obstacle 3` opens on that level, so each one can be looked at.
     private static func debugObstacle() -> Obstacle {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-obstacle"), index + 1 < arguments.count,
            let raw = Int(arguments[index + 1]), let level = Obstacle(rawValue: raw) {
@@ -79,7 +79,7 @@ struct StartBookView: View {
     @State private var unlockedThrough = StartBookView.unlockCeiling()
 
     private static func unlockCeiling() -> Int {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("-unlockAll") {
             return Obstacle.allCases.count
         }

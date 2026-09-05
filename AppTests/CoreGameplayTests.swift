@@ -5,6 +5,14 @@ final class CoreGameplayTests: XCTestCase {
     func testBookRackDebugRouteUsesTheBookstoreEntrance() {
         // The 3D rack is BookstoreOpeningView inside the main-menu route,
         // not the older flat StartBookView reached through .bookShelf.
+        #if DEBUG && targetEnvironment(simulator)
         XCTAssertEqual(FrontDoorRoute.launchRoute(arguments: ["app", "-bookRack"]), .mainMenu)
+        #else
+        XCTAssertEqual(FrontDoorRoute.launchRoute(arguments: ["app", "-bookRack"]), .studioIntro)
+        #endif
+    }
+
+    func testNormalLaunchAlwaysStartsAtStudioIntro() {
+        XCTAssertEqual(FrontDoorRoute.launchRoute(arguments: ["app"]), .studioIntro)
     }
 }

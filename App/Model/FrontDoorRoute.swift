@@ -10,7 +10,7 @@ enum FrontDoorRoute: Equatable {
     case bookShelf
 
     static func launchRoute(arguments: [String] = ProcessInfo.processInfo.arguments) -> FrontDoorRoute {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         if arguments.contains("-mainMenu")
             || arguments.contains("-bookRack")
             || arguments.contains("-tapPlay")

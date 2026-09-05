@@ -105,13 +105,21 @@ func playPuzzle(_ game: inout Game, _ report: inout Report, _ rng: inout RandomS
         do {
             let turn = try game.endTurn()
             checkConservation(game, "after end turn", &report)
-            if turn.puzzleFailed { return }
+            if turn.puzzleFailed {
+                // The command-line bot has no rewarded-ad flow. Explicitly
+                // decline a pending rescue so the soak still records a loss.
+                _ = game.declineRewardedRescue()
+                return
+            }
         } catch {
             report.errors.append("endTurn: \(error)")
             return
         }
     }
 
+    // Empty-hand auto-end can also exhaust Turns inside place(), before the
+    // manual endTurn branch above gets a chance to settle the offer.
+    _ = game.declineRewardedRescue()
     if let puzzle = game.puzzle {
         let won = puzzle.phase == .won || puzzle.phase == .keepFilling
         report.record(level: puzzle.level, score: puzzle.score, target: puzzle.target, won: won)

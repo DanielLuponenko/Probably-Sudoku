@@ -4,13 +4,15 @@ import CoreText
 /// The approved DlA identity: one continuous camera move into the final i's dot.
 struct StudioSplashView: View {
     var reduceMotion: Bool
+    var isReadyToAnimate = true
     var onFinished: () -> Void
 
     @State private var startedAt: Date?
     @State private var hasFinished = false
+    @State private var terminalTime: TimeInterval = 0
 
     private var heldTime: TimeInterval? {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-studioSplashTime"),
            index + 1 < arguments.count, let time = Double(arguments[index + 1]), time.isFinite {
@@ -23,19 +25,25 @@ struct StudioSplashView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            TimelineView(.animation(minimumInterval: 1.0 / 120, paused: heldTime != nil || hasFinished)) { timeline in
-                Canvas { context, size in
-                    let elapsed = heldTime ?? startedAt.map { timeline.date.timeIntervalSince($0) } ?? 0
+            TimelineView(.animation(minimumInterval: 1.0 / 120,
+                                    paused: startedAt == nil || heldTime != nil || hasFinished)) { timeline in
+                Canvas(opaque: true, rendersAsynchronously: true) { context, size in
+                    let elapsed = heldTime ?? (hasFinished
+                        ? terminalTime
+                        : startedAt.map { timeline.date.timeIntervalSince($0) } ?? 0)
                     DLALogo.draw(in: &context, size: size, elapsed: elapsed, reduceMotion: reduceMotion)
                 }
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("D L A Game Studio. This is not an i.")
-            .task(id: reduceMotion) {
-                guard heldTime == nil, !hasFinished else { return }
+            .task(id: [isReadyToAnimate, reduceMotion]) {
+                guard isReadyToAnimate, heldTime == nil, !hasFinished else { return }
+                // Do not spend the first part of this clock compiling the room
+                // or rasterizing its covers. Its first GPU-completed frame is ready.
                 startedAt = .now
                 do {
                     let handoff = reduceMotion ? DLALogo.reducedDuration : DLALogo.handoffTime(for: geometry.size)
+                    terminalTime = handoff
                     try await Task.sleep(for: .seconds(handoff))
                 } catch { return }
                 guard !Task.isCancelled, !hasFinished else { return }

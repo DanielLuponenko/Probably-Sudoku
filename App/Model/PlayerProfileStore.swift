@@ -21,7 +21,7 @@ final class PlayerProfileStore {
 
     private(set) var profile: PlayerProfile
 
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     /// Screenshot/test launches with explicit profile arguments must not be
     /// overwritten a moment later by the simulator's cached cloud profile.
     @ObservationIgnored private var hasDebugProfileOverride = false
@@ -58,7 +58,7 @@ final class PlayerProfileStore {
     // MARK: Reading
 
     var currency: Int {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         if let debugCurrencyOverride { return debugCurrencyOverride }
         #endif
         return profile.cosmeticCurrency
@@ -116,7 +116,7 @@ final class PlayerProfileStore {
     func purchase(_ item: CosmeticItem) throws {
         guard !owns(item) else { throw PurchaseError.alreadyOwned }
         guard currency >= item.price else { throw PurchaseError.cannotAfford }
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         if debugCurrencyOverride != nil {
             debugCurrencyOverride! -= item.price
             profile.ownedCosmeticIDs.insert(item.id)
@@ -143,7 +143,7 @@ final class PlayerProfileStore {
     /// The only v2 publish path. QA/test choices stay in memory and never
     /// leak into the shared iCloud key-value store.
     private func publishEquipDecision(decisionAt: Date) {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         guard !hasDebugProfileOverride else { return }
         if let debugPublishEquippedHook {
             debugPublishEquippedHook(profile.equipped, decisionAt)
@@ -266,7 +266,7 @@ final class PlayerProfileStore {
     /// Remote profile data is merged, never blindly assigned. An unavailable,
     /// corrupt, or newer-schema cloud value therefore leaves local play alone.
     func merge(remote: PlayerProfile) {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         guard !hasDebugProfileOverride else { return }
         #endif
         let before = profile
@@ -287,7 +287,7 @@ final class PlayerProfileStore {
     /// a new local decision. Ownership arrives on profile.v1 and may race this
     /// payload; do not commit the clock if normalization had to reject an ID.
     func applyRemoteEquipped(_ equipped: EquippedCosmetics, decisionAt: Date) {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         guard !hasDebugProfileOverride else { return }
         #endif
         guard decisionAt > profile.equippedDecisionAt else { return }
@@ -301,7 +301,7 @@ final class PlayerProfileStore {
     }
 
     private func save() {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         if hasDebugProfileOverride || debugPublishEquippedHook != nil { return }
         #endif
         profile.lastModifiedAt = Date()
@@ -313,7 +313,7 @@ final class PlayerProfileStore {
     // MARK: QA
 
     private func applyDebugArguments() {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         var hasLaunchOverride = false
         if arguments.contains("-resetProfile") {
@@ -355,7 +355,7 @@ final class PlayerProfileStore {
         #endif
     }
 
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     /// Visual QA only. Production code can earn an achievement exclusively
     /// through the engine-derived methods above; this lets every card and its
     /// persistent state be checked without replaying a whole Book.

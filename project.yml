@@ -8,6 +8,12 @@ options:
 packages:
   ProbablySudokuEngine:
     path: Engine
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
+    exactVersion: 13.9.0
+  GoogleUserMessagingPlatform:
+    url: https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git
+    exactVersion: 3.1.0
 
 targets:
   ProbablySudoku:
@@ -24,22 +30,32 @@ targets:
         com.apple.developer.ubiquity-kvstore-identifier: "$(TeamIdentifierPrefix)$(CFBundleIdentifier)"
     dependencies:
       - package: ProbablySudokuEngine
+      - package: GoogleMobileAds
+      - package: GoogleUserMessagingPlatform
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Probably Sudoku
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Google demo app in EVERY configuration, including TestFlight/Release.
+        GADApplicationIdentifier: ca-app-pub-3940256099942544~1458002511
+        SKAdNetworkItems:
+          - SKAdNetworkIdentifier: cstr6suwn9.skadnetwork
         # Without this iOS holds the app at 60Hz on a ProMotion phone.
         CADisableMinimumFrameDurationOnPhone: true
         UIStatusBarStyle: UIStatusBarStyleLightContent
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Keep the existing portrait-only game layout in iPad compatibility mode.
+        UIRequiresFullScreen: true
+        # The app uses Apple GameKit/iCloud services, with no custom encryption.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.numberclub.app
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "3"
+        CURRENT_PROJECT_VERSION: "5"
         DEVELOPMENT_TEAM: 233268ZQDV
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "5.9"

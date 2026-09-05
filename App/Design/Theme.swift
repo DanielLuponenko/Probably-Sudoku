@@ -169,9 +169,9 @@ struct LevelPalette: Equatable {
     }
 
     /// Lets the local screenshot harness compare the three Level treatments on
-    /// the same puzzle. It is compiled out of Release builds.
+    /// the same puzzle. Only Debug simulator builds accept the override.
     static func forDisplay(slot: PuzzleSlot) -> LevelPalette {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-qaPalette"), index + 1 < arguments.count {
             switch arguments[index + 1] {

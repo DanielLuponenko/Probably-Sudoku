@@ -13,6 +13,7 @@ public struct Game: Sendable {
     public var puzzle: PuzzleState? { run.puzzle }
     public var shop: ShopState? { run.shop }
     public var isOver: Bool { run.outcome != nil }
+    public var canClaimRewardedRescue: Bool { Actions.canClaimRewardedRescue(run) }
 
     /// Deals the current Level and slot's board.
     public mutating func startPuzzle() throws {
@@ -67,6 +68,15 @@ public struct Game: Sendable {
     }
     public mutating func failPuzzle() {
         Actions.failPuzzle(&run)
+    }
+    /// Applied only after the app confirms the reward for this pending Puzzle.
+    @discardableResult
+    public mutating func claimRewardedRescue() -> Bool {
+        Actions.claimRewardedRescue(&run)
+    }
+    @discardableResult
+    public mutating func declineRewardedRescue() -> Bool {
+        Actions.declineRewardedRescue(&run)
     }
     public mutating func cashOut() throws -> RunState.Payout {
         try Actions.cashOut(&run)
