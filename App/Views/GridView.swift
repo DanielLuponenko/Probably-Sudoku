@@ -20,6 +20,7 @@ struct GridView: View {
                                     fouled: model.fouledSquares,
                                     greyed: model.greyedSquares)
                 cells(cell: cell)
+                BossBoardOverlay(puzzle: model.puzzle, secondsLeft: model.clockIsUrgent ? 30 : nil)
                 CosmeticGridRules(skin: theme.board, side: side, cell: cell)
                 clears(side: side, cell: cell)
             }
@@ -97,6 +98,7 @@ struct GridView: View {
     private func accessibilityValue(for square: Square, digit: Digit?,
                                     provenance: Provenance?, state: CellState) -> String {
         if state == .barred { return "Unavailable this turn" }
+        if state == .clueDestination { return "Clue destination for selected number" }
         if model.selectedSquare == square { return "Selected" }
         if state == .rightHere { return "Litmus match" }
         if state == .wrongHere { return "Litmus mismatch" }
@@ -112,6 +114,9 @@ struct GridView: View {
 
     private func accessibilityHint(for square: Square, digit: Digit?, state: CellState) -> String {
         if state == .barred { return "This square cannot be used this turn." }
+        if state == .clueDestination {
+            return "Place the selected card here. This Clue placement scores zero unless an Onyx Marker restores its placement points."
+        }
         if let selected = model.selectedDigit, digit == nil {
             let warning = model.wouldConflict(square, with: selected)
                 ? " This placement conflicts with the row, column, or box."
@@ -127,6 +132,7 @@ struct GridView: View {
         // way. Giving it its own colour made it look like a different kind of
         // thing from the numbers it had just found.
         if model.isBarred(square) { return .barred }
+        if model.isClueDestination(square) { return .clueDestination }
         if let belongs = model.litmusReading(at: square) {
             return belongs ? .rightHere : .wrongHere
         }
@@ -149,7 +155,7 @@ struct GridView: View {
 }
 
 enum CellState {
-    case plain, selected, sameNumber, barred, rightHere, wrongHere
+    case plain, selected, sameNumber, barred, rightHere, wrongHere, clueDestination
 }
 
 /// Pencil hatching across a square that cannot be used this Turn.
@@ -169,6 +175,7 @@ private struct Hatching: Shape {
 /// Washes the cells of a finished unit and rules a heavy line round it — the
 /// whole row for a row, and the box's own three-by-three for a box.
 private struct ClearedUnitMark: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var cells: [Square]
     var cell: CGFloat
     var palette: LevelPalette
@@ -202,9 +209,13 @@ private struct ClearedUnitMark: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .opacity(shown ? 1 : 0)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.18)) { shown = true }
-            withAnimation(.easeIn(duration: 0.55).delay(0.5)) { shown = false }
+        .task {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) { shown = true }
+            // Separate the reveal and fade into different display updates.
+            // Two immediate writes in onAppear coalesced into an invisible flash.
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeIn(duration: 0.55)) { shown = false }
         }
     }
 }
@@ -248,6 +259,16 @@ private struct CellView: View {
             if state == .sameNumber {
                 Rectangle()
                     .strokeBorder(palette.accent.opacity(0.8), lineWidth: 1.5)
+            }
+
+            if state == .clueDestination {
+                RoundedRectangle(cornerRadius: size * 0.08)
+                    .strokeBorder(Paper.coinRim, lineWidth: 2.5)
+                    .padding(2)
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: size * 0.44, weight: .medium))
+                    .foregroundStyle(Paper.coinRim)
+                    .accessibilityHidden(true)
             }
 
             if state == .barred {
@@ -316,6 +337,7 @@ private struct CellView: View {
         case .barred: return theme.board.hair.opacity(0.45)
         case .rightHere: return palette.accent.opacity(0.28)
         case .wrongHere: return palette.danger.opacity(0.24)
+        case .clueDestination: return Paper.coin.opacity(0.14)
         case .plain: return provenance == .given ? theme.board.given : .clear
         }
     }

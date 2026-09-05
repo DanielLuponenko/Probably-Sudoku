@@ -107,8 +107,8 @@ final class CatalogEffectCoverageTests: XCTestCase {
                        "Sunday Supplement normal Puzzle")
         XCTAssertEqual(try bookmarkResult("bm_the_sunday_supplement", event: .place, slot: .boss).multX, 3,
                        "Sunday Supplement Boss Puzzle")
-        XCTAssertEqual(try bookmarkResult("bm_extra_extra", event: .lineClear).multX, 3, "bm_extra_extra Line Clear")
-        XCTAssertEqual(try bookmarkResult("bm_extra_extra", event: .fullClear).multX, 3, "bm_extra_extra Full Clear")
+        XCTAssertEqual(try bookmarkResult("bm_extra_extra", event: .lineClear).eventMultX, 3, "bm_extra_extra Line Clear")
+        XCTAssertEqual(try bookmarkResult("bm_extra_extra", event: .fullClear).eventMultX, 3, "bm_extra_extra Full Clear")
         XCTAssertEqual(try bookmarkResult("bm_finance_pages", event: .lineClear).coins, 1, "bm_finance_pages")
         XCTAssertEqual(try bookmarkResult("bm_crossword_daily", event: .lineClear).draws, 1, "bm_crossword_daily")
 

@@ -106,8 +106,8 @@ public enum Bookmarks {
         ad("bm_extra_extra", "Extra! Extra!", .rare, 8,
            "Line Clears and Full Clears score x3",
            [
-            .lineClear: { _, r in r.multX *= 3 },
-            .fullClear: { _, r in r.multX *= 3 },
+            .lineClear: { _, r in r.eventMultX *= 3 },
+            .fullClear: { _, r in r.eventMultX *= 3 },
            ]),
     ]
 

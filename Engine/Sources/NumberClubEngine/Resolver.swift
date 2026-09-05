@@ -82,9 +82,11 @@ public enum Resolver {
             if context.event.isScoring, let hook = ad.def.hooks[.anyScore] { hook(context, &result) }
         }
 
-        // 4. Buffs with standing effects (Bird Seed's per-Level coin).
-        for buff in run.buffs {
-            if let hook = buff.def.hooks[context.event] { hook(context, &result) }
+        // 4. Activated Buff effects outlive the consumed inventory item. Their
+        // hooks read saved activation state, so holding extra copies neither
+        // enables nor duplicates an effect (Bird Seed's per-Level coin).
+        for buff in Buffs.all {
+            if let hook = buff.hooks[context.event] { hook(context, &result) }
         }
 
     }
@@ -105,7 +107,7 @@ public enum Resolver {
                               oneShotDoubler: Bool) -> Int {
         guard !result.zeroed else { return 0 }
         let additive = 1.0 + result.multAdd + globalAdditive
-        let multiplier = additive * result.multX * (oneShotDoubler ? 2.0 : 1.0)
+        let multiplier = additive * result.multX * result.eventMultX * (oneShotDoubler ? 2.0 : 1.0)
         return Int((Double(base + result.flat) * multiplier).rounded(.down))
     }
 

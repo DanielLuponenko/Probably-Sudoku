@@ -44,7 +44,8 @@ public enum Actions {
         let outcome: PlacementOutcome
         if digit == puzzle.board.correctDigit(at: square) {
             puzzle.hand.remove(at: handIndex)
-            outcome = resolveCorrect(&run, &puzzle, digit: digit, square: square, isClue: false)
+            let wasRevealed = puzzle.clueReveals.remove(square) != nil
+            outcome = resolveCorrect(&run, &puzzle, digit: digit, square: square, isClue: wasRevealed)
         } else {
             puzzle.hand.remove(at: handIndex)
             outcome = resolveWrong(&run, &puzzle, digit: digit, square: square)
@@ -101,7 +102,12 @@ public enum Actions {
                                      digit: Digit, square: Square) -> PlacementOutcome {
         let context = Resolver.context(.wrongPlace, run: run, puzzle: puzzle,
                                        digit: digit, square: square)
-        let result = Resolver.dispatch(context, run: run, puzzle: puzzle)
+        var result = Resolver.square(context, run: run, puzzle: puzzle)
+        // An already-won Puzzle has a frozen score. Cancel the penalty before
+        // held protection resolves, so neither Insurance nor the Book's first
+        // mistake waiver is wasted. Positional hand-return effects still apply.
+        if puzzle.phase == .keepFilling { result.zeroed = true }
+        Resolver.holdings(context, run: run, puzzle: puzzle, into: &result)
 
         var cancelled = result.zeroed
         if !cancelled, puzzle.consume(.insurance) { cancelled = true }
@@ -282,15 +288,44 @@ public enum Actions {
 
     // MARK: - Clue
 
+    /// Spend a Clue on a playable card, showing one place it belongs without
+    /// playing it. Re-inspecting the same paid destination never charges twice.
+    @discardableResult
+    public static func revealClue(_ run: inout RunState, handIndex: Int) throws -> Square {
+        guard var puzzle = run.puzzle,
+              puzzle.phase == .playing || puzzle.phase == .keepFilling else {
+            throw PlacementError.puzzleNotPlayable
+        }
+        guard puzzle.boss?.disablesClues != true else { throw PlacementError.cluesDisabled }
+        guard puzzle.hand.indices.contains(handIndex) else { throw PlacementError.numberNotInHand }
+        guard !puzzle.isBlocked(handIndex: handIndex) else { throw PlacementError.numberBlocked }
+        let digit = puzzle.hand[handIndex]
+        let destinations = puzzle.board.blanks.filter {
+            puzzle.board.correctDigit(at: $0) == digit && !puzzle.isBarred($0)
+        }
+        if let revealed = destinations.first(where: { puzzle.clueReveals.contains($0) }) {
+            return revealed
+        }
+        guard puzzle.cluesRemaining > 0 else { throw PlacementError.noCluesLeft }
+        guard let destination = destinations.first else { throw PlacementError.noClueDestination }
+        puzzle.cluesRemaining -= 1
+        puzzle.clueReveals.insert(destination)
+        run.puzzle = puzzle
+        return destination
+    }
+
     /// §5 — fills a chosen Blank with its correct number, taken from the Pool,
     /// or from the Hand if the Pool has none left. Scores 0.
     @discardableResult
     public static func useClue(_ run: inout RunState, square: Square) throws -> PlacementOutcome {
         guard var puzzle = run.puzzle else { throw PlacementError.puzzleNotPlayable }
-        guard puzzle.phase != .outOfTurns else { throw PlacementError.puzzleNotPlayable }
+        guard puzzle.phase == .playing || puzzle.phase == .keepFilling else {
+            throw PlacementError.puzzleNotPlayable
+        }
         guard puzzle.boss?.disablesClues != true else { throw PlacementError.cluesDisabled }
         guard puzzle.cluesRemaining > 0 else { throw PlacementError.noCluesLeft }
         guard puzzle.board.isBlank(square) else { throw PlacementError.squareNotBlank }
+        guard !puzzle.isBarred(square) else { throw PlacementError.squareBarred }
 
         let digit = puzzle.board.correctDigit(at: square)
         if puzzle.pool[digit] > 0 {
@@ -303,6 +338,7 @@ public enum Actions {
         }
 
         puzzle.cluesRemaining -= 1
+        puzzle.clueReveals.remove(square)
         let outcome = resolveCorrect(&run, &puzzle, digit: digit, square: square, isClue: true)
 
         puzzle.assertConservation()
@@ -318,21 +354,42 @@ public enum Actions {
     @discardableResult
     public static func useBuff(_ run: inout RunState, index: Int, digit: Digit? = nil) throws -> Bool {
         guard var puzzle = run.puzzle else { throw PlacementError.puzzleNotPlayable }
-        guard puzzle.phase != .outOfTurns else { throw PlacementError.puzzleNotPlayable }
+        guard puzzle.phase == .playing || puzzle.phase == .keepFilling else {
+            throw PlacementError.puzzleNotPlayable
+        }
         guard run.buffs.indices.contains(index) else { return false }
         guard puzzle.boss?.disablesBuffs != true else { throw PlacementError.buffsDisabled }
 
         let def = run.buffs[index].def
         guard let onUse = def.onUse else { return false }
+        if puzzle.phase == .keepFilling {
+            // Score and penalties are frozen after winning. These Buffs
+            // cannot improve the coin-clearing game, so keep them for later.
+            switch def.id {
+            case "bf_double_down", "bf_insurance", "bf_second_print", Buffs.freshInk, Buffs.paperCrane:
+                return false
+            default: break
+            }
+        }
+        guard def.id != Buffs.paperCrane || digit != nil else { return false }
+        if def.id == Buffs.peek, puzzle.boss?.disablesClues == true {
+            throw PlacementError.cluesDisabled
+        }
+        if def.id == Buffs.birdSeed, run.runItemState[Buffs.birdSeed] == Double(puzzle.level) {
+            return false
+        }
+        if def.id == "bf_lucky_dip", puzzle.pool.isEmpty { return false }
 
         // `digit` rides along in the context so Paper Crane can read the
         // number the player chose.
         let context = Resolver.context(.shopEnter, run: run, puzzle: puzzle, digit: digit)
         var result = EffectResult()
         onUse(context, &result)
-
-        // Peek's free Clue is still blocked by The Paywall (§13).
-        if puzzle.boss?.disablesClues == true { result.extraClues = 0 }
+        // One-shot flags do not stack. Keep a spare until the armed copy has
+        // fired instead of silently consuming it for no additional effect.
+        if !result.armFlags.isEmpty, result.armFlags.isSubset(of: puzzle.armedFlags) {
+            return false
+        }
 
         run.buffs.remove(at: index)
         run.absorb(result)

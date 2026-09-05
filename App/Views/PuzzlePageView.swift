@@ -4,8 +4,10 @@ import ProbablySudokuEngine
 struct PuzzlePageView: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.levelPalette) private var palette
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var model: GameModel
     var puzzle: PuzzleState
+    var isClockRunning = true
     @State private var numberReturnFrames: [String: CGRect] = [:]
 
     var body: some View {
@@ -40,20 +42,30 @@ struct PuzzlePageView: View {
         .overlay {
             NumberReturnMotionOverlay(events: model.numberReturns, frames: numberReturnFrames)
         }
-        .task(id: puzzle.boss?.secondsAllowed) {
-            guard model.secondsLeft != nil else { return }
-            while !Task.isCancelled, model.secondsLeft != nil, model.page == .puzzle {
+        .onChange(of: shouldRunClock, initial: true) { _, running in
+            model.setClockRunning(running)
+        }
+        .onDisappear { model.setClockRunning(false) }
+        .task(id: shouldRunClock) {
+            guard shouldRunClock else { return }
+            while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
-                model.tickClock(by: 1)
+                model.tickClock()
             }
         }
     }
 
     // MARK: Header
 
+    private var shouldRunClock: Bool {
+        isClockRunning && scenePhase == .active && model.animatesHandArrival
+            && model.page == .puzzle && puzzle.boss?.secondsAllowed != nil
+            && (puzzle.phase == .playing || puzzle.phase == .keepFilling)
+    }
+
     private var hasSelection: Bool {
-        model.selectedHandIndex != nil || model.selectedSquare != nil
+        model.selectedHandIndex != nil || model.selectedSquare != nil || model.isChoosingClue
     }
 
     private var header: some View {
@@ -111,14 +123,12 @@ struct PuzzlePageView: View {
             }
 
             if puzzle.canUseClue {
-                PuzzleActionButton(title: "Clue",
-                                   subtitle: model.selectedSquare == nil
-                                       ? "pick a square" : "\(puzzle.cluesRemaining) left",
+                PuzzleActionButton(title: model.isChoosingClue ? "Cancel" : "Clue",
+                                   subtitle: model.isChoosingClue
+                                       ? "pick a number" : "\(puzzle.cluesRemaining) left",
                                    kind: .quiet,
-                                   isEnabled: model.selectedSquare.map {
-                                puzzle.board.isBlank($0)
-                            } ?? false) {
-                    if let square = model.selectedSquare { model.useClue(at: square) }
+                                   isEnabled: !model.hand.isEmpty) {
+                    model.chooseClue()
                 }
             }
 
@@ -325,10 +335,16 @@ struct BossStamp: View {
     private var design: BossBoardDesign { BossBoardDesign(boss: boss) }
 
     var body: some View {
-        HStack(spacing: 7) {
-            Label(boss.name, systemImage: design.symbol)
+        HStack(alignment: .top, spacing: 7) {
+            HStack(alignment: .top, spacing: 4) {
+                Image(systemName: design.symbol)
+                    .accessibilityHidden(true)
+                Text(boss.name)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
                 .font(Print.caption(11))
-                .tracking(1.4)
+                .tracking(0.6)
                 .textCase(.uppercase)
                 .foregroundStyle(design.ink)
                 .padding(.horizontal, 7)
@@ -338,12 +354,14 @@ struct BossStamp: View {
                         .strokeBorder(design.ink.opacity(0.7), lineWidth: 1.4)
                 }
                 .rotationEffect(.degrees(design.angle))
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text)
                 .font(Print.body(11.5))
                 .foregroundStyle(palette.ink.opacity(0.72))
-                .lineLimit(2)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }

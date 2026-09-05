@@ -75,6 +75,9 @@ public struct EffectResult: Sendable {
     public var flat = 0
     public var multAdd = 0.0
     public var multX = 1.0
+    /// Multiplies only this event's points, never the shared Turn bank.
+    /// Extra! Extra! applies to Clears, not the placements beside them.
+    public var eventMultX = 1.0
     /// Cancels this event outright — The Censor, The Mirror, Ivory, Insurance.
     public var zeroed = false
     /// Violet Marker: score the placement as if the number were a 9.

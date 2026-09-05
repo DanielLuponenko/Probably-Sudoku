@@ -53,7 +53,7 @@ Generated from the ProbablySudokuEngine catalogue. Do not edit by hand.
 
 | Name | Price | Effect |
 | --- | ---: | --- |
-| Peek | 3 | Grants a free Clue |
+| Peek | 3 | Gain 1 Clue: reveal a legal square for a number in your Hand. That placement scores 0 unless marked with Onyx |
 | Redraw | 3 | Return your whole Hand to the Pool and immediately draw a fresh one. Does not spend Toss allowance |
 | Overtime | 4 | +2 Turns this Puzzle |
 | Double Down | 4 | Your next correct placement scores x2 |

@@ -3,9 +3,8 @@ import Foundation
 /// §9 — the Shop opens after every Puzzle with five items: two Bookmarks,
 /// two Markers, and one Buff.
 public struct ShopOffer: Codable, Sendable, Identifiable {
-    /// Which of the five slots this offer sits in. Two offers in one Shop can
-    /// share a `defID` — a second Golden Marker is a real purchase — so the
-    /// slot, not the item id, is what addresses an offer.
+    /// Which slot this offer sits in. Slots remain the stable purchase address,
+    /// including in legacy saves whose stock could repeat a Marker definition.
     public let slot: Int
     public let defID: String
     public let price: Int
@@ -97,8 +96,8 @@ public enum Shop {
         return nil
     }
 
-    /// Bookmarks the player already owns are never offered again (§9). Markers and
-    /// Buffs can repeat — a second Golden Marker is a real purchase.
+    /// Bookmarks the player already owns are never offered again (§9). Owned
+    /// Markers and Buffs remain eligible in later stock.
     static func excluded(for run: RunState) -> Set<String> {
         Set(run.bookmarks.map(\.defID) + run.subscriptions.map(\.defID))
     }
@@ -113,8 +112,9 @@ public enum Shop {
                                             tradeJournal: run.owns(subscription: Subscriptions.tradeJournal),
                                             excluding: taken) else { continue }
                 offers.append(offer)
-                // Do not offer the same Bookmark twice in one Shop.
-                if kind == .bookmark { taken.insert(offer.defID) }
+                // Each Bookmark and Marker definition appears at most once
+                // in this stock, including independently priced Marker slots.
+                if kind == .bookmark || kind == .marker { taken.insert(offer.defID) }
             }
         }
         if run.owns(subscription: Subscriptions.clippingService),

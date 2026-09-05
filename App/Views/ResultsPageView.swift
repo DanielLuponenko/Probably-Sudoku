@@ -11,6 +11,14 @@ struct ResultsPageView: View {
     @Environment(\.cosmeticTheme) private var theme
 
     var body: some View {
+        if isRescueDecision || model.run.outcome == .failed || model.puzzle?.phase == .failed {
+            FailureResultsPage(model: model, offersRescue: isRescueDecision)
+        } else {
+            successfulResults
+        }
+    }
+
+    private var successfulResults: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
             Spacer(minLength: 0)
@@ -23,10 +31,6 @@ struct ResultsPageView: View {
                     .font(Print.body(12))
                     .foregroundStyle(theme.paper.softInk)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if isRescueDecision {
-                RewardedRescuePanel(model: model)
             }
 
             Spacer(minLength: 0)
@@ -47,12 +51,7 @@ struct ResultsPageView: View {
     /// §7 — target met means a choice: bank it, or play on for coins.
     @ViewBuilder
     private var actions: some View {
-        if isRescueDecision {
-            PaperButton(title: "End Book", subtitle: "No ad. Finish this attempt.", kind: .quiet,
-                        isEnabled: !model.hasRewardedRescueInFlight) {
-                model.declineRewardedRescue()
-            }
-        } else if model.run.outcome == .bookCompleted {
+        if model.run.outcome == .bookCompleted {
             PaperButton(title: "Close the Book", subtitle: "See your finished volume", kind: .primary,
                         action: onBookCompletion)
         } else if model.run.outcome != nil {
@@ -162,107 +161,5 @@ struct ResultsPageView: View {
                     .foregroundStyle(theme.paper.ink)
             }
         }
-    }
-}
-
-/// An optional second chance, printed on the existing results page. Loading
-/// and network failures never prevent the player from ending their Book.
-private struct RewardedRescuePanel: View {
-    let model: GameModel
-    @Environment(PageFlipper.self) private var flipper
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.cosmeticTheme) private var theme
-    private let ads = RewardedAdService.shared
-    @State private var loadRequest = 0
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("A little more time", systemImage: "play.rectangle")
-                .font(Print.heading(23))
-                .foregroundStyle(theme.paper.ink)
-            Text("Watch an ad for 3 extra turns on this Puzzle. Your board, score and Hand stay the same.")
-                .font(Print.body(14))
-                .foregroundStyle(theme.paper.softInk)
-                .fixedSize(horizontal: false, vertical: true)
-            PaperButton(title: buttonTitle, subtitle: "Optional · once per Puzzle",
-                        kind: .primary, isEnabled: buttonEnabled) {
-                if ads.isReady { presentAd() }
-                else { loadRequest += 1 }
-            }
-            .accessibilityLabel(ads.isReady ? "Watch an ad for three extra turns" : buttonTitle)
-            .accessibilityHint("Only a completed ad earns the extra turns. You can end the Book without watching.")
-
-            Text(statusText)
-                .font(Print.body(12))
-                .foregroundStyle(theme.paper.softInk)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(18)
-        .background(theme.paper.warm, in: .rect(cornerRadius: 5))
-        .overlay {
-            RoundedRectangle(cornerRadius: 5)
-                .strokeBorder(theme.paper.ruleInk, lineWidth: 1)
-        }
-        .task(id: loadRequest) {
-            guard model.canOfferRewardedRescue, scenePhase == .active else { return }
-            await ads.prepare()
-        }
-        .onChange(of: scenePhase) { _, phase in
-            // The first render can precede foreground activation. Retry then,
-            // but do not restart a consent decision or an existing load.
-            if phase == .active, ads.state == .idle { loadRequest += 1 }
-        }
-    }
-
-    private var buttonEnabled: Bool {
-        guard model.canOfferRewardedRescue, !model.hasRewardedRescueInFlight,
-              scenePhase == .active else { return false }
-        switch ads.state {
-        case .idle, .ready, .unavailable: return true
-        case .preparing, .presenting: return false
-        }
-    }
-
-    private var buttonTitle: String {
-        switch ads.state {
-        case .ready: return "Watch Ad → +3 Turns"
-        case .preparing: return "Loading Ad…"
-        case .presenting: return "Ad in Progress"
-        case .idle: return "Load Ad"
-        case .unavailable: return "Try Loading Again"
-        }
-    }
-
-    private var statusText: String {
-        switch ads.state {
-        case .unavailable:
-            return "No ad is available right now. You can try again or end this Book."
-        case .preparing:
-            return "Getting your optional ad ready."
-        default:
-            return "Test ad · no purchases or ad clicks required."
-        }
-    }
-
-    private func presentAd() {
-        guard let ticket = model.beginRewardedRescue() else { return }
-        let presented = ads.present(onReward: {
-            model.receiveRewardedRescue(ticket)
-        }, onDismiss: {
-            guard model.hasEarnedRewardedRescue(ticket) else {
-                model.finishRewardedRescue(ticket)
-                return
-            }
-            Task { @MainActor in
-                await flipper.flip(from: model, reduceMotion: reduceMotion) {
-                    model.finishRewardedRescue(ticket)
-                }
-                // If backgrounding cancelled the curl before its first
-                // frame, the earned turns still belong to the player.
-                model.finishRewardedRescue(ticket)
-            }
-        })
-        if !presented { model.finishRewardedRescue(ticket) }
     }
 }

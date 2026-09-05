@@ -132,6 +132,7 @@ final class GameModel {
         didSet { if selectedHandIndex != nil { highlightSource = .hand } }
     }
     var selectedSquare: Square?
+    private(set) var isChoosingClue = false
 
     /// A row, column or box that has just been completed, held long enough to
     /// be marked on the board and then dropped.
@@ -150,12 +151,19 @@ final class GameModel {
 
     /// The most recent placement, for the score flourish and the ink animation.
     private(set) var lastOutcome: PlacementOutcome?
+    struct CoinCharge: Identifiable {
+        let id = UUID()
+        let amount: Int
+    }
+    private(set) var lastCoinCharge: CoinCharge?
     private(set) var lastPlacedSquare: Square?
     private(set) var lastPayout: RunState.Payout?
     /// Kept on the next briefing so taking a Clipping has a visible, specific
     /// result instead of silently changing a future rule or balance.
     private(set) var lastClipping: Clipping?
     private(set) var message: String?
+    /// Render-only snapshots must never write stale state over a live Book.
+    private var savesProgress = true
 
     init(seed: String = GameModel.randomSeed(),
          book: Book = .probably,
@@ -169,13 +177,21 @@ final class GameModel {
     init(frozen game: Game, page: BookPage) {
         self.game = game
         self.page = page
+        self.savesProgress = false
         self.animatesHandArrival = false
+        self.secondsLeft = game.puzzle.flatMap { puzzle in
+            puzzle.boss?.secondsAllowed.map { limit in
+                min(limit, max(0, puzzle.clockSecondsRemaining ?? limit)).rounded(.up)
+            }
+        }
+        self.clockIsUrgent = secondsLeft.map { $0 <= 30 } ?? false
         refreshHandCards(replacing: true)
     }
 
     /// Resumes a Book that was put down.
-    init(resuming game: Game) {
+    init(resuming game: Game, savesProgress: Bool = true) {
         self.game = game
+        self.savesProgress = savesProgress
         if let puzzle = game.puzzle,
            puzzle.phase == .playing || puzzle.phase == .keepFilling {
             page = .puzzle
@@ -186,6 +202,7 @@ final class GameModel {
             // replaced by a new build. The Puzzle still exists for the payout
             // and next-page decision, but it is no longer playable.
             page = .results
+            startClock()
         } else if game.shop != nil {
             page = .shop
         } else if game.run.outcome != nil {
@@ -194,14 +211,16 @@ final class GameModel {
     }
 
     private func persist() {
+        guard savesProgress else { return }
+        let savedGame = gameForPersistence
         PlayerProfileStore.shared.recordCoinBalance(game.run.coins)
         guard let outcome = game.run.outcome else {
-            RunStore.save(game)
+            RunStore.save(savedGame)
             return
         }
 
         guard !didRecordTerminalOutcome else {
-            RunStore.save(game)
+            RunStore.save(savedGame)
             return
         }
 
@@ -215,7 +234,7 @@ final class GameModel {
         case .failed:
             break
         }
-        RunStore.save(game)
+        RunStore.save(savedGame)
     }
 
     nonisolated static func randomSeed() -> String {
@@ -349,26 +368,114 @@ final class GameModel {
         }
     }
 
-    /// Tik Tak's clock is presentation state, not an engine timer: a Book
-    /// must not lose while its app is in the background. Expiry still uses the
-    /// engine's production failure path.
+    /// Display ticks do not mutate the observed Game (or its board). The
+    /// fractional active-play budget is merged into every saved Game copy.
     private(set) var secondsLeft: Double?
+    private(set) var clockIsUrgent = false
+    @ObservationIgnored private var clockRemaining: Double?
+    @ObservationIgnored private var clockLastSample: ContinuousClock.Instant?
+    @ObservationIgnored private var clockPuzzleID: String?
 
-    func startClock() { secondsLeft = puzzle?.boss?.secondsAllowed }
-    func stopClock() { secondsLeft = nil }
+    private var currentClockPuzzleID: String? {
+        guard let puzzle, let boss = puzzle.boss, boss.secondsAllowed != nil else { return nil }
+        return "\(run.seed):\(puzzle.level):\(puzzle.slot.rawValue):\(boss.rawValue)"
+    }
 
-    /// Called by the puzzle page once a second only while Tik Tak is active.
-    func tickClock(by seconds: Double) {
-        guard var remaining = secondsLeft, puzzle?.phase == .playing else { return }
-        remaining -= seconds
-        if remaining <= 0 {
-            secondsLeft = 0
-            message = "Out of time"
-            game.failPuzzle()
-            showResults()
-        } else {
-            secondsLeft = remaining
+    /// Use this snapshot for persistence, not the display-only timer label.
+    /// Other game actions cannot overwrite a newer countdown checkpoint.
+    var gameForPersistence: Game {
+        guard let clockRemaining, let clockPuzzleID,
+              clockPuzzleID == currentClockPuzzleID else { return game }
+        var savedRun = game.run
+        savedRun.puzzle?.clockSecondsRemaining = clockRemaining
+        return Game(run: savedRun)
+    }
+
+    var isClockRunning: Bool { clockLastSample != nil }
+
+    func startClock() {
+        guard animatesHandArrival else { return }
+        guard let identifier = currentClockPuzzleID, let limit = puzzle?.boss?.secondsAllowed else {
+            stopClock()
+            return
         }
+        if clockPuzzleID != identifier || clockRemaining == nil {
+            let saved = puzzle?.clockSecondsRemaining ?? limit
+            clockRemaining = saved.isFinite ? min(limit, max(0, saved)) : limit
+        }
+        clockPuzzleID = identifier
+        clockLastSample = nil
+        updateClockDisplay()
+    }
+
+    func stopClock() {
+        guard animatesHandArrival else { return }
+        clockLastSample = nil
+        clockPuzzleID = nil
+        clockRemaining = nil
+        updateClockDisplay()
+    }
+
+    /// A single lifecycle gate owns pause/resume. Re-enabling it starts a new
+    /// monotonic sample rather than charging time spent under a slip or away.
+    func setClockRunning(_ running: Bool, at now: ContinuousClock.Instant = ContinuousClock().now) {
+        guard animatesHandArrival, clockPuzzleID == currentClockPuzzleID,
+              clockRemaining != nil else { return }
+        let playable = puzzle?.phase == .playing || puzzle?.phase == .keepFilling
+        if running && playable && page == .puzzle && !wantsMenu {
+            if clockRemaining == 0 { expireClock(); return }
+            if clockLastSample == nil { clockLastSample = now }
+        } else if clockLastSample != nil {
+            advanceClock(to: now)
+            clockLastSample = nil
+            saveClockCheckpoint(publishToCloud: true)
+        }
+    }
+
+    /// Scheduled once a second, but charges the real monotonic interval so
+    /// a delayed main-actor wakeup cannot silently lengthen the three minutes.
+    func tickClock(at now: ContinuousClock.Instant = ContinuousClock().now) {
+        guard animatesHandArrival, page == .puzzle, !wantsMenu,
+              clockPuzzleID == currentClockPuzzleID, clockLastSample != nil else { return }
+        advanceClock(to: now)
+        saveClockCheckpoint(publishToCloud: false)
+    }
+
+    private func advanceClock(to now: ContinuousClock.Instant) {
+        guard let previous = clockLastSample, let remaining = clockRemaining,
+              puzzle?.phase == .playing || puzzle?.phase == .keepFilling else { return }
+        let duration = previous.duration(to: now).components
+        let elapsed = Double(duration.seconds) + Double(duration.attoseconds) / 1e18
+        guard elapsed.isFinite, elapsed > 0 else { return }
+        clockLastSample = now
+        clockRemaining = max(0, remaining - elapsed)
+        updateClockDisplay()
+        if clockRemaining == 0 { expireClock() }
+    }
+
+    private func expireClock() {
+        guard animatesHandArrival,
+              puzzle?.phase == .playing || puzzle?.phase == .keepFilling else { return }
+        clockLastSample = nil
+        clockRemaining = 0
+        updateClockDisplay()
+        message = "Out of time"
+        game.failPuzzle()
+        if savesProgress { showResults() }
+        else { page = .results }
+    }
+
+    private func updateClockDisplay() {
+        let display = clockRemaining?.rounded(.up)
+        if secondsLeft != display { secondsLeft = display }
+        let urgent = clockRemaining.map { $0 <= 30 } ?? false
+        if clockIsUrgent != urgent { clockIsUrgent = urgent }
+    }
+
+    private func saveClockCheckpoint(publishToCloud: Bool) {
+        guard savesProgress, animatesHandArrival, run.outcome == nil,
+              clockRemaining != nil, clockPuzzleID == currentClockPuzzleID else { return }
+        RunStore.save(gameForPersistence, publishToCloud: publishToCloud)
     }
 
     /// Which Book this is, and therefore what it says in the margins.
@@ -405,7 +512,8 @@ final class GameModel {
     }
     var activeBookmarkIDs: Set<String> { effectActivation?.bookmarkIDs ?? [] }
     func markerEffect(at square: Square) -> String? {
-        effectActivation?.markerSquare == square ? effectActivation?.markerText : nil
+        guard !markersAreHidden else { return nil }
+        return effectActivation?.markerSquare == square ? effectActivation?.markerText : nil
     }
     var markersAreHidden: Bool { puzzle?.boss?.hidesMarkedSquares == true }
     var sleepingBookmark: Int? { puzzle?.disabledBookmark }
@@ -472,6 +580,7 @@ final class GameModel {
         selectedHandIndex = nil
         selectedSquare = nil
         highlightSource = nil
+        isChoosingClue = false
     }
 
     /// Neutral page areas let a player put the pencil down without changing a
@@ -492,10 +601,19 @@ final class GameModel {
 
     func tapHand(_ index: Int) {
         guard hand.indices.contains(index) else { return }
+        let choosingClue = isChoosingClue
         if isBlocked(handIndex: index) {
             message = "\(hand[index].rawValue) is blocked this Turn — it can still be Tossed"
         }
-        selectedHandIndex = selectedHandIndex == index ? nil : index
+        let nextIndex = selectedHandIndex == index ? nil : index
+        // A hand tap starts a new choice, not a second selection beside the
+        // board. Tapping the same card again puts the pencil down completely.
+        clearSelection()
+        selectedHandIndex = nextIndex
+        if choosingClue {
+            selectedHandIndex = index
+            revealClueForSelectedCard()
+        }
     }
 
     /// Obstacle III bars one number a Turn. It stays in the Hand — it can be
@@ -510,6 +628,10 @@ final class GameModel {
             message = "That square is barred this Turn"
             return
         }
+        // An occupied square is for reading its digit, never placing the
+        // previously held card. Preserve the hand only for blank-square play.
+        if !puzzle.board.isBlank(square) { dropHandSelection() }
+        isChoosingClue = false
         selectedSquare = square
         highlightSource = .square
 
@@ -521,9 +643,11 @@ final class GameModel {
         guard hand.indices.contains(handIndex) else { return }
         let digit = hand[handIndex]
         let wasKeepingFilling = puzzle?.phase == .keepFilling
+        let coinCost = puzzle?.boss?.coinsPerPlacement ?? 0
         let bossBefore = BossFeedbackSnapshot(puzzle)
         do {
             let outcome = try game.place(handIndex: handIndex, at: square)
+            if coinCost > 0 { lastCoinCharge = CoinCharge(amount: coinCost) }
             if isTrackingAchievementPuzzle {
                 madeWrongPlacementThisPuzzle = madeWrongPlacementThisPuzzle || !outcome.correct
                 PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: wasKeepingFilling)
@@ -562,7 +686,7 @@ final class GameModel {
         }()
         guard !events.isEmpty else { return }
 
-        let marker = run.markedSquares[square]
+        let marker = markersAreHidden ? nil : run.markedSquares[square]
         let markerFired = marker.flatMap { owned in
             events.contains { owned.def.hooks[$0] != nil } ? owned : nil
         }
@@ -640,6 +764,7 @@ final class GameModel {
                 PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: false)
             }
             refreshHandCards()
+            clearSelection()
             lastPlacedSquare = square
             markCleared(outcome, at: square)
         } catch {
@@ -647,20 +772,68 @@ final class GameModel {
         }
     }
 
-    func useBuff(at index: Int, digit: Digit? = nil) {
+    /// A Clue now starts with a card, never an arbitrary board square.
+    /// Selection mode itself is free; the engine spends the clue only when it
+    /// has a legal destination to reveal for a playable held number.
+    func chooseClue() {
+        if isChoosingClue {
+            dismissSelection()
+        } else if selectedHandIndex != nil {
+            revealClueForSelectedCard()
+        } else if puzzle?.canUseClue == true {
+            clearSelection()
+            isChoosingClue = true
+            message = "Choose a number from your hand for the Clue"
+        }
+    }
+
+    private func revealClueForSelectedCard() {
+        guard let index = selectedHandIndex else { return }
         do {
+            let square = try game.revealClue(handIndex: index)
+            if isTrackingAchievementPuzzle { usedClueThisPuzzle = true }
+            isChoosingClue = false
+            selectedSquare = nil
+            highlightSource = .hand
+            message = "Clue: place \(hand[index].rawValue) in row \(square.row + 1), column \(square.col + 1)"
+        } catch {
+            isChoosingClue = false
+            message = describe(error)
+        }
+    }
+
+    func isClueDestination(_ square: Square) -> Bool {
+        guard let puzzle, puzzle.boss?.disablesClues != true,
+              let digit = selectedDigit,
+              puzzle.clueReveals.contains(square), puzzle.board.isBlank(square),
+              !puzzle.isBarred(square),
+              let index = selectedHandIndex, !puzzle.isBlocked(handIndex: index) else { return false }
+        return puzzle.board.correctDigit(at: square) == digit
+    }
+
+    @discardableResult
+    func useBuff(at index: Int, digit: Digit? = nil) -> Bool {
+        do {
+            let peeks = game.run.buffs.indices.contains(index)
+                && game.run.buffs[index].defID == Buffs.peek
             let redrawsHand = game.run.buffs.indices.contains(index)
                 && game.run.buffs[index].defID == Buffs.redraw
             let redrawn = redrawsHand ? hand : []
-            _ = try game.useBuff(at: index, digit: digit)
+            guard try game.useBuff(at: index, digit: digit) else {
+                message = "This Buff has no effect right now — kept"
+                return false
+            }
             refreshHandCards(replacing: redrawsHand)
             if !redrawn.isEmpty {
                 presentReturn(kind: .redraw, digits: redrawn)
             }
             // Redraw and Lucky Dip both reshape the Hand under the selection.
             dropHandSelection()
+            if peeks { chooseClue() }
+            return true
         } catch {
             message = describe(error)
+            return false
         }
     }
 
@@ -750,6 +923,7 @@ final class GameModel {
     /// board, pool, and Boss have already been rolled.
     func beginPuzzle() {
         rewardedRescue.invalidate()
+        stopClock()
         do {
             try game.startPuzzle()
             #if DEBUG && targetEnvironment(simulator)
@@ -986,6 +1160,7 @@ final class GameModel {
         refreshHandCards()
     }
     func qaSetBoss(_ boss: BossModifier) {
+        stopClock()
         game.qaSetBoss(boss)
         refreshHandCards()
         startClock()
@@ -1039,6 +1214,7 @@ final class GameModel {
         switch error {
         case PlacementError.noCluesLeft: return "No Clues left"
         case PlacementError.cluesDisabled: return "The Paywall has disabled Clues"
+        case PlacementError.noClueDestination: return "No place for that number is available this Turn — Clue kept"
         case PlacementError.tossAllowanceSpent: return "No Tosses left this Puzzle"
         case PlacementError.numberBlocked: return "That number is blocked this Turn"
         case PlacementError.squareBarred: return "That square is barred this Turn"

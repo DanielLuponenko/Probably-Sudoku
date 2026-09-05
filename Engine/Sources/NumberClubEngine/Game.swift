@@ -60,6 +60,9 @@ public struct Game: Sendable {
     public mutating func useClue(at square: Square) throws -> PlacementOutcome {
         try Actions.useClue(&run, square: square)
     }
+    public mutating func revealClue(handIndex: Int) throws -> Square {
+        try Actions.revealClue(&run, handIndex: handIndex)
+    }
     public mutating func useBuff(at index: Int, digit: Digit? = nil) throws -> Bool {
         try Actions.useBuff(&run, index: index, digit: digit)
     }
@@ -223,6 +226,7 @@ public extension Game {
         guard var puzzle = run.puzzle else { return }
 
         puzzle.boss = boss
+        puzzle.clockSecondsRemaining = boss.secondsAllowed
         puzzle.censoredDigit = boss.censorsARandomDigit
             ? BossModifier.rollCensoredDigit(&run.streams.boss)
             : nil
