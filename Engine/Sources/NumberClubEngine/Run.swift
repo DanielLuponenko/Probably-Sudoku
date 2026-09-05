@@ -188,6 +188,7 @@ public struct RunState: Codable, Sendable {
     public func effectiveTossAllowance(boss: BossModifier?) -> Int {
         if boss?.forcesTossAllowanceToZero == true || obstacle.removesTosses { return 0 }
         return Baseline.tossAllowance
+            + book.benefit.tossDelta
             + (owns(bookmark: Bookmarks.weatherForecast) ? 2 : 0)
             + (owns(subscription: Subscriptions.wireService) ? 2 : 0)
     }
@@ -195,7 +196,8 @@ public struct RunState: Codable, Sendable {
     public var interestCap: Int {
         let bookmarkCap = owns(bookmark: Bookmarks.marketWrap) ? 15 : Baseline.interestCap
         let subscriptionCap = owns(subscription: Subscriptions.annualRate) ? 20 : bookmarkCap
-        return subscriptionCap + Int(runItemState["clipping.circulation"] ?? 0)
+        return subscriptionCap + book.benefit.interestCapDelta
+            + Int(runItemState["clipping.circulation"] ?? 0)
     }
 
     public var markerCapacity: Int {
@@ -241,7 +243,7 @@ public struct RunState: Codable, Sendable {
 
     public func payout(for puzzle: PuzzleState) -> Payout {
         var p = Payout()
-        p.base = 5
+        p.base = 5 + book.benefit.winCoinsDelta
         p.unusedTurns = puzzle.turnsRemaining
         p.keepFillingBank = puzzle.keepFillingCoins
         if puzzle.boss?.cancelsInterest != true {

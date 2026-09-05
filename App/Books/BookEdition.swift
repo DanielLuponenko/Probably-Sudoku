@@ -11,37 +11,30 @@ struct BookEdition: Identifiable, Equatable {
     /// Printed on the shelf under the cover.
     let shelfLabel: String
     let blurb: String
-    /// The Book photographed on the desk, already in phone format. This is the
-    /// whole screen: no cover is composited onto a separate background, because
-    /// two woods leave a seam and cutting the Book out fragments its index
-    /// tabs. Nil while a Book is unwritten.
-    let cover: String?
     /// The Book's own colour, used for its spine and its accents.
     let accent: Color
     /// The selected Book owns its benefit for the whole run.
     var benefit: BookBenefit { rule.benefit }
     var benefitText: String { benefit.detail }
     var design: CoverDesign {
-        guard isWritten else {
-            let volume = Int(shelfLabel.replacingOccurrences(of: "Volume ", with: "")) ?? 1
-            return .unwritten(title: title, volume: volume, accent: accent)
-        }
         switch rule {
         case .probably: return .probably
         case .slightlyHarder: return .slightlyHarder
         case .noPressure: return .noPressure
         case .bites: return .bites
+        case .genuinely: return .genuinely
+        case .snackBreak: return .snackBreak
+        case .trustMe: return .trustMe
+        case .overthinking: return .overthinking
+        case .smallVictories: return .smallVictories
+        case .rainyDay: return .rainyDay
+        case .secondThoughts: return .secondThoughts
+        case .wellEarned: return .wellEarned
         }
     }
-    /// A written Book can be opened; a future volume stays visibly shelved.
-    var isWritten: Bool { cover != nil }
-    var isUnlocked: Bool {
-        guard isWritten else { return false }
-        #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-unlockAll") { return true }
-        #endif
-        return RunStore.booksCompleted >= rule.volume - 1
-    }
+    /// Every published volume is available; obstacles retain their own ladder.
+    var isWritten: Bool { true }
+    var isUnlocked: Bool { true }
 
     /// Lines the Book writes in the margins while you play.
     let marginalia: [String]
@@ -54,7 +47,6 @@ struct BookEdition: Identifiable, Equatable {
         title: "You\u{2019}ve Got This, Probably",
         shelfLabel: "Volume 1",
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
-        cover: "SceneProbably",
         accent: Color(hex: 0x7C8C73),
         marginalia: firstBookLines
     )
@@ -65,7 +57,6 @@ struct BookEdition: Identifiable, Equatable {
         title: "Slightly Harder, Sorry",
         shelfLabel: "Volume 2",
         blurb: "Brisk puzzles. Professional disappointment included.",
-        cover: "SceneSorry",
         accent: Color(hex: 0xC8853F),
         marginalia: secondBookLines
     )
@@ -76,7 +67,6 @@ struct BookEdition: Identifiable, Equatable {
         title: "No Pressure, Obviously",
         shelfLabel: "Volume 3",
         blurb: "Editorial puzzles. The board has notes.",
-        cover: "ScenePressure",
         accent: Color(hex: 0x6F9EC4),
         marginalia: thirdBookLines
     )
@@ -87,44 +77,153 @@ struct BookEdition: Identifiable, Equatable {
         title: "This One Bites",
         shelfLabel: "Volume 4",
         blurb: "Cold puzzles. The board does not care.",
-        cover: "SceneBites",
         accent: Color(hex: 0xB4544A),
         marginalia: fourthBookLines
     )
 
-    /// The remaining unwritten volumes still show their place in the ladder,
-    /// but do not claim rules or voices that belong to their own tickets.
-    static let unwritten: [BookEdition] = [
-        unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
-                  volume: 5, accent: Color(hex: 0x8E7BA8)),
-        unwritten(id: "future-6", title: "Not Written Yet",
-                  volume: 6, accent: Color(hex: 0x857D70)),
-        unwritten(id: "future-7", title: "Not Written Yet",
-                  volume: 7, accent: Color(hex: 0x708F86)),
-        unwritten(id: "future-8", title: "Not Written Yet",
-                  volume: 8, accent: Color(hex: 0x8D758F)),
-        unwritten(id: "future-9", title: "Not Written Yet",
-                  volume: 9, accent: Color(hex: 0x8C946C)),
+    static let fifth = BookEdition(
+        id: "genuinely", rule: .genuinely,
+        title: "Good Luck. Genuinely.", shelfLabel: "Volume 5",
+        blurb: "Fresh numbers. Same very sincere optimism.",
+        accent: Color(hex: 0x806392),
+        marginalia: [
+            "Luck has arrived. It is checking the column.",
+            "A fresh hand. An ancient suspicion about the 8.",
+            "We mean it this time. You can do this.",
+            "Throw out a number. Keep the optimism.",
+            "The next good idea may be wearing a 6.",
+            "Fortune favours the person who checks the box.",
+            "That was almost suspiciously competent.",
+            "Good luck. No footnote."
+        ]
+    )
+
+    static let sixth = BookEdition(
+        id: "snack-break", rule: .snackBreak,
+        title: "This Calls for Snacks", shelfLabel: "Volume 6",
+        blurb: "Finish a box. Fund a very small picnic.",
+        accent: Color(hex: 0xAD853A),
+        marginalia: [
+            "The crumbs are not pencil marks.",
+            "One more box, then a ceremonial biscuit.",
+            "A balanced hand contains no actual sandwiches.",
+            "This deduction pairs well with tea.",
+            "The 9 is not a pretzel. Please focus.",
+            "Snack budget: improving. Posture: unclear.",
+            "The box is full. Your plate is a separate matter.",
+            "Excellent work. Wipe the page."
+        ]
+    )
+
+    static let seventh = BookEdition(
+        id: "trust-me", rule: .trustMe,
+        title: "Trust Me, I Guessed", shelfLabel: "Volume 7",
+        blurb: "Confidence comes with one small safety net.",
+        accent: Color(hex: 0x3F807A),
+        marginalia: [
+            "I had a theory. The column had evidence.",
+            "Confidence is not one of the nine digits.",
+            "A safety net is not a flight plan.",
+            "Check twice. Look mysterious once.",
+            "That was deduction. We will tell everyone.",
+            "The first mistake was educational. Take notes.",
+            "Even a hunch should read the givens.",
+            "We agreed never to discuss that 4."
+        ]
+    )
+
+    static let eighth = BookEdition(
+        id: "overthinking", rule: .overthinking,
+        title: "Professionally Overthinking", shelfLabel: "Volume 8",
+        blurb: "Every correct number deserves an invoice.",
+        accent: Color(hex: 0x647B91),
+        marginalia: [
+            "This square has been referred to a committee.",
+            "A very small deduction. A very large meeting.",
+            "Your analysis now has subheadings.",
+            "The column has declined your calendar invite.",
+            "Billable thinking. Unbillable staring.",
+            "Perhaps try the number all the evidence suggests.",
+            "The executive summary is: place the 3.",
+            "Please find the completed row attached."
+        ]
+    )
+
+    static let ninth = BookEdition(
+        id: "small-victories", rule: .smallVictories,
+        title: "Small Victories, Big Ego", shelfLabel: "Volume 9",
+        blurb: "Complete a line. Prepare your acceptance speech.",
+        accent: Color(hex: 0x6E8560),
+        marginalia: [
+            "One finished row. Hold the parade indoors.",
+            "That box would like to thank the academy.",
+            "A tiny victory. A perfectly adequate trumpet.",
+            "Save some brilliance for the next column.",
+            "Your trophy is still a pencil mark.",
+            "Please keep the victory lap inside the margins.",
+            "Yes, that 2 was magnificent. Continue.",
+            "The applause is implied."
+        ]
+    )
+
+    static let tenth = BookEdition(
+        id: "rainy-day", rule: .rainyDay,
+        title: "Panic, But Economically", shelfLabel: "Volume 10",
+        blurb: "Keep a reserve. Even your panic has a budget.",
+        accent: Color(hex: 0x5E827E),
+        marginalia: [
+            "The emergency fund is for actual emergencies.",
+            "Your savings are calmer than you are.",
+            "That purchase requires a second deep breath.",
+            "We have budgeted for one dramatic sigh.",
+            "A rainy day. A solvent little notebook.",
+            "Interest is more useful than alarm.",
+            "The 7 is free to think about.",
+            "Fiscal responsibility looks odd in pencil."
+        ]
+    )
+
+    static let eleventh = BookEdition(
+        id: "second-thoughts", rule: .secondThoughts,
+        title: "On Second Thought, Nope", shelfLabel: "Volume 11",
+        blurb: "The shop gets another chance to impress you.",
+        accent: Color(hex: 0x956D86),
+        marginalia: [
+            "A second opinion. Same excellent eyebrows.",
+            "You are allowed to reconsider the merchandise.",
+            "The first idea was a useful first draft.",
+            "Nope is a complete purchasing strategy.",
+            "Fresh stock. Unchanged standards.",
+            "Please browse with your entire brain.",
+            "The receipt does not include certainty.",
+            "That is a much better terrible idea."
+        ]
+    )
+
+    static let twelfth = BookEdition(
+        id: "well-earned", rule: .wellEarned,
+        title: "I Deserve a Biscuit", shelfLabel: "Volume 12",
+        blurb: "Puzzle finished. Modest celebration financed.",
+        accent: Color(hex: 0xB28A4A),
+        marginalia: [
+            "Your biscuit application is under review.",
+            "The finish line smells faintly of butter.",
+            "A completed puzzle is a respectable occasion.",
+            "We cannot pay you in biscuits. We checked.",
+            "One final square. Then the good tin.",
+            "The board has accepted your snack expenses.",
+            "Tea first. Victory speech while it steeps.",
+            "You earned this. We kept the crumbs as evidence."
+        ]
+    )
+
+    static let shelf: [BookEdition] = [
+        first, second, third, fourth, fifth, sixth,
+        seventh, eighth, ninth, tenth, eleventh, twelfth
     ]
 
-    private static func unwritten(id: String, title: String, volume: Int,
-                                  accent: Color) -> BookEdition {
-        BookEdition(
-            id: id,
-            rule: .slightlyHarder,
-            title: title,
-            shelfLabel: "Volume \(volume)",
-            blurb: "Not written yet.",
-            cover: nil,
-            accent: accent,
-            marginalia: []
-        )
-    }
-
-    static let shelf: [BookEdition] = [first, second, third, fourth] + unwritten
-
     static func edition(for book: Book) -> BookEdition {
-        shelf.first { $0.rule == book && $0.isWritten } ?? first
+        shelf.first { $0.rule == book } ?? first
     }
 }
 

@@ -5,8 +5,9 @@ import ProbablySudokuEngine
 /// volume still exits through ContentView's existing run-conflict callback.
 struct MainMenuView: View {
     var onBookSelected: (BookEdition, Obstacle) -> Void
+    var onFirstFrame: (() -> Void)? = nil
 
     var body: some View {
-        BookstoreOpeningView(onOpenBook: onBookSelected)
+        BookstoreOpeningView(onOpenBook: onBookSelected, onFirstFrame: onFirstFrame)
     }
 }

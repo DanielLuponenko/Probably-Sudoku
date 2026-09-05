@@ -1,4 +1,26 @@
-# DannyLovesAnna Game Studio logo
+# DLA Game Studio logo
+
+The active studio intro is the native vector artwork in
+`App/Views/StudioSplashView.swift` (`DLALogo`). It uses capital D and A, a straight
+red lowercase l, and the inscription **This is not an i**. A continuous rotation
+and zoom enters the final i's dot. As soon as the dot covers the viewport, a
+0.12-second dissolve reveals the book menu, already prepared beneath the logo.
+There is no extra white hold, fight animation, or demo board.
+
+Glyph outlines and the dot target come from the same cached Core Text paths,
+so the closing zoom remains sharp and centered. Reduce Motion shows a static
+logo followed by a short cream dissolve. `StudioIntroView` uses the same intro.
+
+`dla-intro-approved.html` preserves the approved interactive design reference.
+For simulator QA, `-holdStudioSplash` holds the opening logo and
+`-studioSplashTime <seconds>` holds a particular animation frame (Debug only).
+`AppTests/StudioLogoTests.swift` covers alignment, continuous magnification,
+the dot filling phone/tablet viewports, and the Reduce Motion camera.
+
+## Archived DannyLovesAnna artwork
+
+The previous files below are retained as rollback evidence. The app's studio
+views no longer display these images.
 
 ## Deliverables
 

@@ -75,6 +75,7 @@ public enum Resolver {
                                 run: RunState,
                                 puzzle: PuzzleState,
                                 into result: inout EffectResult) {
+        run.book.benefit.apply(to: &result, context: context)
         // 3. Bookmarks, in purchase order.
         for (index, ad) in run.bookmarks.enumerated() where index != puzzle.disabledBookmark {
             if let hook = ad.def.hooks[context.event] { hook(context, &result) }

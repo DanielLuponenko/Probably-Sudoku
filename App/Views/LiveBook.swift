@@ -21,6 +21,8 @@ struct LiveBook: View {
     var openAngle: Double = 0
     /// The obstacle ribbons, when this is the Book in hand.
     var ribbons: RibbonStrip? = nil
+    /// Preserve the chosen binding during opening, when the picker is gone.
+    var selectedObstacle: Obstacle? = nil
     /// What is printed on the first page. Only ever seen while the board is
     /// swinging off it, so there is no point setting one on a shut Book.
     var epigraph: String? = nil
@@ -38,8 +40,10 @@ struct LiveBook: View {
 
     /// The Book is bound in the colour of the ribbon you are holding.
     private var cloth: Color {
-        guard let ribbons, !design.isBare else { return design.cloth }
-        return ObstacleRibbon.cloth(for: ribbons.selected)
+        guard !design.isBare, let obstacle = ribbons?.selected ?? selectedObstacle else {
+            return design.cloth
+        }
+        return ObstacleRibbon.cloth(for: obstacle)
     }
 
     /// The three layers are seen from slightly off to one side, so each one
@@ -695,7 +699,7 @@ struct CoverFace: View {
                 VStack(spacing: -h * 0.008) {
                     ForEach(design.titleLines, id: \.self) { line in
                         Text(line)
-                            .font(.system(size: w * 0.175, weight: .black))
+                            .font(.system(size: w * 0.175 * design.titleScale, weight: .black))
                             .tracking(-w * 0.004)
                             .foregroundStyle(design.ink)
                     }
@@ -703,7 +707,7 @@ struct CoverFace: View {
                 .padding(.top, h * 0.012)
 
                 Text(design.flourish)
-                    .font(.custom("MarkerFelt-Wide", size: w * 0.20))
+                    .font(.custom("MarkerFelt-Wide", size: w * 0.20 * design.flourishScale))
                     .foregroundStyle(design.accent)
                     .rotationEffect(.degrees(-3))
                     .padding(.top, -h * 0.012)
