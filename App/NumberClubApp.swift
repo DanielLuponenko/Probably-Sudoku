@@ -8,16 +8,13 @@ struct ProbablySudokuApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if ProcessInfo.processInfo.arguments.contains("-clubShop") {
-                    ClubShopView(onBack: {})
-                } else {
-                    ContentView()
-                }
-            }
+            ContentView()
             .environment(profile)
             .environment(gameCenter)
-            .environment(\.cosmeticTheme, profile.theme)
+            // Core gameplay currently has one fixed visual language. Saved
+            // cosmetic selections are intentionally not injected into any
+            // gameplay view, so a prior skin can never alter a new Puzzle.
+            .environment(\.cosmeticTheme, .standard)
             .task {
                 gameCenter.start()
                 gameCenter.setAppIsActive(scenePhase == .active)

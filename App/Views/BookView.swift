@@ -388,43 +388,44 @@ private struct GardenMarginMask: View {
 /// The book as one object: boards, block, binding, and the pages on top.
 struct BookView<Live: View>: View {
     var flipper: PageFlipper
-    /// The page being turned away, drawn from a frozen copy of the game. Nil
-    /// except during a turn.
-    var outgoing: AnyView?
     @ViewBuilder var live: Live
-    @State private var pageSize: CGSize = .zero
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             BookVolume()
 
-            ZStack {
-                // The page underneath is already the new one; the sheet on top
-                // still shows what was there, and bends away to uncover it.
-                PageSurface { live }
-                    .background {
+            PageSurface { live }
+                .background { PageCaptureAnchor(flipper: flipper) }
+                .allowsHitTesting(!flipper.isFlipping)
+                .accessibilityHidden(flipper.isFlipping)
+                .overlay(alignment: .topLeading) {
+                    if let renderer = flipper.renderer {
                         GeometryReader { proxy in
-                            Color.clear
-                                .onAppear { pageSize = proxy.size }
-                                .onChange(of: proxy.size) { _, size in pageSize = size }
+                            PageCurlCanvas(renderer: renderer)
+                                .frame(width: proxy.size.width + PageCurlRenderer.renderMargin * 2,
+                                       height: proxy.size.height + PageCurlRenderer.renderMargin * 2)
+                                .offset(x: -PageCurlRenderer.renderMargin,
+                                        y: -PageCurlRenderer.renderMargin)
                         }
-                    }
-
-                if let outgoing {
-                    PageSurface { outgoing }
-                        // Rasterised once before the shader touches it. Without
-                        // this the whole page — grid, hand, buttons — is laid
-                        // out again for every frame of the curl.
-                        .drawingGroup()
-                        .pageCurl(progress: flipper.progress, size: pageSize)
                         .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                    }
                 }
-            }
-            // The curl reaches beyond the sheet as it lifts; without this it
-            // would paint over the desk and the loadout row above the book.
-            .clipped()
-            .padding(EdgeInsets(top: Volume.head, leading: Volume.spine,
-                                bottom: Volume.tail, trailing: Volume.foreEdge))
+                .padding(EdgeInsets(top: Volume.head, leading: Volume.spine,
+                                    bottom: Volume.tail, trailing: Volume.foreEdge))
+        }
+        .task {
+            if !reduceMotion { flipper.prepareRenderer() }
+        }
+        .onDisappear { flipper.cancel() }
+        .onChange(of: reduceMotion) { _, reduced in
+            if reduced { flipper.cancel() }
+            else { flipper.prepareRenderer() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { flipper.cancel() }
         }
     }
 }

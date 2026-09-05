@@ -5,8 +5,7 @@ import XCTest
 final class BookTests: XCTestCase {
     func testBookTwoHasThreeFewerGivensAtEverySlot() throws {
         for slot in PuzzleSlot.allCases {
-            var run = RunState(seed: "book-two-\(slot.rawValue)", book: .slightlyHarder,
-                               startingBoard: .scholar)
+            var run = RunState(seed: "book-two-\(slot.rawValue)", book: .slightlyHarder)
             run.slot = slot
             let puzzle = try PuzzleState.create(run: &run)
             let givenCount = puzzle.board.isGiven.filter { $0 }.count
@@ -18,8 +17,7 @@ final class BookTests: XCTestCase {
 
     func testBookThreeHasBookTwoGivensAndOnePointTwoFiveTargets() throws {
         for slot in PuzzleSlot.allCases {
-            var run = RunState(seed: "book-three-\(slot.rawValue)", book: .noPressure,
-                               startingBoard: .scholar)
+            var run = RunState(seed: "book-three-\(slot.rawValue)", book: .noPressure)
             run.slot = slot
             let puzzle = try PuzzleState.create(run: &run)
             XCTAssertEqual(puzzle.board.isGiven.filter { $0 }.count, slot.difficulty.givens - 3)
@@ -29,25 +27,24 @@ final class BookTests: XCTestCase {
 
     func testBookFourHasSixFewerGivensOnePointFiveTargetsAndThreeCoins() throws {
         for slot in PuzzleSlot.allCases {
-            var run = RunState(seed: "book-four-\(slot.rawValue)", book: .bites,
-                               startingBoard: .scholar)
+            var run = RunState(seed: "book-four-\(slot.rawValue)", book: .bites)
             run.slot = slot
             let puzzle = try PuzzleState.create(run: &run)
             XCTAssertEqual(puzzle.board.isGiven.filter { $0 }.count, slot.difficulty.givens - 6)
             XCTAssertEqual(puzzle.target, Int(Double(Targets.target(level: 1, slot: slot)) * 1.5))
         }
-        XCTAssertEqual(RunState(seed: "book-four-coins", book: .bites, startingBoard: .scholar).coins, 3)
+        XCTAssertEqual(RunState(seed: "book-four-coins", book: .bites).coins, 3)
     }
 
     func testBookPersistsAndOldSaveDefaultsToBookOne() throws {
-        let bookTwo = Game(seed: "book-save", book: .slightlyHarder, startingBoard: .scholar)
+        let bookTwo = Game(seed: "book-save", book: .slightlyHarder)
         XCTAssertEqual(try Game(decoding: bookTwo.encoded()).run.book, .slightlyHarder)
-        let bookThree = Game(seed: "book-three-save", book: .noPressure, startingBoard: .scholar)
+        let bookThree = Game(seed: "book-three-save", book: .noPressure)
         XCTAssertEqual(try Game(decoding: bookThree.encoded()).run.book, .noPressure)
-        let bookFour = Game(seed: "book-four-save", book: .bites, startingBoard: .scholar)
+        let bookFour = Game(seed: "book-four-save", book: .bites)
         XCTAssertEqual(try Game(decoding: bookFour.encoded()).run.book, .bites)
 
-        let bookOne = Game(seed: "old-book-save", startingBoard: .scholar)
+        let bookOne = Game(seed: "old-book-save")
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: bookOne.encoded()) as? [String: Any])
         object.removeValue(forKey: "book")
         let oldData = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
@@ -55,7 +52,7 @@ final class BookTests: XCTestCase {
     }
 
     func testEveryBookStillContainsTwentySevenPuzzles() {
-        var run = RunState(seed: "book-two-length", book: .slightlyHarder, startingBoard: .scholar)
+        var run = RunState(seed: "book-two-length", book: .slightlyHarder)
         var puzzles = 0
         while run.advance() { puzzles += 1 }
         XCTAssertEqual(puzzles + 1, 27)

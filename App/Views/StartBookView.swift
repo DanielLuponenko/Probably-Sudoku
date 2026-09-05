@@ -3,8 +3,8 @@ import SwiftUI
 import ProbablySudokuEngine
 
 /// The shelf. You arrive here on launch, and come back whenever a Book ends or
-/// is abandoned — §3 makes the Starting Board a choice you make when you open a
-/// Book, so one is never dealt silently.
+/// is abandoned — a Book carries its own rules and benefit, so one is never
+/// dealt silently.
 ///
 /// Books are swiped through rather than listed. Only the written one can be
 /// opened; the rest are locked and shown anyway, so the ladder §2 leaves
@@ -176,7 +176,7 @@ struct StartBookView: View {
                     .foregroundStyle(Paper.page.opacity(0.5))
                 Text("·")
                     .foregroundStyle(Paper.page.opacity(0.3))
-                Text(book.bonusText)
+                Text(book.benefitText)
                     .font(Print.body(13))
                     .foregroundStyle(Paper.page.opacity(0.82))
             }

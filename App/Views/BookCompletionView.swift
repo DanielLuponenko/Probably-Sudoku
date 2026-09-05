@@ -66,7 +66,6 @@ struct LiveBookClosing: View {
 struct BookCompletionView: View {
     var summary: GameModel.BookCompletionSummary
     var onReturnToShelf: () -> Void
-    @State private var displayedStamps = 0
 
     var body: some View {
         VStack(spacing: 16) {
@@ -86,15 +85,6 @@ struct BookCompletionView: View {
                 CompletionMetric(label: "Levels cleared", value: "\(summary.levelsCleared) of 9")
                 CompletionMetric(label: "Bosses beaten", value: "\(summary.bossesBeaten) of 9")
                 CompletionMetric(label: "Best Puzzle score", value: summary.bestPuzzleScore.formatted())
-                HStack {
-                    Text("Stamps earned")
-                        .font(Print.body(13))
-                        .foregroundStyle(Paper.inkSoft)
-                    Spacer()
-                    RollingNumber(value: displayedStamps, size: 16, weight: .bold,
-                                  color: Paper.coinRim)
-                        .accessibilityLabel("\(displayedStamps) Stamps earned")
-                }
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -132,14 +122,6 @@ struct BookCompletionView: View {
                 .strokeBorder(Paper.rule, lineWidth: 1)
         }
         .padding(22)
-        .onAppear {
-            guard displayedStamps != summary.stampsEarned else { return }
-            // One rendered zero establishes the counter's starting point.
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(16))
-                withAnimation(.snappy(duration: 0.45)) { displayedStamps = summary.stampsEarned }
-            }
-        }
     }
 }
 

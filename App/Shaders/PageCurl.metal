@@ -1,117 +1,151 @@
 #include <metal_stdlib>
-#include <SwiftUI/SwiftUI.h>
-
 using namespace metal;
 
-constexpr constant float kPi = 3.14159265358979;
+struct PageUniforms {
+    float4 size;
+    float4 motion;
+    float4 shadow;
+    float4 stock;
+};
 
-// A page does not rotate. It wraps.
-//
-// The sheet is bent around a cylinder of radius R lying tangent to the page
-// along a fold line, and that fold sweeps across the paper. Material at arc
-// length s from the fold sits at height R(1 - cos(s/R)) and projects back down
-// at R·sin(s/R), so the far half of the cylinder — everything past a quarter
-// turn — is seen from behind, and past a half turn the sheet lies flat again
-// above the page it came from.
-//
-// This runs per output pixel, so it asks the inverse question: given a point,
-// which piece of paper is above it? Nearest to the reader wins, which for a
-// curl is always the material that has travelled furthest.
+struct PageVertex {
+    float4 position [[position]];
+    float2 uv;
+    float3 world;
+    float3 normal;
+    float2 receiver;
+};
 
-/// Paper seen from behind: the stock itself, with the printing barely showing
-/// through, and shaded by how far round the curve it has come.
-static half4 reverseOfSheet(half4 front, float theta) {
-    const half3 stock = half3(0.878h, 0.855h, 0.800h);
-
-    // Ink coverage, roughly. Print bleeds through a sheet; it does not read.
-    half ink = 1.0h - min(front.r, min(front.g, front.b));
-    half3 colour = stock - ink * 0.07h;
-
-    // The desk lamp is up and to the left, so the crest of the curl catches
-    // the light and the underside falls away into shadow.
-    float lit = 0.60 + 0.30 * sin(clamp(theta, 0.0, float(kPi)));
-    colour *= half(lit);
-
-    // A thin dark line right at the fold, where the paper leaves the flat.
-    float crease = smoothstep(0.0, 0.30, theta);
-    colour *= half(0.55 + 0.45 * crease);
-
-    return half4(colour, front.a);
+static float bendRadius(float p, constant PageUniforms &u) {
+    return max(0.0001f, u.size.x * (0.016f + 0.125f * sin(M_PI_F * p))
+               * (1.0f - smoothstep(0.82f, 1.0f, p)));
 }
 
-/// Paper still facing the reader but already curving up off the page.
-static half4 frontOfSheet(half4 front, float theta) {
-    float lit = 1.0 + 0.06 * sin(theta);        // the rise catches the lamp
-    return half4(front.rgb * half(lit), front.a);
+// Work in the material's actual oblique fold frame. The bottom-right corner
+// leads the lift, then the angle relaxes as the complete leaf crosses the spine.
+static float3 leafPosition(float2 uv, constant PageUniforms &u) {
+    float width = u.size.x, height = u.size.y;
+    float p = clamp(u.motion.x, 0.0f, 1.0f);
+    float wave = sin(M_PI_F * p);
+    float radius = bendRadius(p, u);
+    float angle = wave * (0.06f + 0.20f * (1.0f - smoothstep(0.24f, 0.68f, p)));
+    float2 across = float2(cos(angle), sin(angle));
+    float2 along = float2(-across.y, across.x);
+    float x = uv.x * width, y = uv.y * height;
+    float2 material = float2(x, y - height * 0.5f);
+    float materialU = dot(material, across);
+    float materialV = dot(material, along);
+    // Every point on x=0 stays on the unbent side until the final frame.
+    float fold = max(width * (1.0f - p) * across.x, height * 0.5f * across.y);
+    float distance = max(0.0f, materialU - fold);
+    if (distance <= 0.0f) { return float3(x, y, 0); }
+
+    float arc = M_PI_F * radius;
+    float theta = min(distance / radius, M_PI_F);
+    float returned = max(0.0f, distance - arc);
+    // The returned section has a second, gentle bend instead of becoming a
+    // rigid flat panel. Integrating that bend preserves its material length.
+    float sag = wave * 0.68f / width;
+    float sagAngle = returned * sag;
+    float travelled = sag > 0.00001f ? sin(sagAngle) / sag : returned;
+    float drop = sag > 0.00001f ? (1.0f - cos(sagAngle)) / sag : 0.0f;
+    float bentU = fold + radius * sin(theta) - travelled;
+    float z = radius * (1.0f - cos(theta));
+    z -= drop;
+    // At the finish the returned leaf relaxes behind the binding.
+    z -= 2.0f * smoothstep(0.9f, 1.0f, p) * min(returned / width, 1.0f);
+    float2 bent = across * bentU + along * materialV;
+    return float3(bent.x, bent.y + height * 0.5f, z);
 }
 
-/// Sampling outside the layer has to be rejected explicitly rather than by
-/// testing alpha, because the sampler clamps beyond the declared offset and
-/// would otherwise hand back a wrong pixel from the far edge.
-static bool onPage(float2 p, float2 size) {
-    return p.x >= 0.0 && p.y >= 0.0 && p.x <= size.x && p.y <= size.y;
-}
-
-[[ stitchable ]]
-half4 pageCurl(float2 pos, SwiftUI::Layer layer,
-               float2 size, float progress, float radius) {
-    if (progress <= 0.0) {
-        return layer.sample(pos);
+static float4 projected(float3 world, constant PageUniforms &u) {
+    if (u.motion.z > 0.5f) {
+        float2 ndc = (world.xy + u.motion.y) / u.size.zw * 2.0f - 1.0f;
+        return float4(ndc.x, -ndc.y, 0.5f, 1.0f);
     }
+    // Both the oblique corner movement and perspective consume the canvas
+    // margin. Reserve room for each, so a raised edge is never cut flat.
+    float p = clamp(u.motion.x, 0.0f, 1.0f);
+    float topTravel = max(0.0f, -leafPosition(float2(1, 0), u).y);
+    float budget = max(2.0f, u.motion.y * 0.9f - topTravel);
+    float maxHeight = bendRadius(p, u) * 2.0f;
+    float camera = max(u.size.x * 3.4f, maxHeight * (1.0f + u.size.y / (2.0f * budget)));
+    float w = camera - world.z;
+    float2 centre = u.size.xy * float2(0.46f, 0.5f);
+    float2 pixel = centre + (world.xy - centre) * camera / w + u.motion.y;
+    float2 ndc = pixel / u.size.zw * 2.0f - 1.0f;
+    ndc.y = -ndc.y;
+    return float4(ndc * w, (0.5f - world.z / (u.size.x * 4.0f)) * w, w);
+}
 
-    const float R = max(radius, 1.0);
-
-    // The fold runs across the page tilted off vertical, so the top corner
-    // leaves the flat before the foot does — the way a hand takes a page.
-    const float2 n = normalize(float2(1.0, -0.42));
-
-    // Sweep the fold from clear of the leading corner to past the far one.
-    float dTopLeft     = dot(float2(0.0, 0.0), n);
-    float dTopRight    = dot(float2(size.x, 0.0), n);
-    float dBottomLeft  = dot(float2(0.0, size.y), n);
-    float dBottomRight = dot(size, n);
-    float furthest = max(max(dTopLeft, dTopRight), max(dBottomLeft, dBottomRight));
-    float nearest  = min(min(dTopLeft, dTopRight), min(dBottomLeft, dBottomRight));
-    float fold = mix(furthest, nearest - kPi * R, progress);
-
-    // Signed distance from the fold, positive on the side the page has left.
-    float u = dot(pos, n) - fold;
-
-    // Past the cylinder's own width there is no paper left to see here.
-    if (u > R) {
-        return half4(0.0h);
+vertex PageVertex pageLeafVertex(uint id [[vertex_id]],
+                                constant float2 *points [[buffer(0)]],
+                                constant PageUniforms &u [[buffer(1)]]) {
+    PageVertex out;
+    out.uv = points[id];
+    out.world = leafPosition(out.uv, u);
+    out.receiver = out.world.xy;
+    if (u.motion.z > 0.5f) {
+        float height = max(0.0f, out.world.z);
+        float spread = 0.5f + height / max(u.size.x, 1.0f) * 3.0f;
+        out.receiver += float2(0.14f, 0.09f) * height + u.shadow.xy * spread;
+        out.position = projected(float3(out.receiver, 0), u);
+        out.normal = float3(0, 0, 1);
+    } else {
+        const float e = 0.0005f;
+        float2 loX = float2(max(0.0f, out.uv.x - e), out.uv.y);
+        float2 hiX = float2(min(1.0f, out.uv.x + e), out.uv.y);
+        float2 loY = float2(out.uv.x, max(0.0f, out.uv.y - e));
+        float2 hiY = float2(out.uv.x, min(1.0f, out.uv.y + e));
+        float3 tangentX = leafPosition(hiX, u) - leafPosition(loX, u);
+        float3 tangentY = leafPosition(hiY, u) - leafPosition(loY, u);
+        out.normal = normalize(cross(tangentX, tangentY));
+        out.position = projected(out.world, u);
     }
+    return out;
+}
 
-    if (u >= 0.0) {
-        float ratio = clamp(u / R, 0.0, 1.0);
-
-        // The far side of the cylinder is higher than the near side, so it is
-        // what the reader sees. Try it first.
-        float thetaBack = kPi - asin(ratio);
-        float2 back = pos + n * (R * thetaBack - u);
-        if (onPage(back, size)) {
-            half4 sampled = layer.sample(back);
-            if (sampled.a > 0.02h) {
-                return reverseOfSheet(sampled, thetaBack);
-            }
+static void trimCorners(float2 uv, constant PageUniforms &u) {
+    float2 paper = uv * u.size.xy;
+    float radius = 5.0f;
+    if (paper.x > u.size.x - radius) {
+        float cornerY = paper.y < radius ? radius : u.size.y - radius;
+        if ((paper.y < radius || paper.y > u.size.y - radius)
+            && length(paper - float2(u.size.x - radius, cornerY)) > radius) {
+            discard_fragment();
         }
-
-        // Nothing has wrapped that far yet: the near side, still face up.
-        float thetaFront = asin(ratio);
-        float2 front = pos + n * (R * thetaFront - u);
-        if (onPage(front, size)) {
-            half4 sampled = layer.sample(front);
-            if (sampled.a > 0.02h) {
-                return frontOfSheet(sampled, thetaFront);
-            }
-        }
-        return half4(0.0h);
     }
+}
 
-    // Behind the fold the paper has not moved yet, so it is still flat on the
-    // block. The part that has already gone over the top is not drawn here: in
-    // a book it comes to rest on the facing page, which is past the spine and
-    // out of this view. Draping it back over the page it came from is what a
-    // single sheet of paper folded in half would do, not a page being turned.
-    return layer.sample(pos);
+fragment half4 pageLeafFragment(PageVertex in [[stage_in]],
+                               bool facing [[front_facing]],
+                               texture2d<half> front [[texture(0)]],
+                               constant PageUniforms &u [[buffer(1)]]) {
+    trimCorners(in.uv, u);
+    if (in.world.x < 0 && in.world.z < 0.1f) { discard_fragment(); }
+    float3 normal = normalize(in.normal);
+    half3 colour;
+    if (facing) {
+        constexpr sampler ink(filter::linear, address::clamp_to_edge);
+        colour = front.sample(ink, in.uv).rgb;
+        float light = 0.63f + 0.37f * abs(normal.z) + 0.03f * max(normal.x, 0.0f);
+        colour *= half(light);
+    } else {
+        // Independent blank, opaque reverse. Never sample or blend front ink.
+        colour = half3(pow(u.stock.rgb, float3(2.2f)));
+        float light = 0.60f + 0.40f * abs(normal.z) - 0.02f * normal.x;
+        colour *= half(light);
+    }
+    return half4(colour, 1.0h);
+}
+
+fragment half4 pageShadowFragment(PageVertex in [[stage_in]],
+                                 constant PageUniforms &u [[buffer(1)]]) {
+    trimCorners(in.uv, u);
+    if (in.receiver.x < 0 || in.receiver.y < 0
+        || in.receiver.x > u.size.x || in.receiver.y > u.size.y) { discard_fragment(); }
+    float height = max(0.0f, in.world.z);
+    float lifted = smoothstep(0.2f, 3.0f, height);
+    half alpha = half(u.shadow.z * lifted * (1.0f - 0.45f * height / u.size.x));
+    return half4(half3(0.08h, 0.06h, 0.045h) * alpha, alpha);
 }

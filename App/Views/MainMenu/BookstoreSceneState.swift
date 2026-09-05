@@ -27,6 +27,12 @@ struct BookstoreFocusCommand: Equatable {
     let editionID: String
 }
 
+/// A dedicated return command avoids relying on a tap passing through the
+/// selected Book's interactive bookmark view to reach SceneKit underneath.
+struct BookstoreReturnFocusCommand: Equatable {
+    let serial: Int
+}
+
 /// Read-only presentation facts for the physical Club Shop counter. The
 /// SceneKit coordinator renders these values but never owns currency or makes
 /// a purchase; PlayerProfileStore remains the sole economy authority.
@@ -50,8 +56,6 @@ enum BookstoreDebugDestination {
     static var current: BookstoreDebugDestination {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("-bookstoreShopHalfway") { return .halfwayToShop }
-        if arguments.contains("-bookstoreShop") { return .shop }
         if arguments.contains("-bookstoreHalfway") { return .halfwayToStand }
         if arguments.contains("-bookstoreStand") || arguments.contains("-bookRack") { return .stand }
         #endif

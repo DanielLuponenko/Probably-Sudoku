@@ -6,6 +6,7 @@ import ProbablySudokuEngine
 struct PuzzleBriefingView: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(PageFlipper.self) private var flipper
     @Bindable var model: GameModel
     @State private var ticketArrived = false
     @State private var clipBounced = false
@@ -21,7 +22,6 @@ struct PuzzleBriefingView: View {
             }
 
             if let clipping = model.run.currentClipping {
-                BookNarration(slot: model.run.slot)
                 ClippingOfferTicket(clipping: clipping,
                                     remaining: model.run.skipsRemaining,
                                     arrived: ticketArrived,
@@ -29,6 +29,8 @@ struct PuzzleBriefingView: View {
                                     stampVisible: stampVisible) {
                     model.skipCurrentPuzzle()
                 }
+                .padding(.top, 9)
+                .padding(.bottom, 12)
             } else if model.run.slot == .boss {
                 if let boss = upcomingBoss {
                     BookNarration(text: "The Book insists you face \(boss.name).")
@@ -36,10 +38,16 @@ struct PuzzleBriefingView: View {
                 }
             }
 
-            Spacer(minLength: 0)
+            if model.run.currentClipping == nil {
+                Spacer(minLength: 0)
+            }
 
             PaperButton(title: "Play Puzzle  →", kind: .primary) {
-                model.beginPuzzle()
+                Task {
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.beginPuzzle()
+                    }
+                }
             }
             PageNumber(level: model.run.level, slot: model.run.slot.rawValue)
         }
@@ -124,7 +132,7 @@ struct RunRouteStrip: View {
     var boss: BossModifier?
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 7) {
             RouteCard(slot: .easy, currentSlot: currentSlot, boss: boss)
             RouteArrow()
             RouteCard(slot: .medium, currentSlot: currentSlot, boss: boss)
@@ -152,49 +160,289 @@ private struct RouteCard: View {
     private var currentForeground: Color {
         theme.paper.isDark ? theme.paper.ink : theme.paper.page
     }
+    private var cardInset: CGFloat { isBoss ? 5 : 7 }
+    private var contentSpacing: CGFloat { isBoss ? 2 : 7 }
+    private var contentHeight: CGFloat { isBoss ? 144 : 132 }
+    private var verticalInset: CGFloat { isBoss ? 6 : 12 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(Print.caption(9.5)).tracking(0.55).textCase(.uppercase)
+        VStack(alignment: .leading, spacing: contentSpacing) {
+            Text(title)
+                .font(Print.caption(9.5))
+                .tracking(0.55)
+                .textCase(.uppercase)
             if isBoss {
                 Text(boss?.name ?? "Unknown adversary")
-                    .font(Print.caption(7.5)).tracking(0.3).textCase(.uppercase)
+                    .font(Print.caption(6.3)).tracking(0.26).textCase(.uppercase)
                     .lineLimit(1).minimumScaleFactor(0.55)
                 Text("Power: \(boss?.briefPower ?? "Unknown")")
-                    .font(Print.caption(7.2)).tracking(0.25).textCase(.uppercase)
+                    .font(Print.caption(6)).tracking(0.2).textCase(.uppercase)
                     .lineLimit(1).minimumScaleFactor(0.48)
                     .foregroundStyle(Paper.redPencil)
-            } else {
-                Spacer(minLength: 0)
+                Text(status).font(Print.caption(7.5)).tracking(0.3).textCase(.uppercase)
+                    .foregroundStyle(Color(hex: 0x241C16))
+                Spacer(minLength: 2)
             }
-            Text(status).font(Print.caption(8.5)).tracking(0.45).textCase(.uppercase)
-                .foregroundStyle(isCurrent && !isBoss ? currentForeground.opacity(0.76) : theme.paper.softInk)
+            RouteBoardPreview(slot: slot, isCurrent: isCurrent, isBoss: isBoss)
+                .frame(maxWidth: .infinity)
+                .modifier(RouteBoardRatio(isBoss: isBoss))
+                .padding(.vertical, isBoss ? 0 : 3)
+            if !isBoss {
+                Spacer(minLength: 0)
+                Text(status).font(Print.caption(8.5)).tracking(0.45).textCase(.uppercase)
+                    .foregroundStyle(isCurrent ? currentForeground.opacity(0.76) : theme.paper.softInk)
+            }
         }
         .foregroundStyle(isCurrent && !isBoss ? currentForeground : theme.paper.ink)
-        .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .leading)
-        .padding(.horizontal, 7).padding(.vertical, 7)
-        .background { RoundedRectangle(cornerRadius: 3).fill(isCurrent && !isBoss ? Paper.ink : theme.paper.warm) }
-        .overlay(alignment: .top) {
-            Rectangle().fill(isBoss ? Paper.redPencil : (isCurrent ? Paper.coinRim : .clear))
-                .frame(height: 2).padding(.horizontal, 2)
+        .frame(maxWidth: .infinity, minHeight: contentHeight, maxHeight: contentHeight, alignment: .leading)
+        // Every stop occupies the same measured route slot. The Boss uses
+        // its extra space inside that shared row; it must not stretch the
+        // plan taller than Puzzle 1 or Puzzle 2.
+        .padding(.horizontal, cardInset).padding(.vertical, verticalInset)
+        .background {
+            RoundedRectangle(cornerRadius: isBoss ? 0 : 3)
+                .fill(isCurrent && !isBoss ? Paper.ink : theme.paper.warm)
+                .overlay {
+                    BriefingPaperTexture(opacity: isCurrent && !isBoss ? 0.08 : 0.20)
+                        .clipShape(.rect(cornerRadius: isBoss ? 0 : 3))
+                }
+                .compositingGroup()
         }
-        .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(isBoss ? Paper.redPencil.opacity(0.8) : theme.paper.ruleInk, lineWidth: isBoss ? 1.25 : 1) }
-        .overlay(alignment: .bottomTrailing) {
+        .overlay(alignment: .top) {
+            if !isBoss {
+                Rectangle().fill(isCurrent ? Paper.coinRim : .clear)
+                    .frame(height: 2).padding(.horizontal, 2)
+            }
+        }
+        .overlay {
             if isBoss {
-                LinearGradient(colors: [.clear, Paper.redPencil.opacity(0.14)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                Rectangle().strokeBorder(
+                    Paper.redPencil.opacity(0.44),
+                    style: StrokeStyle(lineWidth: 0.6, dash: [8, 0.15, 2.5, 0.25, 11, 0.1])
+                )
+            } else {
+                RoundedRectangle(cornerRadius: 3).strokeBorder(theme.paper.ruleInk.opacity(0.7), lineWidth: 0.6)
             }
         }
         .offset(y: isCurrent && !isBoss ? -3 : 0)
-        .shadow(color: .black.opacity(isCurrent && !isBoss ? 0.26 : 0.10), radius: isCurrent && !isBoss ? 3 : 1, x: 0, y: isCurrent && !isBoss ? 3 : 1)
+        .shadow(
+            color: .black.opacity(isCurrent && !isBoss ? 0.18 : 0.10),
+            radius: isCurrent && !isBoss ? 2.5 : 2,
+            x: 0,
+            y: isCurrent && !isBoss ? 3 : (isBoss ? 2 : 1)
+        )
+    }
+}
+
+/// Reuses the book's paper fibres at a restrained strength. The texture is
+/// sized by its parent, so it never contributes an intrinsic image size.
+private struct BriefingPaperTexture: View {
+    var opacity: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            Image("BetweenPuzzlesPaper")
+                .resizable()
+                .scaledToFill()
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+        }
+        .opacity(opacity)
+        .blendMode(.multiply)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ClippingPaperEdge: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - 1.5))
+        let teeth = max(1, Int(rect.width / 5))
+        let pitch = rect.width / CGFloat(teeth)
+        for tooth in 0..<teeth {
+            let x = rect.maxX - CGFloat(tooth) * pitch
+            path.addQuadCurve(
+                to: CGPoint(x: x - pitch, y: rect.maxY - 1.5),
+                control: CGPoint(x: x - pitch * 0.5, y: rect.maxY - (tooth.isMultiple(of: 3) ? 3 : 2))
+            )
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct RouteBoardRatio: ViewModifier {
+    var isBoss: Bool
+
+    func body(content: Content) -> some View {
+        if isBoss {
+            // Reserve the compact board's height inside the fixed route card;
+            // fitting to the remaining height would also shrink its width.
+            content.frame(height: 96)
+        } else {
+            content.aspectRatio(1, contentMode: .fit)
+        }
+    }
+}
+
+/// The run plan needs to show the actual object the player will work on. These
+/// are deliberately small, static proof grids: they establish the route at a
+/// glance without claiming to reveal a generated puzzle before play begins.
+private struct RouteBoardPreview: View {
+    var slot: PuzzleSlot
+    var isCurrent: Bool
+    var isBoss: Bool
+
+    private let firstPuzzle: [Int?] = [
+        5, 3, nil, nil, 7, nil, nil, nil, nil,
+        6, nil, nil, 1, 9, 5, nil, nil, nil,
+        nil, 9, 8, nil, nil, nil, nil, 6, nil,
+        8, nil, nil, nil, 6, nil, nil, nil, 3,
+        4, nil, nil, 8, nil, 3, nil, nil, 1,
+        7, nil, nil, nil, 2, nil, nil, nil, 6,
+        nil, 6, nil, nil, nil, nil, 2, 8, nil,
+        nil, nil, nil, 4, 1, 9, nil, nil, 5,
+        nil, nil, nil, nil, 8, nil, nil, 7, 9,
+    ]
+
+    private let secondPuzzle: [Int?] = [
+        nil, 1, 7, 4, nil, nil, nil, nil, nil,
+        8, nil, nil, nil, 3, nil, nil, nil, 6,
+        3, nil, nil, nil, 2, 8, nil, nil, nil,
+        nil, 2, nil, nil, 6, nil, nil, nil, nil,
+        nil, 7, nil, 5, nil, nil, nil, nil, 9,
+        nil, nil, nil, nil, nil, 6, 1, nil, nil,
+        2, 4, 1, nil, nil, nil, 2, 1, nil,
+        nil, 5, nil, nil, nil, 8, nil, nil, nil,
+        nil, 9, 3, nil, nil, 7, nil, nil, nil,
+    ]
+
+    private let bossPuzzle: [Int?] = [
+        nil, nil, nil, 8, nil, nil, 4, nil, nil,
+        nil, nil, nil, nil, nil, nil, nil, 7, nil,
+        5, nil, nil, nil, nil, nil, nil, nil, nil,
+        nil, nil, nil, nil, nil, nil, 9, 1, nil,
+        nil, nil, nil, nil, nil, nil, nil, nil, 2,
+        nil, nil, 4, nil, nil, nil, nil, nil, nil,
+        nil, 3, nil, nil, nil, nil, nil, 3, nil,
+        nil, nil, nil, nil, nil, nil, nil, nil, nil,
+        nil, nil, nil, nil, 2, nil, 6, nil, nil,
+    ]
+
+    private var digits: [Int?] {
+        switch slot {
+        case .easy: firstPuzzle
+        case .medium: secondPuzzle
+        case .boss: bossPuzzle
+        }
+    }
+
+    private var paper: Color { isCurrent ? Color(hex: 0x2A2622) : Color(hex: 0xE9E3D3) }
+    private var ink: Color { isCurrent ? Color(hex: 0xF3E7C7) : Paper.inkSoft }
+    private var rule: Color {
+        isCurrent ? Color(hex: 0xB69B63).opacity(0.55) : Paper.rule.opacity(0.55)
+    }
+
+    var body: some View {
+        Group {
+            if isBoss {
+                printedBossBoard
+            } else {
+                GeometryReader { proxy in
+                    let side = min(proxy.size.width, proxy.size.height)
+                    let cell = side / 9
+                    ZStack {
+                        Rectangle().fill(paper)
+                        VStack(spacing: 0) {
+                            ForEach(0..<9, id: \.self) { row in
+                                HStack(spacing: 0) {
+                                    ForEach(0..<9, id: \.self) { column in
+                                        Text(digits[row * 9 + column].map(String.init) ?? "")
+                                            .font(Print.numeral(cell * 0.46, weight: .medium))
+                                            .foregroundStyle(ink)
+                                            .frame(width: cell, height: cell)
+                                            .overlay {
+                                                Rectangle().stroke(rule.opacity(0.65), lineWidth: 0.35)
+                                            }
+                                    }
+                                }
+                            }
+                        }
+                        ForEach(1..<3, id: \.self) { division in
+                            Rectangle().fill(rule)
+                                .frame(width: 1.1, height: side)
+                                .offset(x: CGFloat(division * 3) * cell - side / 2)
+                            Rectangle().fill(rule)
+                                .frame(width: side, height: 1.1)
+                                .offset(y: CGFloat(division * 3) * cell - side / 2)
+                        }
+                    }
+                    .frame(width: side, height: side)
+                    .overlay { Rectangle().stroke(rule, lineWidth: 0.8) }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var printedBossBoard: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+            // Keep the print inside the ink wash; the fine splashes outside
+            // this area belong to the texture, not the nine-by-nine grid.
+            let printWidth = width * 0.78
+            let printHeight = height * 0.76
+            let cellWidth = printWidth / 9
+            let cellHeight = printHeight / 9
+            ZStack {
+                Image("BossInkStain")
+                    .resizable()
+                    .frame(width: width, height: height)
+                Canvas { context, _ in
+                    for line in 0...9 {
+                        var rules = Path()
+                        rules.move(to: CGPoint(x: CGFloat(line) * cellWidth, y: 0))
+                        rules.addLine(to: CGPoint(x: CGFloat(line) * cellWidth, y: printHeight))
+                        rules.move(to: CGPoint(x: 0, y: CGFloat(line) * cellHeight))
+                        rules.addLine(to: CGPoint(x: printWidth, y: CGFloat(line) * cellHeight))
+                        context.stroke(rules, with: .color(Color(hex: 0x948361).opacity(0.18)), lineWidth: 0.3)
+                    }
+                }
+                .frame(width: printWidth, height: printHeight)
+                .overlay {
+                    VStack(spacing: 0) {
+                        ForEach(0..<9, id: \.self) { row in
+                            HStack(spacing: 0) {
+                                ForEach(0..<9, id: \.self) { column in
+                                    let index = row * 9 + column
+                                    Text(digits[index].map(String.init) ?? "")
+                                        .font(Print.numeral(cellWidth * 0.76, weight: .medium))
+                                        .foregroundStyle(index == 18 || index == 55
+                                            ? Color(hex: 0xB65B40)
+                                            : Color(hex: 0xE5D7B5))
+                                        .frame(width: cellWidth, height: cellHeight)
+                                }
+                            }
+                        }
+                    }
+                }
+                .offset(y: height * 0.05)
+            }
+            .frame(width: width, height: height)
+        }
     }
 }
 
 private struct RouteArrow: View {
     @Environment(\.cosmeticTheme) private var theme
     var body: some View {
-        Image(systemName: "arrow.right").font(.system(size: 10, weight: .medium))
-            .foregroundStyle(theme.paper.faintInk).frame(width: 11).accessibilityHidden(true)
+        Image(systemName: "arrow.right").font(.system(size: 14, weight: .medium))
+            .foregroundStyle(theme.paper.faintInk).frame(width: 18).accessibilityHidden(true)
     }
 }
 
@@ -482,12 +730,11 @@ struct ClippingOfferTicket: View {
     var body: some View {
         ticket
             .background {
-                Rectangle().fill(theme.paper.edge.opacity(0.82))
-                    .overlay { Rectangle().strokeBorder(theme.paper.ruleInk.opacity(0.35), lineWidth: 0.8) }
-                    .offset(x: 4, y: 6)
+                ClippingPaperEdge().fill(theme.paper.edge.opacity(0.70))
+                    .offset(x: 2, y: 3)
             }
             .rotationEffect(.degrees(arrived ? -1 : 6)).offset(x: arrived ? 0 : 30).opacity(arrived ? 1 : 0)
-            .shadow(color: .black.opacity(0.18), radius: 5, x: 1, y: 4)
+            .shadow(color: .black.opacity(0.14), radius: 3, x: 1, y: 3)
             .accessibilityElement(children: .contain)
     }
 
@@ -506,6 +753,7 @@ struct ClippingOfferTicket: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 17).padding(.vertical, 24)
+            .frame(maxHeight: .infinity)
             DashedPerforation(color: theme.paper.ruleInk)
             Button(action: onTake) {
                 HStack {
@@ -516,12 +764,16 @@ struct ClippingOfferTicket: View {
                     Spacer()
                     Image(systemName: "arrow.right").font(.system(size: 17, weight: .bold))
                 }
-                .foregroundStyle(theme.paper.ink).padding(.horizontal, 17).padding(.vertical, 14).contentShape(Rectangle())
+                .foregroundStyle(theme.paper.ink).padding(.horizontal, 17).padding(.vertical, 20).contentShape(Rectangle())
             }
             .buttonStyle(PressedPaperStyle()).accessibilityLabel("Skip Puzzle and take \(clipping.name)")
         }
-        .background(theme.paper.warm)
-        .overlay { Rectangle().strokeBorder(theme.paper.ruleInk.opacity(0.7), lineWidth: 0.9) }
+        .background {
+            theme.paper.warm
+                .overlay { BriefingPaperTexture(opacity: 0.26) }
+        }
+        .clipShape(ClippingPaperEdge())
+        .overlay { ClippingPaperEdge().stroke(theme.paper.ruleInk.opacity(0.55), lineWidth: 0.6) }
         .overlay(alignment: .topTrailing) {
             Image(systemName: "paperclip").font(.system(size: 28, weight: .light))
                 .foregroundStyle(theme.paper.ink.opacity(0.75)).rotationEffect(.degrees(17))

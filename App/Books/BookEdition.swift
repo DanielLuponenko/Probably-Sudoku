@@ -18,11 +18,9 @@ struct BookEdition: Identifiable, Equatable {
     let cover: String?
     /// The Book's own colour, used for its spine and its accents.
     let accent: Color
-    /// §3 — what this Book gives you for the whole run. The board is not a
-    /// separate choice: it is what the Book is.
-    let bonus: StartingBoard
-
-    var bonusText: String { bonus.text }
+    /// The selected Book owns its benefit for the whole run.
+    var benefit: BookBenefit { rule.benefit }
+    var benefitText: String { benefit.detail }
     var design: CoverDesign {
         guard isWritten else {
             let volume = Int(shelfLabel.replacingOccurrences(of: "Volume ", with: "")) ?? 1
@@ -58,8 +56,6 @@ struct BookEdition: Identifiable, Equatable {
         blurb: "Relaxed puzzles. Encouragement not guaranteed.",
         cover: "SceneProbably",
         accent: Color(hex: 0x7C8C73),
-        // A relaxed Book hands you more to work with.
-        bonus: .scholar,
         marginalia: firstBookLines
     )
 
@@ -71,9 +67,6 @@ struct BookEdition: Identifiable, Equatable {
         blurb: "Brisk puzzles. Professional disappointment included.",
         cover: "SceneSorry",
         accent: Color(hex: 0xC8853F),
-        // The second Book keeps the first Book's Board: its only rule change
-        // is three fewer givens at every slot.
-        bonus: .scholar,
         marginalia: secondBookLines
     )
 
@@ -85,7 +78,6 @@ struct BookEdition: Identifiable, Equatable {
         blurb: "Editorial puzzles. The board has notes.",
         cover: "ScenePressure",
         accent: Color(hex: 0x6F9EC4),
-        bonus: .scholar,
         marginalia: thirdBookLines
     )
 
@@ -97,7 +89,6 @@ struct BookEdition: Identifiable, Equatable {
         blurb: "Cold puzzles. The board does not care.",
         cover: "SceneBites",
         accent: Color(hex: 0xB4544A),
-        bonus: .scholar,
         marginalia: fourthBookLines
     )
 
@@ -105,19 +96,19 @@ struct BookEdition: Identifiable, Equatable {
     /// but do not claim rules or voices that belong to their own tickets.
     static let unwritten: [BookEdition] = [
         unwritten(id: "genuinely", title: "Good Luck. Genuinely.",
-                  volume: 5, accent: Color(hex: 0x8E7BA8), bonus: .oracle),
+                  volume: 5, accent: Color(hex: 0x8E7BA8)),
         unwritten(id: "future-6", title: "Not Written Yet",
-                  volume: 6, accent: Color(hex: 0x857D70), bonus: .oracle),
+                  volume: 6, accent: Color(hex: 0x857D70)),
         unwritten(id: "future-7", title: "Not Written Yet",
-                  volume: 7, accent: Color(hex: 0x708F86), bonus: .oracle),
+                  volume: 7, accent: Color(hex: 0x708F86)),
         unwritten(id: "future-8", title: "Not Written Yet",
-                  volume: 8, accent: Color(hex: 0x8D758F), bonus: .oracle),
+                  volume: 8, accent: Color(hex: 0x8D758F)),
         unwritten(id: "future-9", title: "Not Written Yet",
-                  volume: 9, accent: Color(hex: 0x8C946C), bonus: .oracle),
+                  volume: 9, accent: Color(hex: 0x8C946C)),
     ]
 
     private static func unwritten(id: String, title: String, volume: Int,
-                                  accent: Color, bonus: StartingBoard) -> BookEdition {
+                                  accent: Color) -> BookEdition {
         BookEdition(
             id: id,
             rule: .slightlyHarder,
@@ -126,7 +117,6 @@ struct BookEdition: Identifiable, Equatable {
             blurb: "Not written yet.",
             cover: nil,
             accent: accent,
-            bonus: bonus,
             marginalia: []
         )
     }

@@ -12,23 +12,27 @@ struct ShopPageView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
+        GeometryReader { proxy in
+            // This is a composed page, not a feed. Scale the fixed editorial
+            // composition to the available sheet so all five offers and the
+            // action are visible together on every phone.
+            let designHeight: CGFloat = 860
+            let scale = min(1, proxy.size.height / designHeight)
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 10) {
-                    offerSection(title: "Bookmarks", kind: .bookmark)
-                    offerSection(title: "Markers", kind: .marker)
-                    offerSection(title: "Buffs", kind: .buff)
+            catalogue
+                .frame(width: proxy.size.width / scale, height: designHeight, alignment: .topLeading)
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                .background {
+                    Image("BetweenPuzzlesPaper")
+                        .resizable()
+                        .scaledToFill()
+                        .opacity(0.24)
+                        .blendMode(.multiply)
+                        .padding(-16)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
-                .padding(.bottom, 4)
-            }
-
-            PaperButton(title: "Continue", subtitle: "Next Puzzle", kind: .primary) {
-                Task {
-                    await flipper.flip(from: model, reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
-                }
-            }
         }
         .overlay {
             if let index = claimingMarker {
@@ -40,6 +44,21 @@ struct ShopPageView: View {
         .sheet(item: $inspectedOffer) { offer in
             OfferSlip(model: model, offer: offer) { markerIndex in
                 setClaimingMarker(markerIndex)
+            }
+        }
+    }
+
+    private var catalogue: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            offerSection(title: "Bookmarks", kind: .bookmark)
+            offerSection(title: "Markers", kind: .marker)
+            offerSection(title: "Buffs", kind: .buff)
+            pageDivider
+            PaperButton(title: "Continue", subtitle: "Next Puzzle", kind: .primary) {
+                Task {
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
+                }
             }
         }
     }
@@ -66,56 +85,63 @@ struct ShopPageView: View {
     @ViewBuilder private func offerSection(title: String, kind: ItemKind) -> some View {
         let offers = shop.offers.filter { $0.def.kind == kind }
         if !offers.isEmpty {
-            VStack(alignment: .leading, spacing: 7) {
-                Text(title)
-                    .font(Print.caption(11))
-                    .tracking(1.4)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Paper.inkSoft)
-                ForEach(offers) { offer in
-                    OfferCard(offer: offer,
-                              affordable: model.coins >= offer.price,
-                              hasSlot: hasSlot(for: kind)) {
-                        inspectedOffer = offer
+            VStack(alignment: .leading, spacing: 10) {
+                sectionRule(title)
+
+                if kind == .buff {
+                    ForEach(offers) { offer in
+                        OfferCard(offer: offer,
+                                  affordable: model.coins >= offer.price,
+                                  hasSlot: hasSlot(for: kind),
+                                  layout: .wide) {
+                            inspectedOffer = offer
+                        }
+                    }
+                } else {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                         GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        ForEach(offers) { offer in
+                            OfferCard(offer: offer,
+                                      affordable: model.coins >= offer.price,
+                                      hasSlot: hasSlot(for: kind),
+                                      layout: .column) {
+                                inspectedOffer = offer
+                            }
+                        }
                     }
                 }
             }
-            .padding(10)
-            .background(RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm.opacity(0.6)))
-            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.rule.opacity(0.75), lineWidth: 1))
         }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Between Puzzles").pageHeading(30)
-                    Spacer(minLength: 6)
-                    coinCount
-                    rerollButton
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Between Puzzles").pageHeading(30)
-                        Spacer()
-                        coinCount
-                    }
-                    rerollButton
-                }
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Shop")
+                .pageHeading(62)
+                .fixedSize(horizontal: false, vertical: true)
+
+            rerollButton
+
             Text("Choose an item to take into the next puzzle.")
-                .font(Print.body(13))
+                .font(Print.body(18))
                 .foregroundStyle(Paper.inkSoft)
-            Rectangle().fill(Paper.rule).frame(height: 1)
         }
     }
 
-    private var coinCount: some View {
-        Label("\(model.coins)", systemImage: "circle.inset.filled")
-            .font(Print.numeral(15, weight: .bold))
-            .foregroundStyle(Paper.coinRim)
-            .accessibilityLabel("\(model.coins) coins on hand")
+    private func sectionRule(_ title: String) -> some View {
+        HStack(spacing: 0) {
+            Text(title)
+                .font(Print.caption(13))
+                .tracking(3)
+                .textCase(.uppercase)
+                .foregroundStyle(Paper.ink)
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .background(Paper.sage.opacity(0.24), in: RoundedRectangle(cornerRadius: 5))
+            Rectangle()
+                .fill(Paper.rule.opacity(0.72))
+                .frame(height: 1)
+        }
     }
 
     /// Rerolling is the Shop's own action, so it lives on the Shop's page.
@@ -123,15 +149,18 @@ struct ShopPageView: View {
         Button { model.reroll() } label: {
             HStack(spacing: 5) {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 13, weight: .semibold))
-                Text(shop.rerollCost == 0 ? "Free reroll" : "Reroll \(shop.rerollCost)")
-                    .font(Print.numeral(13, weight: .bold))
+                    .font(.system(size: 20, weight: .semibold))
+                Text("Reroll")
+                    .font(Print.subheading(20))
+                coinMark
+                Text(shop.rerollCost == 0 ? "Free" : "\(shop.rerollCost)")
+                    .font(Print.numeral(20, weight: .bold))
             }
             .foregroundStyle(Paper.ink)
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .background { RoundedRectangle(cornerRadius: 4).fill(Paper.pageWarm) }
-            .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.rule, lineWidth: 1) }
+            .padding(.horizontal, 16)
+            .frame(height: 54)
+            .background { RoundedRectangle(cornerRadius: 6).fill(Paper.pageWarm) }
+            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(Paper.rule, lineWidth: 1.2) }
         }
         .buttonStyle(PressedPaperStyle())
         .disabled(model.coins < shop.rerollCost)
@@ -140,14 +169,35 @@ struct ShopPageView: View {
                                                    : "Reroll the shop for \(shop.rerollCost) \(shop.rerollCost == 1 ? "coin" : "coins")")
     }
 
+    private var coinMark: some View {
+        ZStack {
+            Circle().fill(LinearGradient(colors: [Paper.coin, Paper.coinRim], startPoint: .top, endPoint: .bottom))
+            Circle().strokeBorder(Paper.coinRim.opacity(0.85), lineWidth: 1)
+            Text("N").font(Print.caption(10)).foregroundStyle(Paper.ink.opacity(0.76))
+        }
+        .frame(width: 26, height: 26)
+    }
+
+    private var pageDivider: some View {
+        HStack(spacing: 10) {
+            Rectangle().fill(Paper.rule.opacity(0.7)).frame(height: 1)
+            Circle().fill(Paper.inkFaint.opacity(0.66)).frame(width: 7, height: 7)
+            Rectangle().fill(Paper.rule.opacity(0.7)).frame(height: 1)
+        }
+        .padding(.vertical, 2)
+    }
+
 }
 
 // MARK: - Offer
 
 private struct OfferCard: View {
+    enum Layout { case column, wide }
+
     var offer: ShopOffer
     var affordable: Bool
     var hasSlot: Bool
+    var layout: Layout
     var inspect: () -> Void
 
     private var def: ItemDef { offer.def }
@@ -160,40 +210,66 @@ private struct OfferCard: View {
 
     var body: some View {
         Button(action: inspect) {
-            HStack(alignment: .top, spacing: 12) {
-                illustration
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(def.name)
-                            .font(Print.subheading(15))
-                            .foregroundStyle(Paper.ink)
-                        RarityImprint(rarity: def.rarity)
-                    }
-                    Text(def.text)
-                        .font(Print.body(12))
-                        .foregroundStyle(Paper.inkSoft)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+            Group {
+                switch layout {
+                case .column: columnContent
+                case .wide: wideContent
                 }
-
-                Spacer(minLength: 4)
-
-                priceImprint
             }
-            .padding(11)
-            .background { Rectangle().fill(Paper.pageWarm.opacity(0.72)) }
-            .overlay { Rectangle().strokeBorder(Paper.rule, lineWidth: def.rarity == .rare ? 1.8 : 1) }
-            .overlay(alignment: .topTrailing) {
-                FoldedCorner().fill(Paper.page).frame(width: 16, height: 16)
-            }
-            .overlay(alignment: .center) { if offer.sold { soldStamp } }
-            .opacity(offer.sold ? 0.65 : 1)
         }
+        .ticketTreatment(accent: accentColor, sold: offer.sold)
         .buttonStyle(PressedPaperStyle())
         .accessibilityLabel("\(def.name), \(def.rarity.rawValue), \(offer.price) coins, \(def.text), \(availability)")
         .accessibilityHint("Opens item details")
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var columnContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 6) {
+                illustration.frame(width: 30, height: 30)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(def.name)
+                        .font(Print.subheading(15))
+                        .foregroundStyle(Paper.ink)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    RarityImprint(rarity: def.rarity)
+                }
+                priceImprint(compact: true)
+            }
+            Rectangle().fill(Paper.rule.opacity(0.65)).frame(maxWidth: .infinity).frame(height: 1)
+            Text(def.text)
+                .font(Print.body(13))
+                .foregroundStyle(Paper.inkSoft)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+    }
+
+    private var wideContent: some View {
+        HStack(alignment: .top, spacing: 16) {
+            illustration.frame(width: 62, height: 62)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(def.name)
+                    .font(Print.subheading(22))
+                    .foregroundStyle(Paper.ink)
+                RarityImprint(rarity: def.rarity)
+                Rectangle().fill(Paper.rule.opacity(0.65)).frame(maxWidth: 180).frame(height: 1)
+                Text(def.text)
+                    .font(Print.body(14))
+                    .foregroundStyle(Paper.inkSoft)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            priceImprint(compact: false)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
     }
 
     /// A Marker's illustration is the colour itself — it is a mark, not an object.
@@ -204,47 +280,92 @@ private struct OfferCard: View {
                     .fill(Paper.markerColor(def.id).opacity(0.4))
                     .overlay {
                         RoundedRectangle(cornerRadius: 3)
-                            .strokeBorder(Paper.markerColor(def.id), lineWidth: 1.6)
+                            .strokeBorder(Paper.markerColor(def.id), lineWidth: 2)
                     }
             } else {
                 Image(systemName: ItemIcon.symbol(for: def.id))
-                    .font(.system(size: 22, weight: .light))
+                    .font(.system(size: 28, weight: .light))
                     .foregroundStyle(Paper.ink)
             }
         }
-        .frame(width: 42, height: 42)
     }
 
-    private var priceImprint: some View {
+    private func priceImprint(compact: Bool) -> some View {
         VStack(spacing: 3) {
-            HStack(spacing: 5) {
+            HStack(spacing: compact ? 3 : 5) {
                 Circle()
                     .fill(LinearGradient(colors: [Paper.coin, Paper.coinRim],
                                          startPoint: .top, endPoint: .bottom))
-                    .frame(width: 16, height: 16)
+                    .frame(width: compact ? 14 : 19, height: compact ? 14 : 19)
                 Text("\(offer.price)")
-                    .font(Print.numeral(15, weight: .bold))
+                    .font(Print.numeral(compact ? 15 : 18, weight: .bold))
             }
             .foregroundStyle(Paper.ink)
             Text(availability)
-                .font(Print.caption(9))
+                .font(Print.caption(compact ? 8 : 10))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
                 .foregroundStyle(affordable && hasSlot && !offer.sold ? Paper.sageDeep : Paper.redPencil)
         }
-        .frame(minWidth: 48)
+        .frame(width: compact ? 40 : 64, alignment: .trailing)
     }
 
-    private var soldStamp: some View {
-        Text("Sold")
-            .font(Print.heading(22))
-            .textCase(.uppercase)
-            .tracking(3)
-            .foregroundStyle(Paper.redPencil.opacity(0.75))
-            .padding(.horizontal, 10)
-            .overlay {
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(Paper.redPencil.opacity(0.6), lineWidth: 2.5)
+    private var accentColor: Color? {
+        def.kind == .marker ? Paper.markerColor(def.id) : nil
+    }
+
+}
+
+private extension View {
+    func ticketTreatment(accent: Color?, sold: Bool) -> some View {
+        clipShape(OfferTicketShape())
+            // Offers are cut from the same vellum as the page. Their outline,
+            // clipped corner, and a small lift separate them; a grey fill makes
+            // them read as unrelated UI cards.
+            .background(OfferTicketShape().fill(Paper.page.opacity(0.34)))
+            .overlay { OfferTicketShape().strokeBorder(Paper.rule.opacity(0.62), lineWidth: 1) }
+            .overlay(alignment: .leading) {
+                if let accent {
+                    Rectangle().fill(accent.opacity(0.88)).frame(width: 4)
+                }
             }
-            .rotationEffect(.degrees(-9))
+            .overlay(alignment: .center) {
+                if sold {
+                    Text("Sold")
+                        .font(Print.heading(22))
+                        .textCase(.uppercase)
+                        .tracking(3)
+                        .foregroundStyle(Paper.redPencil.opacity(0.75))
+                        .padding(.horizontal, 10)
+                        .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.redPencil.opacity(0.6), lineWidth: 2.5) }
+                        .rotationEffect(.degrees(-9))
+                }
+            }
+            .opacity(sold ? 0.65 : 1)
+            .shadow(color: .black.opacity(0.09), radius: 1.5, y: 1.5)
+    }
+}
+
+private struct OfferTicketShape: InsettableShape {
+    var insetAmount: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        let r = rect.insetBy(dx: insetAmount, dy: insetAmount)
+        let corner = min(16, r.width * 0.12)
+        var path = Path()
+        path.move(to: CGPoint(x: r.minX, y: r.minY))
+        path.addLine(to: CGPoint(x: r.maxX - corner, y: r.minY))
+        path.addLine(to: CGPoint(x: r.maxX, y: r.minY + corner))
+        path.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        path.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+        path.closeSubpath()
+        return path
+    }
+
+    func inset(by amount: CGFloat) -> OfferTicketShape {
+        var shape = self
+        shape.insetAmount += amount
+        return shape
     }
 }
 
@@ -267,17 +388,6 @@ private struct RarityImprint: View {
         case .uncommon: return Paper.sageDeep
         case .rare: return Paper.redPencil
         }
-    }
-}
-
-private struct FoldedCorner: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.closeSubpath()
-        return path
     }
 }
 

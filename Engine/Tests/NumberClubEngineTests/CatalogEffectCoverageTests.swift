@@ -8,7 +8,7 @@ import XCTest
 final class CatalogEffectCoverageTests: XCTestCase {
 
     private func puzzle(slot: PuzzleSlot = .easy) throws -> (RunState, PuzzleState) {
-        var run = RunState(seed: "catalog-coverage", startingBoard: .scholar)
+        var run = RunState(seed: "catalog-coverage")
         run.slot = slot
         return (run, try PuzzleState.create(run: &run))
     }
@@ -112,7 +112,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
         XCTAssertEqual(try bookmarkResult("bm_finance_pages", event: .lineClear).coins, 1, "bm_finance_pages")
         XCTAssertEqual(try bookmarkResult("bm_crossword_daily", event: .lineClear).draws, 1, "bm_crossword_daily")
 
-        var run = RunState(seed: "bookmark-standing", startingBoard: .scholar)
+        var run = RunState(seed: "bookmark-standing")
         run.bookmarks = [
             OwnedBookmark(defID: Bookmarks.helpWanted, boughtAtLevel: 1, pricePaid: 0),
             OwnedBookmark(defID: Bookmarks.weatherForecast, boughtAtLevel: 1, pricePaid: 0),
@@ -137,7 +137,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
     }
 
     func testEveningEditionAwardsItsPointsOnTurnTen() throws {
-        var game = Game(seed: "evening-turn-ten", startingBoard: .scholar)
+        var game = Game(seed: "evening-turn-ten")
         try game.startPuzzle()
         game.give(ad: "bm_evening_edition")
         game.run.puzzle?.turnNumber = Baseline.turns
@@ -147,7 +147,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
         _ = try game.endTurn()
         XCTAssertEqual(game.puzzle?.score, scoreBefore + 300)
 
-        var beforeTurnTen = Game(seed: "evening-turn-nine", startingBoard: .scholar)
+        var beforeTurnTen = Game(seed: "evening-turn-nine")
         try beforeTurnTen.startPuzzle()
         beforeTurnTen.give(ad: "bm_evening_edition")
         beforeTurnTen.run.puzzle?.turnNumber = Baseline.turns - 1

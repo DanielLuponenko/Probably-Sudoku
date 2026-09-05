@@ -153,6 +153,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var currentPhase: BookstoreScenePhase?
     private var lastTurnSerial = -1
     private var lastFocusSerial = -1
+    private var lastReturnFocusSerial = -1
     private var selectedIndex = 0
     private var panStartAngle: Float = 0
     private var boardPanStartAngle: Float = 0
@@ -169,6 +170,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var onBookFocusChanged: ((String?) -> Void)?
     private var onTransitionFinished: ((BookstoreScenePhase) -> Void)?
     private var focusedBook: FocusedBook?
+    // A Book leaves the stand during the focus transition. Lock its rotation
+    // from the first tap through the return animation so the remaining Books
+    // never turn behind the selected cover.
+    private var isStandRotationLocked = false
     private var focusGeneration = 0
     private var cameraGeneration = 0
     private var selectedShopCategory: CosmeticCategory = .paper
@@ -308,6 +313,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         unlockedObstacleRawValue: Int,
         turnCommand: BookstoreTurnCommand,
         focusCommand: BookstoreFocusCommand,
+        returnFocusCommand: BookstoreReturnFocusCommand,
         shopCategory: CosmeticCategory,
         shopItem: CosmeticItem?,
         shopPresentation: BookstoreShopPresentation,
@@ -424,6 +430,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             lastFocusSerial = focusCommand.serial
             if shouldFocus, phase == .choosingBook, focusedBook == nil {
                 focusBook(id: focusCommand.editionID)
+            }
+        }
+        if lastReturnFocusSerial != returnFocusCommand.serial {
+            let shouldReturn = lastReturnFocusSerial >= 0
+            lastReturnFocusSerial = returnFocusCommand.serial
+            if shouldReturn {
+                returnFocusedBook()
             }
         }
         if motionPreferenceChanged {
@@ -704,6 +717,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     @objc private func didPan(_ gesture: UIPanGestureRecognizer) {
         switch currentPhase {
         case .choosingBook:
+            guard focusedBook == nil, !isStandRotationLocked else { return }
             handleBookStandPan(gesture)
         case .shopping:
             handleShopProductPan(gesture)
@@ -713,6 +727,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if currentPhase == .choosingBook, gestureRecognizer is UIPanGestureRecognizer {
+            return focusedBook == nil && !isStandRotationLocked
+        }
         if currentPhase == .shopping,
            let pan = gestureRecognizer as? UIPanGestureRecognizer {
             if let board = shopBoardDisplayNode, !board.isHidden {
@@ -728,7 +745,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func handleBookStandPan(_ gesture: UIPanGestureRecognizer) {
-        guard !editions.isEmpty else { return }
+        guard !editions.isEmpty, focusedBook == nil, !isStandRotationLocked else { return }
         switch gesture.state {
         case .began:
             standRoot.removeAction(forKey: "stand-turn")
@@ -886,7 +903,8 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                         returnFocusedBook()
                         return
                     }
-                    guard focusedBook == nil else { return }
+                    guard focusedBook == nil, !isStandRotationLocked else { return }
+                    isStandRotationLocked = true
                     onSelectEdition?(id)
                     rotateStand(to: index, animated: !reduceMotion) { [weak self] in
                         self?.focusBook(id: id)
@@ -965,6 +983,8 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
               let originParent = book.parent
         else { return }
 
+        isStandRotationLocked = true
+
         let originTransform = book.simdTransform
         let worldTransform = book.simdWorldTransform
         book.removeFromParentNode()
@@ -972,93 +992,44 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         book.simdWorldTransform = worldTransform
         setFocusCategory(on: book, enabled: true)
 
-        let cameraPosition = cameraNode.presentation.simdWorldPosition
-        let lookPosition = cameraTarget.presentation.simdWorldPosition
-        let forward = simd_normalize(lookPosition - cameraPosition)
-        let worldUp = SIMD3<Float>(0, 1, 0)
-        let centeredTargetPosition = cameraPosition + forward * 5.55
-        let centeredFacingZ = simd_normalize(cameraPosition - centeredTargetPosition)
-        let cameraRight = simd_normalize(simd_cross(worldUp, centeredFacingZ))
-        // The tabs make the combined silhouette wider on the right. Offset
-        // the whole physical Book slightly left, then scale it uniformly so
-        // the cover and all nine tabs fill the screen without distortion.
-        let targetPosition = centeredTargetPosition + cameraRight * 0.04
-        let facingZ = simd_normalize(cameraPosition - targetPosition)
-        let facingX = simd_normalize(simd_cross(worldUp, facingZ))
-        let facingY = simd_cross(facingZ, facingX)
-        let targetOrientation = simd_quatf(simd_float3x3(columns: (facingX, facingY, facingZ)))
-        let targetScale = book.simdScale * SIMD3<Float>(repeating: 1.58)
-
-        focusedBookLightNode.simdPosition = cameraPosition
-            - cameraRight * 0.22
-            + worldUp * 0.72
-            + forward * 0.80
-        let focusedLook = SCNLookAtConstraint(target: book)
-        focusedLook.isGimbalLockEnabled = true
-        focusedBookLightNode.constraints = [focusedLook]
-
         focusedBook = FocusedBook(
             id: id,
             book: book,
             originParent: originParent,
             originTransform: originTransform
         )
-        focusGeneration += 1
-        let generation = focusGeneration
-
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = reduceMotion ? 0.08 : 0.58
-        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(controlPoints: 0.18, 0.82, 0.20, 1)
-        SCNTransaction.completionBlock = { [weak self] in
-            Task { @MainActor in
-                guard let self,
-                      self.focusGeneration == generation,
-                      self.focusedBook?.id == id
-                else { return }
-                self.onBookFocusChanged?(id)
-            }
-        }
-        book.simdPosition = targetPosition
-        book.simdOrientation = targetOrientation
-        book.simdScale = targetScale
+        // LiveBook is the source for both the shelf face and the selected
+        // presentation. Hide the physical backing immediately and let that
+        // one view perform the entire zoom; a SceneKit move followed by a
+        // SwiftUI replacement was the visible "adjust" at the end.
+        book.isHidden = true
+        onBookFocusChanged?(id)
         setLighting(focused: true, bookID: id)
-        SCNTransaction.commit()
     }
 
     private func returnFocusedBook(completion: (() -> Void)? = nil) {
         guard let focus = focusedBook else {
+            isStandRotationLocked = false
             completion?()
             return
         }
 
-        // Move the same physical Book back and invalidate any pending
-        // focus-completion callback.
+        // The Book never visibly leaves its pocket now, so return it there in
+        // the same update that dismisses LiveBook. This also releases the
+        // rotation lock immediately, rather than leaving a half-second window
+        // in which a second tap was required.
         focusGeneration += 1
         onBookFocusChanged?(nil)
-
-        // If the player taps the scenery before the focus move finishes,
-        // return from the currently rendered transform instead of jumping to
-        // the focus animation's model-layer destination first.
-        focus.book.simdWorldTransform = focus.book.presentation.simdWorldTransform
-        let targetWorldTransform = focus.originParent.simdWorldTransform * focus.originTransform
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = reduceMotion ? 0.08 : 0.46
-        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        SCNTransaction.completionBlock = { [weak self] in
-            Task { @MainActor in
-                guard let self, self.focusedBook?.id == focus.id else { return }
-                focus.book.removeFromParentNode()
-                focus.originParent.addChildNode(focus.book)
-                focus.book.simdTransform = focus.originTransform
-                self.setFocusCategory(on: focus.book, enabled: false)
-                self.focusedBookLightNode.constraints = nil
-                self.focusedBook = nil
-                completion?()
-            }
-        }
-        focus.book.simdTransform = targetWorldTransform
+        focus.book.isHidden = false
+        focus.book.removeFromParentNode()
+        focus.originParent.addChildNode(focus.book)
+        focus.book.simdTransform = focus.originTransform
+        setFocusCategory(on: focus.book, enabled: false)
+        focusedBookLightNode.constraints = nil
+        focusedBook = nil
+        isStandRotationLocked = false
         setLighting(focused: false, bookID: focus.id)
-        SCNTransaction.commit()
+        completion?()
     }
 
     private func setLighting(focused: Bool, bookID: String) {
@@ -4306,7 +4277,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func makeEditionBook(_ edition: BookEdition, index: Int) -> SCNNode {
         let width = 0.89 + CGFloat(index % 3) * 0.025
-        let height = 1.16 + CGFloat(index % 2) * 0.035
+        // Keep the shelf object at the same stout 1:1.4 proportion as
+        // LiveBook.  The focused view is no longer a differently-shaped
+        // replacement for the copy in the wire pocket.
+        let height = width * 1.4
         let thickness = 0.14 + CGFloat(index % 4) * 0.012
         let root = SCNNode()
 
@@ -4330,24 +4304,29 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         spineNode.position.x = Float(-width / 2 + 0.035)
         root.addChildNode(spineNode)
 
-        let coverPlane = SCNPlane(width: width - 0.085, height: height - 0.075)
+        // LiveBook deliberately lets the page block and sewn bookmarks extend
+        // beyond the fore-edge.  Give its rendered face that same extra space
+        // instead of reconstructing a second, approximate set of 3D tabs.
+        let coverPlane = SCNPlane(
+            width: width * 1.20,
+            height: height + width * 0.045
+        )
         coverPlane.firstMaterial = coverMaterial(for: edition)
         let coverNode = SCNNode(geometry: coverPlane)
-        coverNode.position = SCNVector3(0.025, 0, Float(thickness / 2 + 0.052))
+        coverNode.position = SCNVector3(
+            Float(width * 0.10),
+            Float(-width * 0.022),
+            Float(thickness / 2 + 0.052)
+        )
         coverNode.renderingOrder = 2
         coverNode.name = "edition:\(edition.id)"
         root.addChildNode(coverNode)
 
-        // The obstacle bookmarks belong to the physical Book. They are built
-        // once here and remain attached while the carousel turns and while
-        // this exact node moves toward the camera.
-        addObstacleTabs(
-            to: root,
-            edition: edition,
-            width: width,
-            height: height,
-            thickness: thickness
-        )
+        // The cover plane is an ImageRenderer capture of LiveBook, including
+        // its actual page block and bookmarks.  Keeping it as one source of
+        // truth means the book on the shelf and the book after selection use
+        // the same construction, rather than swapping from SceneKit boxes to
+        // a different SwiftUI object half-way through the gesture.
 
         let backPlane = SCNPlane(width: width - 0.085, height: height - 0.075)
         let backMaterial = SCNMaterial()
@@ -4370,10 +4349,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         height: CGFloat,
         thickness: CGFloat
     ) {
-        // Match LiveBook's established ribbon strip: nine small, square-ended
-        // tabs spanning the fore-edge. Only the selected ribbon stands farther
-        // out; its colour, shape and numeral do not change in the carousel.
-        let tabWidth = width * 0.132
+        // Keep the shelf construction aligned with LiveBook: a 10.6%-wide
+        // tab starts beneath the fore-edge, so only the small labeled pull is
+        // visible outside the boards. It is a bookmark sewn into the pages,
+        // not a detached control beside the cover.
+        let tabWidth = width * 0.106
         let tabHeight = height * 0.088
         let firstY = height * 0.40
         let step = height * 0.10
@@ -4396,7 +4376,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
             let node = SCNNode(geometry: geometry)
             node.name = "obstacle:\(edition.id):\(obstacle.rawValue)"
-            let baseX = Float(width / 2 + tabWidth * 0.30)
+            let baseX = Float(width / 2 + width * 0.008)
             node.position = SCNVector3(
                 baseX + (selected ? Float(width * 0.030) : 0),
                 Float(firstY - CGFloat(obstacle.rawValue - 1) * step),
@@ -4412,18 +4392,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func updateObstacleTabs() {
-        for tabs in obstacleTabNodes.values {
-            for (slot, node) in tabs {
-                guard let obstacle = Obstacle(rawValue: slot) else { continue }
-                node.geometry?.firstMaterial = obstacleTabMaterial(
-                    slot: slot,
-                    unlocked: slot <= unlockedObstacleRawValue,
-                    selected: obstacle == selectedObstacle
-                )
-                if let baseX = node.value(forKey: "obstacleBaseX") as? NSNumber {
-                    node.position.x = baseX.floatValue + (obstacle == selectedObstacle ? 0.030 : 0)
-                }
-            }
+        for edition in editions {
+            guard let material = coverMaterials[edition.id] else { continue }
+            material.diffuse.contents = liveBookTexture(for: edition)
         }
     }
 
@@ -4570,9 +4541,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func coverMaterial(for edition: BookEdition) -> SCNMaterial {
         let result = SCNMaterial()
-        let renderer = ImageRenderer(content: BookstoreCoverTexture(edition: edition).frame(width: 240, height: 340))
-        renderer.scale = 2
-        result.diffuse.contents = renderer.uiImage ?? UIColor(edition.accent)
+        result.diffuse.contents = liveBookTexture(for: edition)
         result.diffuse.mipFilter = .linear
         // Preserve the authored print colours. The physical cloth boards,
         // page block and obstacle ribbons receive the room/focus lighting;
@@ -4582,6 +4551,37 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         result.isDoubleSided = true
         coverMaterials[edition.id] = result
         return result
+    }
+
+    /// A small, static shelf face made by the exact LiveBook view that takes
+    /// over during selection.  Its buttons are intentionally inert here: the
+    /// pocket only selects a book, while the full-size LiveBook owns obstacle
+    /// interaction after it has been brought forward.
+    private func liveBookTexture(for edition: BookEdition) -> UIImage? {
+        let bookWidth: CGFloat = 480
+        let bookHeight = bookWidth * 1.4
+        let canvas = CGSize(width: bookWidth * 1.20, height: bookHeight + bookWidth * 0.045)
+        let renderer = ImageRenderer(content:
+            ZStack(alignment: .topLeading) {
+                LiveBook(
+                    edition: edition,
+                    ribbons: LiveBook.RibbonStrip(
+                        levels: Obstacle.allCases,
+                        selected: selectedObstacle,
+                        isUnlocked: { [unlockedObstacleRawValue] obstacle in
+                            obstacle.rawValue <= unlockedObstacleRawValue
+                        },
+                        onPick: { _ in },
+                        onShowInfo: { _ in }
+                    )
+                )
+                .frame(width: bookWidth)
+                .allowsHitTesting(false)
+            }
+            .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
+        )
+        renderer.scale = 2
+        return renderer.uiImage
     }
 
     private func pageColor(for edition: BookEdition) -> UIColor {

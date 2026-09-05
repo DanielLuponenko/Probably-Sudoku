@@ -11,6 +11,9 @@ struct BookstoreOpeningView: View {
     @State private var selectedIndex = 0
     @State private var turnSerial = 0
     @State private var focusSerial = 0
+    @State private var returnFocusSerial = 0
+    @State private var isFocusedBookExpanded = false
+    @State private var focusPresentationSerial = 0
     @State private var showingSettings = false
     @State private var isOpeningBook = false
     @State private var focusedEditionID: String?
@@ -31,12 +34,6 @@ struct BookstoreOpeningView: View {
     @State private var cameraSide: Double
 
     private let debugDestination = BookstoreDebugDestination.current
-    private let pocketSlots: [[Int?]] = [
-        [0, 4, 8],
-        [1, 5, nil],
-        [2, 6, nil],
-        [3, 7, nil]
-    ]
     private var books: [BookEdition] { BookEdition.shelf }
     private var selectedBook: BookEdition { books[selectedIndex] }
     private var shopCategories: [CosmeticCategory] {
@@ -117,6 +114,7 @@ struct BookstoreOpeningView: View {
                     unlockedObstacleRawValue: unlockedObstacleRawValue,
                     turnCommand: BookstoreTurnCommand(serial: turnSerial, selectedIndex: selectedIndex),
                     focusCommand: BookstoreFocusCommand(serial: focusSerial, editionID: selectedBook.id),
+                    returnFocusCommand: BookstoreReturnFocusCommand(serial: returnFocusSerial),
                     shopCategory: shopCategory,
                     shopItem: selectedShopItem,
                     shopPresentation: shopPresentation,
@@ -142,6 +140,36 @@ struct BookstoreOpeningView: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
             .ignoresSafeArea()
+
+            if phase.showsSelectionControls, focusedEditionID == selectedBook.id {
+                Color.black.opacity(0.30)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                    .zIndex(4)
+
+                // This is intentionally a real button.  The dimmed room is
+                // the one-tap target for returning to the spinning stand;
+                // it no longer depends on hit testing through LiveBook.
+                Button(action: returnFocusedBookToShelf) {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .ignoresSafeArea()
+                .accessibilityLabel("Return book to shelf")
+                .accessibilityHint("Returns the selected book to the spinning book shelf")
+                .zIndex(4)
+            }
+
+            // Reuse the original shelf Book for the focused state. It carries
+            // the actual page block and sewn-in bookmark strip, rather than
+            // attempting to redraw those physical details in SceneKit.
+            if phase.showsSelectionControls, focusedEditionID == selectedBook.id {
+                focusedLiveBook(expanded: isFocusedBookExpanded)
+                    .ignoresSafeArea()
+                    .transition(.identity)
+                    .zIndex(5)
+            }
 
             if phase.showsHomeControls {
                 homeControls
@@ -189,10 +217,7 @@ struct BookstoreOpeningView: View {
             if showingSettings {
                 Color.black.opacity(0.38).ignoresSafeArea()
                     .transition(.opacity)
-                AppSettingsSlip(onOpenShop: {
-                    showingSettings = false
-                    walkToShop()
-                }) {
+                AppSettingsSlip {
                     showingSettings = false
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
@@ -215,9 +240,6 @@ struct BookstoreOpeningView: View {
             } else if arguments.contains("-tapPlay"), phase == .store {
                 try? await Task.sleep(for: .milliseconds(700))
                 walkToStand()
-            } else if arguments.contains("-tapShop") {
-                try? await Task.sleep(for: .milliseconds(600))
-                walkToShop()
             }
             if arguments.contains("-focusBook"), phase == .choosingBook {
                 try? await Task.sleep(for: .milliseconds(450))
@@ -235,7 +257,6 @@ struct BookstoreOpeningView: View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
                 HStack {
-                    BookstoreCurrencyBadge(amount: profile.currency)
                     Spacer()
                     Button {
                         Haptics.menuOpen()
@@ -271,28 +292,17 @@ struct BookstoreOpeningView: View {
                                 .font(Print.handwritten(13))
                                 .foregroundStyle(BookstoreInk.paper.opacity(0.88))
                         }
-                        .frame(width: proxy.size.width * 0.60, height: 73)
                         .foregroundStyle(BookstoreInk.paper)
-                        .background(BookstoreInk.green)
-                        .overlay(Rectangle().stroke(BookstoreInk.paper.opacity(0.72), lineWidth: 1))
-                        .overlay(Rectangle().stroke(BookstoreInk.brass.opacity(0.7), lineWidth: 1).padding(4))
-                        .shadow(color: .black.opacity(0.7), radius: 17, y: 10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .buttonStyle(BookstorePressedStyle())
+                    .buttonStyle(.plain)
+                    .frame(width: proxy.size.width * 0.60, height: 73)
+                    .background(BookstoreInk.green)
+                    .clipShape(Rectangle())
+                    .overlay(Rectangle().stroke(BookstoreInk.brass.opacity(0.85), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.7), radius: 17, y: 10)
                     .accessibilityHint("Move to the rotating book stand")
 
-                    Button(action: walkToShop) {
-                        HStack(spacing: 12) {
-                            Rectangle().fill(BookstoreInk.brass.opacity(0.5)).frame(width: 42, height: 1)
-                            Text("SHOP").font(Print.caption(11)).tracking(2.8)
-                            Rectangle().fill(BookstoreInk.brass.opacity(0.5)).frame(width: 42, height: 1)
-                        }
-                        .foregroundStyle(BookstoreInk.paper.opacity(0.9))
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(BookstorePressedStyle())
-                    .accessibilityHint("Turn toward the permanent Club Shop counter")
-                    .offset(y: 10)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 34)
@@ -323,30 +333,7 @@ struct BookstoreOpeningView: View {
 
                 Spacer()
 
-                HStack {
-                    turnButton(systemName: "chevron.left", label: "Previous book", delta: -1)
-                    Spacer()
-                    turnButton(systemName: "chevron.right", label: "Next book", delta: 1)
-                }
-                .padding(.horizontal, 14)
-                // The turn buttons sit over the lower rack tier, close to the
-                // selected Book rather than halfway up the stand.
-                .padding(.bottom, 47)
-
                 VStack(spacing: 8) {
-                    Text(selectedBook.title)
-                        .font(.system(size: 17, design: .serif).italic())
-                        .foregroundStyle(BookstoreInk.paper)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                    Text("\(selectedBook.shelfLabel) · \(selectorStatus)")
-                        .font(Print.caption(9.5))
-                        .tracking(1.15)
-                        .textCase(.uppercase)
-                        .foregroundStyle(BookstoreInk.paper.opacity(0.72))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-
                     if focusedEditionID == selectedBook.id {
                         Button(action: openSelectedBook) {
                             Text(isOpeningBook
@@ -388,25 +375,79 @@ struct BookstoreOpeningView: View {
         }
     }
 
-    private func turnButton(systemName: String, label: String, delta: Int) -> some View {
-        Button {
-            Haptics.menuPress()
-            turnToAdjacentFace(delta)
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 18, weight: .black))
-                .foregroundStyle(BookstoreInk.paper)
-                .frame(width: 42, height: 42)
-                .background(Circle().fill(.black.opacity(0.72)))
-                .overlay(Circle().stroke(BookstoreInk.paper.opacity(0.38), lineWidth: 1))
-                .shadow(color: .black.opacity(0.6), radius: 8, y: 5)
+    private func focusedLiveBook(expanded: Bool) -> some View {
+        GeometryReader { proxy in
+            let bookWidth = proxy.size.width * 0.80
+            let bookHeight = bookWidth * 1.4
+            let bookCanvasHeight = bookHeight + bookWidth * 0.045
+            let focusedOffset = expanded
+                ? -proxy.size.height * 0.022
+                : -proxy.size.height * 0.205
+            let bookCenterY = proxy.size.height * 0.5 + focusedOffset
+            let benefitHeight: CGFloat = obstacle == .none ? 84 : 122
+            let benefitCenterY = bookCenterY + bookCanvasHeight * 0.5 + benefitHeight * 0.5 + 10
+
+            ZStack {
+                LiveBook(
+                    edition: selectedBook,
+                    ribbons: LiveBook.RibbonStrip(
+                        levels: Obstacle.allCases,
+                        selected: obstacle,
+                        isUnlocked: { $0.rawValue <= unlockedObstacleRawValue },
+                        onPick: selectObstacle,
+                        onShowInfo: { obstacleInfo = $0 }
+                    )
+                )
+                // These dimensions and the ribbon construction are the former
+                // shelf implementation that established the approved look.
+                .frame(width: bookWidth)
+                // LiveBook's tab strip reaches beyond the fore-edge. Keep the
+                // hit region tightly around that actual Book, not the whole
+                // screen, so the dimmed room behind it remains a reliable return
+                // target.
+                .frame(
+                    width: bookWidth * 1.20,
+                    height: bookCanvasHeight,
+                    alignment: .topLeading
+                )
+                // The initial transform is the active pocket's on-screen frame.
+                // The exact same LiveBook then scales and travels to its reading
+                // position in one animation instead of appearing after a separate
+                // SceneKit zoom has already completed.
+                .scaleEffect(expanded ? 1 : 0.38)
+                // Position comes after scale: otherwise scaling a pre-positioned
+                // view also pulls its small shelf copy toward screen centre before
+                // the real movement begins.
+                .position(
+                    x: proxy.size.width * 0.5 + bookWidth * 0.10,
+                    y: bookCenterY
+                )
+                .opacity(expanded ? 1 : 0.98)
+
+                // The Book's actual starting-board rule belongs beside the
+                // focused cover, with the selected obstacle shown only when it
+                // changes the run.
+                SelectedBookBenefitPlaque(benefit: selectedBook.benefit, obstacle: obstacle)
+                    // The plaque is a screen-level reading aid, not part of
+                    // the Book's physical frame. Keep its measured right
+                    // gutter (2% of the current screen width) and mirror it
+                    // exactly on the left at every device size.
+                    .frame(width: proxy.size.width * 0.96, height: benefitHeight)
+                    .position(x: proxy.size.width * 0.5, y: benefitCenterY)
+                    .opacity(expanded ? 1 : 0)
+                    .scaleEffect(expanded ? 1 : 0.96)
+                    .allowsHitTesting(false)
+            }
+            .animation(
+                reduceMotion ? .linear(duration: 0.01) : .easeInOut(duration: 0.42),
+                value: expanded
+            )
         }
-        .buttonStyle(BookstorePressedStyle())
-        .accessibilityLabel(label)
     }
 
     private func walkToStand() {
         guard phase == .store else { return }
+        resetFocusedBookPresentation()
         Haptics.menuOpen()
         phase = .transitioningToStand
     }
@@ -419,6 +460,13 @@ struct BookstoreOpeningView: View {
 
     private func returnToStore() {
         guard phase == .choosingBook else { return }
+        // Clear the SwiftUI focus synchronously. The old path waited for the
+        // SceneKit camera transition to report back, which let a selected
+        // LiveBook survive the title screen and reappear on the next Play.
+        if focusedEditionID != nil {
+            resetFocusedBookPresentation()
+            returnFocusSerial += 1
+        }
         Haptics.menuOpen()
         phase = .transitioningToStore
     }
@@ -512,6 +560,22 @@ struct BookstoreOpeningView: View {
     private func bookFocusChanged(_ id: String?) {
         guard focusedEditionID != id else { return }
         focusedEditionID = id
+        focusPresentationSerial += 1
+        let presentationSerial = focusPresentationSerial
+        guard id != nil else {
+            isFocusedBookExpanded = false
+            return
+        }
+        isFocusedBookExpanded = false
+        Task { @MainActor in
+            await Task.yield()
+            guard focusPresentationSerial == presentationSerial,
+                  focusedEditionID != nil
+            else { return }
+            withAnimation(reduceMotion ? .linear(duration: 0.01) : .easeInOut(duration: 0.42)) {
+                isFocusedBookExpanded = true
+            }
+        }
         guard let id,
               let book = books.first(where: { $0.id == id }),
               let saved = RunStore.displayedRun(), saved.run.book == book.rule
@@ -519,7 +583,28 @@ struct BookstoreOpeningView: View {
         obstacle = saved.run.obstacle
     }
 
+    private func returnFocusedBookToShelf() {
+        guard focusedEditionID != nil else { return }
+        Haptics.menuPress()
+        // Do not wait for the SceneKit return callback to remove LiveBook.
+        // The callback can arrive after the physical node is already back in
+        // its wire pocket, which leaves a second, zoomed book on top of it.
+        resetFocusedBookPresentation()
+        returnFocusSerial += 1
+    }
+
+    private func resetFocusedBookPresentation() {
+        focusPresentationSerial += 1
+        isFocusedBookExpanded = false
+        focusedEditionID = nil
+    }
+
     private var unlockedObstacleRawValue: Int {
+        // Volume 1 is the obstacle sampler: all nine sewn bookmarks can be
+        // tried before a player commits to opening their first Book.
+        if selectedBook.id == BookEdition.first.id {
+            return Obstacle.allCases.count
+        }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-unlockAll") {
             return Obstacle.allCases.count
@@ -553,18 +638,6 @@ struct BookstoreOpeningView: View {
         }
     }
 
-    private func turnToAdjacentFace(_ delta: Int) {
-        let currentFace = pocketSlots.firstIndex { $0.contains { $0 == selectedIndex } } ?? 0
-        let nextFace = (currentFace + delta + pocketSlots.count) % pocketSlots.count
-        guard let index = pocketSlots[nextFace].compactMap({ $0 }).first(where: { $0 < books.count }) else { return }
-        selectedIndex = index
-        turnSerial += 1
-    }
-
-    private var selectorStatus: String {
-        if selectedBook.id == BookEdition.first.id { return "Hand size 7" }
-        return selectedBook.isUnlocked ? "Unlocked" : "Locked"
-    }
 }
 
 private enum BookstoreInk {
@@ -573,6 +646,176 @@ private enum BookstoreInk {
     static let green = Color(red: 0.486, green: 0.549, blue: 0.451)
     static let sage = Color(red: 0.63, green: 0.70, blue: 0.58)
     static let charcoal = Color(red: 0.09, green: 0.09, blue: 0.085)
+}
+
+/// The printed result of a Book's own benefit. Keeping this adjacent to the
+/// selection UI makes the shelf explain gameplay in the same place the player
+/// chooses a Book.
+private struct SelectedBookBenefitPlaque: View {
+    let benefit: BookBenefit
+    let obstacle: Obstacle
+
+    private var showsObstacle: Bool { obstacle != .none }
+
+    var body: some View {
+        VStack(spacing: showsObstacle ? 7 : 0) {
+            HStack(spacing: 11) {
+                benefitMark
+                    .frame(width: 54, height: 34)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(benefit.title)
+                        .font(Print.subheading(15))
+                        .foregroundStyle(BookstoreInk.charcoal)
+                    Text(benefit.detail)
+                        .font(.system(size: 10.5, weight: .medium, design: .serif))
+                        .foregroundStyle(BookstoreInk.charcoal.opacity(0.74))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+
+                Spacer(minLength: 3)
+
+                HStack(spacing: 3) {
+                    Text("\(benefit.before)")
+                    Text("→")
+                        .foregroundStyle(BookstoreInk.brass)
+                    Text("\(benefit.after)")
+                }
+                .font(Print.numeral(16, weight: .bold))
+                .foregroundStyle(BookstoreInk.charcoal)
+                .fixedSize()
+                .frame(width: 54, alignment: .trailing)
+            }
+
+            if showsObstacle {
+                HStack(spacing: 7) {
+                    Text(obstacle.name.uppercased())
+                        .font(Print.caption(8.5))
+                        .tracking(0.8)
+                        .foregroundStyle(BookstoreInk.paper)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(ObstacleRibbon.colour(for: obstacle).mixed(with: .black, by: 0.30))
+
+                    Text(obstacle.text)
+                        .font(.system(size: 9.5, weight: .medium, design: .serif))
+                        .foregroundStyle(BookstoreInk.charcoal.opacity(0.78))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.top, 6)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(BookstoreInk.brass.opacity(0.35))
+                        .frame(height: 1)
+                }
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, showsObstacle ? 10 : 9)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.97, green: 0.93, blue: 0.83),
+                    Color(red: 0.86, green: 0.80, blue: 0.67)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(BookstoreInk.charcoal.opacity(0.52), lineWidth: 2)
+                .padding(1)
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .stroke(BookstoreInk.brass.opacity(0.58), lineWidth: 1)
+                .padding(5)
+        }
+        .shadow(color: .black.opacity(0.52), radius: 8, y: 5)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    @ViewBuilder
+    private var benefitMark: some View {
+        switch benefit {
+        case .extraNumber:
+            ZStack {
+                ForEach(0..<5, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(BookstoreInk.paper)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .stroke(BookstoreInk.charcoal.opacity(0.48), lineWidth: 0.8)
+                        )
+                        .frame(width: 16, height: 22)
+                        .rotationEffect(.degrees(Double(index - 2) * 7))
+                        .offset(x: CGFloat(index - 2) * 7)
+                        .overlay {
+                            Text("\(index + 3)")
+                                .font(Print.caption(7))
+                                .foregroundStyle(BookstoreInk.charcoal)
+                                .offset(x: CGFloat(index - 2) * 7)
+                        }
+                }
+            }
+        case .openingFloat:
+            HStack(spacing: -5) {
+                ForEach(0..<3, id: \.self) { _ in
+                    Text("N")
+                        .font(Print.caption(9))
+                        .foregroundStyle(BookstoreInk.charcoal)
+                        .frame(width: 19, height: 19)
+                        .background(Circle().fill(Color(red: 0.92, green: 0.68, blue: 0.22)))
+                        .overlay(Circle().stroke(BookstoreInk.brass, lineWidth: 1))
+                }
+            }
+        case .marginClue:
+            ZStack {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(BookstoreInk.paper)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .stroke(BookstoreInk.charcoal.opacity(0.5), lineWidth: 1)
+                    )
+                VStack(spacing: 2) {
+                    HStack(spacing: 2) { clueSquares; clueSquares; clueSquares }
+                    HStack(spacing: 2) { clueSquares; clueSquares; clueSquares }
+                    HStack(spacing: 2) { clueSquares; clueSquares; clueSquares }
+                }
+                .padding(5)
+            }
+            .frame(width: 31, height: 31)
+        case .oneMoreTurn:
+            ZStack {
+                Circle()
+                    .fill(BookstoreInk.paper)
+                    .overlay(Circle().stroke(BookstoreInk.charcoal.opacity(0.5), lineWidth: 1))
+                Text("+1")
+                    .font(Print.numeral(12, weight: .bold))
+                    .foregroundStyle(BookstoreInk.brass)
+            }
+            .frame(width: 30, height: 30)
+        }
+    }
+
+    private var clueSquares: some View {
+        Rectangle()
+            .fill(BookstoreInk.charcoal.opacity(0.42))
+            .frame(width: 4, height: 4)
+    }
+
+    private var accessibilitySummary: String {
+        var summary = "Book benefit: \(benefit.title). \(benefit.detail)"
+        if showsObstacle {
+            summary += " \(obstacle.name). \(obstacle.text)"
+        }
+        return summary
+    }
 }
 
 private struct BookstoreCurrencyBadge: View {
