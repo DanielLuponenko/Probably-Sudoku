@@ -1,4 +1,5 @@
 import Foundation
+import ProbablySudokuEngine
 
 /// The permanent record behind the in-app achievement page. It stores facts
 /// about a player rather than transient view state, so earning is local-first
@@ -9,10 +10,55 @@ struct AchievementProgress: Codable, Equatable {
     /// A Boss victory is keyed by the run seed and Level, so re-entering a
     /// result page cannot count it twice and two devices can union safely.
     var completedBossEncounterIDs: Set<String> = []
+    /// Optional for profiles written before obstacles belonged to each Book.
+    var completedObstaclesByBookID: [String: Int]? = nil
+
+    var completedObstacles: [String: Int] {
+        // An old volume identity proves a win, but not which obstacle it used.
+        var values = Dictionary(uniqueKeysWithValues: Book.allCases
+            .filter { completedBookVolumes.contains($0.volume) }.map { ($0.rawValue, 1) })
+        values.merge(completedObstaclesByBookID ?? [:], uniquingKeysWith: max)
+        return values
+    }
+
+    var unlockedObstaclesByBookID: [String: Int] {
+        let completed = completedObstacles
+        return Dictionary(uniqueKeysWithValues: Book.allCases.map { book in
+            let best = min(Obstacle.allCases.count, max(0, completed[book.rawValue] ?? 0))
+            return (book.rawValue, min(Obstacle.allCases.count, best + 1))
+        })
+    }
+
+    var hasCompletedAllBooks: Bool {
+        Set(Book.allCases.map(\.volume)).isSubset(of: completedBookVolumes)
+    }
+
+    mutating func recordBookCompleted(_ book: Book, obstacle: Obstacle) {
+        var values = completedObstacles
+        values[book.rawValue] = max(values[book.rawValue] ?? 0, obstacle.rawValue)
+        completedBookVolumes.insert(book.volume)
+        completedObstaclesByBookID = values
+    }
+
+    /// Import only identity-bearing local facts, never the old global ceiling.
+    mutating func merge(localProgress: RunStore.Progress) {
+        var values = completedObstacles
+        values.merge(localProgress.completedObstacles, uniquingKeysWith: max)
+        completedObstaclesByBookID = values.isEmpty ? completedObstaclesByBookID : values
+        completedBookVolumes.formUnion(Book.allCases.filter {
+            (values[$0.rawValue] ?? 0) > 0
+        }.map(\.volume))
+    }
 
     mutating func merge(remote: AchievementProgress) {
+        var values = completedObstacles
+        values.merge(remote.completedObstacles, uniquingKeysWith: max)
+        completedObstaclesByBookID = values.isEmpty ? completedObstaclesByBookID : values
         highestLevelReached = max(highestLevelReached, remote.highestLevelReached)
         completedBookVolumes.formUnion(remote.completedBookVolumes)
+        completedBookVolumes.formUnion(Book.allCases.filter {
+            (values[$0.rawValue] ?? 0) > 0
+        }.map(\.volume))
         completedBossEncounterIDs.formUnion(remote.completedBossEncounterIDs)
     }
 }
@@ -43,7 +89,7 @@ enum AchievementCatalog {
         .init(id: "finish-book", category: .progress,
               title: "Cover to Cover", detail: "Finish a Book."),
         .init(id: "finish-every-book", category: .progress,
-              title: "The Whole Shelf", detail: "Finish all four Books."),
+              title: "The Whole Shelf", detail: "Finish all \(Book.allCases.count) Books."),
         .init(id: "reach-level-5", category: .progress,
               title: "Getting Serious", detail: "Reach Level 5 in a Book."),
         .init(id: "reach-level-7", category: .progress,
@@ -83,7 +129,7 @@ enum AchievementCatalog {
               title: "One More Page", detail: "Keep Filling until you Full Clear a Puzzle.")
     ]
 
-    static let allBookVolumes = 4
+    static let allBookVolumes = Book.allCases.count
     static func definition(for id: String) -> AchievementDefinition? {
         all.first { $0.id == id }
     }

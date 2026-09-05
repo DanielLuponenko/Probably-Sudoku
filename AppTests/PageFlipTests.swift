@@ -72,6 +72,77 @@ final class PageFlipTests: XCTestCase {
         XCTAssertFalse(flipper.isFlipping)
     }
 
+    func testCancellationDuringCaptureDoesNotPrepareOrCommitPage() async {
+        let driver = ManualPageTurnRenderer()
+        var task: Task<Void, Never>?
+        let flipper = PageFlipper(driver: driver) {
+            task?.cancel()
+            return Self.snapshot()
+        }
+        defer { flipper.cancel() }
+        var changes = 0
+        let finished = expectation(description: "Capture-cancelled turn returned")
+        // An immediate first-frame callback makes the original race explicit:
+        // queuing a cancellation handler after start is already too late.
+        driver.didStart = { driver.starts.last?.firstFrame() }
+        let source = model()
+        task = Task { @MainActor in
+            await flipper.flip(from: source, reduceMotion: false) { changes += 1 }
+            finished.fulfill()
+        }
+        await fulfillment(of: [finished], timeout: 1)
+        XCTAssertEqual(changes, 0)
+        XCTAssertEqual(driver.prepareCount, 0)
+        XCTAssertTrue(driver.starts.isEmpty)
+        XCTAssertFalse(flipper.isFlipping)
+    }
+
+    func testCancellationDuringTexturePreparationReleasesItWithoutStarting() async {
+        let driver = ManualPageTurnRenderer()
+        var task: Task<Void, Never>?
+        driver.didPrepare = { task?.cancel() }
+        driver.didStart = { driver.starts.last?.firstFrame() }
+        let flipper = makeFlipper(driver: driver)
+        defer { flipper.cancel() }
+        var changes = 0
+        let finished = expectation(description: "Upload-cancelled turn returned")
+        let source = model()
+        task = Task { @MainActor in
+            await flipper.flip(from: source, reduceMotion: false) { changes += 1 }
+            finished.fulfill()
+        }
+        await fulfillment(of: [finished], timeout: 1)
+        XCTAssertEqual(changes, 0)
+        XCTAssertEqual(driver.prepareCount, 1)
+        XCTAssertEqual(driver.cancelCount, 1)
+        XCTAssertTrue(driver.starts.isEmpty)
+        XCTAssertFalse(flipper.isFlipping)
+    }
+
+    func testTurnExhaustionKeepsBoardUntilTheResultLeafIsPresented() async throws {
+        var game = Game(seed: "exhaustion-page-handoff")
+        try game.startPuzzle()
+        var run = game.run
+        run.puzzle?.turnNumber = try XCTUnwrap(game.puzzle).turnsMax
+        let source = GameModel(frozen: Game(run: run), page: .puzzle)
+        source.endTurn()
+        XCTAssertEqual(source.puzzle?.phase, .outOfTurns)
+        XCTAssertEqual(source.page, .puzzle,
+                       "Immediate results would replace the board before its snapshot")
+        let driver = ManualPageTurnRenderer()
+        let flipper = makeFlipper(driver: driver)
+        defer { flipper.cancel() }
+        let turn = await startTurn(flipper, driver: driver, source: source) { source.showResults() }
+        XCTAssertEqual(source.page, .puzzle)
+        let callbacks = try XCTUnwrap(driver.starts.first)
+        callbacks.firstFrame()
+        XCTAssertEqual(source.page, .results)
+        XCTAssertEqual(source.puzzle?.phase, .outOfTurns)
+        callbacks.completion()
+        await fulfillment(of: [turn.finished], timeout: 1)
+        XCTAssertFalse(flipper.isFlipping)
+    }
+
     func testDestinationChangesOnlyAfterPrintedFirstFrameAndUnlocksOnCompletion() async {
         let driver = ManualPageTurnRenderer()
         let flipper = makeFlipper(driver: driver)
@@ -235,13 +306,14 @@ final class PageFlipTests: XCTestCase {
 
     private func startTurn(_ flipper: PageFlipper,
                            driver: ManualPageTurnRenderer,
+                           source: GameModel? = nil,
                            change: @escaping () -> Void) async -> RunningTurn {
         let started = expectation(description: "Renderer started")
         let finished = expectation(description: "Turn waiter released")
         driver.didStart = { started.fulfill() }
-        let source = model()
+        let outgoing = source ?? model()
         let task = Task { @MainActor in
-            await flipper.flip(from: source, reduceMotion: false, change)
+            await flipper.flip(from: outgoing, reduceMotion: false, change)
             finished.fulfill()
         }
         // A timeout is only a deadlock guard. No test relies on elapsed time to
@@ -261,6 +333,7 @@ private final class ManualPageTurnRenderer: PageTurnRendering {
 
     var canPrepare = true
     var didStart: (() -> Void)?
+    var didPrepare: (() -> Void)?
     private(set) var prepareCount = 0
     private(set) var preparedSize: CGSize?
     private(set) var cancelCount = 0
@@ -269,6 +342,7 @@ private final class ManualPageTurnRenderer: PageTurnRendering {
     func prepare(image: CGImage, pageSize: CGSize, scale: CGFloat) -> Bool {
         prepareCount += 1
         preparedSize = pageSize
+        didPrepare?()
         return canPrepare
     }
 

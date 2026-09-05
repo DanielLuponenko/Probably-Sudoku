@@ -6,6 +6,7 @@ import ProbablySudokuEngine
 struct FailureResultsPage: View {
     let model: GameModel
     let offersRescue: Bool
+    let onAbandon: () -> Void
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -65,9 +66,9 @@ struct FailureResultsPage: View {
         }
     }
 
-    private func endBook() {
+    func endBook() {
         if offersRescue { model.declineRewardedRescue() }
-        else { model.abandonRun() }
+        else { onAbandon() }
     }
 
     private func watchAd() {
@@ -218,16 +219,32 @@ private struct FailureScorePanel: View {
     let target: Int
     let compact: Bool
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     var body: some View {
-        HStack(spacing: 0) {
-            scoreColumn("YOUR SCORE", value: score)
-            Rectangle().fill(theme.paper.ruleInk.opacity(0.8)).frame(width: 0.8)
-                .padding(.vertical, 10)
-            scoreColumn("TARGET", value: target)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // Large numerals need the whole paper width. Shrinking two
+                // columns past their font floor silently drops score digits.
+                // The failure page already scrolls at accessibility sizes.
+                VStack(spacing: 0) {
+                    scoreColumn("YOUR SCORE", value: score)
+                    Rectangle().fill(theme.paper.ruleInk.opacity(0.8)).frame(height: 0.8)
+                        .padding(.horizontal, 10)
+                    scoreColumn("TARGET", value: target)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    scoreColumn("YOUR SCORE", value: score)
+                    Rectangle().fill(theme.paper.ruleInk.opacity(0.8)).frame(width: 0.8)
+                        .padding(.vertical, 10)
+                    scoreColumn("TARGET", value: target)
+                }
+            }
         }
-        .frame(height: (compact ? 76 : 88) * textScale)
+        .frame(height: (compact ? 76 : 88) * textScale
+               * (dynamicTypeSize.isAccessibilitySize ? 2 : 1))
         .background(theme.paper.warm.opacity(0.4), in: .rect(cornerRadius: 10))
         .overlay {
             RoundedRectangle(cornerRadius: 10)
@@ -248,7 +265,7 @@ private struct FailureScorePanel: View {
                 .minimumScaleFactor(0.45)
         }
         .padding(.horizontal, 7)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title == "TARGET" ? "Target" : "Your score")
         .accessibilityValue(value.formatted())
@@ -330,6 +347,9 @@ private struct FailureLastPageNote: View {
             Text("(for now)").font(Print.handwritten(19))
         }
         .foregroundStyle(Paper.ink)
+        // This fixed-size, decorative paper is hidden from VoiceOver. Keep
+        // its handwriting intact while the surrounding reading text scales.
+        .dynamicTypeSize(.large)
         .frame(width: 170, height: 112)
         .background(Paper.page, in: .rect(cornerRadius: 3))
         .overlay { FailurePaperTexture(opacity: 0.22) }

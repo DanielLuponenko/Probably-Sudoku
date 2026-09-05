@@ -227,7 +227,8 @@ public extension PuzzleState {
         var boss: BossModifier?
         var censored: Digit?
         if slot == .boss {
-            boss = run.pendingBoss ?? BossModifier.roll(&run.streams.boss)
+            run.ensurePendingBoss()
+            boss = run.pendingBoss
             run.pendingBoss = nil
             if boss?.censorsARandomDigit == true {
                 censored = BossModifier.rollCensoredDigit(&run.streams.boss)

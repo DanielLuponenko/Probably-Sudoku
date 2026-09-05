@@ -5,6 +5,8 @@ import Observation
 /// Tests use an in-memory adapter; gameplay never imports Google's SDK.
 @MainActor
 protocol RewardedAdAdapter: AnyObject {
+    /// Pure validation, before reading consent state or contacting either SDK.
+    func validateConfiguration() throws
     var canRequestAds: Bool { get }
     var privacyOptionsRequired: Bool { get }
     var canPresent: Bool { get }
@@ -33,10 +35,12 @@ final class RewardedAdService {
         case unavailable(String)
     }
 
-    static let shared = RewardedAdService(adapter: GoogleRewardedAdAdapter())
-    /// Deliberately not conditional on DEBUG: TestFlight/Release are test ads too.
-    static let demoAppID = "ca-app-pub-3940256099942544~1458002511"
-    static let demoRewardedID = "ca-app-pub-3940256099942544/1712485313"
+    static let shared = RewardedAdService(adapter: GoogleRewardedAdAdapter(),
+                                         presentationChanged: { GameAudio.shared.setAdPresented($0) })
+    /// Routine Debug/Release builds use this pair. Live ads require the
+    /// separately configured Production archive and a physical device.
+    static let demoAppID = AdConfiguration.demoAppID
+    static let demoRewardedID = AdConfiguration.demoRewardedID
     static let cacheLifetime: TimeInterval = 55 * 60
 
     private(set) var state: State = .idle
@@ -47,6 +51,8 @@ final class RewardedAdService {
     @ObservationIgnored private let adapter: any RewardedAdAdapter
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let networkTimeout: Duration
+    @ObservationIgnored private let presentationChanged: (Bool) -> Void
+    @ObservationIgnored private var externalPresentationCount = 0
     @ObservationIgnored private var ad: (any RewardedAdHandle)?
     @ObservationIgnored private var loadedAt: Date?
     @ObservationIgnored private var preparationID: UUID?
@@ -60,11 +66,15 @@ final class RewardedAdService {
     @ObservationIgnored private var dismissalCallback: (@MainActor () -> Void)?
 
     init(adapter: any RewardedAdAdapter, now: @escaping () -> Date = Date.init,
-         networkTimeout: Duration = .seconds(45)) {
+         networkTimeout: Duration = .seconds(45),
+         presentationChanged: @escaping (Bool) -> Void = { _ in }) {
         self.adapter = adapter
         self.now = now
         self.networkTimeout = networkTimeout
-        self.privacyOptionsRequired = adapter.privacyOptionsRequired
+        self.presentationChanged = presentationChanged
+        if validateAdapterConfiguration() {
+            self.privacyOptionsRequired = adapter.privacyOptionsRequired
+        }
     }
 
     var isReady: Bool {
@@ -89,6 +99,7 @@ final class RewardedAdService {
     private func startPreparation(privacyOnly: Bool) async {
         guard !Task.isCancelled, preparationID == nil, !isPresenting,
               !isPresentingPrivacyOptions else { return }
+        guard validateAdapterConfiguration() else { return }
         if !privacyOnly && isReady { return }
         discardAd()
         guard privacyOnly || adapter.canPresent else {
@@ -122,6 +133,7 @@ final class RewardedAdService {
     func present(onReward: @escaping @MainActor () -> Void,
                  onDismiss: @escaping @MainActor () -> Void) -> Bool {
         guard !isPresenting, !isPresentingPrivacyOptions, preparationID == nil else { return false }
+        guard validateAdapterConfiguration() else { return false }
         guard isReady, let ad else {
             discardAd()
             state = .unavailable("The video is not ready. Try again.")
@@ -135,6 +147,7 @@ final class RewardedAdService {
         dismissalCallback = onDismiss
         expiryTask?.cancel()
         state = .presenting
+        beginExternalPresentation()
         do {
             try ad.present(onReward: { [weak self] in
                 guard let self, self.presentationID == id, !self.earnedReward else { return }
@@ -147,6 +160,8 @@ final class RewardedAdService {
             })
             return true
         } catch {
+            // A synchronous SDK failure never owns the app's audio session.
+            if presentationID == id { endExternalPresentation() }
             presentationID = nil
             rewardCallback = nil
             dismissalCallback = nil
@@ -160,12 +175,15 @@ final class RewardedAdService {
     /// User-initiated Settings action. A changed choice invalidates cached ads;
     /// another explicit prepare is required before any subsequent ad request.
     func presentPrivacyOptions() async {
+        guard validateAdapterConfiguration() else { return }
         guard preparationID == nil, !isPresenting, !isPresentingPrivacyOptions,
               privacyOptionsRequired, adapter.canPresent else { return }
         discardAd()
         state = .idle
         isPresentingPrivacyOptions = true
+        beginExternalPresentation()
         defer {
+            endExternalPresentation()
             isPresentingPrivacyOptions = false
             privacyOptionsRequired = adapter.privacyOptionsRequired
         }
@@ -201,7 +219,7 @@ final class RewardedAdService {
             guard preparationID == id, !Task.isCancelled else { return }
             timeoutTask?.cancel()
             // Do not impose a timeout on a person's consent decision.
-            try await adapter.presentRequiredConsent()
+            try await presentConsentWithAudioSuspended()
             guard preparationID == id, !Task.isCancelled else { return }
             privacyOptionsRequired = adapter.privacyOptionsRequired
             guard adapter.canRequestAds else {
@@ -230,6 +248,39 @@ final class RewardedAdService {
             privacyOptionsRequired = adapter.privacyOptionsRequired
             finishPreparation(id: id, state: .unavailable("No video is available right now. Try again later."))
         }
+    }
+
+    private func validateAdapterConfiguration() -> Bool {
+        do {
+            try adapter.validateConfiguration()
+            return true
+        } catch {
+            discardAd()
+            privacyOptionsRequired = false
+            lastError = error.localizedDescription
+            state = .unavailable("Video ads are unavailable in this build.")
+            return false
+        }
+    }
+
+    private func presentConsentWithAudioSuspended() async throws {
+        beginExternalPresentation()
+        defer { endExternalPresentation() }
+        try await adapter.presentRequiredConsent()
+    }
+
+    /// Runs synchronously before the SDK takes over, not in a later SwiftUI
+    /// observation pass. The count also keeps audio paused if a canceled
+    /// preparation's consent form is still finishing its dismissal.
+    private func beginExternalPresentation() {
+        externalPresentationCount += 1
+        if externalPresentationCount == 1 { presentationChanged(true) }
+    }
+
+    private func endExternalPresentation() {
+        guard externalPresentationCount > 0 else { return }
+        externalPresentationCount -= 1
+        if externalPresentationCount == 0 { presentationChanged(false) }
     }
 
     private func startTimeout(id: UUID) {
@@ -261,6 +312,7 @@ final class RewardedAdService {
 
     private func finishPresentation(id: UUID, error: Error?) {
         guard presentationID == id else { return }
+        endExternalPresentation()
         presentationID = nil
         rewardCallback = nil
         let dismissal = dismissalCallback

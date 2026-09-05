@@ -16,6 +16,8 @@ struct BookstoreOpeningView: View {
     @State private var returnFocusSerial = 0
     @State private var isFocusedBookPresented = false
     @State private var isBenefitPlaqueVisible = false
+    @State private var isReturningFocusedBook = false
+    @State private var returnsToStoreAfterBook = false
     @State private var focusPresentationSerial = 0
     @State private var showingSettings = false
     @State private var isOpeningBook = false
@@ -117,7 +119,7 @@ struct BookstoreOpeningView: View {
                     editions: books,
                     selectedEditionID: selectedBook.id,
                     selectedObstacle: obstacle,
-                    unlockedObstacleRawValue: progressUnlockedObstacleRawValue,
+                    unlockedObstaclesByBookID: progressUnlockedObstaclesByBookID,
                     turnCommand: BookstoreTurnCommand(serial: turnSerial, selectedIndex: selectedIndex),
                     focusCommand: BookstoreFocusCommand(serial: focusSerial, editionID: selectedBook.id),
                     returnFocusCommand: BookstoreReturnFocusCommand(serial: returnFocusSerial),
@@ -148,16 +150,18 @@ struct BookstoreOpeningView: View {
                     isSceneVisible: isSceneVisible
                 )
                 .frame(width: proxy.size.width, height: proxy.size.height)
+                .allowsHitTesting(!isReturningFocusedBook)
             }
             .ignoresSafeArea()
 
             if phase.showsSelectionControls, focusedEditionID == selectedBook.id {
-                Color.black.opacity(isFocusedBookPresented ? 0.30 : 0)
+                Color.black.opacity(isFocusedBookPresented && !isReturningFocusedBook ? 0.30 : 0)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
                     .transition(.opacity)
                     .zIndex(4)
-                    .animation(.easeOut(duration: 0.2), value: isFocusedBookPresented)
+                    .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.14),
+                               value: isFocusedBookPresented && !isReturningFocusedBook)
 
                 // This is intentionally a real button.  The dimmed room is
                 // the one-tap target for returning to the spinning stand;
@@ -169,6 +173,8 @@ struct BookstoreOpeningView: View {
                 .ignoresSafeArea()
                 .accessibilityLabel("Return book to shelf")
                 .accessibilityHint("Returns the selected book to the spinning book shelf")
+                .disabled(isReturningFocusedBook || isOpeningBook)
+                .accessibilityHidden(isReturningFocusedBook)
                 .zIndex(4)
             }
 
@@ -179,6 +185,8 @@ struct BookstoreOpeningView: View {
                isFocusedBookPresented {
                 focusedLiveBook
                     .ignoresSafeArea()
+                    .allowsHitTesting(!isReturningFocusedBook)
+                    .accessibilityHidden(isReturningFocusedBook)
                     .transition(.identity)
                     .zIndex(5)
             }
@@ -192,6 +200,7 @@ struct BookstoreOpeningView: View {
             if phase.showsSelectionControls {
                 selectionControls
                     .ignoresSafeArea()
+                    .disabled(isReturningFocusedBook)
                     .transition(.opacity)
                     .zIndex(10)
             }
@@ -390,7 +399,8 @@ struct BookstoreOpeningView: View {
     private var focusedLiveBook: some View {
         GeometryReader { proxy in
             let layout = BookstoreSelectionLayout(viewport: proxy.size)
-            let benefitHeight: CGFloat = obstacle == .none ? 84 : 122
+            let benefitHeight = SelectedBookBenefitPlaque.height(width: proxy.size.width * 0.96,
+                                                                showsObstacle: obstacle != .none)
             let plaqueFrame = layout.plaqueFrame(height: benefitHeight)
 
             ZStack {
@@ -423,7 +433,7 @@ struct BookstoreOpeningView: View {
                 // The Book's actual starting-board rule belongs beside the
                 // focused cover, with the selected obstacle shown only when it
                 // changes the run.
-                SelectedBookBenefitPlaque(benefit: selectedBook.benefit, obstacle: obstacle)
+                SelectedBookBenefitPlaque(edition: selectedBook, obstacle: obstacle)
                     // The plaque is a screen-level reading aid, not part of
                     // the Book's physical frame. Keep its measured right
                     // gutter (2% of the current screen width) and mirror it
@@ -438,7 +448,7 @@ struct BookstoreOpeningView: View {
             let serial = focusPresentationSerial
             await Task.yield()
             guard !Task.isCancelled, serial == focusPresentationSerial,
-                  isFocusedBookPresented else { return }
+                  isFocusedBookPresented, !isReturningFocusedBook else { return }
             withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.24)) {
                 isBenefitPlaqueVisible = true
             }
@@ -459,13 +469,11 @@ struct BookstoreOpeningView: View {
     }
 
     private func returnToStore() {
-        guard phase == .choosingBook else { return }
-        // Clear the SwiftUI focus synchronously. The old path waited for the
-        // SceneKit camera transition to report back, which let a selected
-        // LiveBook survive the title screen and reappear on the next Play.
+        guard phase == .choosingBook, !isReturningFocusedBook, !isOpeningBook else { return }
         if focusedEditionID != nil {
-            resetFocusedBookPresentation()
-            returnFocusSerial += 1
+            returnsToStoreAfterBook = true
+            returnFocusedBookToShelf()
+            return
         }
         Haptics.menuOpen()
         phase = .transitioningToStore
@@ -550,7 +558,7 @@ struct BookstoreOpeningView: View {
         guard let index = books.firstIndex(where: { $0.id == id }) else { return }
         selectedIndex = index
         obstacle = selectedBook.availableObstacle(
-            obstacle, progressUnlockedThrough: progressUnlockedObstacleRawValue
+            obstacle, progressByBookID: progressUnlockedObstaclesByBookID
         )
     }
 
@@ -574,42 +582,63 @@ struct BookstoreOpeningView: View {
 
     private func bookFocusChanged(_ focus: BookstoreBookFocus) {
         guard phase == .choosingBook else { return }
+        // A queued extraction callback cannot undo a return already requested
+        // while the plaque is fading at its stationary screen position.
+        if isReturningFocusedBook {
+            switch focus {
+            case .extracting, .presented: return
+            case .returning, .shelf: break
+            }
+        }
+        if focus == .shelf {
+            let returnToAisle = returnsToStoreAfterBook
+            resetFocusedBookPresentation()
+            if returnToAisle {
+                Haptics.menuOpen()
+                phase = .transitioningToStore
+            }
+            return
+        }
         focusedEditionID = focus.editionID
         isFocusedBookPresented = focus.isPresented
+        if case .returning = focus { isReturningFocusedBook = true }
         isBenefitPlaqueVisible = false
         focusPresentationSerial += 1
     }
 
     private func returnFocusedBookToShelf() {
-        guard focusedEditionID != nil else { return }
+        guard let editionID = focusedEditionID, !isReturningFocusedBook, !isOpeningBook else { return }
         Haptics.menuPress()
-        // Do not wait for the SceneKit return callback to remove LiveBook.
-        // The callback can arrive after the physical node is already back in
-        // its wire pocket, which leaves a second, zoomed book on top of it.
-        resetFocusedBookPresentation()
-        returnFocusSerial += 1
+        isReturningFocusedBook = true
+        focusPresentationSerial += 1
+        let serial = focusPresentationSerial
+        // Fade the reading aid IN PLACE before the physical Book moves. Keep
+        // LiveBook mounted until SceneKit reports its visible twin GPU-ready.
+        withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.14), completionCriteria: .removed) {
+            isBenefitPlaqueVisible = false
+        } completion: {
+            guard phase == .choosingBook, isReturningFocusedBook,
+                  focusedEditionID == editionID, focusPresentationSerial == serial else { return }
+            returnFocusSerial += 1
+        }
     }
 
     private func resetFocusedBookPresentation() {
         focusPresentationSerial += 1
         isFocusedBookPresented = false
         isBenefitPlaqueVisible = false
+        isReturningFocusedBook = false
+        returnsToStoreAfterBook = false
         focusedEditionID = nil
     }
 
     private var unlockedObstacleRawValue: Int {
-        selectedBook.unlockedObstacleRawValue(progressUnlockedThrough: progressUnlockedObstacleRawValue)
+        selectedBook.unlockedObstacleRawValue(progressByBookID: progressUnlockedObstaclesByBookID)
     }
 
-    /// Send the progress ceiling to the rack, not the selected Book's sampler
-    /// override. Each shelf cover resolves its own effective access.
-    private var progressUnlockedObstacleRawValue: Int {
-        #if DEBUG && targetEnvironment(simulator)
-        if ProcessInfo.processInfo.arguments.contains("-unlockAll") {
-            return Obstacle.allCases.count
-        }
-        #endif
-        return RunStore.unlockedObstacle.rawValue
+    private var progressUnlockedObstaclesByBookID: [String: Int] {
+        BookEdition.obstacleUnlocks(for: profile.profile.achievementProgress,
+                                   arguments: ProcessInfo.processInfo.arguments)
     }
 
     private func selectObstacle(_ selected: Obstacle) {
@@ -651,160 +680,138 @@ private enum BookstoreInk {
 /// The printed result of a Book's own benefit. Keeping this adjacent to the
 /// selection UI makes the shelf explain gameplay in the same place the player
 /// chooses a Book.
-private struct SelectedBookBenefitPlaque: View {
-    let benefit: BookBenefit
+struct SelectedBookBenefitPlaque: View {
+    let edition: BookEdition
     let obstacle: Obstacle
 
+    private var benefit: BookBenefit { edition.benefit }
     private var showsObstacle: Bool { obstacle != .none }
+    private let stock = Color(hex: 0xF2EEE4)
+    private let olive = Color(hex: 0xB6BD98)
+    private let secondaryInk = Color(hex: 0x817D79)
+    private var accent: Color { edition.design.accent }
+    private var strongInk: Color { accent.mixed(with: .black, by: 0.54) }
+    private var tint: Color { accent.mixed(with: stock, by: 0.77) }
+
+    static func height(width: CGFloat, showsObstacle: Bool) -> CGFloat {
+        width * 0.245 + (showsObstacle ? 32 : 0)
+    }
 
     var body: some View {
-        VStack(spacing: showsObstacle ? 7 : 0) {
-            HStack(spacing: 11) {
-                benefitMark
-                    .frame(width: 54, height: 34)
+        GeometryReader { proxy in
+            let scale = proxy.size.width / 386
+            VStack(spacing: 0) {
+                HStack(spacing: 12 * scale) {
+                    Image(systemName: benefitSymbol)
+                        .font(.system(size: 36 * scale, weight: .medium))
+                        .foregroundStyle(strongInk)
+                        .frame(width: 64 * scale, height: 64 * scale)
+                        .background(tint, in: Circle())
+                        .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(benefit.title)
-                        .font(Print.subheading(15))
-                        .foregroundStyle(BookstoreInk.charcoal)
-                    Text(benefit.detail)
-                        .font(.system(size: 10.5, weight: .medium, design: .serif))
-                        .foregroundStyle(BookstoreInk.charcoal.opacity(0.74))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 5 * scale) {
+                        Text(benefit.title)
+                            .font(Print.subheading(24 * scale))
+                            .foregroundStyle(strongInk)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.66)
+                        Text(detail)
+                            .font(.system(size: 14 * scale, weight: .medium, design: .serif))
+                            .foregroundStyle(secondaryInk)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Fit the complete comparison as one line. Separate Text
+                    // siblings let the HStack truncate only the first value.
+                    Text(badgeText(scale: scale))
+                    .font(Print.numeral(25 * scale, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .padding(.horizontal, 5 * scale)
+                    .frame(width: badgeWidth * scale, height: 46 * scale)
+                    .background(tint, in: RoundedRectangle(cornerRadius: 13 * scale))
+                    .shadow(color: .black.opacity(0.07), radius: 1, y: 1)
+                    .accessibilityHidden(true)
                 }
+                .frame(maxHeight: .infinity)
+                .padding(.horizontal, 18 * scale)
 
-                Spacer(minLength: 3)
-
-                HStack(spacing: 3) {
-                    Text("\(benefit.before)")
-                    Text("→")
-                        .foregroundStyle(BookstoreInk.brass)
-                    Text("\(benefit.after)")
+                if showsObstacle {
+                    HStack(spacing: 7 * scale) {
+                        Text(obstacle.name)
+                            .font(Print.caption(9.5 * scale))
+                            .foregroundStyle(ObstacleRibbon.colour(for: obstacle).mixed(with: .black, by: 0.45))
+                            .fixedSize()
+                        Text(obstacle.text)
+                            .font(.system(size: 10 * scale, weight: .medium, design: .serif))
+                            .foregroundStyle(secondaryInk)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 30)
+                    .overlay(alignment: .top) {
+                        Rectangle().fill(olive.opacity(0.52)).frame(height: 0.65)
+                    }
+                    .padding(.horizontal, 18 * scale)
+                    .padding(.bottom, 6)
                 }
-                .font(Print.numeral(16, weight: .bold))
-                .foregroundStyle(BookstoreInk.charcoal)
-                .fixedSize()
-                .frame(width: 54, alignment: .trailing)
             }
-
-            if showsObstacle {
-                HStack(spacing: 7) {
-                    Text(obstacle.name.uppercased())
-                        .font(Print.caption(8.5))
-                        .tracking(0.8)
-                        .foregroundStyle(BookstoreInk.paper)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(ObstacleRibbon.colour(for: obstacle).mixed(with: .black, by: 0.30))
-
-                    Text(obstacle.text)
-                        .font(.system(size: 9.5, weight: .medium, design: .serif))
-                        .foregroundStyle(BookstoreInk.charcoal.opacity(0.78))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.top, 6)
-                .overlay(alignment: .top) {
-                    Rectangle()
-                        .fill(BookstoreInk.brass.opacity(0.35))
-                        .frame(height: 1)
-                }
+            .padding(.vertical, showsObstacle ? 3 : 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(stock)
+            .clipShape(RoundedRectangle(cornerRadius: 14 * scale))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14 * scale)
+                    .stroke(olive.opacity(0.90), lineWidth: 0.8)
+                    .padding(0.75)
+                RoundedRectangle(cornerRadius: 11 * scale)
+                    .stroke(olive.opacity(0.74), lineWidth: 0.8)
+                    .padding(4 * scale)
             }
+            .shadow(color: .black.opacity(0.32), radius: 7, y: 4)
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, showsObstacle ? 10 : 9)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.97, green: 0.93, blue: 0.83),
-                    Color(red: 0.86, green: 0.80, blue: 0.67)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke(BookstoreInk.charcoal.opacity(0.52), lineWidth: 2)
-                .padding(1)
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .stroke(BookstoreInk.brass.opacity(0.58), lineWidth: 1)
-                .padding(5)
-        }
-        .shadow(color: .black.opacity(0.52), radius: 8, y: 5)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
 
-    @ViewBuilder
-    private var benefitMark: some View {
+    private var badgeWidth: CGFloat {
+        let digits = String(benefit.before).count + String(benefit.after).count
+        return 79 + CGFloat(max(0, digits - 2)) * 6
+    }
+
+    private func badgeText(scale: CGFloat) -> AttributedString {
+        var before = AttributedString(String(benefit.before))
+        before.foregroundColor = strongInk.opacity(0.54)
+        var arrow = AttributedString(" → ")
+        arrow.foregroundColor = Color(hex: 0x7A8954)
+        arrow.font = .system(size: 17 * scale, weight: .medium)
+        var after = AttributedString(String(benefit.after))
+        after.foregroundColor = strongInk
+        before.append(arrow)
+        before.append(after)
+        return before
+    }
+
+    /// Concise print copy for the plaque; the accessibility label retains the
+    /// complete engine-authored rule, including its exact scope.
+    var detail: String {
         switch benefit {
-        case .extraNumber:
-            ZStack {
-                ForEach(0..<5, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(BookstoreInk.paper)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .stroke(BookstoreInk.charcoal.opacity(0.48), lineWidth: 0.8)
-                        )
-                        .frame(width: 16, height: 22)
-                        .rotationEffect(.degrees(Double(index - 2) * 7))
-                        .offset(x: CGFloat(index - 2) * 7)
-                        .overlay {
-                            Text("\(index + 3)")
-                                .font(Print.caption(7))
-                                .foregroundStyle(BookstoreInk.charcoal)
-                                .offset(x: CGFloat(index - 2) * 7)
-                        }
-                }
-            }
-        case .openingFloat:
-            HStack(spacing: -5) {
-                ForEach(0..<3, id: \.self) { _ in
-                    Text("N")
-                        .font(Print.caption(9))
-                        .foregroundStyle(BookstoreInk.charcoal)
-                        .frame(width: 19, height: 19)
-                        .background(Circle().fill(Color(red: 0.92, green: 0.68, blue: 0.22)))
-                        .overlay(Circle().stroke(BookstoreInk.brass, lineWidth: 1))
-                }
-            }
-        case .marginClue:
-            ZStack {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(BookstoreInk.paper)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .stroke(BookstoreInk.charcoal.opacity(0.5), lineWidth: 1)
-                    )
-                VStack(spacing: 2) {
-                    HStack(spacing: 2) { clueSquares; clueSquares; clueSquares }
-                    HStack(spacing: 2) { clueSquares; clueSquares; clueSquares }
-                    HStack(spacing: 2) { clueSquares; clueSquares; clueSquares }
-                }
-                .padding(5)
-            }
-            .frame(width: 31, height: 31)
-        case .oneMoreTurn:
-            ZStack {
-                Circle()
-                    .fill(BookstoreInk.paper)
-                    .overlay(Circle().stroke(BookstoreInk.charcoal.opacity(0.5), lineWidth: 1))
-                Text("+1")
-                    .font(Print.numeral(12, weight: .bold))
-                    .foregroundStyle(BookstoreInk.brass)
-            }
-            .frame(width: 30, height: 30)
-        case .extraToss, .boxCoin, .firstMistakeFree, .placementBonus,
-             .unitBonus, .interestCap, .freeReroll, .puzzleCoin:
-            Image(systemName: benefitSymbol)
-                .font(.system(size: 27, weight: .regular))
-                .foregroundStyle(BookstoreInk.charcoal)
+        case .extraNumber: return "\(benefit.after) numbers in your hand"
+        case .openingFloat: return "\(benefit.after) coins to begin"
+        case .marginClue: return "\(benefit.after) clue per puzzle"
+        case .oneMoreTurn: return "\(benefit.after) turns per puzzle"
+        case .extraToss: return "\(benefit.after) numbers per puzzle"
+        case .boxCoin: return "For each box you complete"
+        case .firstMistakeFree: return "One penalty waived per puzzle"
+        case .placementBonus: return "For each correct placement"
+        case .unitBonus: return "For each row, column or box clear"
+        case .interestCap: return "Up to \(benefit.after) interest coins"
+        case .freeReroll: return "First reroll in every Shop"
+        case .puzzleCoin: return "\(benefit.after) base coins per puzzle"
         }
     }
 
@@ -825,13 +832,7 @@ private struct SelectedBookBenefitPlaque: View {
         }
     }
 
-    private var clueSquares: some View {
-        Rectangle()
-            .fill(BookstoreInk.charcoal.opacity(0.42))
-            .frame(width: 4, height: 4)
-    }
-
-    private var accessibilitySummary: String {
+    var accessibilitySummary: String {
         var summary = "Book benefit: \(benefit.title). \(benefit.detail)"
         if showsObstacle {
             summary += " \(obstacle.name). \(obstacle.text)"

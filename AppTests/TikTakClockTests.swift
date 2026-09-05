@@ -129,7 +129,8 @@ final class TikTakClockTests: XCTestCase {
             XCTAssertEqual(try remaining(model), 0)
             XCTAssertEqual(model.puzzle?.phase, .failed)
             XCTAssertEqual(model.run.outcome, .failed)
-            XCTAssertEqual(model.page, .results)
+            XCTAssertEqual(model.page, .puzzle,
+                           "Keep the outgoing board until GameView commits its page-turn first frame")
             XCTAssertFalse(model.isClockRunning)
             XCTAssertFalse(model.canOfferRewardedRescue)
             let ended = try model.gameForPersistence.encoded()
@@ -232,7 +233,8 @@ final class TikTakClockTests: XCTestCase {
         XCTAssertNil(model.run.outcome)
         model.setClockRunning(true)
         XCTAssertEqual(model.run.outcome, .failed)
-        XCTAssertEqual(model.page, .results)
+        XCTAssertEqual(model.page, .puzzle,
+                       "Activation must let GameView present the failure through its normal page turn")
     }
 
     private func makeGame(remaining: Double = 180, phase: PuzzlePhase = .playing) throws -> Game {

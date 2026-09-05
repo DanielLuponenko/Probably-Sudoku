@@ -15,7 +15,7 @@ struct StartBookView: View {
     /// Back to the club room. Optional so the shelf still stands on its own in
     /// a preview, and so nothing about the Books themselves changed.
     var onBack: (() -> Void)? = nil
-    /// A finished Book returns the shelf focused on the suggested next volume.
+    /// A finished Book returns the shelf focused on its own next obstacle.
     /// Normal shelf entry retains its existing debug/default position.
     private let initialIndex: Int
 
@@ -72,19 +72,12 @@ struct StartBookView: View {
         return .none
     }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(PlayerProfileStore.self) private var profile
 
-    /// The hardest obstacle that can be taken, held as state rather than read
-    /// from the store on every render — so a QA unlock redraws the strip
-    /// instead of waiting for the next launch.
-    @State private var unlockedThrough = StartBookView.unlockCeiling()
-
-    private static func unlockCeiling() -> Int {
-        #if DEBUG && targetEnvironment(simulator)
-        if ProcessInfo.processInfo.arguments.contains("-unlockAll") {
-            return Obstacle.allCases.count
-        }
-        #endif
-        return RunStore.unlockedObstacle.rawValue
+    private var unlockedThrough: Int {
+        book.unlockedObstacleRawValue(progressByBookID: BookEdition.obstacleUnlocks(
+            for: profile.profile.achievementProgress, arguments: ProcessInfo.processInfo.arguments
+        ))
     }
 
     private var books: [BookEdition] { BookEdition.shelf }
@@ -140,6 +133,9 @@ struct StartBookView: View {
         .onReceive(NotificationCenter.default.publisher(for: CloudSync.didReceiveExternalChange)) { _ in
             resumable = RunStore.displayedRun()
         }
+        .onChange(of: index) {
+            obstacle = book.availableObstacle(obstacle, progressUnlockedThrough: unlockedThrough)
+        }
     }
 
     /// The way out of the shelf. Small, at the top corner, and quiet — the
@@ -186,8 +182,9 @@ struct StartBookView: View {
             if let saved = resumable,
                saved.run.book == book.rule {
                 VStack(spacing: 8) {
-                    PaperButton(title: "Continue the Book",
-                                subtitle: "Level \(saved.run.level), Puzzle \(saved.run.slot.rawValue + 1)",
+                    PaperButton(title: saved.run.outcome == .bookCompleted ? "See Completed Book" : "Continue the Book",
+                                subtitle: saved.run.outcome == .bookCompleted ? "Your final page is ready"
+                                    : "Level \(saved.run.level), Puzzle \(saved.run.slot.rawValue + 1)",
                                 kind: .primary) { onContinue() }
                     PaperButton(title: "Start a New Book", kind: .quiet) {
                         onStart(book, obstacle)

@@ -11,13 +11,27 @@ struct BuffSlip: View {
 
     @State private var chosen: Digit?
     @State private var useError: String?
+    @State private var wasUsed = false
 
-    private var buff: OwnedBuff? {
-        model.run.buffs.indices.contains(index) ? model.run.buffs[index] : nil
+    // The consumed item leaves the inventory before its slip finishes fading.
+    // Its printed metadata must stay on that outgoing slip, not become the
+    // next inventory slot's name and instructions halfway through dismissal.
+    @State private var buff: OwnedBuff?
+
+    init(model: GameModel, index: Int, onDone: @escaping () -> Void) {
+        self.model = model
+        self.index = index
+        self.onDone = onDone
+        self._buff = State(initialValue: model.run.buffs.indices.contains(index)
+                           ? model.run.buffs[index] : nil)
     }
     /// Paper Crane is the only Buff that asks you to pick a number.
     private var needsDigit: Bool { buff?.defID == Buffs.paperCrane }
-    private var canUse: Bool { !needsDigit || chosen != nil }
+    private var canUse: Bool {
+        !wasUsed && buff != nil && model.run.buffs.indices.contains(index)
+            && model.run.buffs[index].defID == buff?.defID
+            && (!needsDigit || chosen != nil)
+    }
 
     var body: some View {
         PaperSlip(
@@ -86,9 +100,12 @@ struct BuffSlip: View {
                 }
 
                 PaperButton(title: "Use", kind: .primary, isEnabled: canUse) {
+                    guard canUse else { return }
+                    wasUsed = true
                     if model.useBuff(at: index, digit: chosen) {
                         onDone()
                     } else {
+                        wasUsed = false
                         useError = model.message
                     }
                 }

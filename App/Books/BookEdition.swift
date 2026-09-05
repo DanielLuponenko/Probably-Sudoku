@@ -36,18 +36,37 @@ struct BookEdition: Identifiable, Equatable {
     var isWritten: Bool { true }
     var isUnlocked: Bool { true }
 
-    /// Local visual QA can sample all nine Obstacles on Volume 1. Every Book
-    /// on a physical device or in Release uses the player's existing ladder.
+    /// The supplied ceiling belongs to this edition, never the whole shelf.
+    /// Explicit visual-QA overrides are applied by the menu, not persisted here.
     func unlockedObstacleRawValue(progressUnlockedThrough: Int) -> Int {
-        #if DEBUG && targetEnvironment(simulator)
-        if id == Self.first.id { return Obstacle.allCases.count }
-        #endif
         return min(Obstacle.allCases.count, max(Obstacle.none.rawValue, progressUnlockedThrough))
     }
 
     func availableObstacle(_ requested: Obstacle, progressUnlockedThrough: Int) -> Obstacle {
         requested.rawValue <= unlockedObstacleRawValue(progressUnlockedThrough: progressUnlockedThrough)
             ? requested : .none
+    }
+
+    func unlockedObstacleRawValue(progressByBookID: [String: Int]) -> Int {
+        unlockedObstacleRawValue(progressUnlockedThrough: progressByBookID[rule.rawValue] ?? 1)
+    }
+
+    func availableObstacle(_ requested: Obstacle, progressByBookID: [String: Int]) -> Obstacle {
+        availableObstacle(requested, progressUnlockedThrough: unlockedObstacleRawValue(progressByBookID: progressByBookID))
+    }
+
+    /// QA is an explicit, in-memory presentation choice. Merely running a
+    /// Debug build must not make a fresh player's first Book look completed.
+    static func obstacleUnlocks(for progress: AchievementProgress, arguments: [String]) -> [String: Int] {
+        var values = progress.unlockedObstaclesByBookID
+        #if DEBUG && targetEnvironment(simulator)
+        if arguments.contains("-unlockAll") {
+            for book in Book.allCases { values[book.rawValue] = Obstacle.allCases.count }
+        } else if arguments.contains("-previewFirstBookObstacles") {
+            values[first.rule.rawValue] = Obstacle.allCases.count
+        }
+        #endif
+        return values
     }
 
     /// Lines the Book writes in the margins while you play.

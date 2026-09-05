@@ -6,13 +6,71 @@ import ProbablySudokuEngine
 struct PuzzleBriefingView: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PageFlipper.self) private var flipper
     @Bindable var model: GameModel
+    var canStartPresentation: @MainActor () -> Bool = { true }
+    var isPresentationCovered = false
     @State private var ticketArrived = false
     @State private var clipBounced = false
     @State private var stampVisible = false
+    @State private var isStartingPuzzle = false
+    @State private var isAwaitingPreparation = false
+    @State private var playTask: Task<Void, Never>?
+    @State private var playRequestID: UUID?
 
     var body: some View {
+        // The page owns its bounds. An encounter's artwork must fit that
+        // proposal instead of making the Book grow into the desk's HUD.
+        GeometryReader { _ in
+            briefingContent
+        }
+        .task(id: preparationLifetime) {
+            guard scenePhase == .active else {
+                model.cancelPuzzlePreparation()
+                return
+            }
+            _ = await model.prepareUpcomingPuzzle()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                cancelPendingPlay()
+                model.cancelPuzzlePreparation()
+            }
+        }
+        .onChange(of: isPresentationCovered) { _, covered in
+            if covered { cancelPendingPlay() }
+        }
+        .onDisappear {
+            model.cancelPuzzlePreparation()
+            // A committed flip owns its remaining animation independently of
+            // the disappearing briefing. Other navigation cancels a cold wait.
+            if model.page != .puzzle || !flipper.isFlipping { cancelPendingPlay() }
+        }
+        .task(id: "\(model.run.level)-\(model.run.slot.rawValue)") {
+            ticketArrived = false
+            clipBounced = false
+            stampVisible = false
+            guard model.run.currentClipping != nil else { return }
+            guard !reduceMotion else {
+                ticketArrived = true
+                stampVisible = true
+                return
+            }
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.76)) { ticketArrived = true }
+            try? await Task.sleep(for: .milliseconds(170))
+            guard !Task.isCancelled else { return }
+            withAnimation(.bouncy(duration: 0.22, extraBounce: 0.18)) { clipBounced = true }
+            try? await Task.sleep(for: .milliseconds(160))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.12)) { clipBounced = false }
+            try? await Task.sleep(for: .milliseconds(90))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy(duration: 0.18)) { stampVisible = true }
+        }
+    }
+
+    private var briefingContent: some View {
         VStack(alignment: .leading, spacing: 11) {
             briefingHeader
             RunRouteStrip(currentSlot: model.run.slot, boss: upcomingBoss)
@@ -38,37 +96,55 @@ struct PuzzleBriefingView: View {
                 }
             }
 
-            if model.run.currentClipping == nil {
+            if model.run.currentClipping == nil && (model.run.slot != .boss || upcomingBoss == nil) {
                 Spacer(minLength: 0)
             }
 
-            PaperButton(title: "Play Puzzle  →", kind: .primary) {
-                Task {
-                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
-                        model.beginPuzzle()
-                    }
-                }
+            PaperButton(title: isAwaitingPreparation ? "Preparing Puzzle…" : "Play Puzzle  →",
+                        kind: .primary, isEnabled: !isStartingPuzzle) {
+                startPreparedPuzzle()
             }
             PageNumber(level: model.run.level, slot: model.run.slot.rawValue)
         }
-        .task(id: "\(model.run.level)-\(model.run.slot.rawValue)") {
-            ticketArrived = false
-            clipBounced = false
-            stampVisible = false
-            guard model.run.currentClipping != nil else { return }
-            guard !reduceMotion else {
-                ticketArrived = true
-                stampVisible = true
-                return
+    }
+
+    private var preparationLifetime: String {
+        "\(model.puzzlePreparationRevision)-\(scenePhase == .active)"
+    }
+
+    private func startPreparedPuzzle() {
+        guard !isStartingPuzzle, scenePhase == .active, !flipper.isFlipping,
+              canStartPresentation() else { return }
+        let requestID = UUID()
+        playRequestID = requestID
+        isStartingPuzzle = true
+        isAwaitingPreparation = !model.hasPreparedPuzzle
+        playTask = Task { @MainActor in
+            defer {
+                if playRequestID == requestID {
+                    isStartingPuzzle = false
+                    isAwaitingPreparation = false
+                    playTask = nil
+                    playRequestID = nil
+                }
             }
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.76)) { ticketArrived = true }
-            try? await Task.sleep(for: .milliseconds(170))
-            withAnimation(.bouncy(duration: 0.22, extraBounce: 0.18)) { clipBounced = true }
-            try? await Task.sleep(for: .milliseconds(160))
-            withAnimation(.easeOut(duration: 0.12)) { clipBounced = false }
-            try? await Task.sleep(for: .milliseconds(90))
-            withAnimation(.snappy(duration: 0.18)) { stampVisible = true }
+            guard let prepared = await model.prepareUpcomingPuzzle(reportFailure: true),
+                  !Task.isCancelled, playRequestID == requestID,
+                  canStartPresentation(), model.page == .briefing else { return }
+            isAwaitingPreparation = false
+            await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                guard playRequestID == requestID, canStartPresentation() else { return }
+                model.beginPreparedPuzzle(prepared)
+            }
         }
+    }
+
+    private func cancelPendingPlay() {
+        playRequestID = nil
+        playTask?.cancel()
+        playTask = nil
+        isStartingPuzzle = false
+        isAwaitingPreparation = false
     }
 
     private var briefingHeader: some View {
@@ -131,6 +207,11 @@ struct RunRouteStrip: View {
     var currentSlot: PuzzleSlot
     var boss: BossModifier?
 
+    var accessibilitySummary: String {
+        guard let boss else { return "Run plan: Puzzle 1, Puzzle 2, then Boss. Adversary not yet known." }
+        return "Run plan: Puzzle 1, Puzzle 2, then Boss: \(boss.name). Power: \(boss.text)"
+    }
+
     var body: some View {
         HStack(spacing: 7) {
             RouteCard(slot: .easy, currentSlot: currentSlot, boss: boss)
@@ -139,8 +220,8 @@ struct RunRouteStrip: View {
             RouteArrow()
             RouteCard(slot: .boss, currentSlot: currentSlot, boss: boss)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Run plan: Puzzle 1, Puzzle 2, then Boss")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
     }
 }
 
@@ -505,8 +586,9 @@ private struct BossEncounterPreview: View {
             }
 
             BossFleeingBoard(boss: boss)
-                .frame(maxWidth: .infinity)
-                .frame(height: 315)
+                // The rule and route keep their readable type. Only this
+                // decorative proof grid yields to the page's remaining space.
+                .frame(maxWidth: .infinity, maxHeight: 315)
 
         }
         .padding(15)

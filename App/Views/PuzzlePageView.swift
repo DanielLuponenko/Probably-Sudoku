@@ -11,31 +11,10 @@ struct PuzzlePageView: View {
     @State private var numberReturnFrames: [String: CGRect] = [:]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            ScoreMeter(score: puzzle.score, target: puzzle.target,
-                       level: puzzle.level, slot: puzzle.slot.rawValue,
-                       queuedBase: puzzle.pendingBase,
-                       queuedMultiplier: puzzle.pendingMultiplier,
-                       recentCoins: model.lastOutcome?.coinsEarned)
-                .dismissesPuzzleSelection(when: hasSelection) {
-                    model.dismissSelection()
-                }
-
-            GridView(model: model, board: puzzle.board)
-                .layoutPriority(1)
-
-            marginBand
-                .dismissesPuzzleSelection(when: hasSelection) {
-                    model.dismissSelection()
-                }
-
-            HandStripView(model: model, handSize: puzzle.handSize)
-            actionRow
-            PuzzleTurnLine(turn: puzzle.turnNumber, total: puzzle.turnsMax)
-                .dismissesPuzzleSelection(when: hasSelection) {
-                    model.dismissSelection()
-                }
+        GeometryReader { proxy in
+            // Compactness belongs to the available page, never the current
+            // level, Boss, score or Hand. Short phones keep room for the grid.
+            pageContent(compact: proxy.size.height < 560)
         }
         .coordinateSpace(name: NumberReturnMotionAnchor.space)
         .onPreferenceChange(NumberReturnMotionFrames.self) { numberReturnFrames = $0 }
@@ -56,6 +35,36 @@ struct PuzzlePageView: View {
         }
     }
 
+    private func pageContent(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 3 : 5) {
+            header(compact: compact)
+            ScoreMeter(score: puzzle.score, target: puzzle.target,
+                       queuedBase: puzzle.pendingBase,
+                       queuedMultiplier: puzzle.pendingMultiplier,
+                       recentCoins: model.lastOutcome?.coinsEarned,
+                       compact: compact)
+                .dismissesPuzzleSelection(when: hasSelection) {
+                    model.dismissSelection()
+                }
+
+            GridView(model: model, board: puzzle.board)
+                .layoutPriority(1)
+
+            marginBand(compact: compact)
+                .dismissesPuzzleSelection(when: hasSelection) {
+                    model.dismissSelection()
+                }
+
+            HandStripView(model: model, handSize: puzzle.handSize,
+                          tileHeight: compact ? 44 : 50)
+            actionRow(compact: compact)
+            PuzzleTurnLine(turn: puzzle.turnNumber, total: puzzle.turnsMax)
+                .dismissesPuzzleSelection(when: hasSelection) {
+                    model.dismissSelection()
+                }
+        }
+    }
+
     // MARK: Header
 
     private var shouldRunClock: Bool {
@@ -68,12 +77,16 @@ struct PuzzlePageView: View {
         model.selectedHandIndex != nil || model.selectedSquare != nil || model.isChoosingClue
     }
 
-    private var header: some View {
+    private func header(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("Puzzle \(puzzle.slot.rawValue + 1)")
-                    .pageHeading(31)
+                    .pageHeading(compact ? 22 : 25)
                 Spacer(minLength: 4)
+                Text("Level \(puzzle.level)")
+                    .font(Print.body(11))
+                    .foregroundStyle(palette.ink.opacity(0.72))
+                ProgressDots(index: puzzle.slot.rawValue, count: 3)
                 if let secondsLeft = model.secondsLeft {
                     Label(clockText(secondsLeft), systemImage: "timer")
                         .font(Print.caption(12))
@@ -82,8 +95,12 @@ struct PuzzlePageView: View {
                 }
             }
 
+            // A full-width two-line annotation keeps every Boss readable
+            // without reserving the old three-line, two-column stamp.
             if let boss = puzzle.boss {
                 BossStamp(boss: boss, censored: puzzle.censoredDigit)
+            } else {
+                BossStampReservation()
             }
 
             Rectangle().fill(palette.rule).frame(height: 1)
@@ -100,24 +117,26 @@ struct PuzzlePageView: View {
 
     /// The Book's own handwriting, given room whether or not it speaks, so a
     /// note appearing never shifts the grid.
-    private var marginBand: some View {
+    private func marginBand(compact: Bool) -> some View {
         ZStack {
             if let note = model.marginNote {
                 MarginNoteView(note: note)
                     .id(note.text)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 38, maxHeight: 46)
+        .frame(maxWidth: .infinity)
+        .frame(height: compact ? 38 : 46)
         .animation(.easeInOut(duration: 0.45), value: model.marginNote)
     }
 
     // MARK: Actions
 
-    private var actionRow: some View {
+    private func actionRow(compact: Bool) -> some View {
         HStack(spacing: 12) {
             PuzzleActionButton(title: model.tossButtonTitle,
                                subtitle: model.tossButtonSubtitle,
                                kind: .quiet,
+                               compact: compact,
                                isEnabled: model.canToss) {
                 model.tossSelected()
             }
@@ -127,12 +146,13 @@ struct PuzzlePageView: View {
                                    subtitle: model.isChoosingClue
                                        ? "pick a number" : "\(puzzle.cluesRemaining) left",
                                    kind: .quiet,
+                                   compact: compact,
                                    isEnabled: !model.hand.isEmpty) {
                     model.chooseClue()
                 }
             }
 
-            PuzzleActionButton(title: "End Turn", kind: .primary) { model.endTurn() }
+            PuzzleActionButton(title: "End Turn", kind: .primary, compact: compact) { model.endTurn() }
         }
     }
 }
@@ -162,20 +182,19 @@ private extension View {
     }
 }
 
-/// Score against target. This is the number the whole run is about, so it gets
-/// the weight the mockup gave the puzzle title.
+/// A compact, fixed-height score receipt. Score carries and pending payouts
+/// must never borrow space from the board.
 struct ScoreMeter: View {
     @Environment(\.levelPalette) private var palette
     var score: Int
     var target: Int
-    var level: Int
-    var slot: Int
     /// Correct-play points waiting to be banked at the end of this Turn.
     var queuedBase: Int = 0
     var queuedMultiplier: Double = 1
     /// Coin effects use the engine outcome too, so a Copper payout is visible
     /// beside the placement that triggered it rather than inferred by the UI.
     var recentCoins: Int?
+    var compact = false
 
     private var fraction: Double {
         target > 0 ? min(1, Double(score) / Double(target)) : 0
@@ -186,40 +205,43 @@ struct ScoreMeter: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("Score")
-                    .font(Print.caption(13)).tracking(1.7).textCase(.uppercase)
-                    .foregroundStyle(palette.ink.opacity(0.72))
-                Spacer()
-                Text("Level \(level)")
-                    .font(Print.body(15))
-                    .foregroundStyle(palette.ink)
-                ProgressDots(index: slot, count: 3)
-            }
+        VStack(alignment: .leading, spacing: compact ? 2 : 3) {
+            // Reserve both lines, including before the first placement. Bonus
+            // receipts must neither squeeze the score nor push down the board.
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    RollingNumber(value: score, size: compact ? 24 : 28,
+                                  weight: .bold, color: palette.ink)
+                        .accessibilityLabel("Score, \(score.formatted())")
+                    Text("/ \(target.formatted())")
+                        .font(Print.numeral(compact ? 16 : 18, weight: .medium))
+                        .foregroundStyle(palette.ink.opacity(0.70))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .accessibilityLabel("Target, \(target.formatted())")
+                    Spacer(minLength: 0)
+                }
+                .frame(height: (compact ? 24 : 28) * 1.18, alignment: .topLeading)
 
-            HStack(alignment: .bottom, spacing: 8) {
-                RollingNumber(value: score, size: 48, weight: .bold, color: palette.ink)
-                Text("/ \(target.formatted())")
-                    .font(Print.numeral(23, weight: .medium))
-                    .foregroundStyle(palette.ink.opacity(0.70))
-                if queuedBase > 0 {
-                    Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
-                        .font(Print.caption(11))
-                        .foregroundStyle(palette.accent)
-                        .accessibilityLabel("\(queued) points queued until end turn")
+                HStack(spacing: 8) {
+                    if queuedBase > 0 {
+                        Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
+                            .font(Print.caption(11))
+                            .foregroundStyle(palette.accent)
+                            .accessibilityLabel("\(queued) points queued until end turn")
+                    }
+                    Spacer(minLength: 0)
+                    if let recentCoins, recentCoins > 0 {
+                        Text("+\(recentCoins.formatted()) coins")
+                            .font(Print.caption(12))
+                            .foregroundStyle(Paper.coinRim)
+                            .accessibilityLabel("Last placement, plus \(recentCoins) coins")
+                    }
                 }
-                if let recentCoins, recentCoins > 0 {
-                    Text("+\(recentCoins) coins")
-                        .font(Print.caption(12))
-                        .foregroundStyle(Paper.coinRim)
-                        .id("coins-\(recentCoins)")
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .accessibilityLabel("Last placement, plus \(recentCoins) coins")
-                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(height: compact ? 14 : 16)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
 
             ScoreRuler(fraction: fraction, reach: reach, target: target, score: score,
                         ink: palette.ink, fill: palette.target, rule: palette.rule)
@@ -288,17 +310,23 @@ private struct PuzzleActionButton: View {
     var title: String
     var subtitle: String? = nil
     var kind: Kind
+    var compact = false
     var isEnabled: Bool = true
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 2) {
-                Text(title).font(Print.subheading(18)).tracking(1.1).textCase(.uppercase)
+                Text(title).font(Print.subheading(compact ? 16 : 18)).tracking(1.1).textCase(.uppercase)
                 if let subtitle { Text(subtitle).font(Print.body(11.5)).opacity(0.72) }
             }
+            // Clue availability changes two columns to three (and back),
+            // but wrapping button copy must never renegotiate the grid height.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .foregroundStyle(kind == .primary ? Color.white : theme.paper.ink)
-            .frame(maxWidth: .infinity, minHeight: 58)
+            .frame(maxWidth: .infinity)
+            .frame(height: compact ? 44 : 52)
             .background {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(kind == .primary ? palette.target : theme.paper.warm)
@@ -326,7 +354,23 @@ private struct PuzzleTurnLine: View {
     }
 }
 
-/// The Boss Modifier, stamped onto the page in red pencil.
+/// Empty typographic space for an ordinary Puzzle's reserved Boss band.
+struct BossStampReservation: View {
+    var body: some View {
+        // BossStamp's two full-width copy lines determine the band's height.
+        // Whitespace uses the same native font metrics and contains no rule.
+        Text(" \n ")
+            .font(Print.body(11.5))
+            .lineLimit(2, reservesSpace: true)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .hidden()
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
+    }
+}
+
+/// The Boss Modifier, annotated in ink without taking width from its rule.
 struct BossStamp: View {
     @Environment(\.levelPalette) private var palette
     var boss: BossModifier
@@ -335,35 +379,14 @@ struct BossStamp: View {
     private var design: BossBoardDesign { BossBoardDesign(boss: boss) }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 7) {
-            HStack(alignment: .top, spacing: 4) {
-                Image(systemName: design.symbol)
-                    .accessibilityHidden(true)
-                Text(boss.name)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-                .font(Print.caption(11))
-                .tracking(0.6)
-                .textCase(.uppercase)
-                .foregroundStyle(design.ink)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(design.ink.opacity(0.7), lineWidth: 1.4)
-                }
-                .rotationEffect(.degrees(design.angle))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text)
-                .font(Print.body(11.5))
-                .foregroundStyle(palette.ink.opacity(0.72))
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
+        let rule = censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text
+        Text("\(Text(boss.name.uppercased()).font(Print.caption(11.5)).foregroundStyle(design.ink)) · \(rule)")
+            .font(Print.body(11.5))
+            .foregroundStyle(palette.ink.opacity(0.78))
+            .lineLimit(2, reservesSpace: true)
+            .minimumScaleFactor(0.85)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("\(boss.name). \(rule)")
     }
 }
 
@@ -430,11 +453,14 @@ struct PaperButton: View {
 
 /// A button on paper does not glow; it presses in.
 struct PressedPaperStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.975 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
             .brightness(configuration.isPressed ? -0.04 : 0)
-            .animation(.snappy(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? .easeOut(duration: 0.08) : .snappy(duration: 0.12),
+                       value: configuration.isPressed)
     }
 }
 

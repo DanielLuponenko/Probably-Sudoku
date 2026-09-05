@@ -74,10 +74,14 @@ struct MarginNoteView: View {
     var body: some View {
         GeometryReader { proxy in
             let slack = max(0, proxy.size.width - inset * 2)
+            let noteWidth = slack * (1 - lateralShare)
+            let rotationGutter = abs(sin(note.angle * .pi / 180)) * noteWidth + 4
             noteText
-                .frame(maxWidth: slack * (1 - lateralShare), alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .rotationEffect(.degrees(note.angle), anchor: .leading)
+                .frame(maxWidth: noteWidth, alignment: .leading)
+                // The note must fit its real paper band, including the
+                // underline and rotation, instead of growing into the Hand.
+                .frame(height: max(0, proxy.size.height - rotationGutter), alignment: .leading)
+                .rotationEffect(.degrees(note.angle), anchor: .center)
                 .padding(.leading, inset + slack * lateralShare * note.lateral)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
@@ -94,7 +98,7 @@ struct MarginNoteView: View {
                 // Two lines, shrinking rather than wrapping to a third: the
                 // band is fixed, and a third line runs into the Hand below it.
                 .lineLimit(2)
-                .minimumScaleFactor(0.78)
+                .minimumScaleFactor(0.15)
                 .multilineTextAlignment(.leading)
             if note.underlined {
                 // A wobbly underline, drawn the way a hand draws one.

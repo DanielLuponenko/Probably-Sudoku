@@ -8,7 +8,10 @@ public struct Game: Sendable {
     public init(seed: String, book: Book = .probably, obstacle: Obstacle = .none) {
         run = RunState(seed: seed, book: book, obstacle: obstacle)
     }
-    public init(run: RunState) { self.run = run }
+    public init(run: RunState) {
+        self.run = run
+        self.run.finishBookIfCashedOut()
+    }
 
     public var puzzle: PuzzleState? { run.puzzle }
     public var shop: ShopState? { run.shop }
@@ -17,6 +20,7 @@ public struct Game: Sendable {
 
     /// Deals the current Level and slot's board.
     public mutating func startPuzzle() throws {
+        guard !isOver else { throw PlacementError.puzzleNotPlayable }
         run.shop = nil
         var puzzle = try PuzzleState.create(run: &run)
         if let overprint = run.runItemState.removeValue(forKey: "clipping.overprint"), overprint > 0 {
@@ -25,8 +29,10 @@ public struct Game: Sendable {
         run.puzzle = puzzle
     }
 
-    /// §9 — a Shop opens after every Puzzle.
+    /// §9 — a Shop opens between Puzzles, never after the final victory.
     public mutating func openShop() {
+        run.finishBookIfCashedOut()
+        guard !isOver, !run.isFinalPuzzle else { return }
         run.puzzle = nil
         Shop.open(&run)
     }
@@ -35,6 +41,9 @@ public struct Game: Sendable {
     /// finished — beating the Level 9 Boss (§2).
     @discardableResult
     public mutating func advance() -> Bool {
+        run.finishBookIfCashedOut()
+        // Final completion belongs to the successful cash-out, not navigation.
+        guard !isOver, !run.isFinalPuzzle else { return false }
         // Leaving the Shop is part of moving to the next briefing. Keeping its
         // stale state made `currentClipping` think the next normal Puzzle was
         // still in a Shop, so its skip offer disappeared.
@@ -82,7 +91,10 @@ public struct Game: Sendable {
         Actions.declineRewardedRescue(&run)
     }
     public mutating func cashOut() throws -> RunState.Payout {
-        try Actions.cashOut(&run)
+        guard !isOver else { throw PlacementError.puzzleNotPlayable }
+        let payout = try Actions.cashOut(&run)
+        run.finishBookIfCashedOut()
+        return payout
     }
     public mutating func keepFilling() throws {
         try Actions.keepFilling(&run)
@@ -156,8 +168,8 @@ public extension Game {
         qaFailPuzzle()
     }
 
-    /// Reaches the exact terminal Book state through the same cash-out and
-    /// advance rules as live play. It exists solely to inspect the closing
+    /// Reaches the exact terminal Book state through the same cash-out
+    /// rules as live play. It exists solely to inspect the closing
     /// sequence without playing twenty-seven Puzzles.
     mutating func qaCompleteBook() {
         guard run.outcome == nil else { return }
@@ -172,8 +184,6 @@ public extension Game {
         }
         qaMeetTarget()
         guard (try? cashOut()) != nil else { return }
-        openShop()
-        _ = advance()
     }
 
     /// Fills every Blank with its solution digit, taking each number from the

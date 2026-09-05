@@ -9,15 +9,18 @@ struct HandStripView: View {
     @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var handSize: Int
+    var tileHeight: CGFloat = 54
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(model.isChoosingClue ? "Clue: choose a number" :
-                     model.isReadingLitmus ? "Litmus: select a number to inspect blanks" : "Numbers Drawn")
+                     model.isReadingLitmus ? "Litmus: choose a number" : "Numbers Drawn")
                     .font(Print.caption(12))
                     .tracking(1.4)
                     .textCase(.uppercase)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                     .foregroundStyle(model.isReadingLitmus || model.isChoosingClue ? palette.accent : palette.ink.opacity(0.7))
                 Spacer()
                 // Keep the animation destination without introducing a
@@ -25,11 +28,13 @@ struct HandStripView: View {
                 Color.clear
                     .frame(width: 1, height: 1)
                     .numberReturnMotionFrame(NumberReturnMotionAnchor.pool)
-                if model.isReadingLitmus {
-                    Image(systemName: "eyedropper.halffull")
-                        .font(.system(size: 12))
-                        .foregroundStyle(palette.accent)
-                }
+                // Its symbol is slightly taller than the caption. Preserve
+                // that line height when Litmus ends so the board never jumps.
+                Image(systemName: "eyedropper.halffull")
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.accent)
+                    .opacity(model.isReadingLitmus ? 1 : 0)
+                    .accessibilityHidden(true)
             }
 
             HStack(spacing: 7) {
@@ -44,6 +49,7 @@ struct HandStripView: View {
                                 isBlocked: model.isBlocked(handIndex: index),
                                 arrivalOrder: card.arrivalOrder,
                                 shouldAnimateArrival: model.animatesHandArrival,
+                                height: tileHeight,
                                 theme: theme,
                                 palette: palette
                             )
@@ -56,7 +62,7 @@ struct HandStripView: View {
                 }
 
                 ForEach(0..<max(0, handSize - model.handCards.count), id: \.self) { _ in
-                    EmptySlot()
+                    EmptySlot(height: tileHeight)
                 }
             }
             .numberReturnMotionFrame(NumberReturnMotionAnchor.hand)
@@ -74,6 +80,7 @@ private struct NumberTile: View {
     var isBlocked: Bool
     var arrivalOrder: Int
     var shouldAnimateArrival: Bool
+    var height: CGFloat
     var theme: CosmeticTheme
     var palette: LevelPalette
 
@@ -85,7 +92,7 @@ private struct NumberTile: View {
                             color: isBlocked ? palette.ink.opacity(0.48) : theme.numbers.ink,
                             intensity: isBlocked ? 0.54 : 1)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: height)
             .background {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(isSelected ? theme.board.selected : theme.paper.warm)
@@ -133,12 +140,13 @@ private struct NumberTile: View {
 
 private struct EmptySlot: View {
     @Environment(\.levelPalette) private var palette
+    var height: CGFloat
 
     var body: some View {
         RoundedRectangle(cornerRadius: 4)
             .strokeBorder(palette.rule.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: height)
             .accessibilityLabel("Empty slot")
     }
 }

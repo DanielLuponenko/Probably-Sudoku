@@ -53,6 +53,14 @@ final class PlayerProfileStore {
             self.profile = PlayerProfile()
         }
         applyDebugArguments()
+        // Existing local completion identities join the cloud-merged record.
+        // Injected test/preview stores return above without reading player data.
+        let beforeMigration = self.profile
+        self.profile.achievementProgress.merge(localProgress: RunStore.progress())
+        // CloudSync has not delivered its cached remote profile at this point.
+        // Keep the migration durable locally without overwriting that snapshot
+        // before its independent Book completions can be merged.
+        if self.profile != beforeMigration { save(publishToCloud: false) }
     }
 
     // MARK: Reading
@@ -205,10 +213,11 @@ final class PlayerProfileStore {
     }
 
     func recordBookCompleted(volume: Int, obstacle: Obstacle) {
+        guard let book = Book.allCases.first(where: { $0.volume == volume }) else { return }
         recordAchievementChange { profile in
-            profile.achievementProgress.completedBookVolumes.insert(volume)
+            profile.achievementProgress.recordBookCompleted(book, obstacle: obstacle)
             var awards: Set<String> = ["finish-book"]
-            if profile.achievementProgress.completedBookVolumes.count >= AchievementCatalog.allBookVolumes {
+            if profile.achievementProgress.hasCompletedAllBooks {
                 awards.insert("finish-every-book")
             }
             if obstacle == .shortHandedAndBlocked { awards.insert("obstacle-three-book") }
@@ -300,14 +309,24 @@ final class PlayerProfileStore {
         save()
     }
 
-    private func save() {
+    /// Call after CloudSync.start has delivered the cached remote profile.
+    /// This also exports a local migration when the remote profile is absent
+    /// or already a subset (and therefore did not cause merge() to save).
+    func publishCurrentProfile() {
+        #if DEBUG && targetEnvironment(simulator)
+        if hasDebugProfileOverride || debugPublishEquippedHook != nil { return }
+        #endif
+        CloudSync.shared.publish(profile: profile)
+    }
+
+    private func save(publishToCloud: Bool = true) {
         #if DEBUG && targetEnvironment(simulator)
         if hasDebugProfileOverride || debugPublishEquippedHook != nil { return }
         #endif
         profile.lastModifiedAt = Date()
         guard let data = try? JSONEncoder().encode(profile) else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
-        CloudSync.shared.publish(profile: profile)
+        if publishToCloud { publishCurrentProfile() }
     }
 
     // MARK: QA

@@ -6,7 +6,8 @@ import ProbablySudokuEngine
 struct ShopPageView: View {
     @Bindable var model: GameModel
     var shop: ShopState
-    @State private var claimingMarker: Int?
+    var onClaimMarker: (Int) -> Void
+    @State private var markerPurchase = PendingMarkerPurchase()
     @State private var inspectedOffer: ShopOffer?
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -34,16 +35,15 @@ struct ShopPageView: View {
                         .accessibilityHidden(true)
                 }
         }
-        .overlay {
-            if let index = claimingMarker {
-                MarkerPlacementSlip(model: model, markerIndex: index) {
-                    setClaimingMarker(nil)
-                }
+        .sheet(item: $inspectedOffer, onDismiss: {
+            // UIKit has removed the offer sheet and its dimmer. Only now lay
+            // the placement slip on the desk, never behind a departing sheet.
+            if let index = markerPurchase.takeAfterOfferDismissal() {
+                onClaimMarker(index)
             }
-        }
-        .sheet(item: $inspectedOffer) { offer in
+        }) { offer in
             OfferSlip(model: model, offer: offer) { markerIndex in
-                setClaimingMarker(markerIndex)
+                markerPurchase.record(markerIndex: markerIndex)
             }
         }
     }
@@ -59,16 +59,6 @@ struct ShopPageView: View {
                 Task {
                     await flipper.flip(from: model, reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
                 }
-            }
-        }
-    }
-
-    private func setClaimingMarker(_ markerIndex: Int?) {
-        if reduceMotion {
-            claimingMarker = markerIndex
-        } else {
-            withAnimation(.snappy(duration: 0.2)) {
-                claimingMarker = markerIndex
             }
         }
     }
@@ -189,9 +179,25 @@ struct ShopPageView: View {
 
 }
 
+/// A purchase has committed, but its native detail sheet still owns the screen.
+/// Keep the placement request until that sheet's actual dismissal callback.
+struct PendingMarkerPurchase {
+    private(set) var markerIndex: Int?
+
+    mutating func record(markerIndex: Int) {
+        guard self.markerIndex == nil else { return }
+        self.markerIndex = markerIndex
+    }
+
+    mutating func takeAfterOfferDismissal() -> Int? {
+        defer { markerIndex = nil }
+        return markerIndex
+    }
+}
+
 // MARK: - Offer
 
-private struct OfferCard: View {
+struct OfferCard: View {
     enum Layout { case column, wide }
 
     var offer: ShopOffer
@@ -219,6 +225,7 @@ private struct OfferCard: View {
         }
         .ticketTreatment(accent: accentColor, sold: offer.sold)
         .buttonStyle(PressedPaperStyle())
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(def.name), \(def.rarity.rawValue), \(offer.price) coins, \(def.text), \(availability)")
         .accessibilityHint("Opens item details")
         .accessibilityAddTraits(.isButton)
@@ -239,11 +246,7 @@ private struct OfferCard: View {
                 priceImprint(compact: true)
             }
             Rectangle().fill(Paper.rule.opacity(0.65)).frame(maxWidth: .infinity).frame(height: 1)
-            Text(def.text)
-                .font(Print.body(13))
-                .foregroundStyle(Paper.inkSoft)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
+            OfferDescription(text: def.text, layout: .column)
             Spacer(minLength: 0)
         }
         .padding(10)
@@ -259,11 +262,7 @@ private struct OfferCard: View {
                     .foregroundStyle(Paper.ink)
                 RarityImprint(rarity: def.rarity)
                 Rectangle().fill(Paper.rule.opacity(0.65)).frame(maxWidth: 180).frame(height: 1)
-                Text(def.text)
-                    .font(Print.body(14))
-                    .foregroundStyle(Paper.inkSoft)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                OfferDescription(text: def.text, layout: .wide)
             }
             Spacer(minLength: 0)
             priceImprint(compact: false)
@@ -316,6 +315,33 @@ private struct OfferCard: View {
 
 }
 
+/// Keep the catalogue's composed page height while making abbreviated copy
+/// explicit. The card's button always opens the complete item description.
+struct OfferDescription: View {
+    let text: String
+    let layout: OfferCard.Layout
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(text)
+                    .lineLimit(layout == .column ? 2 : 1)
+                    .truncationMode(.tail)
+                Text("Details")
+                    .font(Print.caption(10))
+                    .foregroundStyle(Paper.sageDeep)
+                    .underline()
+            }
+        }
+        .font(Print.body(layout == .column ? 13 : 14))
+        .foregroundStyle(Paper.inkSoft)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: layout == .column ? 50 : 36, alignment: .topLeading)
+    }
+}
+
 private extension View {
     func ticketTreatment(accent: Color?, sold: Bool) -> some View {
         clipShape(OfferTicketShape())
@@ -339,6 +365,7 @@ private extension View {
                         .padding(.horizontal, 10)
                         .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(Paper.redPencil.opacity(0.6), lineWidth: 2.5) }
                         .rotationEffect(.degrees(-9))
+                        .accessibilityHidden(true)
                 }
             }
             .opacity(sold ? 0.65 : 1)
@@ -393,11 +420,12 @@ private struct RarityImprint: View {
 
 // MARK: - Purchase and loadout slips
 
-private struct OfferSlip: View {
+struct OfferSlip: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var model: GameModel
     let offer: ShopOffer
     let markerBought: (Int) -> Void
+    @State private var purchaseSubmitted = false
 
     private var currentOffer: ShopOffer {
         model.run.shop?.offers.first(where: { $0.slot == offer.slot }) ?? offer
@@ -413,7 +441,7 @@ private struct OfferSlip: View {
     }
 
     private var canBuy: Bool {
-        !currentOffer.sold && hasSlot && model.coins >= currentOffer.price
+        !purchaseSubmitted && !currentOffer.sold && hasSlot && model.coins >= currentOffer.price
     }
 
     private var availability: String {
@@ -451,9 +479,12 @@ private struct OfferSlip: View {
                 Spacer(minLength: 0)
                 PaperButton(title: "Buy this item", subtitle: "For \(currentOffer.price) coins",
                             kind: .primary, isEnabled: canBuy) {
+                    guard canBuy else { return }
+                    purchaseSubmitted = true
                     let before = model.run.markers.count
                     model.buy(slot: currentOffer.slot)
                     guard model.run.shop?.offers.first(where: { $0.slot == currentOffer.slot })?.sold == true else {
+                        purchaseSubmitted = false
                         return
                     }
                     if model.run.markers.count > before {
@@ -466,6 +497,10 @@ private struct OfferSlip: View {
             .background(Paper.page)
             .navigationTitle("Item details")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .toolbarBackground(Paper.page, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .tint(Paper.ink)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }

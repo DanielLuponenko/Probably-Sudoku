@@ -6,6 +6,8 @@ import ProbablySudokuEngine
 /// place the game stops being an object.
 struct PaperSlip<Content: View>: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var cardHasAppeared = false
     var title: String
     var subtitle: String?
     var closeLabel: String = "Close"
@@ -13,6 +15,7 @@ struct PaperSlip<Content: View>: View {
     /// Tapping the desk behind the slip puts it down. Off for slips that are
     /// asking a question rather than showing something.
     var dismissesOnBackground: Bool = true
+    var revealsCardOnArrival = false
     var onClose: () -> Void
     @ViewBuilder var content: Content
 
@@ -23,6 +26,7 @@ struct PaperSlip<Content: View>: View {
                 .fill(.black.opacity(0.55))
                 .ignoresSafeArea()
                 .onTapGesture { if dismissesOnBackground { onClose() } }
+                .accessibilityHidden(true)
 
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 5) {
@@ -64,8 +68,22 @@ struct PaperSlip<Content: View>: View {
                     .shadow(color: .black.opacity(0.55), radius: 26, x: 4, y: 14)
             }
             .padding(.horizontal, 22)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
+            // Only the new card fades in. Its dimming layer stays steady, and
+            // no removed Settings/Help modal is retained for a crossfade.
+            .opacity(revealsCardOnArrival && !cardHasAppeared ? 0 : 1)
+            .onAppear {
+                guard revealsCardOnArrival else { return }
+                withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.12)) {
+                    cardHasAppeared = true
+                }
+            }
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.97)))
+        // A full-screen dimming layer must not shrink with the paper and
+        // expose an undimmed border. Fade the slip in place on every device;
+        // its presenter shortens this same non-spatial motion for Reduce Motion.
+        .transition(.opacity)
     }
 }
 
@@ -135,7 +153,9 @@ struct SlipSection<Content: View>: View {
 
 struct SettingsSlip: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var model: GameModel
+    @AppStorage(AppPreferences.Key.haptics) private var haptics = true
     var onAbandon: () -> Void
     var onClose: () -> Void
     @State private var confirmingAbandon = false
@@ -146,8 +166,27 @@ struct SettingsSlip: View {
     #endif
 
     var body: some View {
-        PaperSlip(title: "Settings", subtitle: nil, onClose: onClose) {
+        Group {
+            if showingHelp {
+                HelpSlip { showingHelp = false }
+            } else {
+                settings
+            }
+        }
+        #if DEBUG && targetEnvironment(simulator)
+        .sheet(isPresented: $showingQA) { QAPanel(model: model) }
+        #endif
+        .onChange(of: haptics) { Haptics.preferencesChanged() }
+    }
+
+    private var settings: some View {
+        PaperSlip(title: "Settings", subtitle: nil,
+                  revealsCardOnArrival: true, onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
+                AudioSettingsSection()
+                SlipSection(title: "Feel") {
+                    SlipToggle(label: "Haptics", note: "What the buttons and board feel like.", isOn: $haptics)
+                }
                 SlipSection(title: "This Book") {
                     LeaderRow(label: "Level", value: "\(model.run.level) of 9")
                     LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
@@ -175,7 +214,7 @@ struct SettingsSlip: View {
                         Spacer()
                         Button {
                             UIPasteboard.general.string = model.run.seed
-                            withAnimation { copied = true }
+                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) { copied = true }
                         } label: {
                             Text(copied ? "Copied" : "Copy")
                                 .font(Print.caption(12))
@@ -217,7 +256,9 @@ struct SettingsSlip: View {
                                 .fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 10) {
                                 PaperButton(title: "Keep playing", kind: .quiet) {
-                                    withAnimation { confirmingAbandon = false }
+                                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
+                                        confirmingAbandon = false
+                                    }
                                 }
                                 PaperButton(title: "Abandon", kind: .danger) {
                                     onAbandon()
@@ -226,7 +267,9 @@ struct SettingsSlip: View {
                         }
                     } else {
                         PaperButton(title: "Abandon Book", kind: .danger) {
-                            withAnimation { confirmingAbandon = true }
+                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
+                                confirmingAbandon = true
+                            }
                         }
                     }
                 }
@@ -238,16 +281,9 @@ struct SettingsSlip: View {
                 #endif
             }
         }
-        .accessibilityAddTraits(.isModal)
-        #if DEBUG && targetEnvironment(simulator)
-        .sheet(isPresented: $showingQA) { QAPanel(model: model) }
-        #endif
-        .overlay {
-            if showingHelp {
-                HelpSlip { withAnimation(.snappy(duration: 0.2)) { showingHelp = false } }
-            }
-        }
-        .animation(.snappy(duration: 0.22), value: showingHelp)
+        // Help replaces this card rather than covering another modal. The
+        // owning SettingsSlip retains its state, but only one card contributes
+        // controls to VoiceOver and hit testing at a time.
     }
 }
 
@@ -255,6 +291,7 @@ struct SettingsSlip: View {
 
 /// The rules, in the order you meet them.
 struct HelpSlip: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var onClose: () -> Void
     @State private var selectedTopic: Topic = .handAndPool
 
@@ -345,6 +382,7 @@ struct HelpSlip: View {
     var body: some View {
         PaperSlip(title: "How to play",
                   subtitle: "Probably Sudoku, in the order you meet it.",
+                  revealsCardOnArrival: true,
                   onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 8) {
@@ -384,7 +422,7 @@ struct HelpSlip: View {
     }
 
     private func select(_ topic: Topic) {
-        withAnimation(.snappy(duration: 0.18)) { selectedTopic = topic }
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) { selectedTopic = topic }
     }
 }
 

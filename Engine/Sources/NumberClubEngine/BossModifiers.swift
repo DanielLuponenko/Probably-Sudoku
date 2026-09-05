@@ -1,11 +1,19 @@
 import Foundation
 
-/// §13 — one is rolled for every Boss Puzzle. Each attacks a different
-/// resource, so no single build answers all of them.
+/// §13 — one is rolled for every Boss Puzzle. Five major encounters are
+/// reserved for Level 9's last Puzzle; earlier Levels use the regular pool.
 public enum BossModifier: String, Codable, CaseIterable, Sendable {
     case censor, editor, deadline, fog, critic, mirror, paywall, erratum, collector
     case heavyLifter, unluckyLucky, buffborger, sashimi, overPusher
     case accountant, tikTak, handyDandy, grayTheGarry, garryTheGray
+
+    // Keep the original raw IDs so existing active encounters still decode
+    // with the same mechanics. Only future selection and display names change.
+    public static let finalBosses: [BossModifier] = [
+        .heavyLifter, .unluckyLucky, .buffborger, .sashimi, .overPusher
+    ]
+    public static let regularBosses = allCases.filter { !finalBosses.contains($0) }
+    public var isFinalBoss: Bool { Self.finalBosses.contains(self) }
 
     public var name: String {
         switch self {
@@ -18,11 +26,11 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
         case .paywall: return "The Paywall"
         case .erratum: return "The Erratum"
         case .collector: return "The Collector"
-        case .heavyLifter: return "Heavy Lifter"
-        case .unluckyLucky: return "Unlucky Lucky"
-        case .buffborger: return "Big Buffborger Jr"
-        case .sashimi: return "Sashimi"
-        case .overPusher: return "Over Pusher"
+        case .heavyLifter: return "The Final Draft"
+        case .unluckyLucky: return "The Executive Editor"
+        case .buffborger: return "The Fine Print"
+        case .sashimi: return "The Budget Cut"
+        case .overPusher: return "The Shredder"
         case .accountant: return "Natural Born Accountant"
         case .tikTak: return "Tik Tak"
         case .handyDandy: return "Handy Dandy"
@@ -124,8 +132,9 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
 
     /// Rolled off the boss stream, so drawing numbers or rerolling the Shop can
     /// never change which modifier appears (§15).
-    public static func roll(_ rng: inout RandomStream) -> BossModifier {
-        allCases[rng.int(allCases.count)]
+    public static func roll(_ rng: inout RandomStream, level: Int = 1) -> BossModifier {
+        let pool = level == 9 ? finalBosses : regularBosses
+        return pool[rng.int(pool.count)]
     }
     public static func rollCensoredDigit(_ rng: inout RandomStream) -> Digit {
         Digit.all[rng.int(9)]

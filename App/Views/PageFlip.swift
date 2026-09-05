@@ -58,12 +58,21 @@ final class PageFlipper {
             return
         }
         guard let snapshot = snapshotProvider?() ?? capturePage() else {
+            guard !Task.isCancelled else { return }
             Self.log.error("Page turn unavailable: no displayed page snapshot")
             change()
             return
         }
-        guard driver.prepare(image: snapshot.image, pageSize: snapshot.size,
-                             scale: snapshot.scale) else {
+        // Capture/upload are synchronous but may take long enough for another
+        // executor to cancel the request. Do not start a turn after that work.
+        guard !Task.isCancelled else { return }
+        let prepared = driver.prepare(image: snapshot.image, pageSize: snapshot.size,
+                                      scale: snapshot.scale)
+        guard !Task.isCancelled else {
+            driver.cancel()
+            return
+        }
+        guard prepared else {
             // Accessibility, unavailable GPU, or a detached page must never
             // block navigation. There is no rigid-card animation fallback.
             Self.log.error("Page turn unavailable: texture preparation failed")

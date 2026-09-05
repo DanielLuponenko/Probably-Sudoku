@@ -6,13 +6,18 @@ import ProbablySudokuEngine
 struct ResultsPageView: View {
     @Bindable var model: GameModel
     var onBookCompletion: () -> Void
+    var onAbandon: () -> Void
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.cosmeticTheme) private var theme
 
     var body: some View {
-        if isRescueDecision || model.run.outcome == .failed || model.puzzle?.phase == .failed {
-            FailureResultsPage(model: model, offersRescue: isRescueDecision)
+        if let summary = model.bookCompletionSummary {
+            BookVictoryPage(summary: summary, board: model.puzzle?.board,
+                            bossName: model.puzzle?.boss?.name ?? "The final boss",
+                            obstacle: model.run.obstacle, onClose: onBookCompletion)
+        } else if isRescueDecision || model.run.outcome == .failed || model.puzzle?.phase == .failed {
+            FailureResultsPage(model: model, offersRescue: isRescueDecision, onAbandon: onAbandon)
         } else {
             successfulResults
         }
@@ -55,7 +60,7 @@ struct ResultsPageView: View {
             PaperButton(title: "Close the Book", subtitle: "See your finished volume", kind: .primary,
                         action: onBookCompletion)
         } else if model.run.outcome != nil {
-            PaperButton(title: "New Book", kind: .primary) { model.abandonRun() }
+            PaperButton(title: "New Book", kind: .primary, action: onAbandon)
         } else if model.puzzle?.phase == .won {
             HStack(spacing: 10) {
                 PaperButton(title: "Keep Filling",
@@ -123,7 +128,7 @@ struct ResultsPageView: View {
         }
         switch model.run.outcome {
         case .bookCompleted:
-            return "You finished all 27 Puzzles. Choose a harder Book to begin."
+            return "All 9 levels cleared. This Book is complete."
         case .failed:
             return "The target was not met. Bookmarks, Markers and Buffs do not carry over."
         case nil:
