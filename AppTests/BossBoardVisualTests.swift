@@ -183,10 +183,13 @@ final class BossBoardVisualTests: XCTestCase {
 
     private func makeGame(boss: BossModifier) throws -> Game {
         var run = RunState(seed: "boss-visual-regression")
+        run.level = boss.isFinalBoss ? 9 : 1
         run.slot = .boss
         run.pendingBoss = boss
         var game = Game(run: run)
         try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.boss, boss,
+                       "The visual fixture must deal the requested Boss from its eligible level pool.")
         return game
     }
 

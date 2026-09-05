@@ -18,6 +18,8 @@ struct ProbablySudokuApp: App {
             .task {
                 gameCenter.start()
                 gameCenter.setAppIsActive(scenePhase == .active)
+                GameAudio.shared.setSceneActive(scenePhase == .active)
+                Haptics.setSceneActive(scenePhase == .active)
                 CloudSync.shared.start(
                     receivingProfiles: { remote in
                         PlayerProfileStore.shared.merge(remote: remote)
@@ -29,9 +31,14 @@ struct ProbablySudokuApp: App {
                         )
                     }
                 )
+                // The cached remote profile has now joined local completion
+                // facts. Publish only this union, never the pre-merge migration.
+                profile.publishCurrentProfile()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 gameCenter.setAppIsActive(newPhase == .active)
+                GameAudio.shared.setSceneActive(newPhase == .active)
+                Haptics.setSceneActive(newPhase == .active)
             }
         }
     }

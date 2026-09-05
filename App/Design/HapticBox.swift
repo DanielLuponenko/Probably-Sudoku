@@ -10,6 +10,7 @@ import CoreHaptics
 @MainActor
 final class HapticBox {
     static let shared = HapticBox()
+    private var active = true
 
     enum Event {
         case transient(at: TimeInterval, intensity: Float, sharpness: Float)
@@ -19,26 +20,37 @@ final class HapticBox {
 
     #if canImport(CoreHaptics)
     private var engine: CHHapticEngine?
+    private var running = false
     private let supportsHaptics = CHHapticEngine.capabilitiesForHardware().supportsHaptics
     #endif
 
     private init() {}
 
+    func setActive(_ isActive: Bool) {
+        active = isActive
+        #if canImport(CoreHaptics)
+        if !isActive {
+            running = false
+            engine?.stop(completionHandler: nil)
+        }
+        #endif
+    }
+
     func prepare() {
         #if canImport(CoreHaptics)
-        guard supportsHaptics else { return }
-        start()
+        guard active, supportsHaptics else { return }
+        _ = start()
         #endif
     }
 
     func play(_ events: [Event], fallback: () -> Void) {
+        guard active else { return }
         #if canImport(CoreHaptics)
         guard supportsHaptics, let pattern = pattern(from: events) else {
             fallback()
             return
         }
-        start()
-        guard let engine else {
+        guard start(), let engine else {
             fallback()
             return
         }
@@ -46,6 +58,7 @@ final class HapticBox {
             let player = try engine.makePlayer(with: pattern)
             try player.start(atTime: CHHapticTimeImmediate)
         } catch {
+            running = false
             // An interruption or background transition is never a gameplay
             // error. Use the one-shot fallback and leave the next event free
             // to restart the engine.
@@ -57,17 +70,32 @@ final class HapticBox {
     }
 
     #if canImport(CoreHaptics)
-    private func start() {
+    private func start() -> Bool {
+        guard active, supportsHaptics else { return false }
+        if running { return true }
         if engine == nil {
             let created = try? CHHapticEngine()
             created?.playsHapticsOnly = true
             created?.isAutoShutdownEnabled = true
             created?.resetHandler = { [weak self] in
-                Task { @MainActor in self?.start() }
+                // Restart lazily at the next foreground interaction. A reset
+                // must never wake the engine while the app is backgrounded.
+                Task { @MainActor in self?.running = false }
+            }
+            created?.stoppedHandler = { [weak self] _ in
+                Task { @MainActor in self?.running = false }
             }
             engine = created
         }
-        try? engine?.start()
+        guard let engine else { return false }
+        do {
+            try engine.start()
+            running = true
+            return true
+        } catch {
+            running = false
+            return false
+        }
     }
 
     private func pattern(from events: [Event]) -> CHHapticPattern? {

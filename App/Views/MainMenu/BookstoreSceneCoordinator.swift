@@ -74,9 +74,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private let focusedBookLight = SCNLight()
     private let focusedBookLightNode = SCNNode()
     private let editions: [BookEdition]
-    private var editionNodes: [String: SCNNode] = [:]
     private var editionBookNodes: [String: SCNNode] = [:]
     private var coverMaterials: [String: SCNMaterial] = [:]
+    private struct CoverPrintState: Equatable {
+        let unlockedThrough: Int
+        let selectedObstacle: Obstacle
+    }
+    private var printedCoverStates: [String: CoverPrintState] = [:]
     private var obstacleTabNodes: [String: [Int: SCNNode]] = [:]
     private var obstacleTabMaterialCache: [String: SCNMaterial] = [:]
     private var sharedMaterials: [String: SCNMaterial] = [:]
@@ -163,8 +167,8 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     // Gestures can move selectedIndex before SwiftUI delivers its next update.
     // Remember whose preview is actually baked into the current textures.
     private var renderedSelectedEditionID: String?
-    /// Saved progress (or the explicit QA override), before per-Book access.
-    private var unlockedObstacleRawValue = Obstacle.none.rawValue
+    /// Each engine Book ID owns its own ceiling, including while on the rack.
+    private var unlockedObstaclesByBookID: [String: Int] = [:]
     private var onSelectEdition: ((String) -> Void)?
     private var onRequestBookFocus: ((String) -> Void)?
     private var onSelectObstacle: ((Obstacle) -> Void)?
@@ -175,6 +179,8 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var onBookFocusChanged: ((BookstoreBookFocus) -> Void)?
     private var onTransitionFinished: ((BookstoreScenePhase) -> Void)?
     private var focusedBook: FocusedBook?
+    private var isReturningFocusedBook = false
+    private var returnCompletions: [() -> Void] = []
     // A Book leaves the stand during the focus transition. Lock its rotation
     // from the first tap through the return animation so the remaining Books
     // never turn behind the selected cover.
@@ -192,6 +198,34 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let book: SCNNode
         let originParent: SCNNode
         let originTransform: simd_float4x4
+        let path: BookstoreBookMotionPath
+        let playback: BookMotionPlayback
+    }
+
+    /// SceneKit advances actions on its render queue; cancellation reads the
+    /// last applied sample on the main queue. Keep that handoff synchronized.
+    private final class BookMotionPlayback: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value: Float = 0
+        private var stopped = false
+        func store(_ progress: Float) {
+            lock.lock()
+            value = min(1, max(0, progress))
+            lock.unlock()
+        }
+        func apply(_ progress: Float, to node: SCNNode, path: BookstoreBookMotionPath) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !stopped else { return }
+            value = min(1, max(0, progress))
+            node.simdWorldTransform = path.transform(at: value)
+        }
+        func stop() -> Float {
+            lock.lock()
+            defer { lock.unlock() }
+            stopped = true
+            return value
+        }
     }
 
     private struct CameraPose {
@@ -248,9 +282,20 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         "SUNDAY", "NUMBER CLUB", "METHODS", "ALMOST", "BOXES"
     ]
 
-    init(editions: [BookEdition]) {
+    init(editions: [BookEdition], selectedEditionID: String? = nil,
+         selectedObstacle: Obstacle = .none,
+         unlockedObstaclesByBookID: [String: Int] = [:]) {
         self.editions = editions
+        self.selectedObstacle = selectedObstacle
+        self.unlockedObstaclesByBookID = unlockedObstaclesByBookID
         super.init()
+        if let selectedEditionID, let index = editions.firstIndex(where: { $0.id == selectedEditionID }) {
+            selectedIndex = index
+        }
+        renderedSelectedEditionID = editions.indices.contains(selectedIndex) ? editions[selectedIndex].id : nil
+        // Bake the requested print on the first pass. Building default locked
+        // covers and replacing them in updateUIView doubles cold-start work
+        // for progressed players and resumed obstacle selections.
         buildScene()
     }
 
@@ -316,7 +361,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         phase: BookstoreScenePhase,
         selectedEditionID: String,
         selectedObstacle: Obstacle,
-        unlockedObstacleRawValue: Int,
+        unlockedObstaclesByBookID: [String: Int],
         turnCommand: BookstoreTurnCommand,
         focusCommand: BookstoreFocusCommand,
         returnFocusCommand: BookstoreReturnFocusCommand,
@@ -358,14 +403,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let previousEditionID = renderedSelectedEditionID ?? editions[0].id
         if let index = editions.firstIndex(where: { $0.id == selectedEditionID }) {
             selectedIndex = index
-            updateBookHighlight(selectedID: selectedEditionID)
         }
-        let progressChanged = self.unlockedObstacleRawValue != unlockedObstacleRawValue
+        let progressChanged = self.unlockedObstaclesByBookID != unlockedObstaclesByBookID
         let selectionChanged = previousEditionID != editions[selectedIndex].id
         renderedSelectedEditionID = editions[selectedIndex].id
         let obstacleChanged = self.selectedObstacle != selectedObstacle
         self.selectedObstacle = selectedObstacle
-        self.unlockedObstacleRawValue = unlockedObstacleRawValue
+        self.unlockedObstaclesByBookID = unlockedObstaclesByBookID
         if progressChanged {
             updateObstacleTabs()
         } else if selectionChanged || obstacleChanged {
@@ -457,7 +501,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
         // Hide the physical print only in the same SwiftUI update that installs
         // the matching interactive cover. It stays visible for the whole lift.
-        focusedBook?.book.isHidden = isLiveBookPresented
+        focusedBook?.book.isHidden = isLiveBookPresented && !isReturningFocusedBook
         if motionPreferenceChanged {
             updateShopShowcaseMotion()
             if reduceMotion {
@@ -493,8 +537,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             rotateStand(to: selectedIndex, animated: !reduceMotion)
         case .transitioningToStore:
             // Invalidate a physical tap still rotating toward its pocket.
-            focusGeneration += 1
-            if focusedBook == nil { isStandRotationLocked = false }
+            if focusedBook == nil {
+                focusGeneration += 1
+                isStandRotationLocked = false
+            }
             let finish = { [weak self] in
                 guard let self else { return }
                 self.animateCamera(to: self.storePose, destination: .store)
@@ -680,7 +726,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             // an invisible 0.42-second turn before the focus move began.
             guard abs(nearest - current) > 0.008 else {
                 standRoot.eulerAngles.y = nearest
-                updateBookHighlight(selectedID: editions[selectedIndex].id)
                 completion?()
                 return
             }
@@ -693,7 +738,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             standRoot.eulerAngles.y = angle
             completion?()
         }
-        updateBookHighlight(selectedID: editions[selectedIndex].id)
     }
 
     private func orientStandForStore(animated: Bool) {
@@ -722,18 +766,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         while result - current > .pi { result -= 2 * .pi }
         while result - current < -.pi { result += 2 * .pi }
         return result
-    }
-
-    private func updateBookHighlight(selectedID: String) {
-        for (_, node) in editionNodes {
-            node.removeAction(forKey: "selection")
-            // Selection is ink/light, not a spatial rearrangement. Every book
-            // remains bolted into the same wire pocket for the entire scene.
-            let scale = CGFloat(1)
-            let action = SCNAction.scale(to: scale, duration: reduceMotion ? 0.01 : 0.2)
-            action.timingMode = .easeOut
-            node.runAction(action, forKey: "selection")
-        }
     }
 
     @objc private func didPan(_ gesture: UIPanGestureRecognizer) {
@@ -905,6 +937,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func handleBookTap(at point: CGPoint, in view: SCNView) {
+        guard !isReturningFocusedBook else { return }
         for result in view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue]) {
             var node: SCNNode? = result.node
             while let candidate = node {
@@ -913,7 +946,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                    focusedBook?.id == editionID,
                    let edition = editions.first(where: { $0.id == editionID }) {
                     if obstacle.rawValue <= edition.unlockedObstacleRawValue(
-                        progressUnlockedThrough: unlockedObstacleRawValue
+                        progressByBookID: unlockedObstaclesByBookID
                     ) {
                         onSelectObstacle?(obstacle)
                     } else {
@@ -1044,12 +1077,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         book.simdWorldTransform = worldTransform
         setFocusCategory(on: book, enabled: true)
 
-        focusedBook = FocusedBook(
-            id: id,
-            book: book,
-            originParent: originParent,
-            originTransform: originTransform
-        )
         // Project the exact LiveBook canvas into the camera plane. Both views
         // use this destination, rather than a guessed shelf scale/offset.
         let layout = BookstoreSelectionLayout(viewport: viewportSize)
@@ -1070,8 +1097,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let targetPosition = centerPosition
             - targetOrientation.act(cover.simdPosition * targetScale)
         let startPosition = book.simdPosition
-        let startScale = book.simdScale
-        let startOrientation = book.simdOrientation
         let path = BookstoreExtractionPath(
             origin: startPosition,
             lifted: startPosition + up * lift,
@@ -1092,29 +1117,28 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             minimum: SIMD3(bounds.min.x, bounds.min.y, bounds.min.z),
             maximum: SIMD3(bounds.max.x, bounds.max.y, bounds.max.z)
         ) : nil
+        let motionPath = lowerPath.map { BookstoreBookMotionPath(lower: $0, pocketTransform: pocketTransform) }
+            ?? BookstoreBookMotionPath(upper: path,
+                                      origin: BookstoreExtractionPose(transform: worldTransform),
+                                      destination: targetPose)
+        let playback = BookMotionPlayback()
+        focusedBook = FocusedBook(id: id, book: book, originParent: originParent,
+                                  originTransform: originTransform, path: motionPath, playback: playback)
         let finish = { [weak self] in
             guard let self, self.focusGeneration == generation,
                   self.focusedBook?.id == id else { return }
+            book.simdWorldTransform = motionPath.transform(at: 1)
+            playback.store(1)
             self.notifyBookFocus(.presented(id), generation: generation)
         }
         if reduceMotion {
-            book.simdPosition = targetPosition
-            book.simdScale = targetScale
-            book.simdOrientation = targetOrientation
             finish()
         } else {
             notifyBookFocus(.extracting(id), generation: generation)
-            let duration = lowerPath == nil ? BookstoreExtractionPath.duration : BookstoreLowerPocketPath.duration
+            let duration = motionPath.duration
             let extraction = SCNAction.customAction(duration: duration) { node, elapsed in
                 let progress = Float(elapsed / duration)
-                if let lowerPath {
-                    node.simdWorldTransform = pocketTransform * lowerPath.pose(at: progress).transform
-                    return
-                }
-                let presenting = path.presentationProgress(at: progress)
-                node.simdPosition = path.position(at: progress)
-                node.simdScale = simd_mix(startScale, targetScale, SIMD3(repeating: presenting))
-                node.simdOrientation = simd_slerp(startOrientation, targetOrientation, presenting)
+                playback.apply(progress, to: node, path: motionPath)
             }
             book.runAction(extraction, forKey: "book-extraction") {
                 Task { @MainActor in finish() }
@@ -1129,6 +1153,14 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // leave the physical book hidden with no interactive cover at all.
         Task { @MainActor [weak self] in
             guard let self, self.focusGeneration == generation else { return }
+            switch focus {
+            case .shelf:
+                guard self.focusedBook == nil else { return }
+            case .returning(let id):
+                guard self.isReturningFocusedBook, self.focusedBook?.id == id else { return }
+            case .extracting(let id), .presented(let id):
+                guard !self.isReturningFocusedBook, self.focusedBook?.id == id else { return }
+            }
             self.onBookFocusChanged?(focus)
         }
     }
@@ -1139,22 +1171,83 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             completion?()
             return
         }
+        if let completion { returnCompletions.append(completion) }
+        guard !isReturningFocusedBook else { return }
+        isReturningFocusedBook = true
+        isStandRotationLocked = true
 
         // Cancellation is synchronous: no queued extraction completion may
         // recreate a selected cover after Back or a background tap.
         focusGeneration += 1
-        notifyBookFocus(.shelf, generation: focusGeneration)
+        let generation = focusGeneration
+        let needsVisibleFrame = focus.book.isHidden
+        let extractedProgress = focus.playback.stop()
         focus.book.removeAction(forKey: "book-extraction")
         focus.book.isHidden = false
-        focus.book.removeFromParentNode()
-        focus.originParent.addChildNode(focus.book)
-        focus.book.simdTransform = focus.originTransform
-        setFocusCategory(on: focus.book, enabled: false)
-        focusedBookLightNode.constraints = nil
+        let finish = { [weak self] in
+            guard let self, self.focusGeneration == generation,
+                  self.focusedBook?.id == focus.id else { return }
+            focus.book.removeFromParentNode()
+            focus.originParent.addChildNode(focus.book)
+            focus.book.simdTransform = focus.originTransform
+            focus.book.opacity = 1
+            self.setFocusCategory(on: focus.book, enabled: false)
+            self.focusedBookLightNode.constraints = nil
+            self.focusedBook = nil
+            self.isReturningFocusedBook = false
+            self.isStandRotationLocked = false
+            self.setLighting(focused: false, bookID: focus.id)
+            self.notifyBookFocus(.shelf, generation: generation)
+            let completions = self.returnCompletions
+            self.returnCompletions.removeAll()
+            completions.forEach { $0() }
+        }
+        let beginReturn = { [weak self] in
+            guard let self, self.focusGeneration == generation,
+                  self.isReturningFocusedBook, self.focusedBook?.id == focus.id else { return }
+            self.notifyBookFocus(.returning(focus.id), generation: generation)
+            if self.reduceMotion || extractedProgress <= 0 {
+                // The menu has already faded the plaque. Reduce Motion skips
+                // the large spatial journey and restores the pocket directly.
+                finish()
+            } else {
+                let duration = focus.path.duration * Double(extractedProgress)
+                let returning = SCNAction.customAction(duration: duration) { node, elapsed in
+                    node.simdWorldTransform = focus.path.returnTransform(
+                        at: Float(elapsed / duration), from: extractedProgress
+                    )
+                }
+                focus.book.runAction(returning, forKey: "book-return") {
+                    Task { @MainActor in finish() }
+                }
+            }
+        }
+        if needsVisibleFrame, let view = sceneView as? BookstoreSCNView {
+            view.reportNextRenderedFrame(beginReturn)
+        } else {
+            beginReturn()
+        }
+    }
+
+    /// A removed scene will no longer tick its actions. Break their captured
+    /// Book references and invalidate callbacks without publishing to dead UI.
+    func stopBookPresentation() {
+        focusGeneration += 1
+        if let focus = focusedBook {
+            _ = focus.playback.stop()
+            focus.book.removeAction(forKey: "book-extraction")
+            focus.book.removeAction(forKey: "book-return")
+            focus.book.isHidden = false
+            focus.book.removeFromParentNode()
+            focus.originParent.addChildNode(focus.book)
+            focus.book.simdTransform = focus.originTransform
+            setFocusCategory(on: focus.book, enabled: false)
+        }
         focusedBook = nil
+        focusedBookLightNode.constraints = nil
+        isReturningFocusedBook = false
         isStandRotationLocked = false
-        setLighting(focused: false, bookID: focus.id)
-        completion?()
+        returnCompletions.removeAll()
     }
 
     private func setLighting(focused: Bool, bookID: String) {
@@ -4404,7 +4497,6 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
                 addPocket(around: parent)
                 standRoot.addChildNode(parent)
-                editionNodes[edition.id] = parent
                 editionBookNodes[edition.id] = book
             }
         }
@@ -4496,7 +4588,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
         for obstacle in Obstacle.allCases {
             let unlocked = obstacle.rawValue <= edition.unlockedObstacleRawValue(
-                progressUnlockedThrough: unlockedObstacleRawValue
+                progressByBookID: unlockedObstaclesByBookID
             )
             let selected = obstacle == (edition.id == editions[selectedIndex].id ? selectedObstacle : .none)
             let geometry = SCNBox(
@@ -4532,7 +4624,14 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         for edition in editions {
             if let editionIDs, !editionIDs.contains(edition.id) { continue }
             guard let material = coverMaterials[edition.id] else { continue }
-            material.diffuse.contents = liveBookTexture(for: edition)
+            let printState = coverPrintState(for: edition)
+            // Selecting a different pocket normally leaves both printed faces
+            // unchanged. Do not rebuild/upload two full LiveBook textures in
+            // the same main-actor update that starts the rack movement.
+            guard printedCoverStates[edition.id] != printState,
+                  let image = liveBookTexture(for: edition, printState: printState) else { continue }
+            material.diffuse.contents = image
+            printedCoverStates[edition.id] = printState
         }
     }
 
@@ -4679,7 +4778,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func coverMaterial(for edition: BookEdition) -> SCNMaterial {
         let result = SCNMaterial()
-        result.diffuse.contents = liveBookTexture(for: edition)
+        let printState = coverPrintState(for: edition)
+        if let image = liveBookTexture(for: edition, printState: printState) {
+            result.diffuse.contents = image
+            printedCoverStates[edition.id] = printState
+        }
         result.diffuse.mipFilter = .linear
         // Preserve the authored print colours. The physical cloth boards,
         // page block and obstacle ribbons receive the room/focus lighting;
@@ -4691,15 +4794,20 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         return result
     }
 
+    private func coverPrintState(for edition: BookEdition) -> CoverPrintState {
+        CoverPrintState(
+            unlockedThrough: edition.unlockedObstacleRawValue(
+                progressByBookID: unlockedObstaclesByBookID
+            ),
+            selectedObstacle: edition.id == editions[selectedIndex].id ? selectedObstacle : .none
+        )
+    }
+
     /// A small, static shelf face made by the exact LiveBook view that takes
-    /// over during selection.  Its buttons are intentionally inert here: the
+    /// over during selection. Its buttons are intentionally inert here: the
     /// pocket only selects a book, while the full-size LiveBook owns obstacle
     /// interaction after it has been brought forward.
-    private func liveBookTexture(for edition: BookEdition) -> UIImage? {
-        let unlockedThrough = edition.unlockedObstacleRawValue(
-            progressUnlockedThrough: unlockedObstacleRawValue
-        )
-        let displayedObstacle = edition.id == editions[selectedIndex].id ? selectedObstacle : .none
+    private func liveBookTexture(for edition: BookEdition, printState: CoverPrintState) -> UIImage? {
         let bookWidth: CGFloat = 480
         let bookHeight = bookWidth * 1.4
         let canvas = CGSize(width: bookWidth * 1.20, height: bookHeight + bookWidth * 0.045)
@@ -4709,9 +4817,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                     edition: edition,
                     ribbons: LiveBook.RibbonStrip(
                         levels: Obstacle.allCases,
-                        selected: displayedObstacle,
+                        selected: printState.selectedObstacle,
                         isUnlocked: { obstacle in
-                            obstacle.rawValue <= unlockedThrough
+                            obstacle.rawValue <= printState.unlockedThrough
                         },
                         onPick: { _ in },
                         onShowInfo: { _ in }

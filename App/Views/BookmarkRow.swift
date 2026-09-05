@@ -192,11 +192,26 @@ struct BookmarkRow: View {
         pulled = carrying
     }
 
+    private func sell(_ sale: InventorySale) {
+        // A native popover can outlive a row update. Never sell whichever
+        // different item has since moved into the captured slot.
+        guard sale.matches(model.run) else {
+            explaining = nil
+            return
+        }
+        cancelHold()
+        explaining = nil
+        pulled = nil
+        Haptics.pageTurn()
+        model.sell(kind: sale.kind, index: sale.index)
+    }
+
     private func cards(width: CGFloat) -> some View {
         HStack(alignment: .top, spacing: 5) {
             ForEach(0..<ItemKind.bookmark.capacity, id: \.self) { slot in
                 if slot < model.run.bookmarks.count {
                     let owned = model.run.bookmarks[slot]
+                    let sale = InventorySale(bookmark: owned, index: slot)
                     InventoryBookmark(def: owned.def, colour: Paper.pageWarm,
                              ink: Paper.ink, flagged: false, slot: slot,
                              pulling: pulled?.kind == .bookmark && pulled?.index == slot,
@@ -204,13 +219,15 @@ struct BookmarkRow: View {
                              fired: model.activeBookmarkIDs.contains(owned.defID),
                              explaining: Binding(
                                 get: { explaining == slot },
-                                set: { explaining = $0 ? slot : nil }))
+                                set: { explaining = $0 ? slot : nil }),
+                             sale: sale, onSell: { sell(sale) })
                         .gesture(handle(kind: .bookmark, index: slot,
                                         defID: owned.defID,
                                         price: model.sellPrice(owned.pricePaid),
                                         width: width) {
                             explaining = slot
                         })
+                        .accessibilityAction(named: sale.actionTitle) { sell(sale) }
                 } else {
                     EmptyBookmark(slot: slot, dark: false)
                 }
@@ -224,6 +241,7 @@ struct BookmarkRow: View {
                 let index = slot
                 if index < model.run.buffs.count {
                     let buff = model.run.buffs[index]
+                    let sale = InventorySale(buff: buff, index: index)
                     // Board, not paper: a Buff is a thing you take out and
                     // spend on a square, and it should not look like the five
                     // cards that simply sit there working.
@@ -246,13 +264,61 @@ struct BookmarkRow: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(buff.def.name). \(buff.def.text)")
                         .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Uses this Buff")
                         .accessibilityAction { onTapBuff(index) }
+                        .accessibilityAction(named: sale.actionTitle) { sell(sale) }
                 } else {
                     EmptyBookmark(slot: ItemKind.bookmark.capacity + slot, dark: true)
                 }
             }
         }
         .frame(height: Self.visible + Self.tuck, alignment: .top)
+    }
+}
+
+/// A sell control captures the paid item, including its slot and purchase
+/// metadata. Matching only a definition ID would confuse differently priced
+/// copies or a replacement item after an inventory update.
+struct InventorySale: Equatable {
+    let kind: ItemKind
+    let index: Int
+    let defID: String
+    let pricePaid: Int
+    let boughtAtLevel: Int?
+
+    init(bookmark: OwnedBookmark, index: Int) {
+        kind = .bookmark
+        self.index = index
+        defID = bookmark.defID
+        pricePaid = bookmark.pricePaid
+        boughtAtLevel = bookmark.boughtAtLevel
+    }
+
+    init(buff: OwnedBuff, index: Int) {
+        kind = .buff
+        self.index = index
+        defID = buff.defID
+        pricePaid = buff.pricePaid
+        boughtAtLevel = nil
+    }
+
+    var refund: Int { Shop.sellPrice(pricePaid) }
+    var actionTitle: String { "Sell for \(refund) \(refund == 1 ? "coin" : "coins")" }
+
+    func matches(_ run: RunState) -> Bool {
+        switch kind {
+        case .bookmark:
+            guard run.bookmarks.indices.contains(index) else { return false }
+            let owned = run.bookmarks[index]
+            return owned.defID == defID && owned.pricePaid == pricePaid
+                && owned.boughtAtLevel == boughtAtLevel
+        case .buff:
+            guard run.buffs.indices.contains(index) else { return false }
+            let owned = run.buffs[index]
+            return owned.defID == defID && owned.pricePaid == pricePaid
+        case .marker, .subscription:
+            return false
+        }
     }
 }
 
@@ -382,6 +448,8 @@ struct InventoryBookmark: View {
     /// A passive Bookmark that just contributed to the player’s last action.
     var fired: Bool
     @Binding var explaining: Bool
+    var sale: InventorySale? = nil
+    var onSell: (() -> Void)? = nil
 
     /// Hand-inserted things are never quite straight, and the tilt has to be
     /// the same every render or the row twitches on each state change.
@@ -461,7 +529,7 @@ struct InventoryBookmark: View {
         // The row is near the top of the screen. A top-edge arrow puts the
         // explanation below its bookmark, where the whole card has room.
         .popover(isPresented: $explaining, arrowEdge: .top) {
-            ItemDetailCard(def: def)
+            ItemDetailCard(def: def, sale: sale, onSell: onSell)
                 // The native popover creates a presentation host. Forward the
                 // source's size explicitly so accessibility text keeps its
                 // scrollable layout across that boundary.
@@ -469,7 +537,12 @@ struct InventoryBookmark: View {
                 .presentationCompactAdaptation(.popover)
                 .presentationBackground(Paper.page)
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(def.name). \(def.text)")
+        .accessibilityValue(asleep ? "Asleep this Turn. Does not contribute." : "")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Shows item details and sell price")
+        .accessibilityAction { explaining = true }
     }
 }
 
@@ -506,6 +579,8 @@ private struct EmptyBookmark: View {
 /// What an item actually does, on a torn slip of paper.
 struct ItemDetailCard: View {
     var def: ItemDef
+    var sale: InventorySale? = nil
+    var onSell: (() -> Void)? = nil
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
@@ -542,6 +617,16 @@ struct ItemDetailCard: View {
                 .font(Print.body(14 * textScale))
                 .foregroundStyle(Paper.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
+            if let sale, let onSell {
+                Divider().overlay(Paper.rule)
+                Button(sale.actionTitle, action: onSell)
+                    .font(Print.body(14 * textScale))
+                    .foregroundStyle(Paper.redPencil)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Sell \(def.name) for \(sale.refund) \(sale.refund == 1 ? "coin" : "coins")")
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

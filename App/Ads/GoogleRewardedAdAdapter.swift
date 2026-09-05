@@ -4,17 +4,28 @@ import UserMessagingPlatform
 
 @MainActor
 final class GoogleRewardedAdAdapter: RewardedAdAdapter {
+    private let configuration: Result<AdConfiguration, Error>
     private var hasStartedSDK = false
     private var initializationTask: Task<Void, Never>?
     private var isShowingConsentForm = false
     private var consentForm: ConsentForm?
 
-    var canRequestAds: Bool { ConsentInformation.shared.canRequestAds }
+    init(configuration: Result<AdConfiguration, Error> = AdConfiguration.current) {
+        self.configuration = configuration
+    }
+
+    func validateConfiguration() throws {
+        _ = try configuration.get()
+    }
+
+    private var isConfigured: Bool { (try? configuration.get()) != nil }
+
+    var canRequestAds: Bool { isConfigured && ConsentInformation.shared.canRequestAds }
     var privacyOptionsRequired: Bool {
-        ConsentInformation.shared.privacyOptionsRequirementStatus == .required
+        isConfigured && ConsentInformation.shared.privacyOptionsRequirementStatus == .required
     }
     var canPresent: Bool {
-        !isShowingConsentForm && UIApplication.shared.applicationState == .active &&
+        isConfigured && !isShowingConsentForm && UIApplication.shared.applicationState == .active &&
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .contains { scene in
                 scene.activationState == .foregroundActive &&
@@ -23,11 +34,13 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
     }
 
     func updateConsent() async throws {
+        try validateConfiguration()
         // No forced geography, saved-consent override, ATT request, or reset.
         try await ConsentInformation.shared.requestConsentInfoUpdate(with: RequestParameters())
     }
 
     func loadRequiredConsent() async throws {
+        try validateConfiguration()
         consentForm = nil
         guard ConsentInformation.shared.consentStatus == .required else { return }
         // Split loading from presentation so leaving the offer while the form
@@ -38,6 +51,7 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
     }
 
     func presentRequiredConsent() async throws {
+        try validateConfiguration()
         guard ConsentInformation.shared.consentStatus == .required else { return }
         guard let form = consentForm else { throw PresentationError.consentRequired }
         consentForm = nil
@@ -49,6 +63,7 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
     }
 
     func presentPrivacyOptions() async throws {
+        try validateConfiguration()
         guard canPresent else { throw PresentationError.noForegroundWindow }
         isShowingConsentForm = true
         defer { isShowingConsentForm = false }
@@ -56,6 +71,7 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
     }
 
     func loadAd() async throws -> any RewardedAdHandle {
+        let configuration = try configuration.get()
         guard canRequestAds else { throw PresentationError.consentRequired }
         if !hasStartedSDK {
             // Initialization can preload ads, so it belongs behind consent too.
@@ -68,7 +84,12 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
         }
         try Task.checkCancellation()
         guard canRequestAds else { throw PresentationError.consentRequired }
-        let ad = try await RewardedAd.load(with: RewardedAdService.demoRewardedID, request: Request())
+        // Keep the actual SDK boundary safe even when a configuration was
+        // injected for validation: Debug and simulators never request live ads.
+        let runtime = AdConfiguration.Runtime.current
+        let unitID = runtime.isDebug || runtime.isSimulator
+            ? AdConfiguration.demoRewardedID : configuration.rewardedAdUnitID
+        let ad = try await RewardedAd.load(with: unitID, request: Request())
         return GoogleRewardedAd(ad)
     }
 

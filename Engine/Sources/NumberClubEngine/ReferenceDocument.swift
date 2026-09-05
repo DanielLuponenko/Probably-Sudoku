@@ -27,11 +27,12 @@ public enum ReferenceDocument {
         lines += [
             "## Bosses",
             "",
-            "| Boss | Effect |",
-            "| --- | --- |",
+            "| Boss | Stage | Attacks |",
+            "| --- | --- | --- |",
         ]
         for boss in BossModifier.allCases {
-            lines.append("| \(boss.name) | \(boss.attacks) |")
+            let stage = boss.isFinalBoss ? "Level 9, Puzzle 3 only" : "Levels 1–8, Puzzle 3"
+            lines.append("| \(boss.name) | \(stage) | \(boss.attacks) |")
         }
         lines.append("")
         return lines.joined(separator: "\n")

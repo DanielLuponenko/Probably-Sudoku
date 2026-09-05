@@ -44,9 +44,8 @@ public struct RunState: Codable, Sendable {
 
     public var puzzle: PuzzleState?
     public var shop: ShopState?
-    /// Chosen when the run enters a Boss briefing, then consumed by the
-    /// Puzzle. This makes the announced encounter and played encounter one
-    /// persisted decision.
+    /// Chosen when the run enters a Level, then consumed by its Boss Puzzle.
+    /// The announced encounter and played encounter are one persisted decision.
     public var pendingBoss: BossModifier?
     public var outcome: RunOutcome?
 
@@ -96,12 +95,11 @@ public struct RunState: Codable, Sendable {
         shop = try c.decodeIfPresent(ShopState.self, forKey: .shop)
         pendingBoss = try c.decodeIfPresent(BossModifier.self, forKey: .pendingBoss)
         outcome = try c.decodeIfPresent(RunOutcome.self, forKey: .outcome)
-        // Older saves did not select a Boss until after Puzzle 2. Give an
-        // idle in-progress Book a single, persisted encounter now. A running
-        // Puzzle or a post-Boss Shop must not consume another boss-stream
-        // value.
-        if puzzle == nil, shop == nil, outcome == nil, pendingBoss == nil {
-            pendingBoss = BossModifier.roll(&streams.boss)
+        finishBookIfCashedOut()
+        // Repair missing/old-pool announcements only at undealt briefings.
+        // An active Puzzle keeps its exact Boss and a Shop consumes no roll.
+        if puzzle == nil, shop == nil, outcome == nil {
+            ensurePendingBoss()
         }
     }
 
@@ -262,20 +260,41 @@ public struct RunState: Codable, Sendable {
     // MARK: - Progression
 
     public var isBossPuzzle: Bool { slot == .boss }
+    public var isFinalPuzzle: Bool { level == 9 && slot == .boss }
     public var target: Int { book.target(level: level, slot: slot) }
+
+    /// The final board is kept for the closing page. Old versions discarded it
+    /// when opening the final Shop; that saved Shop is already paid, never an
+    /// invitation to pay again. No score, coins, or RNG state are changed here.
+    mutating func finishBookIfCashedOut() {
+        guard isFinalPuzzle, outcome != .failed else { return }
+        guard outcome == .bookCompleted || puzzle?.phase == .cashedOut
+                || (puzzle == nil && shop != nil) else { return }
+        outcome = .bookCompleted
+        shop = nil
+        pendingBoss = nil
+    }
+
+    /// Old saves can carry an encounter that is no longer eligible at this
+    /// Level. Repair only the future announcement, never an active Boss.
+    mutating func ensurePendingBoss() {
+        guard let pendingBoss, pendingBoss.isFinalBoss == (level == 9) else {
+            pendingBoss = BossModifier.roll(&streams.boss, level: level)
+            return
+        }
+    }
 
     /// Advances to the next Puzzle, rolling over into the next Level. Returns
     /// false when the Book is finished (beating the Level 9 Boss).
     public mutating func advance() -> Bool {
+        guard outcome == nil else { return false }
         switch slot {
-        case .easy: slot = .medium
+        case .easy:
+            slot = .medium
+            ensurePendingBoss()
         case .medium:
             slot = .boss
-            // New Books already carry their announced Boss. The fallback is
-            // solely for legacy saves decoded before this invariant existed.
-            if pendingBoss == nil {
-                pendingBoss = BossModifier.roll(&streams.boss)
-            }
+            ensurePendingBoss()
         case .boss:
             if level >= 9 {
                 outcome = .bookCompleted
@@ -284,7 +303,7 @@ public struct RunState: Codable, Sendable {
             level += 1
             slot = .easy
             // Reveal the following level's real Boss on its new run plan.
-            pendingBoss = BossModifier.roll(&streams.boss)
+            pendingBoss = BossModifier.roll(&streams.boss, level: level)
             grantPendingMarkerSquares()
         }
         return true

@@ -19,6 +19,9 @@ enum RunStore {
 
         func label(for choice: Choice) -> String {
             let game = choice == .local ? local : remote
+            if game.run.outcome == .bookCompleted {
+                return "Book \(game.run.book.volume) complete"
+            }
             return "Book \(game.run.book.volume), Level \(game.run.level), Puzzle \(game.run.slot.rawValue + 1)"
         }
     }
@@ -36,11 +39,23 @@ enum RunStore {
     // MARK: - The run in progress
 
     static func save(_ game: Game, publishToCloud: Bool = true) {
-        // A finished or abandoned Book is not worth resuming into.
-        guard game.run.outcome == nil else { clearRun(); return }
-        guard let data = try? game.encoded() else { return }
+        let encoded: Data?
+        do { encoded = try dataForStorage(of: game) }
+        catch { return } // An encoding error must not erase an existing save.
+        guard let data = encoded else {
+            clearRun(publishToCloud: publishToCloud)
+            return
+        }
         try? data.write(to: runURL, options: .atomic)
         if publishToCloud { CloudSync.shared.publish(run: data) }
+    }
+
+    /// A paid completion is a receipt awaiting the player's Close Book action,
+    /// not another playable Puzzle. Retain it across relaunches; failed Books
+    /// still disappear. Kept pure so compatibility tests never touch saves.
+    static func dataForStorage(of game: Game) throws -> Data? {
+        guard game.run.outcome != .failed else { return nil }
+        return try game.encoded()
     }
 
     static func loadRun() -> Game? {
@@ -92,13 +107,16 @@ enum RunStore {
 
     static var hasRun: Bool { loadRun() != nil || loadRemoteRun() != nil }
 
-    static func clearRun() {
+    static func clearRun(publishToCloud: Bool = true) {
         try? FileManager.default.removeItem(at: runURL)
-        CloudSync.shared.publish(run: nil)
+        if publishToCloud { CloudSync.shared.publish(run: nil) }
     }
 
-    private static func game(from data: Data?) -> Game? {
-        guard let data, let game = try? Game(decoding: data), game.run.outcome == nil else {
+    static func game(from data: Data?) -> Game? {
+        // Decoding can migrate an old paid final-board/Shop save into a Book
+        // completion. Let GameModel present and record that receipt exactly
+        // once; never revive terminal failures or infer a win here.
+        guard let data, let game = try? Game(decoding: data), game.run.outcome != .failed else {
             return nil
         }
         return game
@@ -107,32 +125,53 @@ enum RunStore {
     // MARK: - What is unlocked
 
     struct Progress: Codable {
+        // Retained for old readers/rollback only. It cannot identify which
+        // Book earned an obstacle, so it is never used to grant access.
         var unlockedObstacle: Int = 1
         // Retain the old contiguous-volume counter for older app readers.
         var booksCompleted: Int = 0
         // Optional so the previous two-field save still decodes unchanged.
         // Raw IDs preserve unknown future volumes instead of losing progress.
         var completedBookIDs: Set<String>? = nil
+        /// Highest completed obstacle, keyed by the engine Book's stable ID.
+        /// Missing in older saves; their identified wins prove Obstacle I only.
+        var completedObstaclesByBookID: [String: Int]? = nil
 
         var completedBooks: Set<String> {
-            completedBookIDs ?? Set(Book.allCases.filter {
+            let legacy = completedBookIDs ?? Set(Book.allCases.filter {
                 $0.volume <= booksCompleted
             }.map(\.rawValue))
+            return legacy.union((completedObstaclesByBookID ?? [:]).filter { $0.value > 0 }.keys)
+        }
+
+        var completedObstacles: [String: Int] {
+            var values = Dictionary(uniqueKeysWithValues: completedBooks.map { ($0, 1) })
+            values.merge(completedObstaclesByBookID ?? [:], uniquingKeysWith: max)
+            return values
+        }
+
+        func unlockedObstacle(for book: Book) -> Obstacle {
+            let completed = max(0, min(Obstacle.allCases.count, completedObstacles[book.rawValue] ?? 0))
+            return Obstacle(rawValue: min(Obstacle.allCases.count, completed + 1)) ?? .none
         }
 
         @discardableResult
-        mutating func recordCompletion(of book: Book) -> Bool {
+        mutating func recordCompletion(of book: Book, obstacle: Obstacle = .none) -> Bool {
             var completed = completedBooks
-            guard completed.insert(book.rawValue).inserted else { return false }
+            var obstacles = completedObstacles
+            let isNewBook = completed.insert(book.rawValue).inserted
+            let improvesObstacle = obstacle.rawValue > (obstacles[book.rawValue] ?? 0)
+            guard isNewBook || improvesObstacle else { return false }
+            obstacles[book.rawValue] = max(obstacles[book.rawValue] ?? 0, obstacle.rawValue)
+            completedObstaclesByBookID = obstacles
             completedBookIDs = completed
             booksCompleted = Book.allCases.sorted { $0.volume < $1.volume }
                 .prefix { completed.contains($0.rawValue) }.count
-            unlockedObstacle = min(Obstacle.allCases.count, unlockedObstacle + 1)
             return true
         }
     }
 
-    private static func progress() -> Progress {
+    static func progress() -> Progress {
         guard let data = try? Data(contentsOf: progressURL),
               let value = try? JSONDecoder().decode(Progress.self, from: data)
         else { return Progress() }
@@ -144,23 +183,13 @@ enum RunStore {
         try? data.write(to: progressURL, options: .atomic)
     }
 
-    /// The hardest Obstacle the player has earned. One more is unlocked by
-    /// finishing a Book, so the ladder is climbed rather than chosen.
-    static var unlockedObstacle: Obstacle {
-        Obstacle(rawValue: progress().unlockedObstacle) ?? .none
-    }
-
-    static func isUnlocked(_ obstacle: Obstacle) -> Bool {
-        obstacle.rawValue <= progress().unlockedObstacle
-    }
-
     static var booksCompleted: Int { progress().completedBooks.count }
 
-    /// Books can be played in any order. A distinct completed volume advances
-    /// the Obstacle ladder once; replaying it does not grant another unlock.
-    static func recordBookCompleted(_ book: Book) {
+    /// Only finishing this Book on a harder obstacle advances its own ladder.
+    /// Replaying the same obstacle cannot increment it again.
+    static func recordBookCompleted(_ book: Book, obstacle: Obstacle) {
         var value = progress()
-        guard value.recordCompletion(of: book) else { return }
+        guard value.recordCompletion(of: book, obstacle: obstacle) else { return }
         write(value)
     }
 }

@@ -6,9 +6,6 @@ import SwiftUI
 /// `GameModel` and offers to abandon the run, print its seed and count its
 /// coins. None of that exists at the front door, and a settings screen that
 /// says "Level 0 of 9" is worse than no settings screen at all.
-///
-/// Nothing here is a switch that does nothing. If the game gains music, the
-/// music row arrives with it.
 struct AppSettingsSlip: View {
     var onClose: () -> Void
 
@@ -31,6 +28,8 @@ struct AppSettingsSlip: View {
                                    + "either way.",
                                isOn: $ambientMotion)
                 }
+
+                AudioSettingsSection()
 
                 if reduceMotion {
                     SlipSection(title: "Reduce Motion") {
@@ -68,6 +67,7 @@ struct AppSettingsSlip: View {
             }
         }
         .animation(.snappy(duration: 0.22), value: showingHelp)
+        .onChange(of: haptics) { Haptics.preferencesChanged() }
     }
 
     private static var version: String {

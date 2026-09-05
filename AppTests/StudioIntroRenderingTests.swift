@@ -78,10 +78,12 @@ final class StudioIntroRenderingTests: XCTestCase {
         defer { fixture.close() }
         let view = fixture.view
         var cancelledCallbackCount = 0
+        var cancelledHandoffCount = 0
         var viewportCallbackCount = 0
         view.onViewportChange = { _ in viewportCallbackCount += 1 }
         view.updateRenderActivity(isSceneVisible: false)
         view.updateFirstFrameReporting { cancelledCallbackCount += 1 }
+        view.reportNextRenderedFrame { cancelledHandoffCount += 1 }
         let cancelledObserver = try XCTUnwrap(view.delegate)
 
         view.stopFirstFrameReporting()
@@ -100,6 +102,7 @@ final class StudioIntroRenderingTests: XCTestCase {
         fixture.mount()
         await fulfillment(of: [subsequentFrames], timeout: 10)
         XCTAssertEqual(cancelledCallbackCount, 0)
+        XCTAssertEqual(cancelledHandoffCount, 0)
         XCTAssertEqual(viewportCallbackCount, 0)
         XCTAssertTrue(staleRelay.sawMetalQueue)
 
@@ -113,6 +116,7 @@ final class StudioIntroRenderingTests: XCTestCase {
         }
         await fulfillment(of: [freshReady], timeout: 10)
         XCTAssertEqual(cancelledCallbackCount, 0)
+        XCTAssertEqual(cancelledHandoffCount, 0)
         XCTAssertEqual(freshCallbackCount, 1)
         XCTAssertFalse(view.isPlaying)
         XCTAssertFalse(view.rendersContinuously)
@@ -124,6 +128,61 @@ final class StudioIntroRenderingTests: XCTestCase {
         XCTAssertNil(view.onViewportChange)
         XCTAssertFalse(view.isPlaying)
         XCTAssertFalse(view.rendersContinuously)
+    }
+
+    func testCoverHandoffWaitsForNewGPUFramesWithoutReplayingStudioReadiness() async throws {
+        let fixture = try SceneFixture()
+        defer { fixture.close() }
+        let view = fixture.view
+        var studioReadyCount = 0
+        let initialReady = expectation(description: "Initial covered scene is ready")
+        view.updateRenderActivity(isSceneVisible: false)
+        view.updateFirstFrameReporting {
+            studioReadyCount += 1
+            initialReady.fulfill()
+        }
+        fixture.mount()
+        await fulfillment(of: [initialReady], timeout: 10)
+        XCTAssertEqual(studioReadyCount, 1)
+        XCTAssertFalse(view.isPlaying)
+
+        // Change the actual scene after its cached first frame. A retained
+        // initial-readiness flag must not dismiss this cover synchronously.
+        let book = try XCTUnwrap(fixture.scene.rootNode.childNodes.first { $0.geometry != nil })
+        book.geometry?.firstMaterial?.diffuse.contents = UIColor.green
+        var liveCoverVisible = true
+        var supersededCallbackCount = 0
+        view.reportNextRenderedFrame { supersededCallbackCount += 1 }
+        let ready = expectation(description: "Newly visible physical book has completed its frame")
+        ready.assertForOverFulfill = true
+        var handoffCount = 0
+        view.reportNextRenderedFrame {
+            handoffCount += 1
+            liveCoverVisible = false
+            ready.fulfill()
+        }
+        // Mimic updateUIView after it registers the return from coordinator.
+        // Neither this update nor layout may erase the pending handoff.
+        view.updateFirstFrameReporting { studioReadyCount += 1 }
+        view.updateRenderActivity(isSceneVisible: false)
+        view.layoutIfNeeded()
+        XCTAssertTrue(liveCoverVisible)
+        XCTAssertEqual(handoffCount, 0)
+        XCTAssertTrue(view.isPlaying, "A pending handoff needs new frames even beneath a cover")
+        let frames = FrameRelay(forwardingTo: try XCTUnwrap(view.delegate))
+        view.delegate = frames
+        await fulfillment(of: [ready], timeout: 10)
+
+        XCTAssertFalse(liveCoverVisible)
+        XCTAssertEqual(handoffCount, 1)
+        XCTAssertEqual(supersededCallbackCount, 0)
+        XCTAssertEqual(studioReadyCount, 1, "Returning a book cannot replay the studio callback")
+        XCTAssertGreaterThanOrEqual(frames.distinctFrameCount, 2)
+        XCTAssertTrue(frames.sawMetalQueue)
+        XCTAssertNil(view.delegate)
+        XCTAssertFalse(view.isPlaying, "Retain the owner's covered render policy after the handoff")
+        XCTAssertFalse(view.rendersContinuously)
+        XCTAssertTrue(view.scene === fixture.scene)
     }
 
     @MainActor

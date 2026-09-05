@@ -8,9 +8,16 @@ struct MarkerPlacementSlip: View {
     @Bindable var model: GameModel
     var markerIndex: Int
     var onPlaced: () -> Void
+    @State private var marker: OwnedMarker?
 
-    private var marker: OwnedMarker? {
-        model.run.markers.indices.contains(markerIndex) ? model.run.markers[markerIndex] : nil
+    init(model: GameModel, markerIndex: Int, onPlaced: @escaping () -> Void) {
+        self.model = model
+        self.markerIndex = markerIndex
+        self.onPlaced = onPlaced
+        // Replacing an older Marker can shift the inventory index before
+        // this slip's closing fade ends. Keep its original printed identity.
+        self._marker = State(initialValue: model.run.markers.indices.contains(markerIndex)
+                             ? model.run.markers[markerIndex] : nil)
     }
     private var pending: Int {
         marker?.pendingSquares(atLevel: model.run.level) ?? 0
@@ -64,6 +71,7 @@ private struct BlankGridPicker: View {
     @Bindable var model: GameModel
     var markerIndex: Int
     var onPlaced: () -> Void
+    @State private var didPlace = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -74,8 +82,12 @@ private struct BlankGridPicker: View {
                 ForEach(Square.all, id: \.index) { square in
                     let owner = model.run.markedSquares[square]
                     Button {
+                        guard !didPlace else { return }
+                        didPlace = true
                         if model.claimSquare(markerIndex: markerIndex, square: square) {
                             onPlaced()
+                        } else {
+                            didPlace = false
                         }
                     } label: {
                         Rectangle()
@@ -111,5 +123,6 @@ private struct BlankGridPicker: View {
             .frame(maxWidth: .infinity)
         }
         .aspectRatio(1, contentMode: .fit)
+        .allowsHitTesting(!didPlace)
     }
 }

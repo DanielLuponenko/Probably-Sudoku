@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import simd
 
 /// One measured destination for the physical cover and its interactive view.
@@ -25,16 +26,61 @@ enum BookstoreBookFocus: Equatable {
     case shelf
     case extracting(String)
     case presented(String)
+    case returning(String)
 
     var editionID: String? {
         switch self {
         case .shelf: nil
-        case .extracting(let id), .presented(let id): id
+        case .extracting(let id), .presented(let id), .returning(let id): id
         }
     }
     var isPresented: Bool {
         if case .presented = self { return true }
         return false
+    }
+}
+
+/// The return samples the SAME path in reverse, including each lower pocket's
+/// seat, tip and rail-clearance legs. A partially extracted Book starts back
+/// at its last rendered progress rather than jumping to the presentation pose.
+struct BookstoreBookMotionPath {
+    let duration: TimeInterval
+    private let upper: BookstoreExtractionPath?
+    private let lower: BookstoreLowerPocketPath?
+    private let origin: BookstoreExtractionPose
+    private let destination: BookstoreExtractionPose
+    private let pocketTransform: simd_float4x4
+
+    init(upper: BookstoreExtractionPath, origin: BookstoreExtractionPose,
+         destination: BookstoreExtractionPose) {
+        duration = BookstoreExtractionPath.duration
+        self.upper = upper
+        lower = nil
+        self.origin = origin
+        self.destination = destination
+        pocketTransform = matrix_identity_float4x4
+    }
+
+    init(lower: BookstoreLowerPocketPath, pocketTransform: simd_float4x4) {
+        duration = BookstoreLowerPocketPath.duration
+        upper = nil
+        self.lower = lower
+        origin = lower.origin
+        destination = lower.destination
+        self.pocketTransform = pocketTransform
+    }
+
+    func transform(at progress: Float) -> simd_float4x4 {
+        let progress = min(1, max(0, progress))
+        if let lower { return pocketTransform * lower.pose(at: progress).transform }
+        guard let upper else { return origin.transform }
+        var pose = origin.interpolated(to: destination, amount: upper.presentationProgress(at: progress))
+        pose.position = upper.position(at: progress)
+        return pose.transform
+    }
+
+    func returnTransform(at progress: Float, from extractedProgress: Float = 1) -> simd_float4x4 {
+        transform(at: min(1, max(0, extractedProgress)) * (1 - min(1, max(0, progress))))
     }
 }
 

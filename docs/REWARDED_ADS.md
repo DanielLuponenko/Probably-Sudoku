@@ -1,14 +1,63 @@
-# Optional rewarded video: testing integration
+# Optional rewarded video: production and testing
 
-All configurations, including Release and TestFlight, use Google's demo app ID
-`ca-app-pub-3940256099942544~1458002511` and iOS rewarded unit
-`ca-app-pub-3940256099942544/1712485313`. There is no automatic production switch.
-Do not publish a production monetized build until an explicit switch is approved.
+The user authorized production ad integration on 2026-09-06 after AdMob account
+approval. Account approval is not the app's separate readiness approval.
 
-Reserved production identifiers (documentation only; not used by the app):
+| Build configuration | App ID | Rewarded unit | Use |
+| --- | --- | --- | --- |
+| Debug / Release | Google demo | Google demo | Development, direct QA installs, TestFlight |
+| Production, physical iOS | Probably Sudoku | Puzzle Rescue | Explicit monetized App Store archive |
+| Any simulator | Google demo | Google demo | Never paid traffic |
+
+Verified against the signed-in AdMob app settings and ad-unit list:
 
 - App: `ca-app-pub-6970700553304979~2878649005`
 - Rewarded unit: `ca-app-pub-6970700553304979/5201560013`
+
+The regular `ProbablySudoku` scheme still archives **Release** with demo ads.
+`ProbablySudoku-Production` archives **Production** with the real identifiers.
+Its Run/Test/Profile actions remain on safe configurations. Do not distribute a
+Production archive for routine ad testing: TestFlight does not itself turn paid
+ads into test ads. Use the regular scheme for testers; only registered AdMob
+test devices should exercise production units during integration testing.
+
+Configuration is generated from `project.yml` into the three Info.plist keys
+`GADApplicationIdentifier`, `NumberClubAdMode`, and `NumberClubRewardedAdUnitID`.
+The adapter validates the mode and exact matching identifier pair before consent
+or SDK initialization. An absent, unknown, or mixed configuration fails closed;
+it never silently requests another account's unit. Debug and simulator code
+also forces the demo rewarded unit as a second safety boundary.
+
+## External release gates — 2026-09-06
+
+- Account: approved, as reported by the user and shown in their screenshot.
+- Probably Sudoku app: **Requires review**, verified in the live AdMob dashboard.
+- App store details: no linked store listing, verified in App settings.
+- Production ad-unit ID exists and is of type **Rewarded**.
+- European regulations → Messages shows the initial create-message screen,
+  with no published message. Automatic fallback coverage is enabled in account
+  settings, but it is not proof of a configured, app-specific production consent
+  flow. Publish the intended message and verify it with test traffic before launch.
+- Full paid serving is not verified. The code configuration does not bypass
+  AdMob's app review, consent requirements, or store publication.
+- Before monetized release: finish the public App Store listing, link it in
+  AdMob, complete any requested app-ads.txt verification/readiness review, and
+  verify production consent messages and app-specific privacy disclosures.
+
+No paid ad was requested, viewed, or clicked during this configuration change.
+No phone installation or App Store/TestFlight upload is part of this change.
+
+## Configuration validation — 2026-09-06
+
+- SDK-free host tests: 21 passed (5 configuration + 16 service/mock lifecycle).
+  The harness links no Google SDK; its Google adapter stub cannot load ads.
+- Unsigned generic-iOS **Production** build passed; the built Info.plist contains
+  the verified live app/rewarded IDs and `NumberClubAdMode = live`.
+- Production simulator build settings resolve to the complete demo pair and
+  `test` mode; ordinary Release remains `test` with demo IDs.
+- Build log: `/tmp/numberclub-production-ads-build.log`.
+- This is compile/configuration proof, not a claim that AdMob approved the app
+  or served a production ad. Gameplay testing remains stopped at the user's request.
 
 ## Ownership and failure behavior
 
@@ -50,7 +99,7 @@ UMP obtains its message configuration from the app ID in Info.plist. Google's
 demo app configuration is not controlled by this account. Network QA must prove
 that UMP permits the request and the demo video actually loads. A server/config
 failure is a blocker to that proof, not permission to skip consent. When using
-the real app ID later, configure and publish the appropriate messages under
+the Production configuration, configure and publish the appropriate messages under
 AdMob Privacy & messaging first, and re-test relevant regions with explicitly
 registered test devices. TestFlight is not automatically a Google test device.
 

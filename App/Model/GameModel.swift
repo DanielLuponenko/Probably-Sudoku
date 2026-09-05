@@ -19,9 +19,8 @@ enum BookPage: Equatable {
 @Observable
 final class GameModel {
 
-    /// A value snapshot held across the book-closing animation. The run is
-    /// deliberately discarded when the shelf returns, so the congratulations
-    /// page cannot depend on a live, resumable game.
+    /// Immutable completion facts used by the final page and retained across
+    /// book closing, so the returning shelf keeps the completed volume's identity.
     struct BookCompletionSummary {
         let edition: BookEdition
         let levelsCleared: Int
@@ -91,7 +90,10 @@ final class GameModel {
             recordQAUndoSnapshot()
             #endif
         }
-        didSet { persist() }
+        didSet {
+            invalidatePuzzlePreparation()
+            persist()
+        }
     }
     private(set) var handCards: [HandCard] = []
     /// A frozen model is the page already lifting away, not a fresh deal.
@@ -165,6 +167,22 @@ final class GameModel {
     /// Render-only snapshots must never write stale state over a live Book.
     private var savesProgress = true
 
+    /// The revision covers the entire value-type Game, including inventory and
+    /// all RNG streams. A prepared deal never overwrites a newer player action.
+    private(set) var puzzlePreparationRevision: UInt64 = 0
+    struct PreparedPuzzle: Sendable {
+        fileprivate let revision: UInt64
+        fileprivate let requestID: UUID
+        fileprivate let game: Game
+    }
+    private struct PuzzlePreparation: Sendable {
+        let revision: UInt64
+        let requestID: UUID
+        let task: Task<Result<Game, Error>, Never>
+    }
+    @ObservationIgnored private var puzzlePreparation: PuzzlePreparation?
+    @ObservationIgnored private var preparedPuzzle: PreparedPuzzle?
+
     init(seed: String = GameModel.randomSeed(),
          book: Book = .probably,
          obstacle: Obstacle = .none) {
@@ -208,6 +226,13 @@ final class GameModel {
         } else if game.run.outcome != nil {
             page = .results
         }
+        settleFinalVictoryIfNeeded()
+        if self.game.run.outcome == .bookCompleted {
+            page = .results
+            // A legacy paid final board/Shop can normalize to completed while
+            // decoding, before this model observes any Game mutation.
+            if !didRecordTerminalOutcome { persist() }
+        }
     }
 
     private func persist() {
@@ -227,7 +252,7 @@ final class GameModel {
         didRecordTerminalOutcome = true
         switch outcome {
         case .bookCompleted:
-            RunStore.recordBookCompleted(game.run.book)
+            RunStore.recordBookCompleted(game.run.book, obstacle: game.run.obstacle)
             PlayerProfileStore.shared.recordBookCompleted(volume: game.run.book.volume,
                                                           obstacle: game.run.obstacle)
             report(RunStore.booksCompleted, to: .booksCompleted)
@@ -319,7 +344,9 @@ final class GameModel {
     /// Reuses the identity of cards that remain in the Hand and gives each
     /// newly dealt card an identity of its own. A full Redraw intentionally
     /// opts out: every replacement card should arrive as new.
-    private func refreshHandCards(replacing: Bool = false) {
+    private func refreshHandCards(replacing: Bool = false,
+                                  consuming index: Int? = nil,
+                                  returningConsumedCard: Bool = false) {
         let updatedHand = hand
         guard !replacing else {
             handCards = updatedHand.enumerated().map {
@@ -329,6 +356,13 @@ final class GameModel {
         }
 
         var remainingCards = handCards
+        // A printed digit is not a card's identity. Remove the exact card the
+        // engine consumed before matching survivors, or playing the first of
+        // two identical numbers makes the later, untouched card disappear.
+        if let index, remainingCards.indices.contains(index) {
+            let consumed = remainingCards.remove(at: index)
+            if returningConsumedCard { remainingCards.append(consumed) }
+        }
         var nextArrivalOrder = 0
         handCards = updatedHand.map { digit in
             if let index = remainingCards.firstIndex(where: { $0.digit == digit }) {
@@ -461,8 +495,8 @@ final class GameModel {
         updateClockDisplay()
         message = "Out of time"
         game.failPuzzle()
-        if savesProgress { showResults() }
-        else { page = .results }
+        // The displayed Puzzle stays intact for the outgoing leaf. GameView
+        // presents results after its first frame (or when a covering slip closes).
     }
 
     private func updateClockDisplay() {
@@ -610,6 +644,10 @@ final class GameModel {
         // board. Tapping the same card again puts the pencil down completely.
         clearSelection()
         selectedHandIndex = nextIndex
+        if animatesHandArrival, nextIndex != nil {
+            GameAudio.shared.play(.menuTap)
+            Haptics.lift()
+        }
         if choosingClue {
             selectedHandIndex = index
             revealClueForSelectedCard()
@@ -652,10 +690,23 @@ final class GameModel {
                 madeWrongPlacementThisPuzzle = madeWrongPlacementThisPuzzle || !outcome.correct
                 PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: wasKeepingFilling)
             }
-            refreshHandCards()
+            refreshHandCards(consuming: handIndex,
+                             returningConsumedCard: outcome.returnedToHand)
             lastOutcome = outcome
             lastPlacedSquare = square
-            if outcome.correct { Haptics.scored(points: outcome.points) }
+            if animatesHandArrival {
+                if outcome.correct {
+                    GameAudio.shared.play(.tilePlace)
+                    // A clear owns one deliberate pattern; do not layer a
+                    // second buzzing score pattern over the same placement.
+                    if outcome.lineClears.isEmpty && !outcome.fullClear {
+                        Haptics.scored(points: outcome.points)
+                    }
+                } else {
+                    GameAudio.shared.play(.error)
+                    Haptics.error()
+                }
+            }
             presentEffectActivation(for: outcome, at: square)
             markCleared(outcome, at: square)
             // A placement consumes the card and changes the square, so neither
@@ -735,7 +786,11 @@ final class GameModel {
         let digit = hand[index]
         do {
             _ = try game.toss(handIndex: index)
-            refreshHandCards()
+            if animatesHandArrival {
+                GameAudio.shared.play(.toss)
+                Haptics.tossed()
+            }
+            refreshHandCards(consuming: index)
             message = nil
             presentReturn(kind: .pool, digits: [digit])
         } catch {
@@ -757,13 +812,20 @@ final class GameModel {
     }
 
     func useClue(at square: Square) {
+        // The legacy direct-square action takes the solution number from the
+        // Pool first, otherwise the first matching Hand slot. Record only that
+        // identity decision; no Pool counts are exposed in the presentation.
+        let consumedIndex = puzzle.flatMap { puzzle -> Int? in
+            let digit = puzzle.board.correctDigit(at: square)
+            return puzzle.poolCount(of: digit) == 0 ? puzzle.hand.firstIndex(of: digit) : nil
+        }
         do {
             let outcome = try game.useClue(at: square)
             if isTrackingAchievementPuzzle {
                 usedClueThisPuzzle = true
                 PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: false)
             }
-            refreshHandCards()
+            refreshHandCards(consuming: consumedIndex)
             clearSelection()
             lastPlacedSquare = square
             markCleared(outcome, at: square)
@@ -823,6 +885,7 @@ final class GameModel {
                 message = "This Buff has no effect right now — kept"
                 return false
             }
+            if animatesHandArrival { GameAudio.shared.play(.paperTurn) }
             refreshHandCards(replacing: redrawsHand)
             if !redrawn.isEmpty {
                 presentReturn(kind: .redraw, digits: redrawn)
@@ -840,11 +903,13 @@ final class GameModel {
     func endTurn() {
         let bossBefore = BossFeedbackSnapshot(puzzle)
         do {
-            let result = try game.endTurn()
+            _ = try game.endTurn()
+            if animatesHandArrival { Haptics.menuPress() }
             refreshHandCards()
             clearSelection()
             presentBossChanges(from: bossBefore)
-            if result.puzzleFailed { showResults() }
+            // Phase changes drive GameView's page turn; changing `page` here
+            // would replace the outgoing board before it can be captured.
         } catch {
             message = describe(error)
         }
@@ -861,11 +926,25 @@ final class GameModel {
 
     /// Finishing a Puzzle turns the page rather than throwing up a panel.
     func showResults() {
-        if let puzzle, puzzle.phase != .outOfTurns {
+        if animatesHandArrival, page != .results,
+           let puzzle, puzzle.phase == .won || puzzle.phase == .cashedOut {
+            GameAudio.shared.play(.win)
+        }
+        if savesProgress, let puzzle, puzzle.phase != .outOfTurns {
             report(puzzle.score, to: .highestPuzzleScore)
             report(puzzle.level, to: .highestLevelReached)
         }
+        settleFinalVictoryIfNeeded()
         page = .results
+    }
+    /// The last Boss ends the Book, not another payout/Keep Filling choice.
+    /// Use the existing cash-out action so its receipt and achievement hooks
+    /// stay identical. Frozen construction never calls this explicit action.
+    private func settleFinalVictoryIfNeeded() {
+        guard run.outcome == nil, run.isFinalPuzzle,
+              let puzzle, puzzle.level == 9, puzzle.isBoss,
+              puzzle.boss != nil, puzzle.phase == .won else { return }
+        cashOut()
     }
 
     func cashOut() {
@@ -900,7 +979,9 @@ final class GameModel {
     /// Results → shop, the first of the two page turns between Puzzles.
     func openShop() {
         game.openShop()
-        page = .shop
+        // The final cash-out completes the Book, so the engine intentionally
+        // creates no Shop. Keep its final board and results page in place.
+        page = game.run.outcome == nil && game.shop != nil ? .shop : .results
     }
 
     /// Shop → the next puzzle, the second page turn.
@@ -918,36 +999,130 @@ final class GameModel {
         page = .briefing
     }
 
-    /// Dealing starts only after the player accepts this Puzzle. That keeps a
+    /// The live deal commits only after the player accepts this Puzzle. That keeps a
     /// Clipping an actual choice rather than something revealed after the
     /// board, pool, and Boss have already been rolled.
     func beginPuzzle() {
+        cancelPuzzlePreparation()
         rewardedRescue.invalidate()
         stopClock()
         do {
             try game.startPuzzle()
-            #if DEBUG && targetEnvironment(simulator)
-            applyPendingQAMarker()
-            #endif
-            isTrackingAchievementPuzzle = true
-            usedClueThisPuzzle = false
-            madeWrongPlacementThisPuzzle = false
-            if let level = puzzle?.level {
-                report(level, to: .highestLevelReached)
-                PlayerProfileStore.shared.recordReachedLevel(level)
-            }
-            if isTeachingFirstRun { PlayerProfileStore.shared.startFirstRunTutorial() }
-            refreshHandCards(replacing: true)
-            startClock()
-            selectedHandIndex = nil
-            selectedSquare = nil
-            lastOutcome = nil
-            lastClipping = nil
-            page = .puzzle
-            presentBossChanges(from: BossFeedbackSnapshot(nil))
+            finishBeginningPuzzle()
         } catch {
             message = describe(error)
         }
+    }
+
+    /// The worker owns a copy. Until the first printed flip frame commits it,
+    /// neither the live board stream nor a saved Book has advanced.
+    func prepareUpcomingPuzzle(
+        reportFailure: Bool = false,
+        using generate: @escaping @Sendable (Game) throws -> Game = GameModel.generateUpcomingPuzzle
+    ) async -> PreparedPuzzle? {
+        guard canPreparePuzzle, !Task.isCancelled else { return nil }
+        if let preparedPuzzle, preparedPuzzle.revision == puzzlePreparationRevision {
+            return preparedPuzzle
+        }
+
+        let work: PuzzlePreparation
+        if let current = puzzlePreparation,
+           current.revision == puzzlePreparationRevision, !current.task.isCancelled {
+            work = current
+        } else {
+            let source = game
+            let task = Task.detached(priority: .userInitiated) {
+                Result<Game, Error> {
+                    try Task.checkCancellation()
+                    let generated = try generate(source)
+                    try Task.checkCancellation()
+                    return generated
+                }
+            }
+            work = PuzzlePreparation(revision: puzzlePreparationRevision,
+                                     requestID: UUID(), task: task)
+            puzzlePreparation = work
+        }
+
+        // The briefing owns this shared worker; a cancelled Play waiter must
+        // not cancel the same preparation still being warmed by the page.
+        // Departure/background/revision changes explicitly cancel its owner.
+        let result = await work.task.value
+        guard !Task.isCancelled, !work.task.isCancelled, canPreparePuzzle,
+              work.revision == puzzlePreparationRevision,
+              puzzlePreparation?.requestID == work.requestID else { return nil }
+        switch result {
+        case .success(let generated):
+            let ready = PreparedPuzzle(revision: work.revision,
+                                       requestID: work.requestID, game: generated)
+            preparedPuzzle = ready
+            return ready
+        case .failure(let error):
+            if reportFailure, !(error is CancellationError) { message = describe(error) }
+            return nil
+        }
+    }
+
+    /// Called only by PageFlipper's first-frame commit. Revalidate here as well
+    /// as after awaiting: a Clipping, purchase, QA change, or cancelled briefing
+    /// may have invalidated this prepared state while the renderer was priming.
+    @discardableResult
+    func beginPreparedPuzzle(_ prepared: PreparedPuzzle) -> Bool {
+        guard canPreparePuzzle, prepared.revision == puzzlePreparationRevision,
+              preparedPuzzle?.requestID == prepared.requestID else { return false }
+        rewardedRescue.invalidate()
+        stopClock()
+        game = prepared.game
+        finishBeginningPuzzle()
+        return true
+    }
+
+    func cancelPuzzlePreparation() {
+        puzzlePreparation?.task.cancel()
+        puzzlePreparation = nil
+        preparedPuzzle = nil
+    }
+
+    var hasPreparedPuzzle: Bool {
+        canPreparePuzzle && preparedPuzzle?.revision == puzzlePreparationRevision
+    }
+
+    private func invalidatePuzzlePreparation() {
+        cancelPuzzlePreparation()
+        puzzlePreparationRevision &+= 1
+    }
+
+    private var canPreparePuzzle: Bool {
+        animatesHandArrival && !wantsMenu && page == .briefing
+            && game.puzzle == nil && game.shop == nil && game.run.outcome == nil
+    }
+
+    nonisolated private static func generateUpcomingPuzzle(_ source: Game) throws -> Game {
+        var generated = source
+        try generated.startPuzzle()
+        return generated
+    }
+
+    private func finishBeginningPuzzle() {
+        #if DEBUG && targetEnvironment(simulator)
+        applyPendingQAMarker()
+        #endif
+        isTrackingAchievementPuzzle = savesProgress
+        usedClueThisPuzzle = false
+        madeWrongPlacementThisPuzzle = false
+        if savesProgress, let level = puzzle?.level {
+            report(level, to: .highestLevelReached)
+            PlayerProfileStore.shared.recordReachedLevel(level)
+        }
+        if savesProgress, isTeachingFirstRun { PlayerProfileStore.shared.startFirstRunTutorial() }
+        refreshHandCards(replacing: true)
+        startClock()
+        selectedHandIndex = nil
+        selectedSquare = nil
+        lastOutcome = nil
+        lastClipping = nil
+        page = .puzzle
+        presentBossChanges(from: BossFeedbackSnapshot(nil))
     }
 
     func skipCurrentPuzzle() {
@@ -970,6 +1145,7 @@ final class GameModel {
         let kind = shop?.offers.first(where: { $0.slot == slot })?.def.kind
         do {
             try game.buy(slot: slot)
+            if animatesHandArrival { GameAudio.shared.play(.menuTap) }
             if let kind {
                 PlayerProfileStore.shared.recordPurchase(kind: kind,
                                                          bookmarkCount: game.run.bookmarks.count)
@@ -979,7 +1155,10 @@ final class GameModel {
     }
 
     func reroll() {
-        do { try game.reroll() }
+        do {
+            try game.reroll()
+            if animatesHandArrival { Haptics.pageTurn() }
+        }
         catch { message = describe(error) }
     }
 

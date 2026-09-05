@@ -8,6 +8,22 @@ import ProbablySudokuEngine
 /// Printed-page coverage uses pure content or a frozen game, never saved data or ad requests.
 @MainActor
 final class FailurePageRenderingTests: XCTestCase {
+    func testTerminalEndBookUsesTheCapturedMenuReturnOwner() throws {
+        var game = Game(seed: "terminal-menu-return")
+        try game.startPuzzle()
+        game.failPuzzle()
+        let model = GameModel(frozen: game, page: .results)
+        var requestedMenuReturn = false
+        let page = FailureResultsPage(model: model, offersRescue: false,
+                                      onAbandon: { requestedMenuReturn = true })
+
+        page.endBook()
+
+        XCTAssertTrue(requestedMenuReturn, "The owner must capture the outgoing page before abandoning")
+        XCTAssertFalse(model.wantsMenu, "The leaf must not bypass the captured transition or touch the saved run")
+        XCTAssertEqual(model.puzzle?.phase, .failed)
+    }
+
     func testReadyPageNaturalSizesAtPhoneWidths() throws {
         for compact in [false, true] {
             let image = try render(
@@ -63,7 +79,7 @@ final class FailurePageRenderingTests: XCTestCase {
         )
         XCTAssertLessThanOrEqual(image.size.height, 590)
         let text = try recognizedText(in: image)
-        assertContains(text, "Book over", "This attempt is over", "New book")
+        assertContains(text, "Book over", "This attempt is over", "New book", "for now")
         XCTAssertFalse(text.contains(normalize("Watch ad")))
         XCTAssertFalse(text.contains(normalize("Once per puzzle")))
         XCTAssertFalse(text.contains(normalize("extra turns")))
@@ -105,7 +121,9 @@ final class FailurePageRenderingTests: XCTestCase {
         let viewport = CGSize(width: 375, height: 812)
         let content = VStack(spacing: 0) {
             Color.clear.frame(height: 86) // Space occupied by the HUD/bookmark band.
-            BookView(flipper: flipper) { FailureResultsPage(model: model, offersRescue: true) }
+            BookView(flipper: flipper) {
+                FailureResultsPage(model: model, offersRescue: true, onAbandon: {})
+            }
                 .padding(.leading, 8).padding(.trailing, 10)
         }
         .padding(.bottom, 8)

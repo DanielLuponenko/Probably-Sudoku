@@ -5,6 +5,7 @@ import ProbablySudokuEngine
 final class BookstoreSCNView: SCNView {
     var onViewportChange: ((CGSize) -> Void)?
     private var onFirstFrame: (() -> Void)?
+    private var onNextFrame: (() -> Void)?
     private var firstFrameObserver: BookstoreFirstFrameObserver?
     private var hasAppliedSceneUpdate = false
     private var hasReportedFirstFrame = false
@@ -14,7 +15,7 @@ final class BookstoreSCNView: SCNView {
     /// the studio camera moves. The prepared drawable survives the handoff.
     func updateRenderActivity(isSceneVisible: Bool) {
         self.isSceneVisible = isSceneVisible
-        let shouldRender = isSceneVisible || !hasReportedFirstFrame
+        let shouldRender = isSceneVisible || !hasReportedFirstFrame || onNextFrame != nil
         isPlaying = shouldRender
         rendersContinuously = shouldRender
     }
@@ -22,8 +23,24 @@ final class BookstoreSCNView: SCNView {
     func updateFirstFrameReporting(_ callback: (() -> Void)?) {
         onFirstFrame = callback
         hasAppliedSceneUpdate = true
-        guard !hasReportedFirstFrame else { return }
-        guard callback != nil || !isSceneVisible else {
+        guard !hasReportedFirstFrame || onNextFrame != nil else { return }
+        updateFrameReporting()
+    }
+
+    /// Keep the overlaid LiveBook visible until its newly unhidden physical
+    /// twin has completed a real frame. Reuse the startup GPU fence without
+    /// resetting or replaying the once-only studio readiness callback.
+    func reportNextRenderedFrame(_ callback: @escaping () -> Void) {
+        onNextFrame = callback
+        firstFrameObserver?.invalidate()
+        firstFrameObserver = nil
+        updateRenderActivity(isSceneVisible: isSceneVisible)
+        updateFrameReporting()
+        setNeedsDisplay()
+    }
+
+    private func updateFrameReporting() {
+        guard onNextFrame != nil || (!hasReportedFirstFrame && (onFirstFrame != nil || !isSceneVisible)) else {
             firstFrameObserver?.invalidate()
             firstFrameObserver = nil
             delegate = nil
@@ -31,15 +48,19 @@ final class BookstoreSCNView: SCNView {
         }
         if firstFrameObserver == nil {
             let observer = BookstoreFirstFrameObserver { [weak self] in
-                guard let self, !self.hasReportedFirstFrame, self.window != nil,
+                guard let self, self.window != nil,
                       self.bounds.width >= 100, self.bounds.height >= 100 else { return }
+                let firstCallback = self.hasReportedFirstFrame ? nil : self.onFirstFrame
+                let nextCallback = self.onNextFrame
                 self.hasReportedFirstFrame = true
-                self.updateRenderActivity(isSceneVisible: self.isSceneVisible)
+                self.onFirstFrame = nil
+                self.onNextFrame = nil
                 self.firstFrameObserver?.invalidate()
                 self.firstFrameObserver = nil
                 self.delegate = nil
-                self.onFirstFrame?()
-                self.onFirstFrame = nil
+                self.updateRenderActivity(isSceneVisible: self.isSceneVisible)
+                firstCallback?()
+                nextCallback?()
             }
             firstFrameObserver = observer
             delegate = observer
@@ -51,6 +72,7 @@ final class BookstoreSCNView: SCNView {
         firstFrameObserver?.invalidate()
         firstFrameObserver = nil
         onFirstFrame = nil
+        onNextFrame = nil
         delegate = nil
         onViewportChange = nil
     }
@@ -195,7 +217,7 @@ struct BookstoreSceneView: UIViewRepresentable {
     var editions: [BookEdition]
     var selectedEditionID: String
     var selectedObstacle: Obstacle
-    var unlockedObstacleRawValue: Int
+    var unlockedObstaclesByBookID: [String: Int]
     var turnCommand: BookstoreTurnCommand
     var focusCommand: BookstoreFocusCommand
     var returnFocusCommand: BookstoreReturnFocusCommand
@@ -224,7 +246,10 @@ struct BookstoreSceneView: UIViewRepresentable {
     var isSceneVisible = true
 
     func makeCoordinator() -> BookstoreSceneCoordinator {
-        BookstoreSceneCoordinator(editions: editions)
+        BookstoreSceneCoordinator(editions: editions,
+                                  selectedEditionID: selectedEditionID,
+                                  selectedObstacle: selectedObstacle,
+                                  unlockedObstaclesByBookID: unlockedObstaclesByBookID)
     }
 
     func makeUIView(context: Context) -> SCNView {
@@ -247,7 +272,7 @@ struct BookstoreSceneView: UIViewRepresentable {
             phase: phase,
             selectedEditionID: selectedEditionID,
             selectedObstacle: selectedObstacle,
-            unlockedObstacleRawValue: unlockedObstacleRawValue,
+            unlockedObstaclesByBookID: unlockedObstaclesByBookID,
             turnCommand: turnCommand,
             focusCommand: focusCommand,
             returnFocusCommand: returnFocusCommand,
@@ -278,6 +303,7 @@ struct BookstoreSceneView: UIViewRepresentable {
 
     static func dismantleUIView(_ view: SCNView, coordinator: BookstoreSceneCoordinator) {
         (view as? BookstoreSCNView)?.stopFirstFrameReporting()
+        coordinator.stopBookPresentation()
         view.isPlaying = false
         view.rendersContinuously = false
     }

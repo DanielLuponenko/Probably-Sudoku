@@ -79,24 +79,24 @@ Generated from the ProbablySudokuEngine catalogue. Do not edit by hand.
 
 ## Bosses
 
-| Boss | Effect |
-| --- | --- |
-| The Censor | Any build leaning on one number |
-| The Editor | Options per Turn |
-| The Deadline | Time |
-| The Fog | Marker builds |
-| The Critic | Risk-taking |
-| The Mirror | Line-clear builds |
-| The Paywall | Clue builds |
-| The Erratum | Hand filtering |
-| The Collector | Hoarding |
-| Heavy Lifter | Everything at once |
-| Unlucky Lucky | Builds that lean on one Bookmark |
-| Big Buffborger Jr | Anything held in reserve |
-| Sashimi | Mult stacking |
-| Over Pusher | Room to play |
-| Natural Born Accountant | The Shop after this |
-| Tik Tak | Thinking it through |
-| Handy Dandy | The Hand you were counting on |
-| Gray the Garry | Rows you were about to finish |
-| Garry the Gray | Boxes you were about to finish |
+| Boss | Stage | Attacks |
+| --- | --- | --- |
+| The Censor | Levels 1–8, Puzzle 3 | Any build leaning on one number |
+| The Editor | Levels 1–8, Puzzle 3 | Options per Turn |
+| The Deadline | Levels 1–8, Puzzle 3 | Time |
+| The Fog | Levels 1–8, Puzzle 3 | Marker builds |
+| The Critic | Levels 1–8, Puzzle 3 | Risk-taking |
+| The Mirror | Levels 1–8, Puzzle 3 | Line-clear builds |
+| The Paywall | Levels 1–8, Puzzle 3 | Clue builds |
+| The Erratum | Levels 1–8, Puzzle 3 | Hand filtering |
+| The Collector | Levels 1–8, Puzzle 3 | Hoarding |
+| The Final Draft | Level 9, Puzzle 3 only | Everything at once |
+| The Executive Editor | Level 9, Puzzle 3 only | Builds that lean on one Bookmark |
+| The Fine Print | Level 9, Puzzle 3 only | Anything held in reserve |
+| The Budget Cut | Level 9, Puzzle 3 only | Mult stacking |
+| The Shredder | Level 9, Puzzle 3 only | Room to play |
+| Natural Born Accountant | Levels 1–8, Puzzle 3 | The Shop after this |
+| Tik Tak | Levels 1–8, Puzzle 3 | Thinking it through |
+| Handy Dandy | Levels 1–8, Puzzle 3 | The Hand you were counting on |
+| Gray the Garry | Levels 1–8, Puzzle 3 | Rows you were about to finish |
+| Garry the Gray | Levels 1–8, Puzzle 3 | Boxes you were about to finish |

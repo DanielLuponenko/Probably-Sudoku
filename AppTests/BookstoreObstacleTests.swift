@@ -7,7 +7,7 @@ import ProbablySudokuEngine
 
 @MainActor
 final class BookstoreObstacleTests: XCTestCase {
-    func testOnlyDebugSimulatorFirstBookGetsTheNineObstacleSamplerForEverySavedCeiling() {
+    func testEveryBookUsesItsOwnSuppliedCeilingIncludingNormalDebugLaunches() {
         XCTAssertEqual(BookEdition.shelf.count, 12)
         for progress in [-10, 0, 1, 4, 9, 20] {
             for (index, edition) in BookEdition.shelf.enumerated() {
@@ -29,7 +29,7 @@ final class BookstoreObstacleTests: XCTestCase {
                 let selected = BookEdition.first.availableObstacle(preview, progressUnlockedThrough: progress)
                 let firstBookCeiling = expectedCeiling(isFirstBook: true, progress: progress)
                 XCTAssertEqual(selected, preview.rawValue <= firstBookCeiling ? preview : .none,
-                               "Volume 1 sampler access must match the build configuration")
+                               "First-book access must use the same per-book policy")
                 for edition in BookEdition.shelf.dropFirst() {
                     XCTAssertEqual(edition.availableObstacle(selected, progressUnlockedThrough: progress),
                                    preview.rawValue <= progress ? preview : .none,
@@ -39,23 +39,29 @@ final class BookstoreObstacleTests: XCTestCase {
         }
     }
 
-    func testSamplerDoesNotPromoteTheSavedProgressLadder() throws {
+    func testExplicitSamplerDoesNotPromoteSavedOrCloudProgress() throws {
         // Decode a real legacy save envelope in memory; never touch RunStore's
         // disk-backed progress or resume files from a rendering test.
         let data = Data(#"{"unlockedObstacle":4,"booksCompleted":3}"#.utf8)
         let progress = try JSONDecoder().decode(RunStore.Progress.self, from: data)
-        for edition in BookEdition.shelf {
-            _ = edition.availableObstacle(.finalEdition, progressUnlockedThrough: progress.unlockedObstacle)
-        }
+        var achievements = AchievementProgress()
+        achievements.merge(localProgress: progress)
+        let before = achievements
+        let sampler = BookEdition.obstacleUnlocks(for: achievements, arguments: ["-previewFirstBookObstacles"])
+        #if DEBUG && targetEnvironment(simulator)
+        XCTAssertEqual(sampler[Book.probably.rawValue], 9)
+        #else
+        XCTAssertEqual(sampler[Book.probably.rawValue], 2)
+        #endif
+        XCTAssertEqual(sampler[Book.slightlyHarder.rawValue], 2)
+        XCTAssertEqual(sampler[Book.bites.rawValue], 1)
+        XCTAssertEqual(achievements, before)
         let restored = try JSONDecoder().decode(RunStore.Progress.self, from: JSONEncoder().encode(progress))
         XCTAssertEqual(restored.unlockedObstacle, 4)
         XCTAssertEqual(restored.booksCompleted, 3)
         XCTAssertEqual(restored.completedBooks, progress.completedBooks)
-        XCTAssertEqual(BookEdition.first.unlockedObstacleRawValue(progressUnlockedThrough: restored.unlockedObstacle),
-                       expectedCeiling(isFirstBook: true, progress: 4))
-        for edition in BookEdition.shelf.dropFirst() {
-            XCTAssertEqual(edition.unlockedObstacleRawValue(progressUnlockedThrough: restored.unlockedObstacle), 4)
-        }
+        XCTAssertEqual(restored.unlockedObstacle(for: .probably), .shortHanded)
+        XCTAssertEqual(restored.unlockedObstacle(for: .bites), .none)
     }
 
     func testRealShelfMaterialsKeepTheirOwnUnlocksAcrossFirstBookFocusReturnAndOtherBookFocus() throws {
@@ -94,15 +100,15 @@ final class BookstoreObstacleTests: XCTestCase {
     }
 
     func testPreviewArtworkStaysLocalAndRealMaterialsContinueToRespectSavedAndDebugCeilings() throws {
-        let rack = Rack()
+        let rack = Rack(progressByBookID: [Book.probably.rawValue: 9])
         defer { rack.close() }
         let original = try rack.coverData()
 
-        rack.selectedObstacle = BookEdition.first.availableObstacle(.finalEdition, progressUnlockedThrough: 1)
+        rack.selectedObstacle = .finalEdition
         rack.focusSerial = 1
         rack.update()
         try assertMaterial(rack, edition: .first,
-                           unlockedThrough: expectedCeiling(isFirstBook: true, progress: 1),
+                           unlockedThrough: 9,
                            selected: rack.selectedObstacle)
         for edition in BookEdition.shelf.dropFirst() {
             let actual = try rack.coverData(for: edition)
@@ -121,8 +127,8 @@ final class BookstoreObstacleTests: XCTestCase {
         rack.returnSerial = 2
         rack.update()
 
-        // The same base value is supplied for every edition. This exercises the
-        // actual coordinator update, not a stand-alone copy of its lock policy.
+        // An explicit all-books QA fixture still prints each keyed value.
+        rack.progressByBookID = nil
         for progress in [4, 9, 1] {
             rack.progressUnlockedThrough = progress
             rack.selectedIndex = 11
@@ -134,23 +140,160 @@ final class BookstoreObstacleTests: XCTestCase {
         }
     }
 
-    func testFirstBookSamplerIsExcludedFromReleaseAndPhysicalDeviceBuilds() {
-        #if DEBUG && targetEnvironment(simulator)
-        XCTAssertEqual(BookEdition.first.unlockedObstacleRawValue(progressUnlockedThrough: 1), 9)
-        XCTAssertEqual(BookEdition.first.availableObstacle(.finalEdition, progressUnlockedThrough: 1), .finalEdition)
-        #else
+    func testSamplerRequiresExplicitArgumentAndIsExcludedFromReleaseAndDevices() {
+        let progress = AchievementProgress()
         for edition in BookEdition.shelf {
-            XCTAssertEqual(edition.unlockedObstacleRawValue(progressUnlockedThrough: 1), 1)
-            XCTAssertEqual(edition.availableObstacle(.finalEdition, progressUnlockedThrough: 1), .none)
+            XCTAssertEqual(BookEdition.obstacleUnlocks(for: progress, arguments: [])[edition.rule.rawValue], 1)
         }
+        let sampler = BookEdition.obstacleUnlocks(for: progress, arguments: ["-previewFirstBookObstacles"])
+        #if DEBUG && targetEnvironment(simulator)
+        XCTAssertEqual(sampler[Book.probably.rawValue], 9)
+        #else
+        XCTAssertEqual(sampler[Book.probably.rawValue], 1)
         #endif
+        for book in Book.allCases where book != .probably { XCTAssertEqual(sampler[book.rawValue], 1) }
     }
 
-    /// Keep the expected build policy independent of the production helper.
+    func testCompletedBookKeepsItsOwnMaterialUnlockAfterSelectionReturnAndAnotherBookCompletion() throws {
+        // Start from the real persisted shape, including an old global QA
+        // ceiling. The material must use only the identified completion.
+        let legacy = Data(#"{"unlockedObstacle":9,"booksCompleted":0}"#.utf8)
+        var completion = try JSONDecoder().decode(RunStore.Progress.self, from: legacy)
+        XCTAssertTrue(completion.recordCompletion(of: .probably, obstacle: .none))
+        completion = try JSONDecoder().decode(RunStore.Progress.self,
+                                              from: JSONEncoder().encode(completion))
+        var profile = PlayerProfile()
+        profile.achievementProgress.merge(localProgress: completion)
+        var cloudCopy = PlayerProfile()
+        cloudCopy.merge(remote: try JSONDecoder().decode(PlayerProfile.self,
+                                                        from: JSONEncoder().encode(profile)))
+        var achievements = cloudCopy.achievementProgress
+        let rack = Rack(progressByBookID: achievements.unlockedObstaclesByBookID)
+        defer { rack.close() }
+        for edition in BookEdition.shelf {
+            try assertMaterial(rack, edition: edition, unlockedThrough: edition.rule == .probably ? 2 : 1)
+        }
+
+        rack.selectedObstacle = .shortHanded
+        rack.focusSerial = 1
+        rack.update()
+        rack.isLiveBookPresented = true
+        rack.update()
+        try assertMaterial(rack, edition: .first, unlockedThrough: 2, selected: .shortHanded)
+        rack.returnSerial = 1
+        rack.isLiveBookPresented = false
+        rack.update()
+        rack.selectedIndex = 1
+        rack.selectedObstacle = BookEdition.second.availableObstacle(.shortHanded,
+                                                                     progressByBookID: achievements.unlockedObstaclesByBookID)
+        XCTAssertEqual(rack.selectedObstacle, .none, "The first Book's II cannot carry into an uncompleted Book")
+        rack.focusSerial = 2
+        rack.turnSerial = 1
+        rack.update()
+        for edition in BookEdition.shelf {
+            try assertMaterial(rack, edition: edition, unlockedThrough: edition.rule == .probably ? 2 : 1)
+        }
+        let beforeSecondWin = try rack.coverImages()
+        achievements.recordBookCompleted(.slightlyHarder, obstacle: .shortHanded)
+        rack.progressByBookID = achievements.unlockedObstaclesByBookID
+        rack.update()
+        for edition in BookEdition.shelf {
+            try assertMaterial(rack, edition: edition,
+                               unlockedThrough: edition.rule == .probably ? 2 : edition.rule == .slightlyHarder ? 3 : 1)
+            XCTAssertEqual(try rack.coverImage(for: edition) === beforeSecondWin[edition.id], edition != .second,
+                           "Only the newly completed Book's unlock artwork should be regenerated")
+        }
+    }
+
+    func testBrowsingKeepsIdenticalCoverImagesAndDoesNotScheduleNoOpScaleActions() throws {
+        let rack = Rack()
+        defer { rack.close() }
+        let original = try rack.coverImages()
+        var updateDuration = Duration.zero
+
+        for index in BookEdition.shelf.indices {
+            rack.selectedIndex = index
+            rack.turnSerial += 1
+            let started = ContinuousClock.now
+            rack.update()
+            updateDuration += started.duration(to: .now)
+            let current = try rack.coverImages()
+            for edition in BookEdition.shelf {
+                XCTAssertTrue(current[edition.id] === original[edition.id],
+                              "Browsing must not rasterize unchanged \(edition.id) artwork again")
+            }
+            rack.view.scene?.rootNode.enumerateChildNodes { node, _ in
+                XCTAssertNil(node.action(forKey: "selection"),
+                             "An unchanged pocket scale must not start another animation")
+            }
+        }
+        let components = updateDuration.components
+        let milliseconds = Double(components.seconds) * 1_000 + Double(components.attoseconds) / 1e15
+        print("Rack browse: 12 real coordinator updates took \(milliseconds) ms (excludes fixture and assertions)")
+    }
+
+    func testCoverInvalidationTracksActualPrintedObstacleAndEffectiveUnlockCeiling() throws {
+        let rack = Rack()
+        defer { rack.close() }
+        rack.selectedIndex = 1
+        rack.update()
+        let original = try rack.coverImages()
+
+        rack.selectedObstacle = .shortHanded
+        rack.update()
+        let preview = try rack.coverImages()
+        for edition in BookEdition.shelf {
+            XCTAssertEqual(preview[edition.id] === original[edition.id], edition != .second,
+                           "Only the selected book's changed obstacle should be reprinted")
+        }
+        rack.update()
+        XCTAssertTrue(try rack.coverImage(for: .second) === preview[BookEdition.second.id])
+
+        rack.selectedIndex = 2
+        rack.selectedObstacle = .none
+        rack.update()
+        let returned = try rack.coverImages()
+        XCTAssertFalse(returned[BookEdition.second.id] === preview[BookEdition.second.id])
+        XCTAssertTrue(returned[BookEdition.third.id] === original[BookEdition.third.id],
+                      "The newly selected book still has its original unselected-obstacle artwork")
+        try assertMaterials(rack, equalTo: original.mapValues { try XCTUnwrap($0.pngData()) },
+                            stage: "preview returned to its shelf")
+
+        rack.progressUnlockedThrough = 4
+        rack.update()
+        let progressed = try rack.coverImages()
+        for (index, edition) in BookEdition.shelf.enumerated() {
+            let unchanged = expectedCeiling(isFirstBook: index == 0, progress: 1)
+                == expectedCeiling(isFirstBook: index == 0, progress: 4)
+            XCTAssertEqual(progressed[edition.id] === returned[edition.id], unchanged,
+                           "Reprint only when \(edition.id)'s effective unlock artwork changes")
+        }
+    }
+
+    func testInitialProgressAndSelectionArePrintedOnceBeforeTheFirstSceneUpdate() throws {
+        for (index, obstacle, progress) in [(1, Obstacle.smallerHand, 4), (11, .finalEdition, 9)] {
+            let rack = Rack(selectedIndex: index, selectedObstacle: obstacle,
+                            progressUnlockedThrough: progress, appliesInitialUpdate: false)
+            defer { rack.close() }
+            let original = try rack.coverImages()
+            for (position, edition) in BookEdition.shelf.enumerated() {
+                try assertMaterial(rack, edition: edition,
+                                   unlockedThrough: expectedCeiling(isFirstBook: position == 0, progress: progress),
+                                   selected: position == index ? obstacle : .none)
+            }
+
+            rack.update()
+
+            let updated = try rack.coverImages()
+            for edition in BookEdition.shelf {
+                XCTAssertTrue(updated[edition.id] === original[edition.id],
+                              "First update must not replace the already-correct \(edition.id) print")
+            }
+        }
+    }
+
+    /// Clamp independently of the production helper; there is no automatic sampler.
     private func expectedCeiling(isFirstBook: Bool, progress: Int) -> Int {
-        #if DEBUG && targetEnvironment(simulator)
-        if isFirstBook { return 9 }
-        #endif
         return min(9, max(1, progress))
     }
 
@@ -219,20 +362,37 @@ final class BookstoreObstacleTests: XCTestCase {
     /// assigned to each production SCNPlane material after real update calls.
     @MainActor
     private final class Rack {
-        let coordinator = BookstoreSceneCoordinator(editions: BookEdition.shelf)
+        let coordinator: BookstoreSceneCoordinator
         let view = SCNView(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
         var selectedIndex = 0
         var selectedObstacle: Obstacle = .none
         var progressUnlockedThrough = 1
+        var progressByBookID: [String: Int]?
+        private var resolvedProgress: [String: Int] {
+            progressByBookID ?? Dictionary(uniqueKeysWithValues: Book.allCases.map { ($0.rawValue, progressUnlockedThrough) })
+        }
         var focusSerial = 0
         var returnSerial = 0
         var turnSerial = 0
         var isLiveBookPresented = false
 
-        init() {
+        init(selectedIndex: Int = 0, selectedObstacle: Obstacle = .none,
+             progressUnlockedThrough: Int = 1, progressByBookID: [String: Int]? = nil,
+             appliesInitialUpdate: Bool = true) {
+            self.selectedIndex = selectedIndex
+            self.selectedObstacle = selectedObstacle
+            self.progressUnlockedThrough = progressUnlockedThrough
+            self.progressByBookID = progressByBookID
+            coordinator = BookstoreSceneCoordinator(
+                editions: BookEdition.shelf,
+                selectedEditionID: BookEdition.shelf[selectedIndex].id,
+                selectedObstacle: selectedObstacle,
+                unlockedObstaclesByBookID: progressByBookID
+                    ?? Dictionary(uniqueKeysWithValues: Book.allCases.map { ($0.rawValue, progressUnlockedThrough) })
+            )
             coordinator.install(in: view)
             coordinator.updateViewport(view.bounds.size)
-            update()
+            if appliesInitialUpdate { update() }
         }
 
         func update() {
@@ -241,7 +401,7 @@ final class BookstoreObstacleTests: XCTestCase {
                 phase: .choosingBook,
                 selectedEditionID: editionID,
                 selectedObstacle: selectedObstacle,
-                unlockedObstacleRawValue: progressUnlockedThrough,
+                unlockedObstaclesByBookID: resolvedProgress,
                 turnCommand: .init(serial: turnSerial, selectedIndex: selectedIndex),
                 focusCommand: .init(serial: focusSerial, editionID: editionID),
                 returnFocusCommand: .init(serial: returnSerial),
@@ -270,7 +430,7 @@ final class BookstoreObstacleTests: XCTestCase {
             )
         }
 
-        func coverData(for edition: BookEdition) throws -> Data {
+        func coverImage(for edition: BookEdition) throws -> UIImage {
             let scene = try XCTUnwrap(view.scene)
             var images: [UIImage] = []
             scene.rootNode.enumerateChildNodes { node, _ in
@@ -279,8 +439,18 @@ final class BookstoreObstacleTests: XCTestCase {
                 images.append(image)
             }
             XCTAssertEqual(images.count, 1, "Expected one actual front cover material for \(edition.id)")
-            let image = try XCTUnwrap(images.first)
-            return try XCTUnwrap(image.pngData(), "Cover material had no pixels for \(edition.id)")
+            return try XCTUnwrap(images.first)
+        }
+
+        func coverImages() throws -> [String: UIImage] {
+            try Dictionary(uniqueKeysWithValues: BookEdition.shelf.map { edition in
+                (edition.id, try coverImage(for: edition))
+            })
+        }
+
+        func coverData(for edition: BookEdition) throws -> Data {
+            try XCTUnwrap(coverImage(for: edition).pngData(),
+                          "Cover material had no pixels for \(edition.id)")
         }
 
         func coverData() throws -> [String: Data] {

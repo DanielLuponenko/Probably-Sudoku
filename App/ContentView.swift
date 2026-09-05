@@ -20,6 +20,9 @@ struct ContentView: View {
     @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(GameCenterService.self) private var gameCenter
+    @Environment(PlayerProfileStore.self) private var profileStore
+    @State private var onboardingStore = OnboardingStore()
+    @State private var onboardingStage: OnboardingStage?
     @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
     @State private var pendingRunConflict: RunStore.Conflict?
     @State private var showingRunConflict = false
@@ -30,6 +33,8 @@ struct ContentView: View {
     @State private var completionSummary: GameModel.BookCompletionSummary?
     @State private var menuReturn = MenuReturnTransition()
     @State private var introSceneReady = false
+
+    private enum OnboardingStage { case welcome, practice }
 
     /// `-skipStartScreen` drops straight into a Puzzle, so iterating on the
     /// board does not mean tapping through the cover every launch. Add
@@ -93,7 +98,8 @@ struct ContentView: View {
         ZStack {
             Group {
                 if let closingBook {
-                    LiveBookClosing(edition: closingBook, reduceMotion: reduceMotion,
+                    LiveBookClosing(edition: closingBook, obstacle: model?.run.obstacle ?? chosenObstacle,
+                                    reduceMotion: reduceMotion,
                                     onFinish: finishBookClosing)
                 } else if let model, !model.wantsMenu {
                     GameView(model: model, reduceMotion: reduceMotion,
@@ -118,10 +124,10 @@ struct ContentView: View {
                                 introSceneReady = true
                                 if let token { revealMenu(token: token) }
                             },
-                            isSceneVisible: frontDoor == .mainMenu
+                            isSceneVisible: frontDoor == .mainMenu && onboardingStage == nil
                         )
-                        .allowsHitTesting(frontDoor == .mainMenu)
-                        .accessibilityHidden(frontDoor == .studioIntro)
+                        .allowsHitTesting(frontDoor == .mainMenu && onboardingStage == nil)
+                        .accessibilityHidden(frontDoor == .studioIntro || onboardingStage != nil)
 
                         if frontDoor == .studioIntro {
                             StudioSplashView(reduceMotion: reduceMotion, isReadyToAnimate: introSceneReady) {
@@ -146,8 +152,10 @@ struct ContentView: View {
                         onBack: {
                             withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                         },
-                        initialIndex: completionSummary?.nextBook.map { edition in
-                            BookEdition.shelf.firstIndex(of: edition) ?? 0
+                        initialIndex: completionSummary.map { summary in
+                            // The next Obstacle belongs to this Book, so put
+                            // the reader back at the volume they just finished.
+                            BookEdition.shelf.firstIndex(of: summary.edition) ?? 0
                         }
                     )
                     .transition(.opacity)
@@ -161,15 +169,30 @@ struct ContentView: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
 
-                if let completionSummary {
-                    BookCompletionView(summary: completionSummary) {
-                        withAnimation(.easeInOut(duration: 0.22)) { self.completionSummary = nil }
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+            .allowsHitTesting(!isShowingRunDecision && !menuReturn.isActive && onboardingStage == nil)
+            .accessibilityHidden(isShowingRunDecision || menuReturn.isActive
+                                || (onboardingStage != nil && frontDoor != .studioIntro))
+
+            if let onboardingStage, frontDoor != .studioIntro {
+                switch onboardingStage {
+                case .welcome:
+                    FirstTimeWelcomeView(
+                        onExperienced: { finishOnboarding(.experienced) },
+                        onLearn: {
+                            withAnimation(.easeOut(duration: reduceMotion ? 0 : 0.2)) {
+                                self.onboardingStage = .practice
+                            }
+                        }
+                    )
+                    .transition(.opacity)
+                    .zIndex(80)
+                case .practice:
+                    TutorialView(onFinish: finishOnboarding)
+                        .transition(.opacity)
+                        .zIndex(80)
                 }
             }
-            .allowsHitTesting(!isShowingRunDecision && !menuReturn.isActive)
-            .accessibilityHidden(isShowingRunDecision || menuReturn.isActive)
 
             if showingRunConflict, let conflict = pendingRunConflict {
                 Color.black.opacity(0.48)
@@ -196,6 +219,7 @@ struct ContentView: View {
 
                 BookReplacementSlip(
                     savedRunLabel: replacement.savedRunLabel,
+                    savedRunCompleted: replacement.savedRun.run.outcome == .bookCompleted,
                     newBookLabel: replacement.book.shelfLabel,
                     onContinueSaved: continueSavedRun,
                     onStartNew: { startReplacement(from: replacement) },
@@ -224,10 +248,17 @@ struct ContentView: View {
             // A reappearance must not replace an existing or abandoned run.
             didInitializeDebugLaunch = true
             model = Self.debugModel()
+            if OnboardingEligibility.shouldOffer(
+                hasResolved: onboardingStore.isResolved, hasSavedRun: RunStore.hasRun,
+                profile: profileStore.profile,
+                isPreviewLaunch: model != nil || opening != nil || frontDoor != .studioIntro
+            ) {
+                onboardingStage = .welcome
+            }
         }
         .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.22), value: isShowingRunDecision)
-        .onChange(of: isShowingBook, initial: true) { _, isShowingBook in
-            gameCenter.setAccessPointVisible(!isShowingBook)
+        .onChange(of: hidesGameCenter, initial: true) { _, hidden in
+            gameCenter.setAccessPointVisible(!hidden)
         }
         .onDisappear { menuReturn.cancel() }
     }
@@ -236,6 +267,16 @@ struct ContentView: View {
     private var isShowingBook: Bool {
         guard let model else { return false }
         return !model.wantsMenu
+    }
+
+    private var hidesGameCenter: Bool { isShowingBook || onboardingStage != nil }
+
+    private func finishOnboarding(_ resolution: OnboardingStore.Resolution) {
+        onboardingStore.resolve(as: resolution)
+        withAnimation(.easeOut(duration: reduceMotion ? 0 : 0.2)) {
+            onboardingStage = nil
+            frontDoor = .mainMenu
+        }
     }
 
     private var isShowingRunDecision: Bool {
@@ -284,7 +325,7 @@ struct ContentView: View {
     }
 
     private func beginBookClosing(_ model: GameModel) {
-        guard let summary = model.bookCompletionSummary else { return }
+        guard closingBook == nil, let summary = model.bookCompletionSummary else { return }
         completionSummary = summary
         closingBook = summary.edition
     }
@@ -330,6 +371,11 @@ struct ContentView: View {
 
     private func startReplacement(from replacement: BookReplacement) {
         pendingBookReplacement = nil
+        if replacement.savedRun.run.outcome == .bookCompleted {
+            // A legacy receipt may not yet have recorded its per-Book win.
+            // Settle that idempotent resume before acknowledging the receipt.
+            _ = GameModel(resuming: replacement.savedRun)
+        }
         // This is the only replacement path that clears the unfinished run,
         // and it is reached solely from the explicit "Start new Book" action.
         RunStore.clearRun()
@@ -348,7 +394,10 @@ struct ContentView: View {
         let savedRun: Game
 
         var savedRunLabel: String {
-            "Book \(savedRun.run.book.volume), Level \(savedRun.run.level), Puzzle \(savedRun.run.slot.rawValue + 1)"
+            if savedRun.run.outcome == .bookCompleted {
+                return "Book \(savedRun.run.book.volume) complete"
+            }
+            return "Book \(savedRun.run.book.volume), Level \(savedRun.run.level), Puzzle \(savedRun.run.slot.rawValue + 1)"
         }
     }
 
@@ -370,6 +419,7 @@ struct ContentView: View {
 /// untouched unless the red replacement action is pressed explicitly.
 private struct BookReplacementSlip: View {
     var savedRunLabel: String
+    var savedRunCompleted = false
     var newBookLabel: String
     var onContinueSaved: () -> Void
     var onStartNew: () -> Void
@@ -380,7 +430,7 @@ private struct BookReplacementSlip: View {
             VStack(spacing: 0) {
                 HStack(alignment: .top, spacing: 14) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("UNFINISHED BOOK")
+                        Text(savedRunCompleted ? "COMPLETED BOOK" : "UNFINISHED BOOK")
                             .font(Print.caption(10))
                             .tracking(1.8)
                             .foregroundStyle(Paper.redPencil)
@@ -389,7 +439,9 @@ private struct BookReplacementSlip: View {
                             .font(.system(size: 24, weight: .semibold, design: .serif))
                             .foregroundStyle(Paper.ink)
 
-                        Text("Your current run stays safe unless you replace it.")
+                        Text(savedRunCompleted
+                             ? "View your final page, or begin another Book. Your earned progress stays saved."
+                             : "Your current run stays safe unless you replace it.")
                             .font(.system(size: 13, design: .serif))
                             .foregroundStyle(Paper.inkSoft)
                     }
@@ -417,7 +469,7 @@ private struct BookReplacementSlip: View {
 
                 VStack(spacing: 11) {
                     decisionButton(
-                        eyebrow: "CONTINUE CURRENT",
+                        eyebrow: savedRunCompleted ? "VIEW COMPLETION" : "CONTINUE CURRENT",
                         label: savedRunLabel,
                         symbol: "bookmark",
                         tint: Paper.sage,
@@ -425,7 +477,7 @@ private struct BookReplacementSlip: View {
                     )
 
                     decisionButton(
-                        eyebrow: "REPLACE CURRENT RUN",
+                        eyebrow: savedRunCompleted ? "START NEXT BOOK" : "REPLACE CURRENT RUN",
                         label: "Start \(newBookLabel)",
                         symbol: "book.closed",
                         tint: Paper.redPencil,
@@ -519,12 +571,14 @@ private struct GameView: View {
     @State private var showingRunInfo = false
     /// The Buff being spent, while its slip is open.
     @State private var usingBuff: Int?
+    @State private var claimingMarker: Int?
+    @State private var isClosingSlip = false
 
     var body: some View {
         DeskView {
             VStack(spacing: 0) {
                 BookmarkRow(model: model) { index in
-                    withAnimation(.snappy(duration: 0.2)) { usingBuff = index }
+                    usingBuff = index
                 }
                 .padding(.horizontal, 26)
                 .padding(.top, 4)
@@ -545,17 +599,11 @@ private struct GameView: View {
             }
             .padding(.bottom, 8)
             .overlay(alignment: .bottom) { toast }
-            .onChange(of: model.puzzle?.phase) { _, phase in
+            .onChange(of: model.puzzle?.phase) { _, _ in
                 // Reaching the target or running out of Turns finishes the
                 // page, so the book turns to the result the same way it turns
                 // to anything else.
-                guard model.page == .puzzle,
-                      phase == .won || phase == .failed || phase == .outOfTurns else { return }
-                Task {
-                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
-                        model.showResults()
-                    }
-                }
+                reconcileFinishedPuzzle()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { reconcileFinishedPuzzle() }
@@ -563,35 +611,50 @@ private struct GameView: View {
             .onChange(of: flipper.isFlipping) { _, turning in
                 if !turning { reconcileFinishedPuzzle() }
             }
+            .onChange(of: isPresentingSlip) { _, covered in
+                if !covered { reconcileFinishedPuzzle() }
+            }
             .overlay(alignment: .top) {
                 IslandBar(coins: model.coins, controls: controls, charge: model.lastCoinCharge)
                     .ignoresSafeArea(edges: .top)
             }
-            .allowsHitTesting(!flipper.isFlipping && !model.hasRewardedRescueInFlight)
+            .allowsHitTesting(!isPresentingSlip && !flipper.isFlipping && !model.hasRewardedRescueInFlight)
             // A paper slip covers the whole desk. Keep its obscured controls
             // out of VoiceOver navigation until the slip is closed.
             .accessibilityHidden(isPresentingSlip || flipper.isFlipping || model.hasRewardedRescueInFlight)
             .overlay {
                 // In-world, on the desk — not a system sheet sliding up over it.
-                if showingSettings {
-                    SettingsSlip(model: model, onAbandon: { onAbandon(model) }) {
-                        withAnimation(.snappy(duration: 0.2)) { showingSettings = false }
+                ZStack {
+                    if showingSettings {
+                        SettingsSlip(model: model, onAbandon: { onAbandon(model) }) {
+                            closeSlip { showingSettings = false }
+                        }
+                    }
+                    if showingRunInfo {
+                        RunInfoSlip(model: model) {
+                            closeSlip { showingRunInfo = false }
+                        }
+                    }
+                    if let index = usingBuff {
+                        BuffSlip(model: model, index: index) {
+                            closeSlip { usingBuff = nil }
+                        }
+                    }
+                    if let index = claimingMarker {
+                        MarkerPlacementSlip(model: model, markerIndex: index) {
+                            closeSlip { claimingMarker = nil }
+                        }
                     }
                 }
-                if showingRunInfo {
-                    RunInfoSlip(model: model) {
-                        withAnimation(.snappy(duration: 0.2)) { showingRunInfo = false }
-                    }
-                }
-                if let index = usingBuff {
-                    BuffSlip(model: model, index: index) {
-                        withAnimation(.snappy(duration: 0.2)) { usingBuff = nil }
-                    }
-                }
+                // Only the slip animates. A Buff can change the Hand and
+                // board in this update too; those retain their own motions.
+                .allowsHitTesting(!isClosingSlip)
+                .accessibilityHidden(isClosingSlip)
+                .animation(slipAnimation, value: showingSettings)
+                .animation(slipAnimation, value: showingRunInfo)
+                .animation(slipAnimation, value: usingBuff)
+                .animation(slipAnimation, value: claimingMarker)
             }
-            .animation(.snappy(duration: 0.22), value: showingSettings)
-            .animation(.snappy(duration: 0.22), value: showingRunInfo)
-            .animation(.snappy(duration: 0.22), value: usingBuff)
             .task {
                 #if DEBUG && targetEnvironment(simulator)
                 if ProcessInfo.processInfo.arguments.contains("-rewardedRescue") {
@@ -690,16 +753,39 @@ private struct GameView: View {
     }
 
     private var isPresentingSlip: Bool {
-        showingSettings || showingRunInfo || usingBuff != nil
+        showingSettings || showingRunInfo || usingBuff != nil || claimingMarker != nil || isClosingSlip
+    }
+
+    private var slipAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.12) : .snappy(duration: 0.22)
+    }
+
+    private func closeSlip(_ dismiss: () -> Void) {
+        guard !isClosingSlip else { return }
+        isClosingSlip = true
+        withAnimation(slipAnimation, completionCriteria: .removed) {
+            dismiss()
+        } completion: {
+            // The window snapshot must not bake a still-fading slip into the
+            // next leaf. Keep input/clock paused until its pixels are gone.
+            isClosingSlip = false
+        }
     }
 
     private func reconcileFinishedPuzzle() {
         // A suspended/cancelled turn may never present its first frame. A
         // terminal puzzle still needs its result page when the app returns.
-        guard scenePhase == .active, !flipper.isFlipping, model.page == .puzzle,
+        guard scenePhase == .active, !isPresentingSlip, !flipper.isFlipping, model.page == .puzzle,
               model.puzzle?.phase == .won || model.puzzle?.phase == .failed
                 || model.puzzle?.phase == .outOfTurns else { return }
-        model.showResults()
+        Task { @MainActor in
+            guard scenePhase == .active, !isPresentingSlip, model.page == .puzzle,
+                  model.puzzle?.phase == .won || model.puzzle?.phase == .failed
+                    || model.puzzle?.phase == .outOfTurns else { return }
+            await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                model.showResults()
+            }
+        }
     }
 
     // MARK: Pages
@@ -708,7 +794,9 @@ private struct GameView: View {
     private func page(of source: GameModel) -> some View {
         switch source.page {
         case .briefing:
-            PuzzleBriefingView(model: source)
+            PuzzleBriefingView(model: source,
+                               canStartPresentation: { scenePhase == .active && !isPresentingSlip },
+                               isPresentationCovered: isPresentingSlip)
         case .puzzle:
             if let puzzle = source.puzzle {
                 PuzzlePageView(model: source, puzzle: puzzle,
@@ -718,13 +806,25 @@ private struct GameView: View {
                                  .forDisplay(slot: puzzle.slot).resolved(for: profile.theme.paper))
             }
         case .results:
-            ResultsPageView(model: source) { onBookCompletion(model) }
+            ResultsPageView(model: source,
+                            onBookCompletion: { onBookCompletion(source) },
+                            onAbandon: { onAbandon(source) })
         case .shop:
             if let shop = source.shop {
-                ShopPageView(model: source, shop: shop)
+                ShopPageView(model: source, shop: shop) { index in
+                    guard source.page == .shop, source.run.markers.indices.contains(index),
+                          source.run.markers[index].pendingSquares(atLevel: source.run.level) > 0 else { return }
+                    claimingMarker = index
+                }
             }
         case .achievements:
-            AchievementsPageView { source.closeAchievements() }
+            AchievementsPageView {
+                Task {
+                    await flipper.flip(from: source, reduceMotion: reduceMotion) {
+                        source.closeAchievements()
+                    }
+                }
+            }
         }
     }
 
@@ -742,10 +842,10 @@ private struct GameView: View {
                 }
             },
             StripControl(systemImage: "questionmark", label: "Run information") {
-                withAnimation(.snappy(duration: 0.22)) { showingRunInfo = true }
+                showingRunInfo = true
             },
             StripControl(systemImage: "gearshape", label: "Settings") {
-                withAnimation(.snappy(duration: 0.22)) { showingSettings = true }
+                showingSettings = true
             },
         ]
     }
@@ -779,4 +879,5 @@ private struct GameView: View {
 
 #Preview("Start") {
     StartBookView(onStart: { _, _ in }, onContinue: {})
+        .environment(PlayerProfileStore(profile: PlayerProfile()))
 }
