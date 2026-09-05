@@ -36,7 +36,13 @@ struct ContentView: View {
         if let index = arguments.firstIndex(of: "-seed"), index + 1 < arguments.count {
             seed = arguments[index + 1]
         }
-        let model = GameModel(seed: seed, startingBoard: .scholar)
+        let model = GameModel(seed: seed)
+        // Direct visual QA for the in-run catalogue page. This is Debug-only
+        // and still opens a real ShopState through the normal game action.
+        if arguments.contains("-shop") {
+            model.openShop()
+            return model
+        }
         // The normal route deliberately pauses at the briefing page so a
         // player can choose whether to spend a Clipping. This debug route is
         // normally for a live grid, while `-briefing` preserves that choice
@@ -122,11 +128,6 @@ struct ContentView: View {
                     )
                     .transition(.opacity)
 
-                case .cosmeticShop:
-                    ClubShopView {
-                        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
-                    }
-                    .transition(.opacity)
                     }
                 }
 
@@ -203,7 +204,7 @@ struct ContentView: View {
             model = GameModel(resuming: saved)
             openingSavedRun = nil
         } else {
-            model = GameModel(book: book.rule, startingBoard: book.bonus, obstacle: chosenObstacle)
+            model = GameModel(book: book.rule, obstacle: chosenObstacle)
         }
         opening = nil
         Task {
@@ -440,6 +441,7 @@ private struct BookReplacementSlip: View {
 
 private struct GameView: View {
     @Environment(PlayerProfileStore.self) private var profile
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var model: GameModel
     var reduceMotion: Bool
     var onBookCompletion: (GameModel) -> Void
@@ -461,10 +463,7 @@ private struct GameView: View {
                 // swallowed by the book rather than floating over the paper.
                 .zIndex(0)
 
-                BookView(
-                    flipper: flipper,
-                    outgoing: flipper.outgoing.map { AnyView(page(of: $0)) }
-                ) {
+                BookView(flipper: flipper) {
                     page(of: model)
                 }
                 .padding(.leading, 8)
@@ -489,13 +488,20 @@ private struct GameView: View {
                     }
                 }
             }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { reconcileFinishedPuzzle() }
+            }
+            .onChange(of: flipper.isFlipping) { _, turning in
+                if !turning { reconcileFinishedPuzzle() }
+            }
             .overlay(alignment: .top) {
                 IslandBar(coins: model.coins, controls: controls)
                     .ignoresSafeArea(edges: .top)
             }
+            .allowsHitTesting(!flipper.isFlipping)
             // A paper slip covers the whole desk. Keep its obscured controls
             // out of VoiceOver navigation until the slip is closed.
-            .accessibilityHidden(isPresentingSlip)
+            .accessibilityHidden(isPresentingSlip || flipper.isFlipping)
             .overlay {
                 // In-world, on the desk — not a system sheet sliding up over it.
                 if showingSettings {
@@ -544,6 +550,9 @@ private struct GameView: View {
                 if ProcessInfo.processInfo.arguments.contains("-winNow") {
                     try? await Task.sleep(for: .milliseconds(400))
                     model.beginPuzzle()
+                    // Exercise the real outgoing puzzle, not a score change
+                    // in the same layout pass that first creates its board.
+                    try? await Task.sleep(for: .seconds(1))
                     model.qaMeetTarget()
                     return
                 }
@@ -555,6 +564,15 @@ private struct GameView: View {
                     return
                 }
                 let arguments = ProcessInfo.processInfo.arguments
+                if arguments.contains("-autoPlayPuzzle") {
+                    // Repeatable, hands-free recording of the real briefing
+                    // action, after the ticket has finished arriving.
+                    try? await Task.sleep(for: .seconds(1))
+                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                        model.beginPuzzle()
+                    }
+                    return
+                }
                 if let index = arguments.firstIndex(of: "-qaBoss"), index + 1 < arguments.count,
                    let boss = BossModifier(rawValue: arguments[index + 1]) {
                     // This debug route is used by launch-time screenshot QA.  It must
@@ -573,12 +591,13 @@ private struct GameView: View {
                 }
                 if let index = arguments.firstIndex(of: "-curlHold"), index + 1 < arguments.count,
                    let value = Double(arguments[index + 1]) {
-                    try? await Task.sleep(for: .milliseconds(400))
-                    // A new Game opens on its briefing page. Use the existing
-                    // deterministic completion shortcut so this QA route
-                    // always freezes a real outgoing/incoming page pair,
-                    // rather than a curl over an unchanged briefing.
-                    flipper.hold(from: model, at: value) { model.qaCompleteBook() }
+                    // Let the page's initial labels finish appearing before
+                    // capturing the same settled state a reader would turn.
+                    try? await Task.sleep(for: .seconds(1))
+                    // This is an ordinary completed-Puzzle result, not the
+                    // final Book state. “Book Complete” remains exclusive to
+                    // the Level 9 Boss path.
+                    flipper.hold(from: model, at: value) { model.showResults() }
                     return
                 }
                 guard ProcessInfo.processInfo.arguments.contains("-autoEndTurn") else { return }
@@ -595,6 +614,14 @@ private struct GameView: View {
 
     private var isPresentingSlip: Bool {
         showingSettings || showingRunInfo || usingBuff != nil
+    }
+
+    private func reconcileFinishedPuzzle() {
+        // A suspended/cancelled turn may never present its first frame. A
+        // terminal puzzle still needs its result page when the app returns.
+        guard scenePhase == .active, !flipper.isFlipping, model.page == .puzzle,
+              model.puzzle?.phase == .won || model.puzzle?.phase == .failed else { return }
+        model.showResults()
     }
 
     // MARK: Pages
@@ -664,7 +691,7 @@ private struct GameView: View {
 }
 
 #Preview("Puzzle") {
-    GameView(model: GameModel(seed: "preview", startingBoard: .oracle), reduceMotion: false,
+    GameView(model: GameModel(seed: "preview", book: .noPressure), reduceMotion: false,
              onBookCompletion: { _ in })
         .environment(PageFlipper())
 }

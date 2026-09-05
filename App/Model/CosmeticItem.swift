@@ -14,7 +14,7 @@ enum CosmeticCategory: String, Codable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .paper: return "Paper"
-        case .board: return "Grid"
+        case .board: return "Board"
         case .numbers: return "Numbers"
         }
     }

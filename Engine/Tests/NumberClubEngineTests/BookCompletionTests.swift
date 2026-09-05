@@ -3,7 +3,7 @@ import XCTest
 
 final class BookCompletionTests: XCTestCase {
     func testCashOutRecordsTheHighestPuzzleScore() throws {
-        var game = Game(seed: "book-record", startingBoard: .scholar)
+        var game = Game(seed: "book-record")
         try game.startPuzzle()
         game.qaMeetTarget()
         let firstScore = try XCTUnwrap(game.puzzle?.score)
@@ -21,7 +21,7 @@ final class BookCompletionTests: XCTestCase {
     }
 
     func testQACompletionUsesTheNormalTerminalAdvance() {
-        var game = Game(seed: "book-complete", startingBoard: .scholar)
+        var game = Game(seed: "book-complete")
         game.qaCompleteBook()
 
         XCTAssertEqual(game.run.outcome, .bookCompleted)
@@ -32,7 +32,7 @@ final class BookCompletionTests: XCTestCase {
     }
 
     func testPreCompletionRecordSaveDefaultsBestScoreToZero() throws {
-        let run = RunState(seed: "legacy-book", startingBoard: .scholar)
+        let run = RunState(seed: "legacy-book")
         let encoded = try JSONEncoder().encode(run)
         var object = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded)
             as? [String: Any])

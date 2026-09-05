@@ -29,6 +29,7 @@ struct BookstoreSceneView: UIViewRepresentable {
     var unlockedObstacleRawValue: Int
     var turnCommand: BookstoreTurnCommand
     var focusCommand: BookstoreFocusCommand
+    var returnFocusCommand: BookstoreReturnFocusCommand
     var shopCategory: CosmeticCategory
     var shopItem: CosmeticItem?
     var shopPresentation: BookstoreShopPresentation
@@ -76,6 +77,7 @@ struct BookstoreSceneView: UIViewRepresentable {
             unlockedObstacleRawValue: unlockedObstacleRawValue,
             turnCommand: turnCommand,
             focusCommand: focusCommand,
+            returnFocusCommand: returnFocusCommand,
             shopCategory: shopCategory,
             shopItem: shopItem,
             shopPresentation: shopPresentation,

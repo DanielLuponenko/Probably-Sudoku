@@ -28,6 +28,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Probably Sudoku
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Without this iOS holds the app at 60Hz on a ProMotion phone.
         CADisableMinimumFrameDurationOnPhone: true
         UIStatusBarStyle: UIStatusBarStyleLightContent
@@ -36,8 +38,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.numberclub.app
-        MARKETING_VERSION: "0.1"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "2"
         DEVELOPMENT_TEAM: 233268ZQDV
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "5.9"

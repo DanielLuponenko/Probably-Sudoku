@@ -151,8 +151,8 @@ func shop(_ game: inout Game, _ report: inout Report, _ rng: inout RandomStream)
     }
 }
 
-func playBook(seed: String, board: StartingBoard, _ report: inout Report) {
-    var game = Game(seed: seed, startingBoard: board)
+func playBook(seed: String, book: Book, _ report: inout Report) {
+    var game = Game(seed: seed, book: book)
     var rng = RandomStream(seed: seed, stream: "bot")
 
     while game.run.outcome == nil {
@@ -177,8 +177,8 @@ var report = Report()
 let started = DispatchTime.now().uptimeNanoseconds
 
 for i in 0..<bookCount {
-    let board = StartingBoard.allCases[i % 3]
-    playBook(seed: "soak-\(i)", board: board, &report)
+    let book = Book.allCases[i % Book.allCases.count]
+    playBook(seed: "soak-\(i)", book: book, &report)
 }
 
 let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1e9

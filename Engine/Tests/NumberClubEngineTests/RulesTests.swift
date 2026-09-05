@@ -58,8 +58,8 @@ final class RulesTests: XCTestCase {
         XCTAssertTrue(game.puzzle!.armedFlags.contains(.litmus))
     }
 
-    private func startedGame(seed: String = "rules", board: StartingBoard = .scholar) throws -> Game {
-        var game = Game(seed: seed, startingBoard: board)
+    private func startedGame(seed: String = "rules", book: Book = .probably) throws -> Game {
+        var game = Game(seed: seed, book: book)
         try game.startPuzzle()
         return game
     }
@@ -196,7 +196,7 @@ final class RulesTests: XCTestCase {
     // MARK: Clues (§5, §6)
 
     func testClueFillsTheSquareAndScoresNothing() throws {
-        var game = try startedGame(board: .oracle)
+        var game = try startedGame(book: .noPressure)
         XCTAssertEqual(game.puzzle?.cluesRemaining, 1)
         let square = game.puzzle!.board.blanks[0]
         let digit = game.puzzle!.board.correctDigit(at: square)
@@ -212,7 +212,7 @@ final class RulesTests: XCTestCase {
     }
 
     func testOnyxRestoresAcluePlacementButNotItsLineClear() throws {
-        var game = try startedGame(board: .oracle)
+        var game = try startedGame(book: .noPressure)
         game.give(ad: Bookmarks.puzzleCorner)   // a second Clue
         try game.startPuzzle()
 
@@ -225,8 +225,8 @@ final class RulesTests: XCTestCase {
         XCTAssertEqual(outcome.lineClearPoints.first, 0, "a Clue-made Line Clear always scores 0")
     }
 
-    func testCluesAreUnavailableWithoutTheOracleBoardOrPuzzleCorner() throws {
-        var game = try startedGame(board: .scholar)
+    func testCluesAreUnavailableWithoutTheBookBenefitOrPuzzleCorner() throws {
+        var game = try startedGame()
         XCTAssertEqual(game.puzzle?.cluesRemaining, 0)
         XCTAssertThrowsError(try game.useClue(at: game.puzzle!.board.blanks[0])) {
             XCTAssertEqual($0 as? PlacementError, .noCluesLeft)
@@ -274,7 +274,7 @@ final class RulesTests: XCTestCase {
     }
 
     func testWeatherForecastRaisesTheAllowanceBySix() throws {
-        var game = Game(seed: "rules", startingBoard: .scholar)
+        var game = Game(seed: "rules")
         game.give(ad: Bookmarks.weatherForecast)
         try game.startPuzzle()
         XCTAssertEqual(game.puzzle?.tossAllowance, 6)
@@ -374,7 +374,7 @@ final class RulesTests: XCTestCase {
 
     func testUnusedTurnPayoutMatchesEveryPossibleRemainingTurnCount() throws {
         for count in 0...10 {
-            var run = RunState(seed: "unused-turn-\(count)", startingBoard: .scholar)
+            var run = RunState(seed: "unused-turn-\(count)")
             var puzzle = try PuzzleState.create(run: &run)
             puzzle.hand = Array(repeating: .one, count: 7)
             puzzle.turnNumber = puzzle.turnsMax - count + 1
@@ -385,7 +385,7 @@ final class RulesTests: XCTestCase {
     }
 
     func testInterestIsCappedAndRaisedByMarketWrap() throws {
-        var run = RunState(seed: "interest", startingBoard: .scholar)
+        var run = RunState(seed: "interest")
         run.coins = 500
         XCTAssertEqual(run.interestCap, 10)
         run.bookmarks.append(OwnedBookmark(defID: Bookmarks.marketWrap, boughtAtLevel: 1, pricePaid: 6))
@@ -399,7 +399,7 @@ final class FailureTests: XCTestCase {
     /// fail. Running out of Turns was handled; filling the board below target
     /// left the Book running.
     func testFillingTheBoardBelowTargetEndsTheBook() throws {
-        var game = Game(seed: "fail-by-filling", startingBoard: .scholar)
+        var game = Game(seed: "fail-by-filling")
         try game.startPuzzle()
 
         // Play every Blank correctly. The target for a Level 1 Easy is 1,000,
@@ -420,7 +420,7 @@ final class FailureTests: XCTestCase {
     }
 
     func testRunningOutOfTurnsAlsoEndsTheBook() throws {
-        var game = Game(seed: "fail-by-turns", startingBoard: .scholar)
+        var game = Game(seed: "fail-by-turns")
         try game.startPuzzle()
         for _ in 0..<game.puzzle!.turnsMax { _ = try? game.endTurn() }
         XCTAssertEqual(game.puzzle?.phase, .failed)
@@ -431,20 +431,20 @@ final class FailureTests: XCTestCase {
 final class ObstacleTests: XCTestCase {
 
     func testObstacleOneChangesNothing() throws {
-        var plain = Game(seed: "obstacle", startingBoard: .scholar, obstacle: .none)
+        var plain = Game(seed: "obstacle", obstacle: .none)
         try plain.startPuzzle()
-        XCTAssertEqual(plain.puzzle?.handSize, 7)   // Scholar's Board
+        XCTAssertEqual(plain.puzzle?.handSize, 7)   // Book 1 benefit
     }
 
     func testObstacleTwoTakesOneOutOfTheHand() throws {
-        var game = Game(seed: "obstacle", startingBoard: .scholar, obstacle: .shortHanded)
+        var game = Game(seed: "obstacle", obstacle: .shortHanded)
         try game.startPuzzle()
         XCTAssertEqual(game.puzzle?.handSize, 6)
         XCTAssertEqual(game.puzzle?.hand.count, 6)
     }
 
     func testObstacleThreeAlsoBarsOneNumberEachTurn() throws {
-        var game = Game(seed: "obstacle", startingBoard: .scholar,
+        var game = Game(seed: "obstacle",
                         obstacle: .shortHandedAndBlocked)
         try game.startPuzzle()
         XCTAssertEqual(game.puzzle?.handSize, 6)
@@ -468,7 +468,7 @@ final class ObstacleTests: XCTestCase {
 
     func testTheBlockIsSeededLikeEverythingElse() throws {
         func play() throws -> [Digit] {
-            var game = Game(seed: "same-seed", startingBoard: .scholar,
+            var game = Game(seed: "same-seed",
                             obstacle: .shortHandedAndBlocked)
             try game.startPuzzle()
             var barred: [Digit] = []
@@ -481,7 +481,7 @@ final class ObstacleTests: XCTestCase {
     }
 
     func testOtherObstaclesBlockNothing() throws {
-        var game = Game(seed: "obstacle", startingBoard: .scholar, obstacle: .shortHanded)
+        var game = Game(seed: "obstacle", obstacle: .shortHanded)
         try game.startPuzzle()
         XCTAssertNil(game.puzzle?.blockedDigit)
         _ = try game.endTurn()
@@ -489,35 +489,35 @@ final class ObstacleTests: XCTestCase {
     }
 
     func testObstacleFourThroughNineAreRealRules() throws {
-        var four = Game(seed: "obstacle-four", startingBoard: .scholar, obstacle: .smallerHand)
+        var four = Game(seed: "obstacle-four", obstacle: .smallerHand)
         try four.startPuzzle()
         XCTAssertEqual(four.puzzle?.handSize, 5)
         XCTAssertEqual(four.puzzle?.obstacleBlockedDigits.count, 1)
 
-        var five = Game(seed: "obstacle-five", startingBoard: .scholar,
+        var five = Game(seed: "obstacle-five",
                         obstacle: .smallerHandAndBlocked)
         try five.startPuzzle()
         XCTAssertEqual(five.puzzle?.handSize, 5)
         XCTAssertEqual(five.puzzle?.obstacleBlockedDigits.count, 2)
 
-        var six = Game(seed: "obstacle-six", startingBoard: .scholar, obstacle: .doubleBlocked)
+        var six = Game(seed: "obstacle-six", obstacle: .doubleBlocked)
         try six.startPuzzle()
         XCTAssertEqual(six.puzzle?.obstacleBlockedDigits.count, 2)
         XCTAssertEqual(six.puzzle?.turnsMax, Baseline.turns - 1)
         XCTAssertTrue(six.puzzle!.obstacleBlockedDigits.isSubset(of: Set(six.puzzle!.hand)))
 
-        var seven = Game(seed: "obstacle-seven", startingBoard: .scholar, obstacle: .shortDeadline)
+        var seven = Game(seed: "obstacle-seven", obstacle: .shortDeadline)
         try seven.startPuzzle()
         XCTAssertEqual(seven.puzzle?.turnsMax, Baseline.turns - 1)
         XCTAssertEqual(seven.puzzle?.tossAllowance, 0)
 
-        var eight = Game(seed: "obstacle-eight", startingBoard: .scholar, obstacle: .noTosses)
+        var eight = Game(seed: "obstacle-eight", obstacle: .noTosses)
         try eight.startPuzzle()
         XCTAssertEqual(eight.puzzle?.turnsMax, Baseline.turns - 1)
         XCTAssertEqual(eight.puzzle?.tossAllowance, 0)
         XCTAssertEqual(eight.puzzle?.obstacleBlockedDigits.count, 3)
 
-        var nine = Game(seed: "obstacle-nine", startingBoard: .scholar, obstacle: .finalEdition)
+        var nine = Game(seed: "obstacle-nine", obstacle: .finalEdition)
         try nine.startPuzzle()
         XCTAssertEqual(nine.puzzle?.handSize, 4)
         XCTAssertEqual(nine.puzzle?.obstacleBlockedDigits.count, 3)

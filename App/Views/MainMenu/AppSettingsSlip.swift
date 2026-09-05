@@ -10,7 +10,6 @@ import SwiftUI
 /// Nothing here is a switch that does nothing. If the game gains music, the
 /// music row arrives with it.
 struct AppSettingsSlip: View {
-    var onOpenShop: () -> Void
     var onClose: () -> Void
 
     @AppStorage(AppPreferences.Key.haptics) private var haptics = true
@@ -42,11 +41,6 @@ struct AppSettingsSlip: View {
                             .foregroundStyle(Paper.inkSoft)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                }
-
-                SlipSection(title: "Paper themes",
-                            note: "Owned paper can be changed here between Books. Locked stock opens the Club Shop.") {
-                    PaperThemePicker(onOpenShop: onOpenShop)
                 }
 
                 SlipSection(title: "The rules") {

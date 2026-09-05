@@ -27,7 +27,6 @@ final class GameModel {
         let levelsCleared: Int
         let bossesBeaten: Int
         let bestPuzzleScore: Int
-        let stampsEarned: Int
         let loadout: [String]
         let nextBook: BookEdition?
     }
@@ -101,7 +100,6 @@ final class GameModel {
     /// A terminal Book outcome can cause more than one presentation update.
     /// Record permanent consequences once, at the model boundary.
     private var didRecordTerminalOutcome = false
-    private(set) var stampsEarned = 0
     /// Captured before the profile is updated. The profile records that the
     /// lesson started, while this model keeps its six lines visible for the
     /// current first Puzzle.
@@ -160,9 +158,8 @@ final class GameModel {
 
     init(seed: String = GameModel.randomSeed(),
          book: Book = .probably,
-         startingBoard: StartingBoard = .scholar,
          obstacle: Obstacle = .none) {
-        game = Game(seed: seed, book: book, startingBoard: startingBoard, obstacle: obstacle)
+        game = Game(seed: seed, book: book, obstacle: obstacle)
         armFirstRunTutorialIfEligible()
     }
 
@@ -210,18 +207,12 @@ final class GameModel {
         didRecordTerminalOutcome = true
         switch outcome {
         case .bookCompleted:
-            let isFirstEver = RunStore.booksCompleted == 0
             RunStore.recordBookCompleted(game.run.book)
             PlayerProfileStore.shared.recordBookCompleted(volume: game.run.book.volume,
                                                           obstacle: game.run.obstacle)
             report(RunStore.booksCompleted, to: .booksCompleted)
-            let rewards = CosmeticRewardPolicy.bookCompleted(seed: game.run.seed,
-                                                             isFirstEver: isFirstEver)
-            stampsEarned = PlayerProfileStore.shared.earn(rewards)
         case .failed:
-            let reward = CosmeticRewardPolicy.bookFailed(seed: game.run.seed,
-                                                         currentLevel: game.run.level)
-            stampsEarned = PlayerProfileStore.shared.earn(reward) ? reward.amount : 0
+            break
         }
         RunStore.save(game)
     }
@@ -258,7 +249,6 @@ final class GameModel {
             levelsCleared: 9,
             bossesBeaten: 9,
             bestPuzzleScore: run.bestPuzzleScore,
-            stampsEarned: stampsEarned,
             loadout: loadout,
             nextBook: nextBook
         )
@@ -819,9 +809,8 @@ final class GameModel {
         }
     }
 
-    /// Leaving a run returns to the cover, because §3 makes the Starting Board
-    /// a choice you make when you open a Book — so a new Book has to be opened,
-    /// not silently dealt.
+    /// Leaving a run returns to the cover because a Book carries its own rules
+    /// and benefit; a new Book has to be opened, not silently dealt.
     var wantsMenu = false
 
     /// Give the run up. This has to actually destroy the save — leaving it on
@@ -834,9 +823,8 @@ final class GameModel {
     }
 
     /// Restarts in place, without going back to the cover. Used by QA only.
-    func startNewBook(book: Book? = nil, startingBoard: StartingBoard? = nil) {
+    func startNewBook(book: Book? = nil) {
         game = Game(seed: Self.randomSeed(), book: book ?? game.run.book,
-                    startingBoard: startingBoard ?? game.run.startingBoard,
                     obstacle: game.run.obstacle)
         selectedHandIndex = nil
         selectedSquare = nil
@@ -845,7 +833,6 @@ final class GameModel {
         usedClueThisPuzzle = false
         madeWrongPlacementThisPuzzle = false
         lastPayout = nil
-        stampsEarned = 0
         message = nil
         armFirstRunTutorialIfEligible()
         page = .briefing

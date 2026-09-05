@@ -56,8 +56,8 @@ enum RunStore {
     static func conflict() -> Conflict? {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-presentRunConflict") {
-            var local = Game(seed: "local-conflict", startingBoard: .scholar)
-            var remote = Game(seed: "remote-conflict", startingBoard: .merchant)
+            var local = Game(seed: "local-conflict")
+            var remote = Game(seed: "remote-conflict", book: .slightlyHarder)
             for _ in 0..<3 { _ = local.advance() }
             for _ in 0..<7 { _ = remote.advance() }
             return Conflict(local: local, remote: remote)

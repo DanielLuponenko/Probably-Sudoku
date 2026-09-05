@@ -18,9 +18,6 @@ struct ResultsPageView: View {
             if let payout = model.lastPayout ?? (didWin ? model.payoutPreview : nil) {
                 payoutLines(payout)
             }
-            if model.stampsEarned > 0 {
-                stampsEarned
-            }
             if model.puzzle?.phase == .won {
                 Text("Keep Filling freezes the score, but every clear banks coins.")
                     .font(Print.body(12))
@@ -116,7 +113,7 @@ struct ResultsPageView: View {
         case nil:
             return model.puzzle?.phase == .won
                 ? "Target met. Bank it, or play on with the Turns you have left."
-                : "Banked and on to the Shop."
+                : "Banked and ready for the next page."
         }
     }
 
@@ -130,24 +127,6 @@ struct ResultsPageView: View {
             Rectangle().fill(theme.paper.ruleInk).frame(height: 1).padding(.vertical, 2)
             line("Total", payout.total, bold: true)
         }
-    }
-
-    private var stampsEarned: some View {
-        HStack(spacing: 8) {
-            Image(systemName: ClubCurrency.symbol)
-                .foregroundStyle(Paper.coinRim)
-            Text("Stamps earned")
-                .font(Print.subheading(14))
-                .foregroundStyle(theme.paper.ink)
-            Spacer()
-            RollingNumber(value: model.stampsEarned, size: 20, weight: .bold,
-                          color: Paper.coinRim)
-                .accessibilityLabel("\(model.stampsEarned) Stamps earned")
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(RoundedRectangle(cornerRadius: 4).fill(theme.paper.warm))
-        .animation(.snappy(duration: 0.3), value: model.stampsEarned)
     }
 
     private func line(_ label: String, _ amount: Int, bold: Bool = false) -> some View {

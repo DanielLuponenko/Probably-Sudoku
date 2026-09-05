@@ -39,7 +39,7 @@ enum PaperTreatment: Equatable {
 /// The physical finish carried by the live puzzle rule. Shop samples consume
 /// this same value, so an animated rule cannot exist only on the sales counter.
 enum BoardFinish: Equatable {
-    case printed, fine, heavy, sage, blueprint, gilt, laser
+    case printed, fine, heavy, sage, blueprint, gilt, laser, porcelain
 
     var dash: [CGFloat] {
         switch self {
@@ -196,66 +196,16 @@ extension EnvironmentValues {
 
 enum CosmeticCatalog {
 
+    /// The core game has one deliberately fixed page treatment. The legacy
+    /// item shape remains only to decode existing local and cloud profiles;
+    /// there are no purchasable or selectable skins left in this catalogue.
     static let items: [CosmeticItem] = [
-        // Paper
-        CosmeticItem(id: "pp_newsprint", category: .paper, name: "Newsprint", price: 0,
-                     blurb: "What the Book is printed on."),
-        CosmeticItem(id: "pp_white", category: .paper, name: "Fresh White", price: 35,
-                     blurb: "A new sheet. Suspiciously uncreased."),
-        CosmeticItem(id: "pp_ivory", category: .paper, name: "Ivory Laid", price: 40,
-                     blurb: "Heavier stock. Takes ink well."),
-        CosmeticItem(id: "pp_manila", category: .paper, name: "Manila", price: 60,
-                     blurb: "Filed, not published."),
-        CosmeticItem(id: "pp_ledger", category: .paper, name: "Ledger Blue", price: 85,
-                     blurb: "Accountancy paper. It expects you to add up."),
-        CosmeticItem(id: "pp_graph", category: .paper, name: "Graph", price: 55,
-                     blurb: "Engineer’s stock. Every square is already squared."),
-        CosmeticItem(id: "pp_onion", category: .paper, name: "Onion Skin", price: 70,
-                     blurb: "Thin enough for yesterday’s puzzle to show through."),
-        CosmeticItem(id: "pp_carbon", category: .paper, name: "Carbon", price: 80,
-                     blurb: "A second impression, slightly out of register."),
-        CosmeticItem(id: "pp_telegram", category: .paper, name: "Telegram", price: 95,
-                     blurb: "Yellow tape from a machine that never sleeps."),
-        CosmeticItem(id: "pp_garden", category: .paper, name: "Garden", price: 100,
-                     blurb: "Ivy round the edges. The numbers still have nowhere to hide."),
-        CosmeticItem(id: "pp_night_sky", category: .paper, name: "Night Sky", price: 100,
-                     blurb: "A quiet sky. The grid is the constellation."),
-        CosmeticItem(id: "pp_ocean", category: .paper, name: "Ocean", price: 100,
-                     blurb: "Sea-glass paper and a tide that minds its own business."),
-        CosmeticItem(id: "pp_utility_roll", category: .paper, name: "Utility Roll", price: 110,
-                     blurb: "Two-ply optimism. Perforated between difficult decisions."),
-        // Grid
-        CosmeticItem(id: "bd_printed", category: .board, name: "Printed Rule", price: 0,
-                     blurb: "Hairlines inside, heavy lines round the boxes."),
-        CosmeticItem(id: "bd_fine", category: .board, name: "Fine Rule", price: 40,
-                     blurb: "Thinner throughout. The numbers do the work."),
-        CosmeticItem(id: "bd_heavy", category: .board, name: "Heavy Rule", price: 55,
-                     blurb: "Struck hard. Every box is a box."),
-        CosmeticItem(id: "bd_sage", category: .board, name: "Sage Rule", price: 75,
-                     blurb: "Ruled in the club's own green."),
-        CosmeticItem(id: "bd_blueprint", category: .board, name: "Blueprint", price: 80,
-                     blurb: "Drafting dashes, measured twice."),
-        CosmeticItem(id: "bd_gilt", category: .board, name: "Gilt Rule", price: 95,
-                     blurb: "A brass line where plain ink would have done."),
-        CosmeticItem(id: "bd_laser", category: .board, name: "Laser Grid", price: 120,
-                     blurb: "Cyan light rules the page, then politely holds still."),
-        // Numbers
-        CosmeticItem(id: "nb_press", category: .numbers, name: "Press", price: 0,
-                     blurb: "The face the Book is set in."),
-        CosmeticItem(id: "nb_typewriter", category: .numbers, name: "Typewriter", price: 50,
-                     blurb: "Struck one at a time, by something with keys."),
-        CosmeticItem(id: "nb_schoolbook", category: .numbers, name: "Pencil", price: 50,
-                     blurb: "Graphite, soft at the edge, almost erasable."),
-        CosmeticItem(id: "nb_oldstyle", category: .numbers, name: "Handset", price: 70,
-                     blurb: "Wood type, big and just a little uneven."),
-        CosmeticItem(id: "nb_stencil", category: .numbers, name: "Stencil", price: 65,
-                     blurb: "Cut out, then sprayed into the square."),
-        CosmeticItem(id: "nb_neon", category: .numbers, name: "Neon Sign", price: 90,
-                     blurb: "The one loud thing in an otherwise quiet room."),
-        CosmeticItem(id: "nb_laser", category: .numbers, name: "Laser Cut", price: 120,
-                     blurb: "A clean cyan edge, drawn through the digit itself."),
-        CosmeticItem(id: "nb_flame", category: .numbers, name: "Hot Type", price: 135,
-                     blurb: "Individual figures cast hot, with the embers left on."),
+        CosmeticItem(id: "pp_newsprint", category: .paper, name: "Core paper", price: 0,
+                     blurb: "The fixed stock under every page."),
+        CosmeticItem(id: "bd_printed", category: .board, name: "Core grid", price: 0,
+                     blurb: "The fixed puzzle rule."),
+        CosmeticItem(id: "nb_press", category: .numbers, name: "Core numerals", price: 0,
+                     blurb: "The fixed numeral face."),
     ]
 
     static func items(in category: CosmeticCategory) -> [CosmeticItem] {
@@ -380,6 +330,11 @@ enum CosmeticCatalog {
                              bold: Color(hex: 0x2AAFA8), hairWidth: 0.72, boldWidth: 2.15,
                              given: Color(hex: 0xD8F1ED), selected: Color(hex: 0xB8E8E3),
                              sameNumber: Color(hex: 0xC5EFEA), finish: .laser)
+        case "bd_porcelain":
+            return BoardSkin(id: id, hair: Color(hex: 0x315B94).opacity(0.72),
+                             bold: Color(hex: 0x173968), hairWidth: 0.78, boldWidth: 2.35,
+                             given: Color(hex: 0xEEE7D6), selected: Color(hex: 0xDCE5EF),
+                             sameNumber: Color(hex: 0xE7EEF5), finish: .porcelain)
         default:
             return BoardSkin(id: "bd_printed", hair: Paper.gridHair, bold: Paper.gridBold,
                              hairWidth: 0.75, boldWidth: 2,

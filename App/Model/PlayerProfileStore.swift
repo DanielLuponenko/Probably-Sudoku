@@ -66,7 +66,9 @@ final class PlayerProfileStore {
 
     var needsFirstRunTutorial: Bool { !profile.hasStartedFirstRunTutorial }
 
-    var theme: CosmeticTheme { CosmeticCatalog.theme(for: profile.equipped) }
+    /// The cosmetic catalogue is retired from gameplay. Keep legacy profile
+    /// data decodable, but resolve every surface to the one core appearance.
+    var theme: CosmeticTheme { .standard }
 
     func owns(_ item: CosmeticItem) -> Bool {
         item.isDefault || profile.ownedCosmeticIDs.contains(item.id)

@@ -36,8 +36,8 @@ extension Game {
 
 final class ScoringTests: XCTestCase {
 
-    private func startedGame(seed: String = "scoring", board: StartingBoard = .scholar) throws -> Game {
-        var game = Game(seed: seed, startingBoard: board)
+    private func startedGame(seed: String = "scoring", book: Book = .probably) throws -> Game {
+        var game = Game(seed: seed, book: book)
         try game.startPuzzle()
         return game
     }
@@ -320,7 +320,7 @@ final class ScoringTests: XCTestCase {
     }
 
     func testNewMarkerConsumesTheMarkerOnAnOccupiedSquare() throws {
-        var run = RunState(seed: "squares", startingBoard: .scholar)
+        var run = RunState(seed: "squares")
         run.markers = [OwnedMarker(defID: "mk_golden", boughtAtLevel: 1, pricePaid: 5),
                        OwnedMarker(defID: "mk_azure", boughtAtLevel: 1, pricePaid: 5)]
         try Shop.claimSquare(&run, markerIndex: 0, square: Square(40))
@@ -334,7 +334,7 @@ final class ScoringTests: XCTestCase {
     }
 
     func testMovingAPlacedSquareCostsTwoCoins() throws {
-        var run = RunState(seed: "squares", startingBoard: .scholar)
+        var run = RunState(seed: "squares")
         run.markers = [OwnedMarker(defID: "mk_golden", boughtAtLevel: 1, pricePaid: 5,
                                    squares: [Square(40)])]
         run.coins = 3
