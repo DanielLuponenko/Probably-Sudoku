@@ -23,6 +23,17 @@ struct GridView: View {
                 BossBoardOverlay(puzzle: model.puzzle, secondsLeft: model.clockIsUrgent ? 30 : nil)
                 CosmeticGridRules(skin: theme.board, side: side, cell: cell)
                 clears(side: side, cell: cell)
+                if let beat = model.scoreBeat, let square = beat.square {
+                    Text(beat.value)
+                        .font(Print.numeral(15, weight: .bold))
+                        .foregroundStyle(Paper.ink)
+                        .padding(.horizontal, 4)
+                        .background(Paper.pageWarm, in: .rect(cornerRadius: 2))
+                        .position(x: (CGFloat(square.col) + 0.5) * cell,
+                                  y: max(10, (CGFloat(square.row) + 0.15) * cell))
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
             }
             .frame(width: side, height: side)
             .background {

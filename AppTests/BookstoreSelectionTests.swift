@@ -1,6 +1,7 @@
 import XCTest
 import CoreGraphics
 import simd
+import ProbablySudokuEngine
 @testable import ProbablySudoku
 
 final class BookstoreSelectionTests: XCTestCase {
@@ -63,6 +64,51 @@ final class BookstoreSelectionTests: XCTestCase {
             XCTAssertEqual(obstacle.minY, plain.minY)
             XCTAssertEqual(obstacle.minX, plain.minX)
             XCTAssertEqual(obstacle.width, plain.width)
+        }
+    }
+
+    func testPhoneSelectionRetainsItsApprovedCoverSizePositionAndButtonGutter() {
+        for viewport in phoneViewports {
+            let layout = BookstoreSelectionLayout(viewport: viewport)
+            XCTAssertEqual(layout.bookWidth, viewport.width * 0.80)
+            XCTAssertEqual(layout.coverCenter.y, viewport.height * 0.478)
+            XCTAssertEqual(layout.openButtonBottomPadding, 14)
+        }
+    }
+
+    @MainActor
+    func testTabletSelectionFitsEveryBooksFullPlaqueAboveTheOpenButton() {
+        let tablets = [
+            CGSize(width: 744, height: 1133), CGSize(width: 768, height: 1024),
+            CGSize(width: 810, height: 1080), CGSize(width: 820, height: 1180),
+            CGSize(width: 834, height: 1194), CGSize(width: 1024, height: 1366),
+            CGSize(width: 1032, height: 1376), CGSize(width: 1024, height: 768)
+        ]
+        for viewport in tablets {
+            let layout = BookstoreSelectionLayout(viewport: viewport)
+            let bookTop = layout.coverCenter.y - layout.canvasSize.height / 2
+            let bookBottom = layout.coverCenter.y + layout.canvasSize.height / 2
+            XCTAssertGreaterThan(layout.bookWidth, 0)
+            XCTAssertLessThanOrEqual(layout.bookWidth, viewport.width * 0.80)
+            XCTAssertGreaterThanOrEqual(bookTop, 80 - 0.000001,
+                                        "Selected cover overlaps the back-button band: \(viewport)")
+            XCTAssertEqual(layout.openButtonFrame.height, 58)
+            XCTAssertGreaterThanOrEqual(viewport.height - layout.openButtonFrame.maxY, 34)
+
+            // All twelve editions (and therefore all three rack tiers) share
+            // this destination. Obstacle selection must not move that cover.
+            for edition in BookEdition.shelf {
+                for obstacle in Obstacle.allCases {
+                    let height = SelectedBookBenefitPlaque.height(
+                        width: viewport.width * 0.96, showsObstacle: obstacle != .none)
+                    let plaque = layout.plaqueFrame(height: height)
+                    XCTAssertEqual(plaque.minY - bookBottom, 10, accuracy: 0.000001)
+                    XCTAssertLessThanOrEqual(plaque.maxY + 12,
+                                             layout.openButtonFrame.minY - BookstoreSelectionLayout.openButtonTopPadding + 0.000001,
+                                             "Plaque obscures Open: \(edition.id), \(obstacle), \(viewport)")
+                    XCTAssertEqual(plaque.minX, viewport.width - plaque.maxX, accuracy: 0.000001)
+                }
+            }
         }
     }
 

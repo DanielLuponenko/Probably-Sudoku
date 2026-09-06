@@ -18,6 +18,8 @@ public struct ShopState: Codable, Sendable {
     public var offers: [ShopOffer]
     public var rerollCost: Int
     public var rerollsUsed: Int
+    /// One visit can have several stocks. Nil only when decoding an older Shop.
+    public var visitID: Int? = nil
 
     /// §9 — 2 coins, rising by 1 with each reroll in the same Shop. Auction
     /// Notices makes the first reroll of every Shop free.
@@ -144,7 +146,9 @@ public enum Shop {
 
     /// Opens the Shop between Puzzles.
     public static func open(_ run: inout RunState) {
-        run.shop = stock(&run)
+        var shop = stock(&run)
+        shop.visitID = run.nextShopVisitID()
+        run.shop = shop
     }
 
     public static func reroll(_ run: inout RunState) throws {
@@ -153,6 +157,7 @@ public enum Shop {
         run.coins -= shop.rerollCost
         let used = shop.rerollsUsed + 1
         var fresh = stock(&run)
+        fresh.visitID = shop.visitID
         fresh.rerollsUsed = used
         // 2 coins, then 3, then 4… within this Shop. Auction Notices only ever
         // discounts the first reroll, so subsequent ones climb from the base.
@@ -173,12 +178,18 @@ public enum Shop {
         switch def.kind {
         case .bookmark:
             guard run.bookmarks.count < ItemKind.bookmark.capacity else { throw ShopError.slotsFull }
-            run.bookmarks.append(OwnedBookmark(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
+            // Only new purchases can establish provenance in a legacy Shop.
+            // Existing held items keep nil and cannot be attributed to it.
+            if shop.visitID == nil { shop.visitID = run.nextShopVisitID() }
+            run.bookmarks.append(OwnedBookmark(defID: def.id, boughtAtLevel: run.level,
+                                               pricePaid: offer.price, boughtInShopVisitID: shop.visitID))
         case .marker:
             run.markers.append(OwnedMarker(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
         case .buff:
             guard run.buffs.count < ItemKind.buff.capacity else { throw ShopError.slotsFull }
-            run.buffs.append(OwnedBuff(defID: def.id, pricePaid: offer.price))
+            if shop.visitID == nil { shop.visitID = run.nextShopVisitID() }
+            run.buffs.append(OwnedBuff(defID: def.id, pricePaid: offer.price,
+                                       boughtInShopVisitID: shop.visitID))
         case .subscription:
             run.subscriptions.append(OwnedSubscription(defID: def.id, pricePaid: offer.price))
         }

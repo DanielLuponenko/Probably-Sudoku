@@ -78,11 +78,49 @@ enum RunStore {
             return Conflict(local: local, remote: remote)
         }
         #endif
-        guard let local = loadRun(), let remote = loadRemoteRun(),
-              let localData = try? local.encoded(), let remoteData = try? remote.encoded(),
-              localData != remoteData
-        else { return nil }
+        guard let local = loadRun(), let remote = loadRemoteRun() else { return nil }
+        return conflict(local: local, remote: remote)
+    }
+
+    /// Compare game state, not Set/dictionary serialization order. Keep this
+    /// pure: a real difference still leaves both originals for the user to choose.
+    static func conflict(local: Game, remote: Game) -> Conflict? {
+        let lhs = local.puzzle
+        let rhs = remote.puzzle
+        guard lhs?.clueReveals == rhs?.clueReveals,
+              lhs?.obstacleBlockedDigits == rhs?.obstacleBlockedDigits,
+              lhs?.armedFlags == rhs?.armedFlags,
+              lhs?.bossTurn?.blockedDigits == rhs?.bossTurn?.blockedDigits,
+              lhs?.bossTurn?.blockedHandIndices == rhs?.bossTurn?.blockedHandIndices,
+              lhs?.bossTurn?.greyed == rhs?.bossTurn?.greyed,
+              lhs?.bossTurn?.fouled == rhs?.bossTurn?.fouled else {
+            return Conflict(local: local, remote: remote)
+        }
+        if let localData = try? orderedComparisonData(local),
+           let remoteData = try? orderedComparisonData(remote), localData == remoteData {
+            return nil
+        }
+        // If either state cannot be encoded, do not silently choose or discard it.
         return Conflict(local: local, remote: remote)
+    }
+
+    private static func orderedComparisonData(_ game: Game) throws -> Data {
+        var run = game.run
+        // These seven fields were compared above using their actual collection
+        // semantics. Empty only the copies: sortedKeys alone cannot stabilize
+        // Sets or the Square-keyed foul map, which Codable writes as arrays.
+        run.puzzle?.clueReveals.removeAll()
+        run.puzzle?.obstacleBlockedDigits.removeAll()
+        run.puzzle?.armedFlags.removeAll()
+        run.puzzle?.bossTurn?.blockedDigits.removeAll()
+        run.puzzle?.bossTurn?.blockedHandIndices.removeAll()
+        run.puzzle?.bossTurn?.greyed.removeAll()
+        run.puzzle?.bossTurn?.fouled.removeAll()
+        let encoder = JSONEncoder()
+        // The remaining dictionaries (runItemState/itemState) have String keys.
+        // Every ordered array—including Hand, board, Pool and offers—is untouched.
+        encoder.outputFormatting = [.sortedKeys]
+        return try encoder.encode(run)
     }
 
     /// Shows a remote-only Book on the shelf without writing it locally.

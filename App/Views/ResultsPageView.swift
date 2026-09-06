@@ -31,7 +31,7 @@ struct ResultsPageView: View {
             if let payout = model.lastPayout ?? (didWin ? model.payoutPreview : nil) {
                 payoutLines(payout)
             }
-            if model.puzzle?.phase == .won {
+            if model.puzzle?.canKeepFilling == true {
                 Text("Keep Filling freezes the score, but every clear banks coins.")
                     .font(Print.body(12))
                     .foregroundStyle(theme.paper.softInk)
@@ -63,13 +63,14 @@ struct ResultsPageView: View {
             PaperButton(title: "New Book", kind: .primary, action: onAbandon)
         } else if model.puzzle?.phase == .won {
             HStack(spacing: 10) {
-                PaperButton(title: "Keep Filling",
-                            subtitle: "\(model.puzzle?.turnsRemaining ?? 0) turns left",
-                            kind: .quiet,
-                            isEnabled: (model.puzzle?.turnsRemaining ?? 0) > 0) {
-                    Task {
-                        await flipper.flip(from: model, reduceMotion: reduceMotion) {
-                            model.keepFilling()
+                if model.puzzle?.canKeepFilling == true {
+                    PaperButton(title: "Keep Filling",
+                                subtitle: "\(model.puzzle?.turnsRemaining ?? 0) turns left",
+                                kind: .quiet) {
+                        Task {
+                            await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                                model.keepFilling()
+                            }
                         }
                     }
                 }
@@ -132,9 +133,11 @@ struct ResultsPageView: View {
         case .failed:
             return "The target was not met. Bookmarks, Markers and Buffs do not carry over."
         case nil:
-            return model.puzzle?.phase == .won
+            guard model.puzzle?.phase == .won else { return "Banked and ready for the next page." }
+            if model.puzzle?.board.isFull == true { return "Board complete. Cash out your earned coins." }
+            return model.puzzle?.canKeepFilling == true
                 ? "Target met. Bank it, or play on with the Turns you have left."
-                : "Banked and ready for the next page."
+                : "Target met. Cash out your earned coins."
         }
     }
 

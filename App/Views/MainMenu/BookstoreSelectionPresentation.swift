@@ -7,17 +7,51 @@ import simd
 struct BookstoreSelectionLayout {
     let viewport: CGSize
 
-    var bookWidth: CGFloat { viewport.width * 0.80 }
+    private var needsVerticalFit: Bool { viewport.width >= 600 }
+    private let topControlClearance: CGFloat = 80
+    private let bookToPlaqueSpacing: CGFloat = 10
+    private let plaqueToControlSpacing: CGFloat = 12
+    static let openButtonHeight: CGFloat = 58
+    static let openButtonTopPadding: CGFloat = 5
+
+    // Both renderers receive a full-screen viewport. On a tablet, reserve the
+    // home-indicator area as well as the existing bottom gutter for the CTA.
+    var openButtonBottomPadding: CGFloat { needsVerticalFit ? 34 : 14 }
+    var openButtonFrame: CGRect {
+        CGRect(x: 16, y: viewport.height - openButtonBottomPadding - Self.openButtonHeight,
+               width: max(0, viewport.width - 32), height: Self.openButtonHeight)
+    }
+
+    static func plaqueHeight(width: CGFloat, showsObstacle: Bool) -> CGFloat {
+        width * 0.245 + (showsObstacle ? 32 : 0)
+    }
+
+    private var availableBookBottom: CGFloat {
+        // Reserve the taller plaque before extraction, even with Obstacle I.
+        // Picking a ribbon must not resize the cover or change its return path.
+        openButtonFrame.minY - Self.openButtonTopPadding - plaqueToControlSpacing
+            - Self.plaqueHeight(width: viewport.width * 0.96, showsObstacle: true)
+            - bookToPlaqueSpacing
+    }
+    var bookWidth: CGFloat {
+        let preferred = viewport.width * 0.80
+        guard needsVerticalFit else { return preferred }
+        return min(preferred, max(0, availableBookBottom - topControlClearance) / 1.445)
+    }
     var canvasSize: CGSize {
         CGSize(width: bookWidth * 1.20, height: bookWidth * 1.445)
     }
     var coverCenter: CGPoint {
-        CGPoint(x: viewport.width * 0.5 + bookWidth * 0.10,
-                y: viewport.height * 0.478)
+        let preferredY = viewport.height * 0.478
+        let halfHeight = canvasSize.height * 0.5
+        let fittedY = min(max(preferredY, topControlClearance + halfHeight),
+                          availableBookBottom - halfHeight)
+        return CGPoint(x: viewport.width * 0.5 + bookWidth * 0.10,
+                       y: needsVerticalFit ? fittedY : preferredY)
     }
     func plaqueFrame(height: CGFloat) -> CGRect {
         CGRect(x: viewport.width * 0.02,
-               y: coverCenter.y + canvasSize.height * 0.5 + 10,
+               y: coverCenter.y + canvasSize.height * 0.5 + bookToPlaqueSpacing,
                width: viewport.width * 0.96, height: height)
     }
 }

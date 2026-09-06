@@ -8,6 +8,32 @@ import ProbablySudokuEngine
 /// Printed-page coverage uses pure content or a frozen game, never saved data or ad requests.
 @MainActor
 final class FailurePageRenderingTests: XCTestCase {
+    #if NUMBERCLUB_AD_FREE
+    func testAdFreeNewBookDeclinesPendingRescueAndReturnsToMenuInOneTap() throws {
+        var game = Game(seed: "ad-free-new-book")
+        try game.startPuzzle()
+        while game.puzzle?.phase == .playing { _ = try game.endTurn() }
+        XCTAssertTrue(game.canClaimRewardedRescue)
+        let model = GameModel(resuming: game, savesProgress: false)
+        var menuReturnCount = 0
+        let page = FailureResultsPage(model: model, offersRescue: true, onAbandon: {
+            XCTAssertEqual(model.run.outcome, .failed, "Decline must settle before the menu captures the page.")
+            menuReturnCount += 1
+        })
+
+        page.endBook()
+
+        XCTAssertEqual(menuReturnCount, 1, "The terminal New book button must not require a second tap.")
+        XCTAssertEqual(model.run.outcome, .failed)
+        XCTAssertEqual(model.puzzle?.phase, .failed)
+        XCTAssertEqual(model.puzzle?.turnsMax, game.puzzle?.turnsMax)
+        XCTAssertEqual(model.puzzle?.score, game.puzzle?.score)
+        XCTAssertEqual(model.puzzle?.rewardedRescueUsed, game.puzzle?.rewardedRescueUsed)
+        XCTAssertFalse(model.canOfferRewardedRescue)
+        XCTAssertFalse(model.wantsMenu, "The callback retains ownership of the captured menu transition.")
+    }
+    #endif
+
     func testTerminalEndBookUsesTheCapturedMenuReturnOwner() throws {
         var game = Game(seed: "terminal-menu-return")
         try game.startPuzzle()
@@ -170,7 +196,11 @@ final class FailurePageRenderingTests: XCTestCase {
         attachment.name = "failure-accessibility5-real-book-scrolled-to-bottom"
         attachment.lifetime = .keepAlways
         add(attachment)
+        #if NUMBERCLUB_AD_FREE
+        assertContains(try recognizedText(in: image), "New book")
+        #else
         assertContains(try recognizedText(in: image), "End book", "Finish this attempt without an ad")
+        #endif
     }
 
     private func page(score: Int = 720, target: Int = 1_000,

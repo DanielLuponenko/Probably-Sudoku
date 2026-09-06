@@ -74,7 +74,18 @@ final class CloudSync {
     /// unfinished Book to continue. Never make launch silently replace the
     /// local run with it.
     func remoteRunData() -> Data? {
-        read(key: Key.run)
+        Self.runData(fromEnvelope: store.data(forKey: Key.run))
+    }
+
+    /// Pure transport boundary, also used to check existing cloud saves
+    /// without reading or writing a player's iCloud account.
+    static func runData(fromEnvelope data: Data?) -> Data? {
+        guard let data,
+              let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
+              envelope.schema == Envelope.schema else { return nil }
+        // Decoding Envelope has already unwrapped its base64 Data field.
+        // The payload is Game JSON, not a second JSON-encoded Data value.
+        return envelope.payload
     }
 
     private func publish(_ payload: Data, key: String, modifiedAt: Date) {

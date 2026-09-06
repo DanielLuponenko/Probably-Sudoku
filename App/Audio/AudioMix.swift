@@ -31,6 +31,7 @@ struct FeedbackThrottle {
 
 enum GameSound: String, CaseIterable, Sendable {
     case paperTurn, tilePlace, toss, win, error, menuTap
+    case scoreTick, scoreTickHigh, scoreMultiply, scoreBank
 
     var minimumInterval: TimeInterval {
         switch self {
@@ -39,6 +40,7 @@ enum GameSound: String, CaseIterable, Sendable {
         case .toss: 0.12
         case .win: 0.65
         case .error: 0.15
+        case .scoreTick, .scoreTickHigh, .scoreMultiply, .scoreBank: 0.08
         }
     }
 }

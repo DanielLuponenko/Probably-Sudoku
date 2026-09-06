@@ -36,19 +36,20 @@ struct FailureResultsPage: View {
         .background { FailurePaperTexture(opacity: 0.15).padding(-14) }
         // Declining keeps this page mounted for its terminal design, but must
         // still cancel a pending consent/ad request from the rescue offer.
-        .task(id: offersRescue ? loadRequest : -1) {
-            guard offersRescue, model.canOfferRewardedRescue, scenePhase == .active else { return }
+        .task(id: offersRescue && ads.isEnabled ? loadRequest : -1) {
+            guard ads.isEnabled, offersRescue, model.canOfferRewardedRescue,
+                  scenePhase == .active else { return }
             await ads.prepare()
         }
         .onChange(of: scenePhase) { _, phase in
-            if offersRescue, phase == .active, ads.state == .idle { loadRequest += 1 }
+            if ads.isEnabled, offersRescue, phase == .active, ads.state == .idle { loadRequest += 1 }
         }
     }
 
     private func content(compact: Bool) -> some View {
         FailurePageContents(score: model.puzzle?.score ?? 0,
                             target: model.puzzle?.target ?? 0,
-                            offersRescue: offersRescue,
+                            offersRescue: offersRescue && ads.isEnabled,
                             adState: ads.state,
                             canWatchAd: buttonEnabled,
                             isBusy: model.hasRewardedRescueInFlight,
@@ -58,7 +59,7 @@ struct FailureResultsPage: View {
     }
 
     private var buttonEnabled: Bool {
-        guard model.canOfferRewardedRescue, !model.hasRewardedRescueInFlight,
+        guard ads.isEnabled, model.canOfferRewardedRescue, !model.hasRewardedRescueInFlight,
               scenePhase == .active else { return false }
         switch ads.state {
         case .idle, .ready, .unavailable: return true
@@ -68,16 +69,19 @@ struct FailureResultsPage: View {
 
     func endBook() {
         if offersRescue { model.declineRewardedRescue() }
-        else { onAbandon() }
+        // The ad-free edition already shows the terminal page. Its New book
+        // action must return to the menu in one tap, not reveal this page again.
+        if !offersRescue || !ads.isEnabled { onAbandon() }
     }
 
     private func watchAd() {
+        guard ads.isEnabled else { return }
         if ads.isReady { presentAd() }
         else { loadRequest += 1 }
     }
 
     private func presentAd() {
-        guard let ticket = model.beginRewardedRescue() else { return }
+        guard ads.isEnabled, let ticket = model.beginRewardedRescue() else { return }
         let presented = ads.present(onReward: {
             model.receiveRewardedRescue(ticket)
         }, onDismiss: {
@@ -208,8 +212,8 @@ struct FailurePageContents: View {
     private var statusText: String {
         switch adState {
         case .unavailable: return "No ad available. Try again or end this book."
-        case .preparing: return "Getting your optional test ad ready."
-        default: return "Test ad · no purchases or ad clicks required."
+        case .preparing: return "Getting your optional ad ready."
+        default: return "No purchases or ad clicks required."
         }
     }
 }

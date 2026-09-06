@@ -43,7 +43,20 @@ struct FirstTimeWelcomeView: View {
     }
 }
 
+enum TutorialPresentation {
+    case firstRun, replay
+
+    var exitTitle: String { self == .replay ? "Exit practice" : "Skip tutorial" }
+    var completionTitle: String { self == .replay ? "Back to Settings" : "Choose my first Book" }
+    var completionMessage: String {
+        self == .replay
+            ? "Your refresher is complete. Return to Settings, then carry on with your Book. None of this practice changes your saves, coins, scores or achievements."
+            : "Pick a Book, reach its targets, and build useful combinations. Your real game starts fresh; none of this practice changes its progress or records."
+    }
+}
+
 struct TutorialView: View {
+    var presentation: TutorialPresentation = .firstRun
     let onFinish: (OnboardingStore.Resolution) -> Void
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
@@ -117,7 +130,7 @@ struct TutorialView: View {
                 .font(.caption)
                 .foregroundStyle(Paper.inkSoft)
             Spacer(minLength: 0)
-            Button("Skip tutorial", action: session.skip)
+            Button(presentation.exitTitle, action: session.skip)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Paper.ink)
                 .frame(minWidth: 44, minHeight: 44)
@@ -205,7 +218,7 @@ struct TutorialView: View {
         switch session.step {
         case .select, .place: "Show me"
         case .bank: "End Turn"
-        case .ready: "Choose my first Book"
+        case .ready: presentation.completionTitle
         default: "Continue"
         }
     }
@@ -222,7 +235,7 @@ struct TutorialView: View {
         case .bank:
             return ("Bank your points.", "Correct placements queue points. End Turn banks them together, refills your Hand and spends one Turn. Try it now.")
         case .banked:
-            return ("\(session.snapshot?.score ?? 0) points in the bank.", "That's one Turn. This puzzle gives you 10 Turns to reach 1,000 points. Completing rows, columns and boxes earns extra points.")
+            return ("\(session.snapshot?.score ?? 0) points in the bank.", "That's one Turn. This practice puzzle gives you \(session.snapshot?.turns ?? 10) Turns to reach \((session.snapshot?.target ?? 1_000).formatted()) points. Completing rows, columns and boxes earns extra points.")
         case .books:
             return ("Your Book brings a benefit.", "Each Book has a different ability. Its benefit lasts for that Book. Pick the one that suits how you want to play.")
         case .bookmarks:
@@ -234,7 +247,7 @@ struct TutorialView: View {
         case .boss:
             return ("Read the Boss first.", "Every Level ends with a Boss and a known power. Read the preview before you play and plan around it. Beat the final Boss to finish the Book—no final Shop.")
         case .ready:
-            return ("You're ready. Probably.", "Pick a Book, reach its targets, and build useful combinations. Your real game starts fresh; none of this practice changes its progress or records.")
+            return ("You're ready. Probably.", presentation.completionMessage)
         }
     }
 }

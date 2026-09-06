@@ -12,7 +12,6 @@ struct AppSettingsSlip: View {
     @AppStorage(AppPreferences.Key.haptics) private var haptics = true
     @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showingHelp = false
 
     var body: some View {
         PaperSlip(title: "Settings",
@@ -42,11 +41,12 @@ struct AppSettingsSlip: View {
                     }
                 }
 
-                SlipSection(title: "The rules") {
-                    PaperButton(title: "How to play", kind: .quiet) { showingHelp = true }
-                }
+                LearningSection()
 
+                GameCenterSection(service: GameCenterService.shared)
                 AdsPrivacySection()
+
+                AppSupportSection()
 
                 SlipSection(title: "Accessibility",
                             note: "Every number, price and label in the game is live text, so "
@@ -61,12 +61,6 @@ struct AppSettingsSlip: View {
                 }
             }
         }
-        .overlay {
-            if showingHelp {
-                HelpSlip { withAnimation(.snappy(duration: 0.2)) { showingHelp = false } }
-            }
-        }
-        .animation(.snappy(duration: 0.22), value: showingHelp)
         .onChange(of: haptics) { Haptics.preferencesChanged() }
     }
 
