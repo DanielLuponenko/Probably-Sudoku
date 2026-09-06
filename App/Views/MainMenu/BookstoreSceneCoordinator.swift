@@ -160,6 +160,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var lastReturnFocusSerial = -1
     private var selectedIndex = 0
     private var panStartAngle: Float = 0
+    private var panRadiansPerPoint: Float = 0.009
+    private var standSpinPlayback: RackSpinPlayback?
+    private var standSpinGeneration = 0
     private var boardPanStartAngle: Float = 0
     private var shopPanStartTransform = SCNMatrix4Identity
     private var reduceMotion = false
@@ -225,6 +228,30 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             defer { lock.unlock() }
             stopped = true
             return value
+        }
+    }
+
+    /// Prevent a late render-queue sample from fighting a new finger gesture.
+    private final class RackSpinPlayback: @unchecked Sendable {
+        private let lock = NSLock()
+        private var angle: Float
+        private var stopped = false
+
+        init(angle: Float) { self.angle = angle }
+
+        func apply(_ elapsed: Double, to node: SCNNode, motion: BookstoreRackSpin) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !stopped else { return }
+            angle = Float(motion.angle(at: elapsed))
+            node.eulerAngles.y = angle
+        }
+
+        func stop() -> Float {
+            lock.lock()
+            defer { lock.unlock() }
+            stopped = true
+            return angle
         }
     }
 
@@ -389,6 +416,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     ) {
         let motionPreferenceChanged = self.reduceMotion != reduceMotion
         self.reduceMotion = reduceMotion
+        if motionPreferenceChanged, reduceMotion, standSpinPlayback != nil {
+            let angle = stopStandMotion()
+            releaseStand(from: angle, velocity: 0, animated: false, deferSelectionNotification: true)
+        }
         shopDustSystem?.birthRate = reduceMotion ? 0 : 3
         self.onSelectEdition = onSelectEdition
         self.onRequestBookFocus = onRequestBookFocus
@@ -488,8 +519,18 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         if lastFocusSerial != focusCommand.serial {
             let shouldFocus = lastFocusSerial >= 0
             lastFocusSerial = focusCommand.serial
-            if shouldFocus, phase == .choosingBook, focusedBook == nil {
-                focusBook(id: focusCommand.editionID)
+            if shouldFocus, phase == .choosingBook, focusedBook == nil,
+               let index = editions.firstIndex(where: { $0.id == focusCommand.editionID }) {
+                // VoiceOver's Select command can arrive while the rack coasts.
+                // Face its named book forward before taking it out of a pocket.
+                isStandRotationLocked = true
+                focusGeneration += 1
+                let generation = focusGeneration
+                rotateStand(to: index, animated: !reduceMotion) { [weak self] in
+                    guard let self, self.currentPhase == .choosingBook,
+                          self.focusGeneration == generation else { return }
+                    self.focusBook(id: focusCommand.editionID)
+                }
             }
         }
         if lastReturnFocusSerial != returnFocusCommand.serial {
@@ -522,6 +563,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func react(to phase: BookstoreScenePhase) {
+        if phase != .choosingBook, standSpinPlayback != nil {
+            stopStandMotion()
+        }
         updateShopShowcaseMotion()
         switch phase {
         case .store:
@@ -712,15 +756,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func rotateStand(to index: Int, animated: Bool, completion: (() -> Void)? = nil) {
         guard !editions.isEmpty else { return }
+        let current = stopStandMotion()
         selectedIndex = wrapped(index)
         // Books never relocate. Selection turns the rigid carousel to the
         // face containing the edition in the mockup's fixed pocket table.
         let face = face(containing: selectedIndex) ?? 0
         let angle = standHomeAngle - Float(face) * (.pi / 2)
-        standRoot.removeAction(forKey: "stand-turn")
         if animated {
-            let current = standRoot.presentation.eulerAngles.y
-            standRoot.eulerAngles.y = current
             let nearest = nearestEquivalent(angle, to: current)
             // A tap on a Book already facing the camera used to wait through
             // an invisible 0.42-second turn before the focus move began.
@@ -747,13 +789,11 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // The approved home composition shows Volumes 1, 5 and 9 facing the
         // aisle from the first rendered frame.
         let angle: Float = 0
-        standRoot.removeAction(forKey: "stand-turn")
+        let current = stopStandMotion()
         guard animated else {
             standRoot.eulerAngles.y = angle
             return
         }
-        let current = standRoot.presentation.eulerAngles.y
-        standRoot.eulerAngles.y = current
         let destination = nearestEquivalent(angle, to: current)
         let turn = SCNAction.rotateTo(x: 0, y: CGFloat(destination), z: 0,
                                       duration: 0.72, usesShortestUnitArc: true)
@@ -766,6 +806,74 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         while result - current > .pi { result -= 2 * .pi }
         while result - current < -.pi { result += 2 * .pi }
         return result
+    }
+
+    @discardableResult
+    private func stopStandMotion() -> Float {
+        standSpinGeneration += 1
+        // A coasting yaw is deliberately unwrapped through whole revolutions;
+        // presentation Euler angles alone would lose that continuous phase.
+        let angle = standSpinPlayback?.stop()
+            ?? (standRoot.action(forKey: "stand-turn") != nil
+                ? standRoot.presentation.eulerAngles.y : standRoot.eulerAngles.y)
+        standSpinPlayback = nil
+        standRoot.removeAction(forKey: "stand-coast")
+        standRoot.removeAction(forKey: "stand-turn")
+        setStandAngle(angle)
+        return angle
+    }
+
+    private func setStandAngle(_ angle: Float) {
+        SCNTransaction.begin()
+        SCNTransaction.disableActions = true
+        standRoot.eulerAngles.y = angle
+        SCNTransaction.commit()
+    }
+
+    private func releaseStand(from angle: Float, velocity: Float, animated: Bool,
+                              deferSelectionNotification: Bool = false) {
+        let motion = BookstoreRackSpin(startAngle: Double(angle),
+                                       releaseVelocity: Double(velocity), homeAngle: Double(standHomeAngle))
+        let generation = standSpinGeneration
+        let finish: @MainActor () -> Void = { [weak self] in
+            guard let self, self.standSpinGeneration == generation,
+                  self.currentPhase == .choosingBook, self.focusedBook == nil,
+                  !self.isStandRotationLocked else { return }
+            _ = self.standSpinPlayback?.stop()
+            self.standSpinPlayback = nil
+            self.setStandAngle(Float(motion.destinationAngle))
+            let face = Int(round((Double(self.standHomeAngle) - motion.destinationAngle) / (.pi / 2)))
+            if let index = self.firstEdition(on: face) {
+                self.selectedIndex = index
+                // SwiftUI/cover textures change once, not on every spin frame.
+                if deferSelectionNotification {
+                    // A preference change arrives inside updateUIView. Never
+                    // publish a SwiftUI binding change during that same update.
+                    Task { @MainActor [weak self] in
+                        guard let self, self.standSpinGeneration == generation,
+                              self.currentPhase == .choosingBook,
+                              !self.isStandRotationLocked else { return }
+                        self.onSelectEdition?(self.editions[index].id)
+                    }
+                } else {
+                    self.onSelectEdition?(self.editions[index].id)
+                }
+            }
+        }
+        guard animated else { finish(); return }
+        let playback = RackSpinPlayback(angle: angle)
+        standSpinPlayback = playback
+        let coast = SCNAction.customAction(duration: motion.duration) { node, elapsed in
+            playback.apply(Double(elapsed), to: node, motion: motion)
+        }
+        coast.timingMode = .linear // The physical curve already owns all easing.
+        standRoot.runAction(coast, forKey: "stand-coast") {
+            Task { @MainActor in finish() }
+        }
+    }
+
+    func stopRackMotionWhenHidden() {
+        if standSpinPlayback != nil { stopStandMotion() }
     }
 
     @objc private func didPan(_ gesture: UIPanGestureRecognizer) {
@@ -802,25 +910,23 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         guard !editions.isEmpty, focusedBook == nil, !isStandRotationLocked else { return }
         switch gesture.state {
         case .began:
-            standRoot.removeAction(forKey: "stand-turn")
-            panStartAngle = standRoot.presentation.eulerAngles.y
-            standRoot.eulerAngles.y = panStartAngle
+            panStartAngle = stopStandMotion()
+            panRadiansPerPoint = Float(BookstoreRackSpin.radiansPerPoint(
+                viewportWidth: Double(gesture.view?.bounds.width ?? 402)))
+            setStandAngle(panStartAngle + Float(gesture.translation(in: gesture.view).x) * panRadiansPerPoint)
         case .changed:
             let translation = gesture.translation(in: gesture.view)
-            standRoot.eulerAngles.y = panStartAngle + Float(translation.x) * 0.009
+            setStandAngle(panStartAngle + Float(translation.x) * panRadiansPerPoint)
         case .ended, .cancelled, .failed:
-            let faceStep = Float.pi / 2
             // Fast physical swipes may be coalesced into began + ended with
             // no changed callbacks. Derive the destination from the final
             // translation rather than whichever model angle happened to be
             // committed during intermediate frames.
-            let finalAngle = panStartAngle + Float(gesture.translation(in: gesture.view).x) * 0.009
-            let rawFace = Int(round((standHomeAngle - finalAngle) / faceStep))
-            let face = wrappedFace(rawFace)
-            if let index = firstEdition(on: face) {
-                onSelectEdition?(editions[index].id)
-                rotateStand(to: index, animated: !reduceMotion)
-            }
+            let finalAngle = panStartAngle + Float(gesture.translation(in: gesture.view).x) * panRadiansPerPoint
+            setStandAngle(finalAngle)
+            let velocity = gesture.state == .ended && !reduceMotion
+                ? Float(gesture.velocity(in: gesture.view).x) * panRadiansPerPoint : 0
+            releaseStand(from: finalAngle, velocity: velocity, animated: !reduceMotion)
         default:
             break
         }
@@ -938,6 +1044,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func handleBookTap(at point: CGPoint, in view: SCNView) {
         guard !isReturningFocusedBook else { return }
+        if standSpinPlayback != nil { stopStandMotion() }
         for result in view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue]) {
             var node: SCNNode? = result.node
             while let candidate = node {
@@ -1052,6 +1159,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
               let plane = cover.geometry as? SCNPlane
         else { return }
 
+        stopStandMotion()
         isStandRotationLocked = true
         focusGeneration += 1
         let generation = focusGeneration
@@ -1232,6 +1340,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     /// A removed scene will no longer tick its actions. Break their captured
     /// Book references and invalidate callbacks without publishing to dead UI.
     func stopBookPresentation() {
+        stopStandMotion()
         focusGeneration += 1
         if let focus = focusedBook {
             _ = focus.playback.stop()

@@ -78,12 +78,15 @@ public enum Buffs {
 public struct OwnedBuff: Codable, Sendable, Identifiable {
     public let defID: String
     public let pricePaid: Int
+    /// Nil for older saves and granted items: their purchase Shop is unknown.
+    public let boughtInShopVisitID: Int?
     public var id: String { defID }
     public var def: ItemDef { Catalog.item(defID)! }
 
-    public init(defID: String, pricePaid: Int) {
+    public init(defID: String, pricePaid: Int, boughtInShopVisitID: Int? = nil) {
         self.defID = defID
         self.pricePaid = pricePaid
+        self.boughtInShopVisitID = boughtInShopVisitID
     }
 }
 
@@ -93,12 +96,16 @@ public struct OwnedBookmark: Codable, Sendable, Identifiable {
     public let defID: String
     public let boughtAtLevel: Int
     public let pricePaid: Int
+    /// Run-local Shop identity, independent of Level and stock rerolls.
+    public let boughtInShopVisitID: Int?
     public var id: String { defID }
     public var def: ItemDef { Catalog.item(defID)! }
 
-    public init(defID: String, boughtAtLevel: Int, pricePaid: Int) {
+    public init(defID: String, boughtAtLevel: Int, pricePaid: Int,
+                boughtInShopVisitID: Int? = nil) {
         self.defID = defID
         self.boughtAtLevel = boughtAtLevel
         self.pricePaid = pricePaid
+        self.boughtInShopVisitID = boughtInShopVisitID
     }
 }

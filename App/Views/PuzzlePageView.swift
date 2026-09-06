@@ -5,6 +5,7 @@ struct PuzzlePageView: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.levelPalette) private var palette
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var model: GameModel
     var puzzle: PuzzleState
     var isClockRunning = true
@@ -24,7 +25,49 @@ struct PuzzlePageView: View {
         .onChange(of: shouldRunClock, initial: true) { _, running in
             model.setClockRunning(running)
         }
-        .onDisappear { model.setClockRunning(false) }
+        .onDisappear {
+            model.setClockRunning(false)
+            model.finishScorePresentation()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { model.finishScorePresentation() }
+        }
+        .onChange(of: isClockRunning) { _, available in
+            if !available { model.finishScorePresentation() }
+        }
+        .task(id: model.scorePerformance?.id) {
+            guard let performance = model.scorePerformance else { return }
+            guard scenePhase == .active else {
+                model.finishScorePresentation(id: performance.id)
+                return
+            }
+            if reduceMotion {
+                if let last = performance.beats.last {
+                    model.advanceScore(last, performanceID: performance.id)
+                }
+                try? await Task.sleep(for: .milliseconds(450))
+            } else {
+                // Long combinations accelerate instead of blocking play for
+                // seconds per item. A new action replaces this task safely.
+                let interval = max(0.16, min(0.30, 1.8 / Double(max(1, performance.beats.count))))
+                for (index, beat) in performance.beats.enumerated() {
+                    guard !Task.isCancelled else { return }
+                    model.advanceScore(beat, performanceID: performance.id)
+                    if beat.kind == .bank {
+                        GameAudio.shared.play(.scoreBank)
+                        Haptics.scoreStamp(bank: true)
+                    } else if beat.kind == .multiplier {
+                        GameAudio.shared.play(.scoreMultiply)
+                    } else if beat.sourceID != nil {
+                        GameAudio.shared.play(index <= 1 ? .scoreTick : .scoreTickHigh)
+                        Haptics.scoreStamp(bank: false)
+                    }
+                    try? await Task.sleep(for: .seconds(beat.kind == .bank ? 0.5 : interval))
+                }
+            }
+            guard !Task.isCancelled else { return }
+            model.finishScorePresentation(id: performance.id)
+        }
         .task(id: shouldRunClock) {
             guard shouldRunClock else { return }
             while !Task.isCancelled {
@@ -38,8 +81,8 @@ struct PuzzlePageView: View {
     private func pageContent(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: compact ? 3 : 5) {
             header(compact: compact)
-            ScoreMeter(score: puzzle.score, target: puzzle.target,
-                       queuedBase: puzzle.pendingBase,
+            ScoreMeter(score: model.presentedScore ?? puzzle.score, target: puzzle.target,
+                       queuedBase: model.presentedQueue ?? puzzle.pendingBase,
                        queuedMultiplier: puzzle.pendingMultiplier,
                        recentCoins: model.lastOutcome?.coinsEarned,
                        compact: compact)
@@ -119,7 +162,11 @@ struct PuzzlePageView: View {
     /// note appearing never shifts the grid.
     private func marginBand(compact: Bool) -> some View {
         ZStack {
-            if let note = model.marginNote {
+            if let beat = model.scoreBeat, let performance = model.scorePerformance {
+                ScoreReceiptView(beat: beat, summary: performance.summary)
+                    .id(beat.id)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 1.04).combined(with: .opacity))
+            } else if let note = model.marginNote {
                 MarginNoteView(note: note)
                     .id(note.text)
             }
@@ -127,6 +174,7 @@ struct PuzzlePageView: View {
         .frame(maxWidth: .infinity)
         .frame(height: compact ? 38 : 46)
         .animation(.easeInOut(duration: 0.45), value: model.marginNote)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: model.scoreBeat?.id)
     }
 
     // MARK: Actions

@@ -19,7 +19,6 @@ struct ContentView: View {
     /// two never show a hard cut between them.
     @State private var veil: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(GameCenterService.self) private var gameCenter
     @Environment(PlayerProfileStore.self) private var profileStore
     @State private var onboardingStore = OnboardingStore()
     @State private var onboardingStage: OnboardingStage?
@@ -257,19 +256,8 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.22), value: isShowingRunDecision)
-        .onChange(of: hidesGameCenter, initial: true) { _, hidden in
-            gameCenter.setAccessPointVisible(!hidden)
-        }
         .onDisappear { menuReturn.cancel() }
     }
-
-    /// Game Center belongs to the club room and shelf, never on an open Book.
-    private var isShowingBook: Bool {
-        guard let model else { return false }
-        return !model.wantsMenu
-    }
-
-    private var hidesGameCenter: Bool { isShowingBook || onboardingStage != nil }
 
     private func finishOnboarding(_ resolution: OnboardingStore.Resolution) {
         onboardingStore.resolve(as: resolution)
@@ -605,6 +593,9 @@ private struct GameView: View {
                 // to anything else.
                 reconcileFinishedPuzzle()
             }
+            .onChange(of: model.isPresentingScore) { _, presenting in
+                if !presenting { reconcileFinishedPuzzle() }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { reconcileFinishedPuzzle() }
             }
@@ -775,11 +766,11 @@ private struct GameView: View {
     private func reconcileFinishedPuzzle() {
         // A suspended/cancelled turn may never present its first frame. A
         // terminal puzzle still needs its result page when the app returns.
-        guard scenePhase == .active, !isPresentingSlip, !flipper.isFlipping, model.page == .puzzle,
+        guard scenePhase == .active, !model.isPresentingScore, !isPresentingSlip, !flipper.isFlipping, model.page == .puzzle,
               model.puzzle?.phase == .won || model.puzzle?.phase == .failed
                 || model.puzzle?.phase == .outOfTurns else { return }
         Task { @MainActor in
-            guard scenePhase == .active, !isPresentingSlip, model.page == .puzzle,
+            guard scenePhase == .active, !model.isPresentingScore, !isPresentingSlip, model.page == .puzzle,
                   model.puzzle?.phase == .won || model.puzzle?.phase == .failed
                     || model.puzzle?.phase == .outOfTurns else { return }
             await flipper.flip(from: model, reduceMotion: reduceMotion) {

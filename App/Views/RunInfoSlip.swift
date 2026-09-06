@@ -15,6 +15,9 @@ struct RunInfoSlip: View {
     var body: some View {
         PaperSlip(title: "The run so far", subtitle: nil, onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
+                SlipSection(title: "Your Marker board") {
+                    RunMarkerBoard(run: model.run)
+                }
                 if let puzzle = model.puzzle {
                     SlipSection(title: "Still in the pool",
                                 note: "Nine of each number exist in a finished grid. "
@@ -54,20 +57,6 @@ struct RunInfoSlip: View {
                     SlipSection(title: "Bookmarks") {
                         ForEach(model.run.bookmarks) { ad in
                             OwnedLine(name: ad.def.name, detail: ad.def.text)
-                        }
-                    }
-                }
-
-                if !model.run.markers.isEmpty {
-                    SlipSection(title: "Markers") {
-                        ForEach(Array(model.run.markers.enumerated()), id: \.offset) { _, marker in
-                            OwnedLine(
-                                name: marker.def.name,
-                                detail: marker.squares.isEmpty
-                                    ? "No square yet"
-                                    : marker.squares.map(\.description).joined(separator: ", "),
-                                swatch: Paper.markerColor(marker.defID)
-                            )
                         }
                     }
                 }

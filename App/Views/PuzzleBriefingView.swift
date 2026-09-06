@@ -1,6 +1,21 @@
 import SwiftUI
 import ProbablySudokuEngine
 
+/// Printed decisions keep a readable measure on a tablet without resizing the
+/// physical Book. Phone-sized page proposals pass through unchanged.
+struct PuzzleBriefingLayout {
+    let available: CGSize
+    static let routeMaximumWidth: CGFloat = 420
+
+    var contentSize: CGSize {
+        CGSize(width: min(available.width, 560), height: min(available.height, 840))
+    }
+
+    /// A tablet's extra page space belongs below the offer, not inside its
+    /// single-rule ticket. Narrow pages retain their existing flexible height.
+    var clippingMaximumHeight: CGFloat? { available.width > 560 ? 280 : nil }
+}
+
 /// The one-page decision before a Puzzle starts. A Clipping is a physical
 /// tear-off from the Book, not a second modal or a generic reward card.
 struct PuzzleBriefingView: View {
@@ -22,8 +37,11 @@ struct PuzzleBriefingView: View {
     var body: some View {
         // The page owns its bounds. An encounter's artwork must fit that
         // proposal instead of making the Book grow into the desk's HUD.
-        GeometryReader { _ in
-            briefingContent
+        GeometryReader { proxy in
+            let layout = PuzzleBriefingLayout(available: proxy.size)
+            briefingContent(layout: layout)
+                .frame(width: layout.contentSize.width, height: layout.contentSize.height, alignment: .top)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
         .task(id: preparationLifetime) {
             guard scenePhase == .active else {
@@ -70,10 +88,11 @@ struct PuzzleBriefingView: View {
         }
     }
 
-    private var briefingContent: some View {
+    private func briefingContent(layout: PuzzleBriefingLayout) -> some View {
         VStack(alignment: .leading, spacing: 11) {
             briefingHeader
             RunRouteStrip(currentSlot: model.run.slot, boss: upcomingBoss)
+                .frame(maxWidth: .infinity)
 
             if let clipping = model.lastClipping {
                 ClippingReceipt(clipping: clipping)
@@ -87,8 +106,12 @@ struct PuzzleBriefingView: View {
                                     stampVisible: stampVisible) {
                     model.skipCurrentPuzzle()
                 }
+                .frame(maxHeight: layout.clippingMaximumHeight)
                 .padding(.top, 9)
                 .padding(.bottom, 12)
+                if layout.clippingMaximumHeight != nil {
+                    Spacer(minLength: 0)
+                }
             } else if model.run.slot == .boss {
                 if let boss = upcomingBoss {
                     BookNarration(text: "The Book insists you face \(boss.name).")
@@ -220,6 +243,7 @@ struct RunRouteStrip: View {
             RouteArrow()
             RouteCard(slot: .boss, currentSlot: currentSlot, boss: boss)
         }
+        .frame(maxWidth: PuzzleBriefingLayout.routeMaximumWidth)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
@@ -472,7 +496,9 @@ private struct RouteBoardPreview: View {
 
     private var printedBossBoard: some View {
         GeometryReader { proxy in
-            let width = proxy.size.width
+            // Wider tablet cards must not turn the ink/grid into a horizontal
+            // smear. Narrow phone previews retain their existing dimensions.
+            let width = min(proxy.size.width, proxy.size.height)
             let height = proxy.size.height
             // Keep the print inside the ink wash; the fine splashes outside
             // this area belong to the texture, not the nine-by-nine grid.
@@ -515,6 +541,7 @@ private struct RouteBoardPreview: View {
                 .offset(y: height * 0.05)
             }
             .frame(width: width, height: height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

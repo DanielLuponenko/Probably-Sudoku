@@ -73,6 +73,42 @@ final class GameModel {
 
     private(set) var numberReturns: [NumberReturn] = []
     private(set) var effectActivation: EffectActivation?
+    private(set) var scorePerformance: ScorePerformance?
+    private(set) var scoreBeat: ScorePerformance.Beat?
+    private(set) var presentedScore: Int?
+    private(set) var presentedQueue: Int?
+    var isPresentingScore: Bool { scorePerformance != nil }
+
+    func presentScore(_ performance: ScorePerformance) {
+        guard animatesHandArrival, !performance.beats.isEmpty else {
+            finishScorePresentation()
+            return
+        }
+        effectActivation = nil
+        scorePerformance = performance
+        scoreBeat = performance.beats.first
+        presentedScore = performance.bankedFrom
+        presentedQueue = performance.queuedFrom
+    }
+
+    func advanceScore(_ beat: ScorePerformance.Beat, performanceID: UUID) {
+        guard scorePerformance?.id == performanceID else { return }
+        scoreBeat = beat
+        if let queuedBase = beat.queuedBase { presentedQueue = queuedBase }
+        if beat.kind == .bank { presentedScore = scorePerformance?.finalScore }
+    }
+
+    func finishScorePresentation(id: UUID? = nil) {
+        guard id == nil || scorePerformance?.id == id else { return }
+        scorePerformance = nil
+        scoreBeat = nil
+        presentedScore = nil
+        presentedQueue = nil
+    }
+
+    func bookmarkScoreLabel(_ id: String) -> String? {
+        scoreBeat?.sourceID == id ? scoreBeat?.value : nil
+    }
 
     private struct BossFeedbackSnapshot {
         let blocked: Set<Digit>
@@ -236,7 +272,7 @@ final class GameModel {
     }
 
     private func persist() {
-        guard savesProgress else { return }
+        guard savesProgress, !wantsMenu else { return }
         let savedGame = gameForPersistence
         PlayerProfileStore.shared.recordCoinBalance(game.run.coins)
         guard let outcome = game.run.outcome else {
@@ -507,7 +543,7 @@ final class GameModel {
     }
 
     private func saveClockCheckpoint(publishToCloud: Bool) {
-        guard savesProgress, animatesHandArrival, run.outcome == nil,
+        guard savesProgress, !wantsMenu, animatesHandArrival, run.outcome == nil,
               clockRemaining != nil, clockPuzzleID == currentClockPuzzleID else { return }
         RunStore.save(gameForPersistence, publishToCloud: publishToCloud)
     }
@@ -544,7 +580,10 @@ final class GameModel {
         guard puzzle?.boss?.hidesMarkedSquares != true else { return [:] }
         return run.markedSquares
     }
-    var activeBookmarkIDs: Set<String> { effectActivation?.bookmarkIDs ?? [] }
+    var activeBookmarkIDs: Set<String> {
+        if let id = scoreBeat?.sourceID { return [id] }
+        return effectActivation?.bookmarkIDs ?? []
+    }
     func markerEffect(at square: Square) -> String? {
         guard !markersAreHidden else { return nil }
         return effectActivation?.markerSquare == square ? effectActivation?.markerText : nil
@@ -683,11 +722,15 @@ final class GameModel {
         let wasKeepingFilling = puzzle?.phase == .keepFilling
         let coinCost = puzzle?.boss?.coinsPerPlacement ?? 0
         let bossBefore = BossFeedbackSnapshot(puzzle)
+        let previousScore = puzzle?.score ?? 0
+        let previousQueue = puzzle?.pendingBase ?? 0
         do {
             let outcome = try game.place(handIndex: handIndex, at: square)
             if coinCost > 0 { lastCoinCharge = CoinCharge(amount: coinCost) }
             if isTrackingAchievementPuzzle {
                 madeWrongPlacementThisPuzzle = madeWrongPlacementThisPuzzle || !outcome.correct
+            }
+            if savesProgress {
                 PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: wasKeepingFilling)
             }
             refreshHandCards(consuming: handIndex,
@@ -708,6 +751,13 @@ final class GameModel {
                 }
             }
             presentEffectActivation(for: outcome, at: square)
+            if outcome.correct {
+                presentScore(.placement(outcome, square: square,
+                                        previousScore: previousScore, finalScore: puzzle?.score ?? 0,
+                                        previousQueue: previousQueue))
+            } else {
+                finishScorePresentation()
+            }
             markCleared(outcome, at: square)
             // A placement consumes the card and changes the square, so neither
             // side of the former selection still describes an available action.
@@ -812,6 +862,7 @@ final class GameModel {
     }
 
     func useClue(at square: Square) {
+        let wasKeepingFilling = puzzle?.phase == .keepFilling
         // The legacy direct-square action takes the solution number from the
         // Pool first, otherwise the first matching Hand slot. Record only that
         // identity decision; no Pool counts are exposed in the presentation.
@@ -823,7 +874,9 @@ final class GameModel {
             let outcome = try game.useClue(at: square)
             if isTrackingAchievementPuzzle {
                 usedClueThisPuzzle = true
-                PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: false)
+            }
+            if savesProgress {
+                PlayerProfileStore.shared.recordPlacement(outcome, duringKeepFilling: wasKeepingFilling)
             }
             refreshHandCards(consuming: consumedIndex)
             clearSelection()
@@ -875,6 +928,7 @@ final class GameModel {
 
     @discardableResult
     func useBuff(at index: Int, digit: Digit? = nil) -> Bool {
+        finishScorePresentation()
         do {
             let peeks = game.run.buffs.indices.contains(index)
                 && game.run.buffs[index].defID == Buffs.peek
@@ -885,6 +939,7 @@ final class GameModel {
                 message = "This Buff has no effect right now — kept"
                 return false
             }
+            if savesProgress { PlayerProfileStore.shared.recordBuffUsed() }
             if animatesHandArrival { GameAudio.shared.play(.paperTurn) }
             refreshHandCards(replacing: redrawsHand)
             if !redrawn.isEmpty {
@@ -902,9 +957,10 @@ final class GameModel {
 
     func endTurn() {
         let bossBefore = BossFeedbackSnapshot(puzzle)
+        let previousScore = puzzle?.score ?? 0
         do {
-            _ = try game.endTurn()
-            if animatesHandArrival { Haptics.menuPress() }
+            let result = try game.endTurn()
+            presentScore(.banking(result, previousScore: previousScore, finalScore: puzzle?.score ?? 0))
             refreshHandCards()
             clearSelection()
             presentBossChanges(from: bossBefore)
@@ -951,13 +1007,16 @@ final class GameModel {
         let finishedPuzzle = puzzle
         do {
             lastPayout = try game.cashOut()
-            if let puzzle = finishedPuzzle, isTrackingAchievementPuzzle {
+            if let puzzle = finishedPuzzle, savesProgress {
                 PlayerProfileStore.shared.recordPuzzleFinished(
                     score: puzzle.score,
+                    target: puzzle.target,
                     wasBoss: puzzle.isBoss,
                     hadWrongPlacement: madeWrongPlacementThisPuzzle,
                     usedClue: usedClueThisPuzzle,
-                    wasLastTurn: puzzle.turnsRemaining == 1
+                    tossesUsed: puzzle.tossedThisPuzzle,
+                    turnsRemaining: puzzle.turnsRemaining,
+                    hasCompleteHistory: isTrackingAchievementPuzzle
                 )
                 if puzzle.isBoss, let boss = puzzle.boss {
                     PlayerProfileStore.shared.recordBossDefeated(
@@ -972,8 +1031,12 @@ final class GameModel {
 
     /// §7 — play on with the Turns you have left, back on the Puzzle page.
     func keepFilling() {
-        try? game.keepFilling()
-        page = .puzzle
+        do {
+            try game.keepFilling()
+            page = .puzzle
+        } catch {
+            message = describe(error)
+        }
     }
 
     /// Results → shop, the first of the two page turns between Puzzles.
@@ -1003,6 +1066,7 @@ final class GameModel {
     /// Clipping an actual choice rather than something revealed after the
     /// board, pool, and Boss have already been rolled.
     func beginPuzzle() {
+        finishScorePresentation()
         cancelPuzzlePreparation()
         rewardedRescue.invalidate()
         stopClock()
@@ -1129,7 +1193,7 @@ final class GameModel {
         rewardedRescue.invalidate()
         do {
             lastClipping = try game.skipPuzzle()
-            PlayerProfileStore.shared.recordSkipsUsed(game.run.skipsUsed)
+            if savesProgress { PlayerProfileStore.shared.recordSkipsUsed(game.run.skipsUsed) }
             isTrackingAchievementPuzzle = false
             selectedHandIndex = nil
             selectedSquare = nil
@@ -1146,7 +1210,7 @@ final class GameModel {
         do {
             try game.buy(slot: slot)
             if animatesHandArrival { GameAudio.shared.play(.menuTap) }
-            if let kind {
+            if let kind, savesProgress {
                 PlayerProfileStore.shared.recordPurchase(kind: kind,
                                                          bookmarkCount: game.run.bookmarks.count)
             }
@@ -1164,16 +1228,21 @@ final class GameModel {
 
     /// §10 — sell a Bookmark or Buff for its deterministic partial refund.
     func sell(kind: ItemKind, index: Int) {
-        let boughtAtLevel: Int?
+        let boughtInShopVisitID: Int?
         switch kind {
-        case .bookmark: boughtAtLevel = game.run.bookmarks.indices.contains(index)
-                ? game.run.bookmarks[index].boughtAtLevel : nil
-        case .buff, .marker, .subscription: boughtAtLevel = nil
+        case .bookmark: boughtInShopVisitID = game.run.bookmarks.indices.contains(index)
+                ? game.run.bookmarks[index].boughtInShopVisitID : nil
+        case .buff: boughtInShopVisitID = game.run.buffs.indices.contains(index)
+                ? game.run.buffs[index].boughtInShopVisitID : nil
+        case .marker, .subscription: boughtInShopVisitID = nil
         }
+        let currentShopVisitID = game.run.shop?.visitID
         do {
             let coins = try game.sell(kind: kind, index: index)
-            PlayerProfileStore.shared.recordSale(boughtAtLevel: boughtAtLevel,
-                                                 currentLevel: game.run.level)
+            if savesProgress {
+                PlayerProfileStore.shared.recordSale(boughtInShopVisitID: boughtInShopVisitID,
+                                                     currentShopVisitID: currentShopVisitID)
+            }
             message = "Sold for \(coins) \(coins == 1 ? "coin" : "coins")"
             dropHandSelection()
         } catch {
@@ -1217,9 +1286,16 @@ final class GameModel {
     /// had abandoned. Putting a Book down needs no button: closing the app
     /// keeps it, and the shelf offers to continue.
     func abandonRun() {
+        guard !wantsMenu else { return }
         rewardedRescue.invalidate()
-        RunStore.clearRun()
+        cancelPuzzlePreparation()
+        // Retire this owner before the disappearing puzzle pauses its clock.
+        // That late lifecycle callback must not re-create the cleared save or
+        // overwrite a replacement Book. Keep the printed time for its exit.
+        clockLastSample = nil
         wantsMenu = true
+        if savesProgress { RunStore.clearRun() }
+        savesProgress = false
     }
 
     #if DEBUG && targetEnvironment(simulator)

@@ -76,21 +76,7 @@ enum Paper {
     /// The twelve Marker colours (§11). Each is an ink, so each stays legible
     /// with the page behind it and with a number printed on top.
     static func markerColor(_ defID: String) -> Color {
-        switch defID {
-        case "mk_crimson": return Color(hex: 0xB4544A)
-        case "mk_golden": return Color(hex: 0xD9A93C)
-        case "mk_azure": return Color(hex: 0x6F9EC4)
-        case "mk_ivory": return Color(hex: 0xDCD3BB)
-        case "mk_emerald": return Color(hex: 0x6E9A6B)
-        case "mk_onyx": return Color(hex: 0x59544D)
-        case "mk_silver": return Color(hex: 0xAFAFA6)
-        case "mk_sapphire": return Color(hex: 0x5A7BA8)
-        case "mk_rose": return Color(hex: 0xC98F92)
-        case "mk_copper": return Color(hex: 0xB07A4E)
-        case "mk_violet": return Color(hex: 0x8E7BA8)
-        case "mk_jade": return Color(hex: 0x77A08D)
-        default: return inkFaint
-        }
+        Color(hex: MarkerAppearance.forID(defID).hex)
     }
 }
 

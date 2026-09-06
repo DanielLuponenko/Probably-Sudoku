@@ -86,6 +86,12 @@ enum Haptics {
         }
     }
 
+    /// A brief stamp, distinct from placement and clear patterns; never a buzz.
+    static func scoreStamp(bank: Bool) {
+        transient("score-stamp", intensity: bank ? 0.48 : 0.24,
+                  sharpness: bank ? 0.32 : 0.50, fallback: bank ? .medium : .light)
+    }
+
     /// A line, box, or full-board clear is one event even when a placement
     /// clears several units. This avoids turning a high-value play into a
     /// burst of unrelated taps.
