@@ -168,6 +168,9 @@ public struct PuzzleState: Codable, Sendable {
         keepFillingCoins = try c.decode(Int.self, forKey: .keepFillingCoins)
         itemState = try c.decodeIfPresent([String: Double].self, forKey: .itemState) ?? [:]
         armedFlags = try c.decodeIfPresent(Set<OneShotFlag>.self, forKey: .armedFlags) ?? []
+        // Older results pages could offer Keep Filling after Full Clear. Restore
+        // that stranded board to its unpaid result without replaying any reward.
+        if phase == .keepFilling && board.isFull { phase = .won }
     }
 
     public var isBoss: Bool { slot == .boss }
@@ -185,6 +188,8 @@ public struct PuzzleState: Codable, Sendable {
         pendingMult = 1
     }
     public var turnsRemaining: Int { max(0, turnsMax - turnNumber + 1) }
+    /// A won board can continue only while both squares and Turns remain.
+    public var canKeepFilling: Bool { phase == .won && !board.isFull && turnsRemaining > 0 }
     public var tossesRemaining: Int { max(0, tossAllowance - tossedThisPuzzle) }
     public var canUseClue: Bool { cluesRemaining > 0 && boss?.disablesClues != true }
     public var blockedDigits: Set<Digit> {
@@ -363,6 +368,8 @@ public extension PuzzleState {
 // MARK: - Outcomes reported back to the UI
 
 public struct PlacementOutcome: Sendable, Equatable {
+    public var scoreReceipts: [ScoreEventReceipt] = []
+    public var automaticTurn: Actions.TurnResult?
     public var correct = false
     public var points = 0
     public var penalty = 0

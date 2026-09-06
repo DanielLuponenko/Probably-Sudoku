@@ -41,7 +41,7 @@ public enum Actions {
         // still be Tossed; it just cannot go on the board.
         guard !puzzle.isBlocked(handIndex: handIndex) else { throw PlacementError.numberBlocked }
         run.coins -= puzzle.boss?.coinsPerPlacement ?? 0
-        let outcome: PlacementOutcome
+        var outcome: PlacementOutcome
         if digit == puzzle.board.correctDigit(at: square) {
             puzzle.hand.remove(at: handIndex)
             let wasRevealed = puzzle.clueReveals.remove(square) != nil
@@ -72,7 +72,7 @@ public enum Actions {
         // the same deterministic rules layer as a manual End Turn.
         if outcome.correct, run.puzzle?.hand.isEmpty == true,
            run.puzzle?.phase == .playing || run.puzzle?.phase == .keepFilling {
-            _ = try endTurn(&run)
+            outcome.automaticTurn = try endTurn(&run)
         }
         endBookIfPuzzleFailed(&run)
         return outcome
@@ -167,6 +167,10 @@ public enum Actions {
                               globalAdditive: 0, oneShotDoubler: doubleDown)
             : 0
         outcome.censored = placeResult.zeroed
+        if puzzle.phase != .keepFilling && clueEarnsPoints && !placeResult.zeroed {
+            outcome.scoreReceipts.append(ScoreEventReceipt(event: .place, base: base,
+                points: outcome.points, contributions: placeResult.contributions))
+        }
         if puzzle.phase != .keepFilling {
             puzzle.pendingBase += outcome.points
             collectHeldMultiplier(placeResult, minus: placeSquare, into: &puzzle)
@@ -190,6 +194,10 @@ public enum Actions {
 
             outcome.lineClears.append(unit)
             outcome.lineClearPoints.append(lineScore)
+            if puzzle.phase != .keepFilling && !isClue && !result.zeroed {
+                outcome.scoreReceipts.append(ScoreEventReceipt(event: .lineClear, base: 45,
+                    points: lineScore, contributions: result.contributions))
+            }
             if puzzle.phase == .keepFilling {
                 puzzle.keepFillingCoins += 1     // §7 — the greed mechanic
             } else {
@@ -213,6 +221,10 @@ public enum Actions {
 
             outcome.fullClear = true
             outcome.fullClearPoints = fullScore
+            if puzzle.phase != .keepFilling && !isClue && !result.zeroed {
+                outcome.scoreReceipts.append(ScoreEventReceipt(event: .fullClear, base: 500,
+                    points: fullScore, contributions: result.contributions))
+            }
             if puzzle.phase == .keepFilling {
                 puzzle.keepFillingCoins += 3
             } else {
@@ -407,6 +419,9 @@ public enum Actions {
     // MARK: - End Turn
 
     public struct TurnResult: Sendable, Equatable {
+        public var contributions: [ScoreContribution] = []
+        public var queuedBase = 0
+        public var multiplier = 1.0
         public var pointsGained = 0
         public var coinsGained = 0
         public var numbersDrawn = 0
@@ -443,10 +458,14 @@ public enum Actions {
             let endContext = Resolver.context(.puzzleEnd, run: run, puzzle: puzzle)
             let endResult = Resolver.dispatch(endContext, run: run, puzzle: puzzle)
             result.directScore += endResult.directScore
+            result.contributions += endResult.contributions
             run.absorb(endResult)
             puzzle.absorb(endResult)
         }
         if puzzle.phase != .keepFilling {
+            turn.queuedBase = puzzle.pendingBase
+            turn.multiplier = puzzle.pendingMultiplier
+            turn.contributions = result.contributions
             turn.pointsGained = puzzle.pendingScore
             puzzle.bankPending()
             // Direct payouts are printed point amounts, not another scoring
@@ -583,7 +602,7 @@ public enum Actions {
     /// §7 — carry on with the remaining Turns. Score no longer increases;
     /// clears bank coins instead. No risk, since the Puzzle is already won.
     public static func keepFilling(_ run: inout RunState) throws {
-        guard var puzzle = run.puzzle, puzzle.phase == .won else {
+        guard var puzzle = run.puzzle, puzzle.canKeepFilling else {
             throw PlacementError.puzzleNotPlayable
         }
         puzzle.phase = .keepFilling

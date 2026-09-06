@@ -204,11 +204,7 @@ final class PlayerProfileStore {
     func recordBossDefeated(encounterID: String) {
         recordAchievementChange { profile in
             profile.achievementProgress.completedBossEncounterIDs.insert(encounterID)
-            var awards: Set<String> = []
-            if profile.achievementProgress.completedBossEncounterIDs.count >= 10 {
-                awards.insert("beat-ten-bosses")
-            }
-            return awards
+            return AchievementRules.bossesDefeated(profile.achievementProgress.completedBossEncounterIDs.count)
         }
     }
 
@@ -216,35 +212,24 @@ final class PlayerProfileStore {
         guard let book = Book.allCases.first(where: { $0.volume == volume }) else { return }
         recordAchievementChange { profile in
             profile.achievementProgress.recordBookCompleted(book, obstacle: obstacle)
-            var awards: Set<String> = ["finish-book"]
-            if profile.achievementProgress.hasCompletedAllBooks {
-                awards.insert("finish-every-book")
-            }
-            if obstacle == .shortHandedAndBlocked { awards.insert("obstacle-three-book") }
-            return awards
+            return AchievementRules.bookCompleted(progress: profile.achievementProgress, obstacle: obstacle)
         }
     }
 
     func recordPlacement(_ outcome: PlacementOutcome, duringKeepFilling: Bool) {
         recordAchievementChange { _ in
-            var awards: Set<String> = []
-            if outcome.fullClear { awards.insert("full-clear") }
-            if outcome.fullClear && duringKeepFilling { awards.insert("keep-filling-full-clear") }
-            let clearedKinds = Set(outcome.lineClears.map(\.rawValue))
-            if clearedKinds == ["row", "col", "box"] { awards.insert("three-way-clear") }
-            return awards
+            AchievementRules.placement(outcome, duringKeepFilling: duringKeepFilling)
         }
     }
 
-    func recordPuzzleFinished(score: Int, wasBoss: Bool, hadWrongPlacement: Bool,
-                              usedClue: Bool, wasLastTurn: Bool) {
+    func recordPuzzleFinished(score: Int, target: Int, wasBoss: Bool, hadWrongPlacement: Bool,
+                              usedClue: Bool, tossesUsed: Int, turnsRemaining: Int,
+                              hasCompleteHistory: Bool) {
         recordAchievementChange { _ in
-            var awards: Set<String> = []
-            if score >= 100_000 { awards.insert("hundred-thousand") }
-            if wasBoss && !hadWrongPlacement { awards.insert("flawless-boss") }
-            if !usedClue { awards.insert("no-clue") }
-            if wasLastTurn { awards.insert("last-turn-win") }
-            return awards
+            AchievementRules.puzzleFinished(score: score, target: target, wasBoss: wasBoss,
+                                            hadWrongPlacement: hadWrongPlacement, usedClue: usedClue,
+                                            tossesUsed: tossesUsed, turnsRemaining: turnsRemaining,
+                                            hasCompleteHistory: hasCompleteHistory)
         }
     }
 
@@ -255,16 +240,27 @@ final class PlayerProfileStore {
 
     func recordPurchase(kind: ItemKind, bookmarkCount: Int) {
         recordAchievementChange { _ in
-            var awards: Set<String> = []
-            if kind == .subscription { awards.insert("buy-subscription") }
-            if bookmarkCount >= 5 { awards.insert("five-bookmarks") }
-            return awards
+            AchievementRules.purchase(kind: kind, bookmarkCount: bookmarkCount)
         }
     }
 
-    func recordSale(boughtAtLevel: Int?, currentLevel: Int) {
-        guard boughtAtLevel == currentLevel else { return }
-        recordAchievementChange { _ in ["same-shop-sale"] }
+    func recordBuffUsed() {
+        recordAchievementChange { _ in ["use-buff"] }
+    }
+
+    func recordSale(boughtInShopVisitID: Int?, currentShopVisitID: Int?) {
+        let awards = Self.saleAchievementIDs(boughtInShopVisitID: boughtInShopVisitID,
+                                             currentShopVisitID: currentShopVisitID)
+        guard !awards.isEmpty else { return }
+        recordAchievementChange { _ in awards }
+    }
+
+    /// Pure event eligibility, separate from disk/cloud/Game Center delivery.
+    /// In particular nil == nil must never award a legacy or mid-puzzle sale.
+    static func saleAchievementIDs(boughtInShopVisitID: Int?, currentShopVisitID: Int?) -> Set<String> {
+        guard let purchase = boughtInShopVisitID, purchase > 0,
+              let current = currentShopVisitID, purchase == current else { return [] }
+        return ["same-shop-sale"]
     }
 
     func recordSkipsUsed(_ count: Int) {

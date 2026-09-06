@@ -16,6 +16,10 @@ struct PaperSlip<Content: View>: View {
     /// asking a question rather than showing something.
     var dismissesOnBackground: Bool = true
     var revealsCardOnArrival = false
+    var maximumHeight: CGFloat = 620
+    /// A small, stable optional footer keeps guide navigation outside the
+    /// scrolling article. Existing slips retain their original layout.
+    var footer: AnyView? = nil
     var onClose: () -> Void
     @ViewBuilder var content: Content
 
@@ -50,13 +54,19 @@ struct PaperSlip<Content: View>: View {
                         .padding(.bottom, 14)
                 }
 
+                if let footer {
+                    footer
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 12)
+                }
+
                 if showsCloseButton {
                     PaperButton(title: closeLabel, kind: .quiet, action: onClose)
                         .padding(.horizontal, 18)
                         .padding(.bottom, 18)
                 }
             }
-            .frame(maxHeight: 620)
+            .frame(maxHeight: maximumHeight)
             .background {
                 RoundedRectangle(cornerRadius: 5)
                     .fill(theme.paper.page)
@@ -159,20 +169,13 @@ struct SettingsSlip: View {
     var onAbandon: () -> Void
     var onClose: () -> Void
     @State private var confirmingAbandon = false
-    @State private var showingHelp = false
     @State private var copied = false
     #if DEBUG && targetEnvironment(simulator)
     @State private var showingQA = false
     #endif
 
     var body: some View {
-        Group {
-            if showingHelp {
-                HelpSlip { showingHelp = false }
-            } else {
-                settings
-            }
-        }
+        settings
         #if DEBUG && targetEnvironment(simulator)
         .sheet(isPresented: $showingQA) { QAPanel(model: model) }
         #endif
@@ -232,11 +235,13 @@ struct SettingsSlip: View {
                     }
                 }
 
-                SlipSection(title: "The rules") {
-                    PaperButton(title: "How to play", kind: .quiet) { showingHelp = true }
-                }
+                LearningSection()
+
+                GameCenterSection(service: GameCenterService.shared)
 
                 AdsPrivacySection()
+
+                AppSupportSection()
 
                 SlipSection(
                     title: "This run",
@@ -287,144 +292,6 @@ struct SettingsSlip: View {
     }
 }
 
-// MARK: - Help
-
-/// The rules, in the order you meet them.
-struct HelpSlip: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var onClose: () -> Void
-    @State private var selectedTopic: Topic = .handAndPool
-
-    fileprivate enum Topic: String, CaseIterable, Identifiable {
-        case handAndPool
-        case rightAndWrong
-        case turnsAndToss
-        case targetsAndClears
-        case cashOut
-        case shop
-        case markers
-        case bosses
-        case failure
-
-        var id: String { rawValue }
-
-        var heading: String {
-            switch self {
-            case .handAndPool: return "Hand & Pool"
-            case .rightAndWrong: return "Right & wrong"
-            case .turnsAndToss: return "Turns & Toss"
-            case .targetsAndClears: return "Targets & clears"
-            case .cashOut: return "Cash Out"
-            case .shop: return "Shop & slots"
-            case .markers: return "Markers"
-            case .bosses: return "Bosses"
-            case .failure: return "When a Book ends"
-            }
-        }
-
-        var kicker: String {
-            switch self {
-            case .handAndPool: return "YOUR MATERIAL"
-            case .rightAndWrong: return "THE RISK"
-            case .turnsAndToss: return "THE CLOCK"
-            case .targetsAndClears: return "THE POINT"
-            case .cashOut: return "THE CHOICE"
-            case .shop: return "BETWEEN PUZZLES"
-            case .markers: return "ON THE BOARD"
-            case .bosses: return "THE OBSTACLE"
-            case .failure: return "THE STAKES"
-            }
-        }
-
-        var lines: [String] {
-            switch self {
-            case .handAndPool: return [
-                "Your Hand is what you can play now. The Pool contains every number not already on the board or in your Hand.",
-                "A finished sudoku contains nine of each number, so the Pool can be counted if you pay attention."
-            ]
-            case .rightAndWrong: return [
-                "Place a number on a Blank. A correct placement scores ten times that number.",
-                "A wrong placement costs fifty times the number and sends it back to the Pool."
-            ]
-            case .turnsAndToss: return [
-                "End Turn refills your Hand. Unplayed numbers carry over, so a good Hand is worth protecting.",
-                "Toss sends a picked number back to the Pool. Its allowance is limited and the Hand does not refill until End Turn."
-            ]
-            case .targetsAndClears: return [
-                "Each Puzzle has a target. Reach it before the final Turn to keep the Book alive.",
-                "Rows, columns and 3×3 boxes pay much more than a single placement. Plan toward clears."
-            ]
-            case .cashOut: return [
-                "After meeting the target, Cash Out banks the receipt and moves on safely.",
-                "Keep Filling freezes the target score and lets clears bank extra coins, but uses the Turns you have left."
-            ]
-            case .shop: return [
-                "The Shop appears between Puzzles. Bookmarks last the Book; Markers bind to a square; Buffs are one use.",
-                "Slots are limited. Sell a Bookmark or Buff for a partial refund when the plan changes."
-            ]
-            case .markers: return [
-                "Place a Marker on a Blank before its number lands. Its effect belongs to that square for this Book.",
-                "Markers do not share squares, and some Bosses can make their marked squares harder to read."
-            ]
-            case .bosses: return [
-                "The third Puzzle of each Level is a Boss encounter. It changes the rules of that Puzzle, not the Book's difficulty.",
-                "Read the Boss stamp before playing: it tells you exactly which resource or board rule is under pressure."
-            ]
-            case .failure: return [
-                "If a Puzzle fills below its target, the Book ends. There are exactly enough numbers for the Blanks, so it cannot recover.",
-                "If you run out of Turns, you may watch an optional ad for three extra Turns, once per Puzzle. Closing an ad early does not earn the reward. You can always end the Book without watching.",
-                "Every Book is playable from the shelf. Finish a different Book to unlock the next Obstacle."
-            ]
-            }
-        }
-    }
-
-    var body: some View {
-        PaperSlip(title: "How to play",
-                  subtitle: "Probably Sudoku, in the order you meet it.",
-                  revealsCardOnArrival: true,
-                  onClose: onClose) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 8) {
-                    Text(selectedTopic.heading)
-                        .font(Print.caption(10))
-                        .textCase(.uppercase)
-                        .tracking(0.9)
-                        .foregroundStyle(Paper.page)
-                        .frame(maxWidth: .infinity, minHeight: 30)
-                        .background(Paper.ink, in: RoundedRectangle(cornerRadius: 3))
-                        .accessibilityLabel("How to play topic")
-                        .accessibilityValue("\(selectedTopic.heading), \(selectedIndex + 1) of \(Topic.allCases.count)")
-                }
-                .padding(.bottom, 12)
-
-                HelpTopicPage(topic: selectedTopic)
-
-                HStack(spacing: 10) {
-                    if selectedIndex > 0 {
-                        PaperButton(title: "Previous", kind: .quiet) {
-                            select(Topic.allCases[selectedIndex - 1])
-                        }
-                    }
-                    if selectedIndex < Topic.allCases.count - 1 {
-                        PaperButton(title: "Next", kind: .quiet) {
-                            select(Topic.allCases[selectedIndex + 1])
-                        }
-                    }
-                }
-                .padding(.top, 14)
-            }
-        }
-    }
-
-    private var selectedIndex: Int {
-        Topic.allCases.firstIndex(of: selectedTopic) ?? 0
-    }
-
-    private func select(_ topic: Topic) {
-        withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) { selectedTopic = topic }
-    }
-}
 
 /// The same privacy entry stays available at the front door and inside a Book.
 /// Opening Settings refreshes consent status, but never loads or shows an ad.
@@ -433,60 +300,25 @@ struct AdsPrivacySection: View {
     @Environment(\.cosmeticTheme) private var theme
 
     var body: some View {
-        SlipSection(title: "Optional ads") {
-            Text("This testing version uses test videos for the three-turn reward. No purchase is needed.")
-                .font(Print.body(12.5))
-                .foregroundStyle(theme.paper.softInk)
-                .fixedSize(horizontal: false, vertical: true)
-            if ads.privacyOptionsRequired {
-                PaperButton(title: "Ad privacy choices", kind: .quiet,
-                            isEnabled: !ads.isPresentingPrivacyOptions && !ads.isPresenting) {
-                    Task { await ads.presentPrivacyOptions() }
-                }
-            }
-            Link("Google advertising privacy information",
-                 destination: URL(string: "https://policies.google.com/technologies/ads")!)
-                .font(Print.body(12.5))
-                .foregroundStyle(theme.paper.ink)
-                .frame(minHeight: 44, alignment: .leading)
-        }
-        .task { await ads.refreshPrivacyStatus() }
-    }
-}
-
-private struct HelpTopicPage: View {
-    let topic: HelpSlip.Topic
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            Image("Cover")
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 96)
-                .clipShape(.rect(cornerRadius: 3))
-                .overlay(alignment: .bottomLeading) {
-                    Text(topic.kicker)
-                        .font(Print.caption(10))
-                        .tracking(1.5)
-                        .foregroundStyle(Paper.page)
-                        .padding(9)
-                        .background(.black.opacity(0.45))
-                }
-                .accessibilityHidden(true)
-
-            Text(topic.heading)
-                .font(Print.heading(21))
-                .foregroundStyle(Paper.ink)
-
-            ForEach(topic.lines, id: \.self) { line in
-                Text(line)
-                    .font(Print.body(14))
-                    .foregroundStyle(Paper.inkSoft)
+        if ads.isEnabled {
+            SlipSection(title: "Optional ads") {
+                Text("Choose whether to watch a video for three extra turns, once per puzzle. No purchase is needed.")
+                    .font(Print.body(12.5))
+                    .foregroundStyle(theme.paper.softInk)
                     .fixedSize(horizontal: false, vertical: true)
+                if ads.privacyOptionsRequired {
+                    PaperButton(title: "Ad privacy choices", kind: .quiet,
+                                isEnabled: !ads.isPresentingPrivacyOptions && !ads.isPresenting) {
+                        Task { await ads.presentPrivacyOptions() }
+                    }
+                }
+                Link("Google advertising privacy information",
+                     destination: URL(string: "https://policies.google.com/technologies/ads")!)
+                    .font(Print.body(12.5))
+                    .foregroundStyle(theme.paper.ink)
+                    .frame(minHeight: 44, alignment: .leading)
             }
+            .task { await ads.refreshPrivacyStatus() }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(topic.heading)
     }
 }

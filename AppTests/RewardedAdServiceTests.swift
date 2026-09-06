@@ -1,8 +1,130 @@
 import XCTest
 @testable import ProbablySudoku
+#if !NUMBERCLUB_AD_FREE
+import GoogleMobileAds
+#endif
 
 @MainActor
 final class RewardedAdServiceTests: XCTestCase {
+    #if !NUMBERCLUB_AD_FREE
+    func testRequestPrivacyDisablesPersonalizationAndPublisherIDWithoutStartingSDK() {
+        let settings = RecordingRequestConfiguration()
+        settings.publisherPrivacyPersonalizationState = .enabled
+        GoogleRewardedAdAdapter.configureRequestPrivacy(settings)
+        XCTAssertEqual(settings.publisherPrivacyPersonalizationState, .disabled)
+        XCTAssertEqual(settings.maxAdContentRating, .general)
+        XCTAssertEqual(settings.publisherIDChoices, [false])
+        XCTAssertEqual(settings.ageRestrictedTreatment, .unspecified, "Do not invent a user's age or consent.")
+        XCTAssertNil(settings.testDeviceIdentifiers, "Never ship an invented tester identity.")
+    }
+
+    func testEveryRewardedRequestIsNonPersonalizedAndContainsNoGameplayTargeting() throws {
+        for _ in 0..<2 {
+            let request = GoogleRewardedAdAdapter.makeRequest()
+            let extras = try XCTUnwrap(request.adNetworkExtras(for: Extras.self) as? Extras)
+            XCTAssertEqual(extras.additionalParameters as? [String: String], ["npa": "1"])
+            XCTAssertNil(request.customTargeting)
+            XCTAssertNil(request.keywords)
+            XCTAssertNil(request.contentURL)
+            XCTAssertNil(request.neighboringContentURLs)
+            XCTAssertNil(request.requestAgent)
+        }
+    }
+
+    // Intercept the persisted publisher-ID setter: tests prove the policy call
+    // without touching Google's saved SDK preference or starting MobileAds.
+    private final class RecordingRequestConfiguration: RequestConfiguration {
+        var publisherIDChoices: [Bool] = []
+        override func setPublisherFirstPartyIDEnabled(_ enabled: Bool) {
+            publisherIDChoices.append(enabled)
+        }
+    }
+    #endif
+
+    #if NUMBERCLUB_AD_FREE
+    func testAdFreeBinaryDefaultFactoryCannotEnableSDKFromIncorrectMetadata() throws {
+        let enabled = try AdConfiguration.resolve(mode: "live", appID: AdConfiguration.productionAppID,
+            rewardedAdUnitID: AdConfiguration.productionRewardedID,
+            runtime: .init(isDebug: false, isSimulator: false))
+        for metadata: Result<AdConfiguration, Error> in [.success(enabled), .failure(TestError.failed)] {
+            let adapter = RewardedAdService.makeAdapter(configuration: metadata)
+            XCTAssertFalse(adapter.isEnabled)
+            XCTAssertFalse(adapter.canRequestAds)
+            XCTAssertFalse(RewardedAdService(adapter: adapter).isEnabled)
+        }
+    }
+    #endif
+
+    func testDisabledConfigurationNeverConstructsTheGoogleAdapter() async throws {
+        let configuration = try AdConfiguration.resolve(mode: "disabled", appID: nil, rewardedAdUnitID: nil,
+            runtime: .init(isDebug: false, isSimulator: false))
+        var factoryCalls = 0
+        let adapter = RewardedAdService.makeAdapter(configuration: .success(configuration)) { _ in
+            factoryCalls += 1
+            return Adapter()
+        }
+        XCTAssertEqual(factoryCalls, 0, "The disabled path must not even construct the SDK adapter.")
+        XCTAssertFalse(adapter.isEnabled)
+        XCTAssertFalse(adapter.canRequestAds)
+        XCTAssertFalse(adapter.privacyOptionsRequired)
+        XCTAssertFalse(adapter.canPresent)
+        let service = RewardedAdService(adapter: adapter, presentationChanged: { _ in XCTFail("No presentation") })
+        await service.prepare()
+        await service.refreshPrivacyStatus()
+        await service.presentPrivacyOptions()
+        XCTAssertFalse(service.present(onReward: { XCTFail("No reward") }, onDismiss: { XCTFail("No ad") }))
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertNil(service.lastError)
+        XCTAssertFalse(service.isEnabled)
+        XCTAssertFalse(service.isReady)
+        XCTAssertFalse(service.privacyOptionsRequired)
+    }
+
+    func testDisabledServiceNeverReadsConsentOrRequestsFormsOrAds() async {
+        let adapter = Adapter()
+        adapter.isEnabled = false
+        adapter.privacyOptionsRequired = true
+        let service = RewardedAdService(adapter: adapter, presentationChanged: { _ in XCTFail("No presentation") })
+        XCTAssertEqual(adapter.privacyReadCount, 0, "Even cached UMP state is outside the disabled boundary.")
+        for _ in 0..<2 {
+            await service.prepare()
+            await service.refreshPrivacyStatus()
+            await service.presentPrivacyOptions()
+            service.cancelPreparation()
+            XCTAssertFalse(service.present(onReward: { XCTFail("No reward") }, onDismiss: { XCTFail("No ad") }))
+        }
+        XCTAssertTrue(adapter.calls.isEmpty)
+        XCTAssertEqual(adapter.privacyReadCount, 0)
+        XCTAssertEqual(adapter.loadCount, 0)
+        XCTAssertEqual(adapter.ad.presentCount, 0)
+        XCTAssertFalse(service.isEnabled)
+        XCTAssertFalse(service.isReady)
+        XCTAssertFalse(service.isPresenting)
+        XCTAssertFalse(service.isPresentingPrivacyOptions)
+        XCTAssertFalse(service.privacyOptionsRequired)
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertNil(service.lastError)
+    }
+
+    func testEnabledConfigurationsStillUseTheInjectedSDKFactory() throws {
+        for mode in ["test", "live"] {
+            let configuration = try AdConfiguration.resolve(mode: mode,
+                appID: mode == "test" ? AdConfiguration.demoAppID : AdConfiguration.productionAppID,
+                rewardedAdUnitID: mode == "test" ? AdConfiguration.demoRewardedID : AdConfiguration.productionRewardedID,
+                runtime: .init(isDebug: false, isSimulator: false))
+            let expected = Adapter()
+            var factoryCalls = 0
+            let actual = RewardedAdService.makeAdapter(configuration: .success(configuration)) { received in
+                factoryCalls += 1
+                XCTAssertEqual(try? received.get(), configuration)
+                return expected
+            }
+            XCTAssertEqual(factoryCalls, 1)
+            XCTAssertTrue(actual === expected)
+            XCTAssertTrue(RewardedAdService(adapter: actual).isEnabled)
+        }
+    }
+
     func testDemoIdentifiersStayAvailableForRoutineBuilds() {
         XCTAssertEqual(RewardedAdService.demoRewardedID, "ca-app-pub-3940256099942544/1712485313")
         XCTAssertEqual(RewardedAdService.demoAppID, "ca-app-pub-3940256099942544~1458002511")
@@ -343,6 +465,7 @@ final class RewardedAdServiceTests: XCTestCase {
     private enum TestError: Error { case failed }
 
     private final class Adapter: RewardedAdAdapter {
+        var isEnabled = true
         var canRequestAds = true
         private var needsPrivacyOptions = false
         var privacyReadCount = 0

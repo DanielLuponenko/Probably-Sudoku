@@ -220,7 +220,8 @@ struct BookmarkRow: View {
                              explaining: Binding(
                                 get: { explaining == slot },
                                 set: { explaining = $0 ? slot : nil }),
-                             sale: sale, onSell: { sell(sale) })
+                             sale: sale, onSell: { sell(sale) },
+                             scoreLabel: model.bookmarkScoreLabel(owned.defID))
                         .gesture(handle(kind: .bookmark, index: slot,
                                         defID: owned.defID,
                                         price: model.sellPrice(owned.pricePaid),
@@ -431,6 +432,7 @@ private struct BookmarkShape: Shape {
 }
 
 struct InventoryBookmark: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var def: ItemDef
     var colour: Color
@@ -450,6 +452,7 @@ struct InventoryBookmark: View {
     @Binding var explaining: Bool
     var sale: InventorySale? = nil
     var onSell: (() -> Void)? = nil
+    var scoreLabel: String? = nil
 
     /// Hand-inserted things are never quite straight, and the tilt has to be
     /// the same every render or the row twitches on each state change.
@@ -506,14 +509,15 @@ struct InventoryBookmark: View {
         .overlay(alignment: .top) {
             if fired {
                 HStack(spacing: 2) {
-                    Image(systemName: "sparkles")
-                    Text("FIRED")
+                    Text(scoreLabel ?? "FIRED")
                 }
-                    .font(Print.caption(8))
+                    .font(Print.caption(11))
                     .fontWeight(.black)
-                    .foregroundStyle(Paper.coin)
-                    .shadow(color: Paper.coin.opacity(0.9), radius: 5)
-                    .offset(y: -9)
+                    .foregroundStyle(Paper.ink)
+                    .padding(.horizontal, 4)
+                    .background(Paper.pageWarm, in: .rect(cornerRadius: 2))
+                    .fixedSize()
+                    .offset(y: -12)
                     .transition(.scale.combined(with: .opacity))
                     .accessibilityHidden(true)
             }
@@ -524,8 +528,8 @@ struct InventoryBookmark: View {
         .saturation(asleep ? 0.2 : 1)
         .contentShape(Rectangle())
         .animation(.snappy(duration: 0.16), value: pulling)
-        .animation(.bouncy(duration: 0.26, extraBounce: 0.16), value: fired)
-        .scaleEffect(fired ? 1.12 : 1)
+        .scaleEffect(fired && !reduceMotion ? 1.08 : 1)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.20), value: fired)
         // The row is near the top of the screen. A top-edge arrow puts the
         // explanation below its bookmark, where the whole card has room.
         .popover(isPresented: $explaining, arrowEdge: .top) {

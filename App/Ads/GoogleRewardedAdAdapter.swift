@@ -1,3 +1,4 @@
+#if !NUMBERCLUB_AD_FREE
 import GoogleMobileAds
 import UIKit
 import UserMessagingPlatform
@@ -15,17 +16,23 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
     }
 
     func validateConfiguration() throws {
-        _ = try configuration.get()
+        _ = try enabledConfiguration()
     }
 
-    private var isConfigured: Bool { (try? configuration.get()) != nil }
+    var isEnabled: Bool { (try? configuration.get().isEnabled) == true }
 
-    var canRequestAds: Bool { isConfigured && ConsentInformation.shared.canRequestAds }
+    private func enabledConfiguration() throws -> AdConfiguration {
+        let value = try configuration.get()
+        guard value.isEnabled else { throw PresentationError.adsDisabled }
+        return value
+    }
+
+    var canRequestAds: Bool { isEnabled && ConsentInformation.shared.canRequestAds }
     var privacyOptionsRequired: Bool {
-        isConfigured && ConsentInformation.shared.privacyOptionsRequirementStatus == .required
+        isEnabled && ConsentInformation.shared.privacyOptionsRequirementStatus == .required
     }
     var canPresent: Bool {
-        isConfigured && !isShowingConsentForm && UIApplication.shared.applicationState == .active &&
+        isEnabled && !isShowingConsentForm && UIApplication.shared.applicationState == .active &&
         UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .contains { scene in
                 scene.activationState == .foregroundActive &&
@@ -71,11 +78,12 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
     }
 
     func loadAd() async throws -> any RewardedAdHandle {
-        let configuration = try configuration.get()
+        let configuration = try enabledConfiguration()
         guard canRequestAds else { throw PresentationError.consentRequired }
         if !hasStartedSDK {
             // Initialization can preload ads, so it belongs behind consent too.
             if initializationTask == nil {
+                Self.configureRequestPrivacy(MobileAds.shared.requestConfiguration)
                 initializationTask = Task { _ = await MobileAds.shared.start() }
             }
             await initializationTask?.value
@@ -89,11 +97,30 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
         let runtime = AdConfiguration.Runtime.current
         let unitID = runtime.isDebug || runtime.isSimulator
             ? AdConfiguration.demoRewardedID : configuration.rewardedAdUnitID
-        let ad = try await RewardedAd.load(with: unitID, request: Request())
+        let ad = try await RewardedAd.load(with: unitID, request: Self.makeRequest())
         return GoogleRewardedAd(ad)
     }
 
+    /// Apply before SDK start as initialization may preload ads. These are
+    /// publisher restrictions, not inferred consent, age flags, or ATT approval.
+    static func configureRequestPrivacy(_ settings: RequestConfiguration) {
+        settings.setPublisherFirstPartyIDEnabled(false)
+        settings.publisherPrivacyPersonalizationState = .disabled
+        settings.maxAdContentRating = .general
+    }
+
+    /// NPA remains subject to UMP consent. Do not pass player IDs, saved games,
+    /// Game Center aliases, custom targeting, or any other gameplay data.
+    static func makeRequest() -> Request {
+        let request = Request()
+        let extras = Extras()
+        extras.additionalParameters = ["npa": "1"]
+        request.register(extras)
+        return request
+    }
+
     private enum PresentationError: Error {
+        case adsDisabled
         case noForegroundWindow
         case consentRequired
     }
@@ -146,3 +173,4 @@ private final class GoogleRewardedAd: NSObject, RewardedAdHandle, FullScreenCont
         onFailure = nil
     }
 }
+#endif

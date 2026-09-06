@@ -5,6 +5,8 @@ import Observation
 /// Tests use an in-memory adapter; gameplay never imports Google's SDK.
 @MainActor
 protocol RewardedAdAdapter: AnyObject {
+    /// Pure build capability. Reading this must never initialize an SDK.
+    var isEnabled: Bool { get }
     /// Pure validation, before reading consent state or contacting either SDK.
     func validateConfiguration() throws
     var canRequestAds: Bool { get }
@@ -15,6 +17,11 @@ protocol RewardedAdAdapter: AnyObject {
     func presentRequiredConsent() async throws
     func presentPrivacyOptions() async throws
     func loadAd() async throws -> any RewardedAdHandle
+}
+
+extension RewardedAdAdapter {
+    // Existing injected test adapters retain their enabled behavior.
+    var isEnabled: Bool { true }
 }
 
 @MainActor
@@ -35,10 +42,28 @@ final class RewardedAdService {
         case unavailable(String)
     }
 
-    static let shared = RewardedAdService(adapter: GoogleRewardedAdAdapter(),
+    static let shared = RewardedAdService(adapter: makeAdapter(configuration: AdConfiguration.current),
                                          presentationChanged: { GameAudio.shared.setAdPresented($0) })
-    /// Routine Debug/Release builds use this pair. Live ads require the
-    /// separately configured Production archive and a physical device.
+
+    /// Resolve the ad-free path before even constructing the Google adapter.
+    /// A factory seam proves this ordering without linking either Google SDK.
+    static func makeAdapter(configuration: Result<AdConfiguration, Error>,
+                            enabledAdapter: @MainActor (Result<AdConfiguration, Error>) -> any RewardedAdAdapter = { configuration in
+                                #if NUMBERCLUB_AD_FREE
+                                // This target does not link Google. Even wrong
+                                // bundle metadata cannot introduce an SDK path.
+                                DisabledRewardedAdAdapter()
+                                #else
+                                GoogleRewardedAdAdapter(configuration: configuration)
+                                #endif
+                            }) -> any RewardedAdAdapter {
+        if case let .success(value) = configuration, !value.isEnabled {
+            return DisabledRewardedAdAdapter()
+        }
+        return enabledAdapter(configuration)
+    }
+    /// Routine development uses this pair. Only the Production device archive
+    /// selects live IDs; the separate ad-free rollback target omits both SDKs.
     static let demoAppID = AdConfiguration.demoAppID
     static let demoRewardedID = AdConfiguration.demoRewardedID
     static let cacheLifetime: TimeInterval = 55 * 60
@@ -72,13 +97,15 @@ final class RewardedAdService {
         self.now = now
         self.networkTimeout = networkTimeout
         self.presentationChanged = presentationChanged
-        if validateAdapterConfiguration() {
+        if validateAdapterConfiguration(), adapter.isEnabled {
             self.privacyOptionsRequired = adapter.privacyOptionsRequired
         }
     }
 
+    var isEnabled: Bool { adapter.isEnabled }
+
     var isReady: Bool {
-        guard state == .ready, ad != nil, let loadedAt else { return false }
+        guard isEnabled, state == .ready, ad != nil, let loadedAt else { return false }
         return now().timeIntervalSince(loadedAt) < Self.cacheLifetime && adapter.canRequestAds
     }
 
@@ -97,7 +124,7 @@ final class RewardedAdService {
     }
 
     private func startPreparation(privacyOnly: Bool) async {
-        guard !Task.isCancelled, preparationID == nil, !isPresenting,
+        guard isEnabled, !Task.isCancelled, preparationID == nil, !isPresenting,
               !isPresentingPrivacyOptions else { return }
         guard validateAdapterConfiguration() else { return }
         if !privacyOnly && isReady { return }
@@ -132,7 +159,7 @@ final class RewardedAdService {
     @discardableResult
     func present(onReward: @escaping @MainActor () -> Void,
                  onDismiss: @escaping @MainActor () -> Void) -> Bool {
-        guard !isPresenting, !isPresentingPrivacyOptions, preparationID == nil else { return false }
+        guard isEnabled, !isPresenting, !isPresentingPrivacyOptions, preparationID == nil else { return false }
         guard validateAdapterConfiguration() else { return false }
         guard isReady, let ad else {
             discardAd()
@@ -175,6 +202,7 @@ final class RewardedAdService {
     /// User-initiated Settings action. A changed choice invalidates cached ads;
     /// another explicit prepare is required before any subsequent ad request.
     func presentPrivacyOptions() async {
+        guard isEnabled else { return }
         guard validateAdapterConfiguration() else { return }
         guard preparationID == nil, !isPresenting, !isPresentingPrivacyOptions,
               privacyOptionsRequired, adapter.canPresent else { return }
@@ -333,4 +361,21 @@ final class RewardedAdService {
         ad = nil
         loadedAt = nil
     }
+}
+
+/// No Google imports, consent reads, requests, notifications or preload work.
+/// Defensive throwing methods also prevent direct callers from requesting ads.
+@MainActor
+private final class DisabledRewardedAdAdapter: RewardedAdAdapter {
+    private enum Disabled: Error { case adsUnavailable }
+    var isEnabled: Bool { false }
+    var canRequestAds: Bool { false }
+    var privacyOptionsRequired: Bool { false }
+    var canPresent: Bool { false }
+    func validateConfiguration() {}
+    func updateConsent() async throws { throw Disabled.adsUnavailable }
+    func loadRequiredConsent() async throws { throw Disabled.adsUnavailable }
+    func presentRequiredConsent() async throws { throw Disabled.adsUnavailable }
+    func presentPrivacyOptions() async throws { throw Disabled.adsUnavailable }
+    func loadAd() async throws -> any RewardedAdHandle { throw Disabled.adsUnavailable }
 }

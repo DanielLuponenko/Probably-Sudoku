@@ -332,7 +332,8 @@ struct BookstoreOpeningView: View {
     }
 
     private var selectionControls: some View {
-        ZStack {
+        GeometryReader { proxy in
+            let layout = BookstoreSelectionLayout(viewport: proxy.size)
             VStack(spacing: 0) {
                 HStack {
                     Button(action: returnToStore) {
@@ -362,7 +363,7 @@ struct BookstoreOpeningView: View {
                                  : "OPEN THE BOOK")
                             .font(Print.subheading(19))
                             .tracking(1)
-                            .frame(maxWidth: .infinity, minHeight: 58)
+                            .frame(maxWidth: .infinity, minHeight: BookstoreSelectionLayout.openButtonHeight)
                             .foregroundStyle(BookstoreInk.paper)
                             .background(BookstoreInk.green)
                             .contentShape(Rectangle())
@@ -372,7 +373,7 @@ struct BookstoreOpeningView: View {
                         .buttonStyle(BookstorePressedStyle())
                         .disabled(isOpeningBook || !isFocusedBookPresented)
                         .opacity(isFocusedBookPresented ? 1 : 0)
-                        .padding(.top, 5)
+                        .padding(.top, BookstoreSelectionLayout.openButtonTopPadding)
                         .accessibilityHint("Open or resume this Book")
                     } else {
                         Button(action: focusSelectedBook) {
@@ -390,7 +391,7 @@ struct BookstoreOpeningView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 14)
+                .padding(.bottom, layout.openButtonBottomPadding)
             }
 
         }
@@ -694,7 +695,7 @@ struct SelectedBookBenefitPlaque: View {
     private var tint: Color { accent.mixed(with: stock, by: 0.77) }
 
     static func height(width: CGFloat, showsObstacle: Bool) -> CGFloat {
-        width * 0.245 + (showsObstacle ? 32 : 0)
+        BookstoreSelectionLayout.plaqueHeight(width: width, showsObstacle: showsObstacle)
     }
 
     var body: some View {

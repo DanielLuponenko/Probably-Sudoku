@@ -266,6 +266,7 @@ struct BookstoreSceneView: UIViewRepresentable {
 
     func updateUIView(_ view: SCNView, context: Context) {
         context.coordinator.updateViewport(view.bounds.size)
+        if !isSceneVisible { context.coordinator.stopRackMotionWhenHidden() }
         (view as? BookstoreSCNView)?.updateRenderActivity(isSceneVisible: isSceneVisible)
         view.setNeedsDisplay()
         context.coordinator.update(

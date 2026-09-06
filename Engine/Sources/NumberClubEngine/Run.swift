@@ -31,6 +31,8 @@ public struct RunState: Codable, Sendable {
     /// Kept for the completed-Book record. It is updated only when a Puzzle
     /// is banked, so an unfinished score is never presented as an achievement.
     public var bestPuzzleScore: Int
+    /// Monotonic within this Book, without consuming any gameplay RNG.
+    public internal(set) var shopVisitCount: Int = 0
 
     public var bookmarks: [OwnedBookmark] = []
     public var markers: [OwnedMarker] = []
@@ -71,7 +73,7 @@ public struct RunState: Codable, Sendable {
         // selected Book now owns its benefit.
         case seed, streams, book, obstacle, level, slot, coins
         case bookmarks, markers, buffs, subscriptions, runItemState, puzzle, shop, pendingBoss, outcome
-        case bestPuzzleScore
+        case bestPuzzleScore, shopVisitCount
     }
 
     /// Subscriptions arrived after saved Books existed. Decode their absence as
@@ -93,6 +95,12 @@ public struct RunState: Codable, Sendable {
         runItemState = try c.decodeIfPresent([String: Double].self, forKey: .runItemState) ?? [:]
         puzzle = try c.decodeIfPresent(PuzzleState.self, forKey: .puzzle)
         shop = try c.decodeIfPresent(ShopState.self, forKey: .shop)
+        // Missing provenance remains unknown. Recover the high-water mark
+        // from known identities too, so a partial migration cannot reuse one.
+        let knownVisits = bookmarks.compactMap(\.boughtInShopVisitID)
+            + buffs.compactMap(\.boughtInShopVisitID)
+            + [shop?.visitID ?? 0, try c.decodeIfPresent(Int.self, forKey: .shopVisitCount) ?? 0]
+        shopVisitCount = max(0, knownVisits.max() ?? 0)
         pendingBoss = try c.decodeIfPresent(BossModifier.self, forKey: .pendingBoss)
         outcome = try c.decodeIfPresent(RunOutcome.self, forKey: .outcome)
         finishBookIfCashedOut()
@@ -116,6 +124,7 @@ public struct RunState: Codable, Sendable {
         try c.encode(slot, forKey: .slot)
         try c.encode(coins, forKey: .coins)
         try c.encode(bestPuzzleScore, forKey: .bestPuzzleScore)
+        try c.encode(shopVisitCount, forKey: .shopVisitCount)
         try c.encode(bookmarks, forKey: .bookmarks)
         try c.encode(markers, forKey: .markers)
         try c.encode(buffs, forKey: .buffs)
@@ -128,6 +137,11 @@ public struct RunState: Codable, Sendable {
     }
 
     // MARK: - Ownership queries
+
+    mutating func nextShopVisitID() -> Int {
+        shopVisitCount += 1
+        return shopVisitCount
+    }
 
     public func owns(bookmark id: String) -> Bool { bookmarks.contains { $0.defID == id } }
     public func owns(marker id: String) -> Bool { markers.contains { $0.defID == id } }

@@ -14,6 +14,9 @@ enum ProceduralSound {
         case .win: duration = 0.58
         case .error: duration = 0.14
         case .menuTap: duration = 0.055
+        case .scoreTick, .scoreTickHigh: duration = 0.075
+        case .scoreMultiply: duration = 0.14
+        case .scoreBank: duration = 0.18
         }
         let count = Int(duration * Double(sampleRate))
         var random: UInt64 = UInt64(GameSound.allCases.firstIndex(of: sound)! + 1) * 7919
@@ -50,6 +53,14 @@ enum ProceduralSound {
             case .error:
                 value = (sin(2 * .pi * 115 * time) * 0.32 + lowNoise * 0.1)
                     * exp(-time * 27) * min(1, time / 0.004) * envelope
+            case .scoreTick, .scoreTickHigh, .scoreMultiply, .scoreBank:
+                let frequency: Double = sound == .scoreTick ? 660 : sound == .scoreTickHigh ? 880
+                    : sound == .scoreMultiply ? 330 : 180
+                let tone = sin(2 * .pi * frequency * time)
+                    + 0.18 * sin(2 * .pi * frequency * 2 * time)
+                let paper = sound == .scoreBank ? lowNoise * 0.35 : noise * 0.045
+                value = (tone * 0.23 + paper) * exp(-time * 30)
+                    * min(1, time / 0.003) * envelope
             }
             samples.append(Int16((min(0.6, max(-0.6, value)) * Double(Int16.max)).rounded()))
         }

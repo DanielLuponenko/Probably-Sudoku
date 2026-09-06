@@ -72,6 +72,8 @@ public struct EffectContext: Sendable {
 /// The three running totals of §6 plus every side effect an item can have.
 /// Effects only ever add into this; the resolver applies it.
 public struct EffectResult: Sendable {
+    /// Presentation evidence only. Never absorbed into, or encoded with, a save.
+    public var contributions: [ScoreContribution] = []
     public var flat = 0
     public var multAdd = 0.0
     public var multX = 1.0
@@ -112,6 +114,24 @@ public struct EffectResult: Sendable {
         let current = runStateWrites[key] ?? context.runState[key] ?? 0
         runStateWrites[key] = current + amount
     }
+}
+
+/// A delta recorded while the real hook runs, not a second speculative dispatch.
+public struct ScoreContribution: Sendable, Equatable {
+    public var sourceID: String
+    public var name: String
+    public var flat: Int
+    public var multAdd: Double
+    public var multX: Double
+    public var directScore: Int
+    public var coins: Int
+}
+
+public struct ScoreEventReceipt: Sendable, Equatable {
+    public var event: GameEvent
+    public var base: Int
+    public var points: Int
+    public var contributions: [ScoreContribution]
 }
 
 public typealias Effect = @Sendable (EffectContext, inout EffectResult) -> Void

@@ -59,10 +59,12 @@ public enum Resolver {
         //    trigger it.
         if let square = context.square {
             for marker in run.markers(covering: square) {
+                let before = result
                 if let hook = marker.def.hooks[context.event] { hook(context, &result) }
                 if let hook = marker.def.hooks[.anyScore], context.event.isScoring {
                     hook(context, &result)
                 }
+                record(marker.def.id, name: marker.def.name, before: before, into: &result)
             }
         }
 
@@ -75,20 +77,42 @@ public enum Resolver {
                                 run: RunState,
                                 puzzle: PuzzleState,
                                 into result: inout EffectResult) {
+        let beforeBook = result
         run.book.benefit.apply(to: &result, context: context)
+        record("book-benefit", name: "Book bonus", before: beforeBook, into: &result)
         // 3. Bookmarks, in purchase order.
         for (index, ad) in run.bookmarks.enumerated() where index != puzzle.disabledBookmark {
+            let before = result
             if let hook = ad.def.hooks[context.event] { hook(context, &result) }
             if context.event.isScoring, let hook = ad.def.hooks[.anyScore] { hook(context, &result) }
+            record(ad.def.id, name: ad.def.name, before: before, into: &result)
         }
 
         // 4. Activated Buff effects outlive the consumed inventory item. Their
         // hooks read saved activation state, so holding extra copies neither
         // enables nor duplicates an effect (Bird Seed's per-Level coin).
         for buff in Buffs.all {
+            let before = result
             if let hook = buff.hooks[context.event] { hook(context, &result) }
+            record(buff.id, name: buff.name, before: before, into: &result)
         }
 
+    }
+
+    private static func record(_ id: String, name: String, before: EffectResult,
+                               into result: inout EffectResult) {
+        let multiplier = before.multX == 0 ? 1 : result.multX / before.multX
+        let eventMultiplier = before.eventMultX == 0 ? 1 : result.eventMultX / before.eventMultX
+        let delta = ScoreContribution(sourceID: id, name: name,
+                                      flat: result.flat - before.flat,
+                                      multAdd: result.multAdd - before.multAdd,
+                                      multX: multiplier * eventMultiplier,
+                                      directScore: result.directScore - before.directScore,
+                                      coins: result.coins - before.coins)
+        if delta.flat != 0 || delta.multAdd != 0 || delta.multX != 1
+            || delta.directScore != 0 || delta.coins != 0 {
+            result.contributions.append(delta)
+        }
     }
 
     public static func holdings(_ context: EffectContext,

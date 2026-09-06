@@ -2,7 +2,7 @@ import Foundation
 
 /// Validated build metadata. Resolving it is pure: no consent or ads SDK work.
 struct AdConfiguration: Equatable, Sendable {
-    enum Mode: String, Sendable { case test, live }
+    enum Mode: String, Sendable { case disabled, test, live }
 
     struct Runtime: Equatable, Sendable {
         let isDebug: Bool
@@ -45,8 +45,9 @@ struct AdConfiguration: Equatable, Sendable {
     static let productionAppID = "ca-app-pub-6970700553304979~2878649005"
     static let productionRewardedID = "ca-app-pub-6970700553304979/5201560013"
 
-    /// Effective request mode; Debug and simulators always resolve to test.
+    /// Disabled stays disabled everywhere. Enabled Debug/simulator builds use test ads.
     let mode: Mode
+    var isEnabled: Bool { mode != .disabled }
     /// The approved GADApplicationIdentifier in this bundle. Google reads this
     /// metadata itself; a test rewarded-unit override does not rewrite it.
     let appID: String
@@ -65,6 +66,11 @@ struct AdConfiguration: Equatable, Sendable {
         }
         guard let mode = Mode(rawValue: rawMode) else {
             throw ConfigurationError.unsupportedMode(rawMode)
+        }
+        // An explicit ad-free build needs no Google identifiers. Discard any
+        // inherited metadata instead of leaving a usable request configuration.
+        if mode == .disabled {
+            return AdConfiguration(mode: .disabled, appID: "", rewardedAdUnitID: "")
         }
         guard let appID, !appID.isEmpty else {
             throw ConfigurationError.missingValue("GADApplicationIdentifier")
