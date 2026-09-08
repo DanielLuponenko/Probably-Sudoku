@@ -5,15 +5,23 @@ import ProbablySudokuEngine
 /// physical Book. Phone-sized page proposals pass through unchanged.
 struct PuzzleBriefingLayout {
     let available: CGSize
-    static let routeMaximumWidth: CGFloat = 420
+    static let routeMaximumWidth: CGFloat = 560
 
     var contentSize: CGSize {
         CGSize(width: min(available.width, 560), height: min(available.height, 840))
     }
 
-    /// A tablet's extra page space belongs below the offer, not inside its
-    /// single-rule ticket. Narrow pages retain their existing flexible height.
-    var clippingMaximumHeight: CGFloat? { available.width > 560 ? 280 : nil }
+    /// Extra page space is a margin, never a stretched single-rule coupon.
+    var clippingMaximumHeight: CGFloat { 280 }
+
+    var routeHeight: CGFloat { RunRouteStrip.height(for: contentSize.width) }
+    var sceneHeight: CGFloat { contentSize.height < 620 ? 72 : (contentSize.width > 500 ? 112 : 88) }
+    /// These slots depend on the page, never on whether a receipt just arrived.
+    /// A short page can scroll its content; it must not squash the Sudoku grids.
+    var decisionHeight: CGFloat {
+        min(clippingMaximumHeight, max(contentSize.height < 620 ? 176 : 190,
+                                      contentSize.height - routeHeight - sceneHeight - 220))
+    }
 }
 
 /// The one-page decision before a Puzzle starts. A Clipping is a physical
@@ -26,13 +34,13 @@ struct PuzzleBriefingView: View {
     @Bindable var model: GameModel
     var canStartPresentation: @MainActor () -> Bool = { true }
     var isPresentationCovered = false
-    @State private var ticketArrived = false
-    @State private var clipBounced = false
-    @State private var stampVisible = false
     @State private var isStartingPuzzle = false
     @State private var isAwaitingPreparation = false
     @State private var playTask: Task<Void, Never>?
     @State private var playRequestID: UUID?
+    @State private var clippingClaim: GameModel.ClippingClaim?
+    @State private var clippingTask: Task<Void, Never>?
+    @State private var clippingRequestID: UUID?
 
     var body: some View {
         // The page owns its bounds. An encounter's artwork must fit that
@@ -53,82 +61,86 @@ struct PuzzleBriefingView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 cancelPendingPlay()
+                cancelClippingTake()
                 model.cancelPuzzlePreparation()
             }
         }
         .onChange(of: isPresentationCovered) { _, covered in
-            if covered { cancelPendingPlay() }
+            if covered {
+                cancelPendingPlay()
+                cancelClippingTake()
+            }
+        }
+        .onChange(of: flipper.isFlipping) { _, flipping in
+            if flipping { cancelClippingTake() }
         }
         .onDisappear {
             model.cancelPuzzlePreparation()
+            cancelClippingTake()
             // A committed flip owns its remaining animation independently of
             // the disappearing briefing. Other navigation cancels a cold wait.
             if model.page != .puzzle || !flipper.isFlipping { cancelPendingPlay() }
         }
-        .task(id: "\(model.run.level)-\(model.run.slot.rawValue)") {
-            ticketArrived = false
-            clipBounced = false
-            stampVisible = false
-            guard model.run.currentClipping != nil else { return }
-            guard !reduceMotion else {
-                ticketArrived = true
-                stampVisible = true
-                return
-            }
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.76)) { ticketArrived = true }
-            try? await Task.sleep(for: .milliseconds(170))
-            guard !Task.isCancelled else { return }
-            withAnimation(.bouncy(duration: 0.22, extraBounce: 0.18)) { clipBounced = true }
-            try? await Task.sleep(for: .milliseconds(160))
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.12)) { clipBounced = false }
-            try? await Task.sleep(for: .milliseconds(90))
-            guard !Task.isCancelled else { return }
-            withAnimation(.snappy(duration: 0.18)) { stampVisible = true }
-        }
     }
 
     private func briefingContent(layout: PuzzleBriefingLayout) -> some View {
-        VStack(alignment: .leading, spacing: 11) {
-            briefingHeader
-            RunRouteStrip(currentSlot: model.run.slot, boss: upcomingBoss)
+        VStack(alignment: .leading, spacing: 6) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    briefingHeader
+                        .fixedSize(horizontal: false, vertical: true)
+                    RunRouteStrip(currentSlot: model.run.slot, boss: upcomingBoss,
+                                  isMotionActive: !isPresentationCovered && !flipper.isFlipping)
+                        .frame(height: layout.routeHeight)
+                    BookLivingScene(book: model.run.book,
+                                    isActive: !isPresentationCovered && !flipper.isFlipping)
+                        .frame(height: layout.sceneHeight)
+                    decisionArea
+                        .frame(height: layout.decisionHeight)
+                        .padding(.top, 6)
+                        .padding(.bottom, 6)
+                }
                 .frame(maxWidth: .infinity)
-
-            if let clipping = model.lastClipping {
-                ClippingReceipt(clipping: clipping)
+                .padding(.horizontal, 2)
             }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
 
-            if let clipping = model.run.currentClipping {
-                ClippingOfferTicket(clipping: clipping,
-                                    remaining: model.run.skipsRemaining,
-                                    arrived: ticketArrived,
-                                    clipBounced: clipBounced,
-                                    stampVisible: stampVisible) {
-                    model.skipCurrentPuzzle()
-                }
-                .frame(maxHeight: layout.clippingMaximumHeight)
-                .padding(.top, 9)
-                .padding(.bottom, 12)
-                if layout.clippingMaximumHeight != nil {
-                    Spacer(minLength: 0)
-                }
-            } else if model.run.slot == .boss {
-                if let boss = upcomingBoss {
-                    BookNarration(text: "The Book insists you face \(boss.name).")
-                    BossEncounterPreview(boss: boss)
+            // Always allocated: accepting a clipping changes ink, not geometry.
+            Group {
+                if let clipping = model.lastClipping {
+                    ClippingReceipt(clipping: clipping)
+                } else {
+                    Text(model.run.slot == .boss ? "No shortcuts past this page."
+                         : "Clippings are optional. Your Book, your call.")
+                        .font(.system(size: 12, design: .serif).italic())
+                        .foregroundStyle(theme.paper.softInk)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-
-            if model.run.currentClipping == nil && (model.run.slot != .boss || upcomingBoss == nil) {
-                Spacer(minLength: 0)
-            }
-
+            .frame(height: 26, alignment: .center)
             PaperButton(title: isAwaitingPreparation ? "Preparing Puzzle…" : "Play Puzzle  →",
-                        kind: .primary, isEnabled: !isStartingPuzzle) {
+                        kind: .primary, isEnabled: !isStartingPuzzle && clippingClaim == nil) {
                 startPreparedPuzzle()
             }
             PageNumber(level: model.run.level, slot: model.run.slot.rawValue)
         }
+    }
+
+    private var decisionArea: some View {
+        ZStack {
+            if let clipping = model.run.currentClipping {
+                ClippingOfferTicket(clipping: clipping, remaining: model.run.skipsRemaining,
+                                    arrived: true, clipBounced: false, stampVisible: true,
+                                    isTaking: clippingClaim != nil, onTake: takeClipping)
+                    .id(clipping)
+                    .transition(.opacity)
+            } else if let boss = upcomingBoss, model.run.slot == .boss {
+                BossEncounterPreview(boss: boss)
+                    .transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: model.run.currentClipping)
     }
 
     private var preparationLifetime: String {
@@ -136,7 +148,7 @@ struct PuzzleBriefingView: View {
     }
 
     private func startPreparedPuzzle() {
-        guard !isStartingPuzzle, scenePhase == .active, !flipper.isFlipping,
+        guard !isStartingPuzzle, clippingClaim == nil, scenePhase == .active, !flipper.isFlipping,
               canStartPresentation() else { return }
         let requestID = UUID()
         playRequestID = requestID
@@ -170,6 +182,41 @@ struct PuzzleBriefingView: View {
         isAwaitingPreparation = false
     }
 
+    private func takeClipping() {
+        guard !isStartingPuzzle, clippingClaim == nil, scenePhase == .active,
+              !flipper.isFlipping, canStartPresentation(),
+              let claim = model.currentClippingClaim else { return }
+        clippingClaim = claim
+        let requestID = UUID()
+        clippingRequestID = requestID
+        Haptics.pageTurn()
+        clippingTask = Task { @MainActor in
+            defer {
+                if clippingRequestID == requestID {
+                    clippingRequestID = nil
+                    clippingClaim = nil
+                    clippingTask = nil
+                }
+            }
+            do {
+                try await Task.sleep(for: .milliseconds(reduceMotion ? 120 : 820))
+            } catch { return }
+            guard !Task.isCancelled, clippingRequestID == requestID,
+                  clippingClaim == claim, scenePhase == .active,
+                  !isPresentationCovered, !flipper.isFlipping, canStartPresentation() else { return }
+            // The reward and route advance are one engine mutation. The
+            // hanging paper is only presentation and can never pay twice.
+            _ = model.takeClipping(ifCurrent: claim)
+        }
+    }
+
+    private func cancelClippingTake() {
+        clippingTask?.cancel()
+        clippingTask = nil
+        clippingRequestID = nil
+        clippingClaim = nil
+    }
+
     private var briefingHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top) {
@@ -200,25 +247,17 @@ private struct ClippingReceipt: View {
     var clipping: Clipping
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 7) {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Paper.redPencil)
-            Text("Clipping secured")
-                .font(Print.caption(10)).tracking(0.8).textCase(.uppercase)
-            Text("·")
-                .foregroundStyle(theme.paper.softInk)
-            Text(clipping.detail)
-                .font(Print.body(12.5))
+            Text("\(clipping.name): \(clipping.detail)")
+                .font(Print.body(12))
+                .lineLimit(2).minimumScaleFactor(0.85)
             Spacer(minLength: 0)
         }
         .foregroundStyle(theme.paper.softInk)
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(theme.paper.edge.opacity(0.58))
-        .overlay(alignment: .leading) {
-            Rectangle().fill(Paper.redPencil).frame(width: 2)
-        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Clipping secured: \(clipping.name). \(clipping.detail)")
     }
@@ -229,19 +268,36 @@ private struct ClippingReceipt: View {
 struct RunRouteStrip: View {
     var currentSlot: PuzzleSlot
     var boss: BossModifier?
+    var isMotionActive = true
+
+    static func boardSide(for width: CGFloat) -> CGFloat {
+        max(0, (min(width, PuzzleBriefingLayout.routeMaximumWidth) - 36) / 3)
+    }
+
+    static func height(for width: CGFloat) -> CGFloat { boardSide(for: width) + 80 }
+
+    static func title(for slot: PuzzleSlot) -> String {
+        switch slot {
+        case .easy: "Easy"
+        case .medium: "Easy but hard"
+        case .boss: "Boss"
+        }
+    }
 
     var accessibilitySummary: String {
-        guard let boss else { return "Run plan: Puzzle 1, Puzzle 2, then Boss. Adversary not yet known." }
-        return "Run plan: Puzzle 1, Puzzle 2, then Boss: \(boss.name). Power: \(boss.text)"
+        let route = "Run plan: Easy, Easy but hard, then Boss. Current stop: \(Self.title(for: currentSlot))."
+        guard let boss else { return "\(route) Adversary not yet known." }
+        return "\(route) \(boss.name). Power: \(boss.text). Miniature grids illustrate the route."
     }
 
     var body: some View {
-        HStack(spacing: 7) {
-            RouteCard(slot: .easy, currentSlot: currentSlot, boss: boss)
+        // The grid, not a tall card behind it, owns each stop's footprint.
+        HStack(alignment: .routeGridCenter, spacing: 3) {
+            RouteCard(slot: .easy, currentSlot: currentSlot, boss: boss, isMotionActive: isMotionActive)
             RouteArrow()
-            RouteCard(slot: .medium, currentSlot: currentSlot, boss: boss)
+            RouteCard(slot: .medium, currentSlot: currentSlot, boss: boss, isMotionActive: isMotionActive)
             RouteArrow()
-            RouteCard(slot: .boss, currentSlot: currentSlot, boss: boss)
+            RouteCard(slot: .boss, currentSlot: currentSlot, boss: boss, isMotionActive: isMotionActive)
         }
         .frame(maxWidth: PuzzleBriefingLayout.routeMaximumWidth)
         .accessibilityElement(children: .ignore)
@@ -251,91 +307,58 @@ struct RunRouteStrip: View {
 
 private struct RouteCard: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
     var slot: PuzzleSlot
     var currentSlot: PuzzleSlot
     var boss: BossModifier?
+    var isMotionActive: Bool
 
     private var isCurrent: Bool { slot == currentSlot }
     private var isBoss: Bool { slot == .boss }
-    private var title: String { isBoss ? "Boss" : "Puzzle \(slot.rawValue + 1)" }
-    private var status: String { isBoss ? "Must play" : (isCurrent ? "Choose now" : "Up next") }
-    /// A current route is printed with club ink, not the page's semantic ink.
-    /// Night Sky reverses semantic page ink to cream, so using it as a fill
-    /// would turn the active card into a bright tile.
-    private var currentForeground: Color {
-        theme.paper.isDark ? theme.paper.ink : theme.paper.page
-    }
-    private var cardInset: CGFloat { isBoss ? 5 : 7 }
-    private var contentSpacing: CGFloat { isBoss ? 2 : 7 }
-    private var contentHeight: CGFloat { isBoss ? 144 : 132 }
-    private var verticalInset: CGFloat { isBoss ? 6 : 12 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: contentSpacing) {
-            Text(title)
-                .font(Print.caption(9.5))
-                .tracking(0.55)
-                .textCase(.uppercase)
-            if isBoss {
-                Text(boss?.name ?? "Unknown adversary")
-                    .font(Print.caption(6.3)).tracking(0.26).textCase(.uppercase)
-                    .lineLimit(1).minimumScaleFactor(0.55)
-                Text("Power: \(boss?.briefPower ?? "Unknown")")
-                    .font(Print.caption(6)).tracking(0.2).textCase(.uppercase)
-                    .lineLimit(1).minimumScaleFactor(0.48)
-                    .foregroundStyle(Paper.redPencil)
-                Text(status).font(Print.caption(7.5)).tracking(0.3).textCase(.uppercase)
-                    .foregroundStyle(Color(hex: 0x241C16))
-                Spacer(minLength: 2)
-            }
-            RouteBoardPreview(slot: slot, isCurrent: isCurrent, isBoss: isBoss)
-                .frame(maxWidth: .infinity)
-                .modifier(RouteBoardRatio(isBoss: isBoss))
-                .padding(.vertical, isBoss ? 0 : 3)
-            if !isBoss {
-                Spacer(minLength: 0)
-                Text(status).font(Print.caption(8.5)).tracking(0.45).textCase(.uppercase)
-                    .foregroundStyle(isCurrent ? currentForeground.opacity(0.76) : theme.paper.softInk)
-            }
-        }
-        .foregroundStyle(isCurrent && !isBoss ? currentForeground : theme.paper.ink)
-        .frame(maxWidth: .infinity, minHeight: contentHeight, maxHeight: contentHeight, alignment: .leading)
-        // Every stop occupies the same measured route slot. The Boss uses
-        // its extra space inside that shared row; it must not stretch the
-        // plan taller than Puzzle 1 or Puzzle 2.
-        .padding(.horizontal, cardInset).padding(.vertical, verticalInset)
-        .background {
-            RoundedRectangle(cornerRadius: isBoss ? 0 : 3)
-                .fill(isCurrent && !isBoss ? Paper.ink : theme.paper.warm)
-                .overlay {
-                    BriefingPaperTexture(opacity: isCurrent && !isBoss ? 0.08 : 0.20)
-                        .clipShape(.rect(cornerRadius: isBoss ? 0 : 3))
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
+                if isBoss, let boss {
+                    BossSignatureBadge(boss: boss, isActive: isMotionActive, side: 22)
                 }
-                .compositingGroup()
-        }
-        .overlay(alignment: .top) {
-            if !isBoss {
-                Rectangle().fill(isCurrent ? Paper.coinRim : .clear)
-                    .frame(height: 2).padding(.horizontal, 2)
+                Text(RunRouteStrip.title(for: slot))
+                    .font(Print.caption(11)).textCase(.uppercase)
+                    .lineLimit(1).minimumScaleFactor(0.75)
             }
-        }
-        .overlay {
-            if isBoss {
-                Rectangle().strokeBorder(
-                    Paper.redPencil.opacity(0.44),
-                    style: StrokeStyle(lineWidth: 0.6, dash: [8, 0.15, 2.5, 0.25, 11, 0.1])
-                )
-            } else {
-                RoundedRectangle(cornerRadius: 3).strokeBorder(theme.paper.ruleInk.opacity(0.7), lineWidth: 0.6)
+            .frame(height: 22)
+            Group {
+                if isBoss, let boss {
+                    BossRouteArtwork(boss: boss, isActive: isMotionActive)
+                } else {
+                    RouteBoardPreview(slot: slot, isCurrent: isCurrent, book: bookTheme.book)
+                        .overlay { Rectangle().stroke(isCurrent ? Paper.coinRim : theme.paper.ruleInk, lineWidth: isCurrent ? 1.4 : 0.7) }
+                        .shadow(color: .black.opacity(0.13), radius: 2, y: 2)
+                }
             }
+            .aspectRatio(1, contentMode: .fit)
+            VStack(spacing: 3) {
+                if isBoss {
+                    Text(boss?.name ?? "Unknown adversary")
+                        .font(Print.caption(10)).textCase(.uppercase)
+                        .lineLimit(2).minimumScaleFactor(0.8)
+                    Text(boss?.briefPower ?? "Power unknown")
+                        .font(Print.body(10)).foregroundStyle(theme.paper.isDark ? Color(hex: 0xF2A39B) : Paper.redPencil)
+                        .lineLimit(2).minimumScaleFactor(0.8)
+                } else {
+                    Capsule().fill(isCurrent ? Paper.coinRim : .clear)
+                        .frame(width: 22, height: 2)
+                    if slot.rawValue < currentSlot.rawValue {
+                        Text("Passed").font(Print.caption(8.5)).foregroundStyle(theme.paper.softInk)
+                    }
+                }
+            }
+            .frame(height: 46, alignment: .top)
+            .multilineTextAlignment(.center)
         }
-        .offset(y: isCurrent && !isBoss ? -3 : 0)
-        .shadow(
-            color: .black.opacity(isCurrent && !isBoss ? 0.18 : 0.10),
-            radius: isCurrent && !isBoss ? 2.5 : 2,
-            x: 0,
-            y: isCurrent && !isBoss ? 3 : (isBoss ? 2 : 1)
-        )
+        .foregroundStyle(theme.paper.ink)
+        .frame(maxWidth: .infinity)
+        .alignmentGuide(.routeGridCenter) { dimensions in 28 + dimensions.width / 2 }
     }
 }
 
@@ -379,170 +402,36 @@ private struct ClippingPaperEdge: Shape {
     }
 }
 
-private struct RouteBoardRatio: ViewModifier {
-    var isBoss: Bool
-
-    func body(content: Content) -> some View {
-        if isBoss {
-            // Reserve the compact board's height inside the fixed route card;
-            // fitting to the remaining height would also shrink its width.
-            content.frame(height: 96)
-        } else {
-            content.aspectRatio(1, contentMode: .fit)
-        }
-    }
-}
-
-/// The run plan needs to show the actual object the player will work on. These
-/// are deliberately small, static proof grids: they establish the route at a
-/// glance without claiming to reveal a generated puzzle before play begins.
+/// Static, legal miniature proofs. They communicate density, not tomorrow's deal.
 private struct RouteBoardPreview: View {
     var slot: PuzzleSlot
     var isCurrent: Bool
-    var isBoss: Bool
-
-    private let firstPuzzle: [Int?] = [
-        5, 3, nil, nil, 7, nil, nil, nil, nil,
-        6, nil, nil, 1, 9, 5, nil, nil, nil,
-        nil, 9, 8, nil, nil, nil, nil, 6, nil,
-        8, nil, nil, nil, 6, nil, nil, nil, 3,
-        4, nil, nil, 8, nil, 3, nil, nil, 1,
-        7, nil, nil, nil, 2, nil, nil, nil, 6,
-        nil, 6, nil, nil, nil, nil, 2, 8, nil,
-        nil, nil, nil, 4, 1, 9, nil, nil, 5,
-        nil, nil, nil, nil, 8, nil, nil, 7, 9,
-    ]
-
-    private let secondPuzzle: [Int?] = [
-        nil, 1, 7, 4, nil, nil, nil, nil, nil,
-        8, nil, nil, nil, 3, nil, nil, nil, 6,
-        3, nil, nil, nil, 2, 8, nil, nil, nil,
-        nil, 2, nil, nil, 6, nil, nil, nil, nil,
-        nil, 7, nil, 5, nil, nil, nil, nil, 9,
-        nil, nil, nil, nil, nil, 6, 1, nil, nil,
-        2, 4, 1, nil, nil, nil, 2, 1, nil,
-        nil, 5, nil, nil, nil, 8, nil, nil, nil,
-        nil, 9, 3, nil, nil, 7, nil, nil, nil,
-    ]
-
-    private let bossPuzzle: [Int?] = [
-        nil, nil, nil, 8, nil, nil, 4, nil, nil,
-        nil, nil, nil, nil, nil, nil, nil, 7, nil,
-        5, nil, nil, nil, nil, nil, nil, nil, nil,
-        nil, nil, nil, nil, nil, nil, 9, 1, nil,
-        nil, nil, nil, nil, nil, nil, nil, nil, 2,
-        nil, nil, 4, nil, nil, nil, nil, nil, nil,
-        nil, 3, nil, nil, nil, nil, nil, 3, nil,
-        nil, nil, nil, nil, nil, nil, nil, nil, nil,
-        nil, nil, nil, nil, 2, nil, 6, nil, nil,
-    ]
-
-    private var digits: [Int?] {
-        switch slot {
-        case .easy: firstPuzzle
-        case .medium: secondPuzzle
-        case .boss: bossPuzzle
-        }
-    }
-
-    private var paper: Color { isCurrent ? Color(hex: 0x2A2622) : Color(hex: 0xE9E3D3) }
-    private var ink: Color { isCurrent ? Color(hex: 0xF3E7C7) : Paper.inkSoft }
-    private var rule: Color {
-        isCurrent ? Color(hex: 0xB69B63).opacity(0.55) : Paper.rule.opacity(0.55)
-    }
+    var book: Book = .probably
 
     var body: some View {
-        Group {
-            if isBoss {
-                printedBossBoard
-            } else {
-                GeometryReader { proxy in
-                    let side = min(proxy.size.width, proxy.size.height)
-                    let cell = side / 9
-                    ZStack {
-                        Rectangle().fill(paper)
-                        VStack(spacing: 0) {
-                            ForEach(0..<9, id: \.self) { row in
-                                HStack(spacing: 0) {
-                                    ForEach(0..<9, id: \.self) { column in
-                                        Text(digits[row * 9 + column].map(String.init) ?? "")
-                                            .font(Print.numeral(cell * 0.46, weight: .medium))
-                                            .foregroundStyle(ink)
-                                            .frame(width: cell, height: cell)
-                                            .overlay {
-                                                Rectangle().stroke(rule.opacity(0.65), lineWidth: 0.35)
-                                            }
-                                    }
-                                }
-                            }
-                        }
-                        ForEach(1..<3, id: \.self) { division in
-                            Rectangle().fill(rule)
-                                .frame(width: 1.1, height: side)
-                                .offset(x: CGFloat(division * 3) * cell - side / 2)
-                            Rectangle().fill(rule)
-                                .frame(width: side, height: 1.1)
-                                .offset(y: CGFloat(division * 3) * cell - side / 2)
-                        }
-                    }
-                    .frame(width: side, height: side)
-                    .overlay { Rectangle().stroke(rule, lineWidth: 0.8) }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+        Canvas { context, size in
+            let side = min(size.width, size.height)
+            let cell = side / 9
+            let paper = isCurrent ? Color(hex: 0x2A2622) : Color(hex: 0xE9E3D3)
+            let ink = isCurrent ? Color(hex: 0xF3E7C7) : Paper.inkSoft
+            let rule = isCurrent ? Color(hex: 0xB69B63).opacity(0.65) : Paper.rule.opacity(0.65)
+            context.fill(Path(CGRect(x: 0, y: 0, width: side, height: side)), with: .color(paper))
+            for line in 0...9 {
+                var path = Path()
+                path.move(to: CGPoint(x: CGFloat(line) * cell, y: 0))
+                path.addLine(to: CGPoint(x: CGFloat(line) * cell, y: side))
+                path.move(to: CGPoint(x: 0, y: CGFloat(line) * cell))
+                path.addLine(to: CGPoint(x: side, y: CGFloat(line) * cell))
+                context.stroke(path, with: .color(rule), lineWidth: line.isMultiple(of: 3) ? 0.9 : 0.4)
+            }
+            for (index, digit) in RoutePreviewGrid.digits(for: slot, book: book).enumerated() {
+                guard let digit else { continue }
+                context.draw(Text(String(digit)).font(Print.numeral(cell * 0.65, weight: .medium)).foregroundStyle(ink),
+                             at: CGPoint(x: (CGFloat(index % 9) + 0.5) * cell,
+                                         y: (CGFloat(index / 9) + 0.5) * cell))
             }
         }
         .accessibilityHidden(true)
-    }
-
-    private var printedBossBoard: some View {
-        GeometryReader { proxy in
-            // Wider tablet cards must not turn the ink/grid into a horizontal
-            // smear. Narrow phone previews retain their existing dimensions.
-            let width = min(proxy.size.width, proxy.size.height)
-            let height = proxy.size.height
-            // Keep the print inside the ink wash; the fine splashes outside
-            // this area belong to the texture, not the nine-by-nine grid.
-            let printWidth = width * 0.78
-            let printHeight = height * 0.76
-            let cellWidth = printWidth / 9
-            let cellHeight = printHeight / 9
-            ZStack {
-                Image("BossInkStain")
-                    .resizable()
-                    .frame(width: width, height: height)
-                Canvas { context, _ in
-                    for line in 0...9 {
-                        var rules = Path()
-                        rules.move(to: CGPoint(x: CGFloat(line) * cellWidth, y: 0))
-                        rules.addLine(to: CGPoint(x: CGFloat(line) * cellWidth, y: printHeight))
-                        rules.move(to: CGPoint(x: 0, y: CGFloat(line) * cellHeight))
-                        rules.addLine(to: CGPoint(x: printWidth, y: CGFloat(line) * cellHeight))
-                        context.stroke(rules, with: .color(Color(hex: 0x948361).opacity(0.18)), lineWidth: 0.3)
-                    }
-                }
-                .frame(width: printWidth, height: printHeight)
-                .overlay {
-                    VStack(spacing: 0) {
-                        ForEach(0..<9, id: \.self) { row in
-                            HStack(spacing: 0) {
-                                ForEach(0..<9, id: \.self) { column in
-                                    let index = row * 9 + column
-                                    Text(digits[index].map(String.init) ?? "")
-                                        .font(Print.numeral(cellWidth * 0.76, weight: .medium))
-                                        .foregroundStyle(index == 18 || index == 55
-                                            ? Color(hex: 0xB65B40)
-                                            : Color(hex: 0xE5D7B5))
-                                        .frame(width: cellWidth, height: cellHeight)
-                                }
-                            }
-                        }
-                    }
-                }
-                .offset(y: height * 0.05)
-            }
-            .frame(width: width, height: height)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
     }
 }
 
@@ -550,7 +439,7 @@ private struct RouteArrow: View {
     @Environment(\.cosmeticTheme) private var theme
     var body: some View {
         Image(systemName: "arrow.right").font(.system(size: 14, weight: .medium))
-            .foregroundStyle(theme.paper.faintInk).frame(width: 18).accessibilityHidden(true)
+            .foregroundStyle(theme.paper.faintInk).frame(width: 12).accessibilityHidden(true)
     }
 }
 
@@ -588,40 +477,33 @@ private struct BookNarration: View {
 
 // MARK: - Boss encounter
 
-/// A small living proof of what is about to change. The board stays a board;
-/// the boss only disturbs its numbers, so the encounter reads before play.
+/// A full, readable rule in the coupon's existing slot. The only Boss board
+/// stays in the route; a second grid here used to force that route to shrink.
 private struct BossEncounterPreview: View {
     @Environment(\.cosmeticTheme) private var theme
     var boss: BossModifier
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            Spacer(minLength: 0)
             HStack(alignment: .top, spacing: 12) {
-                BossMark(boss: boss)
-                VStack(alignment: .leading, spacing: 3) {
+                BossSignatureBadge(boss: boss, side: 44)
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Boss encounter")
                         .font(Print.caption(9.5)).tracking(1.2).textCase(.uppercase)
                         .foregroundStyle(Paper.redPencil)
-                    Text(boss.name)
-                        .font(Print.subheading(21)).textCase(.uppercase).tracking(0.45)
-                        .foregroundStyle(theme.paper.ink)
-                        .lineLimit(2).minimumScaleFactor(0.72)
                     Text(boss.text)
-                        .font(Print.body(12.5)).foregroundStyle(theme.paper.softInk)
+                        .font(Print.body(17)).foregroundStyle(theme.paper.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            BossFleeingBoard(boss: boss)
-                // The rule and route keep their readable type. Only this
-                // decorative proof grid yields to the page's remaining space.
-                .frame(maxWidth: .infinity, maxHeight: 315)
-
+            Text("No clipping gets you past this one.")
+                .font(.system(size: 15, design: .serif).italic())
+                .foregroundStyle(theme.paper.softInk)
+            Spacer(minLength: 0)
         }
-        .padding(15)
-        .background(theme.paper.warm.opacity(0.88))
-        .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(Paper.redPencil.opacity(0.72), lineWidth: 1) }
-        .overlay(alignment: .top) { Rectangle().fill(Paper.redPencil).frame(height: 2).padding(.horizontal, 3) }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Boss encounter: \(boss.name). \(boss.text)")
     }
@@ -632,7 +514,7 @@ private struct BossMark: View {
     var boss: BossModifier
 
     var body: some View {
-        Image(systemName: boss.previewSymbol)
+        Image(systemName: BossBoardDesign(boss: boss).symbol)
             .font(.system(size: 22, weight: .semibold))
             .foregroundStyle(Paper.redPencil)
             .frame(width: 48, height: 48)
@@ -643,119 +525,6 @@ private struct BossMark: View {
     }
 }
 
-private struct BossFleeingBoard: View {
-    @Environment(\.cosmeticTheme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var boss: BossModifier
-
-    /// A real solved Sudoku. The preview may be disrupted by the Boss, but
-    /// its resting state must still read as a legitimate board.
-    private let solvedBoard = [
-        5, 3, 4, 6, 7, 8, 9, 1, 2,
-        6, 7, 2, 1, 9, 5, 3, 4, 8,
-        1, 9, 8, 3, 4, 2, 5, 6, 7,
-        8, 5, 9, 7, 6, 1, 4, 2, 3,
-        4, 2, 6, 8, 5, 3, 7, 9, 1,
-        7, 1, 3, 9, 2, 4, 8, 5, 6,
-        9, 6, 1, 5, 3, 7, 2, 8, 4,
-        2, 8, 7, 4, 1, 9, 6, 3, 5,
-        3, 4, 5, 2, 8, 6, 1, 7, 9,
-    ]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
-            let progress = animationProgress(at: timeline.date)
-            GeometryReader { proxy in
-                let side = min(proxy.size.width, proxy.size.height)
-                let cell = side / 9
-                ZStack {
-                    RoundedRectangle(cornerRadius: 2).fill(theme.paper.page.opacity(theme.paper.isDark ? 0.18 : 0.42))
-                    RoundedRectangle(cornerRadius: 2).strokeBorder(theme.paper.ruleInk.opacity(0.72), lineWidth: 1)
-                    ForEach(1..<9, id: \.self) { line in
-                        let isBoxRule = line.isMultiple(of: 3)
-                        Rectangle().fill(theme.paper.ruleInk.opacity(isBoxRule ? 0.78 : 0.42))
-                            .frame(width: isBoxRule ? 1.5 : 0.6, height: side)
-                            .offset(x: CGFloat(line) * cell - side / 2)
-                        Rectangle().fill(theme.paper.ruleInk.opacity(isBoxRule ? 0.78 : 0.42))
-                            .frame(width: side, height: isBoxRule ? 1.5 : 0.6)
-                            .offset(y: CGFloat(line) * cell - side / 2)
-                    }
-                    ForEach(0..<81, id: \.self) { index in
-                        Text("\(solvedBoard[index])").font(Print.numeral(cell * 0.52, weight: .bold))
-                            .foregroundStyle(index == 40 ? Paper.redPencil : theme.paper.ink)
-                            .position(x: cell * (CGFloat(index % 9) + 0.5), y: cell * (CGFloat(index / 9) + 0.5))
-                            .offset(numberOffset(for: index, progress: progress))
-                            .opacity(numberOpacity(for: index, progress: progress))
-                            .rotationEffect(numberRotation(for: index, progress: progress))
-                            .scaleEffect(numberScale(for: index, progress: progress))
-                    }
-                    Image(systemName: boss.previewSymbol)
-                        .font(.system(size: side * 0.18, weight: .bold))
-                        .foregroundStyle(Paper.redPencil.opacity(0.88))
-                        .padding(10)
-                        .background(Circle().fill(theme.paper.warm.opacity(0.92)))
-                        .overlay { Circle().strokeBorder(Paper.redPencil.opacity(0.72), lineWidth: 1.2) }
-                        .scaleEffect(boss.isPulsingPreview ? 1 + 0.13 * progress : 1)
-                }
-                .frame(width: side, height: side)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-
-    private func numberOffset(for index: Int, progress: CGFloat) -> CGSize {
-        let direction = direction(for: index)
-        let distance = boss.previewEscapeDistance
-        switch boss {
-        case .fog: return index == 40 ? .zero : .init(width: direction.width * 8 * progress, height: direction.height * 8 * progress)
-        case .mirror: return .init(width: -direction.width * distance * 0.45 * progress, height: direction.height * 5 * progress)
-        case .editor, .handyDandy: return index % 9 >= 7 ? .init(width: distance * progress, height: 0) : .zero
-        case .grayTheGarry: return index / 9 == 4 ? .init(width: distance * 0.6 * progress, height: 0) : .zero
-        case .garryTheGray: return (3...5).contains(index / 9) && (3...5).contains(index % 9)
-            ? .init(width: 0, height: distance * 0.55 * progress) : .zero
-        default: return .init(width: direction.width * distance * progress, height: direction.height * distance * progress)
-        }
-    }
-
-    private func numberOpacity(for index: Int, progress: CGFloat) -> Double {
-        switch boss {
-        case .censor: return index == 40 ? 1 - 0.88 * progress : 1
-        case .fog: return index == 40 ? 1 : 1 - 0.66 * progress
-        case .paywall, .buffborger: return index == 40 ? 1 : 1 - 0.42 * progress
-        default: return 1 - 0.18 * progress
-        }
-    }
-
-    private func numberRotation(for index: Int, progress: CGFloat) -> Angle {
-        switch boss {
-        case .deadline, .tikTak: return .degrees((index.isMultiple(of: 2) ? 12 : -12) * progress)
-        case .sashimi: return .degrees((index.isMultiple(of: 2) ? 20 : -20) * progress)
-        default: return .zero
-        }
-    }
-
-    private func numberScale(for index: Int, progress: CGFloat) -> CGFloat {
-        switch boss {
-        case .heavyLifter: return index == 40 ? 1 + 0.45 * progress : 1 - 0.16 * progress
-        case .mirror: return index.isMultiple(of: 2) ? 1 - 0.28 * progress : 1 + 0.08 * progress
-        case .censor: return index == 40 ? 1 - 0.6 * progress : 1
-        default: return 1 - 0.06 * progress
-        }
-    }
-
-    private func animationProgress(at date: Date) -> CGFloat {
-        guard !reduceMotion else { return 0 }
-        let cycle = sin(date.timeIntervalSinceReferenceDate * (2 * .pi / boss.previewDuration))
-        return CGFloat((cycle + 1) / 2)
-    }
-
-    private func direction(for index: Int) -> CGSize {
-        let column = CGFloat(index % 9) - 4
-        let row = CGFloat(index / 9) - 4
-        return .init(width: column / 4, height: row / 4)
-    }
-}
 
 private extension BossModifier {
     var briefPower: String {
@@ -770,101 +539,77 @@ private extension BossModifier {
         case .erratum: "No tosses"
         case .collector: "No interest"
         case .heavyLifter: "Target ×4"
-        case .unluckyLucky: "Bookmark sleeps"
+        case .unluckyLucky: "Triggered Bookmark sleeps"
         case .buffborger: "Buffs disabled"
         case .sashimi: "Multipliers halved"
         case .overPusher: "Squares foul"
         case .accountant: "Placements cost"
-        case .tikTak: "3 minute clock"
-        case .handyDandy: "Two digits barred"
+        case .tikTak: "4 minute clock"
+        case .handyDandy: "Up to 2 cards barred"
         case .grayTheGarry: "A row locked"
         case .garryTheGray: "A box locked"
         }
     }
 
-    var previewSymbol: String {
-        switch self {
-        case .censor: "eye.slash"
-        case .editor: "pencil.line"
-        case .deadline, .tikTak: "timer"
-        case .fog: "cloud.fog"
-        case .critic: "exclamationmark.bubble"
-        case .mirror: "rectangle.on.rectangle"
-        case .paywall: "lock"
-        case .erratum: "arrow.uturn.backward"
-        case .collector, .accountant: "banknote"
-        case .heavyLifter: "dumbbell"
-        case .unluckyLucky: "bookmark.slash"
-        case .buffborger: "shield.slash"
-        case .sashimi: "scissors"
-        case .overPusher: "arrow.right"
-        case .handyDandy: "hand.raised.slash"
-        case .grayTheGarry, .garryTheGray: "square.grid.3x3"
-        }
-    }
-
-    var previewEscapeDistance: CGFloat {
-        switch self {
-        case .overPusher, .heavyLifter: 24
-        case .deadline, .tikTak: 18
-        default: 13
-        }
-    }
-
-    var previewDuration: Double {
-        switch self {
-        case .deadline, .tikTak: 0.72
-        case .overPusher: 0.9
-        default: 1.55
-        }
-    }
-
-    var isPulsingPreview: Bool {
-        switch self {
-        case .deadline, .tikTak, .critic, .heavyLifter, .overPusher: true
-        default: false
-        }
-    }
 }
 
 struct ClippingOfferTicket: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var clipping: Clipping
     var remaining: Int
     var arrived: Bool
     var clipBounced: Bool
     var stampVisible: Bool
+    var isTaking = false
     var onTake: () -> Void
 
     var body: some View {
-        ticket
-            .background {
-                ClippingPaperEdge().fill(theme.paper.edge.opacity(0.70))
-                    .offset(x: 2, y: 3)
+        Button(action: onTake) {
+            GeometryReader { proxy in
+                ticket(compact: proxy.size.height < 225)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
             }
-            .rotationEffect(.degrees(arrived ? -1 : 6)).offset(x: arrived ? 0 : 30).opacity(arrived ? 1 : 0)
+                .background {
+                    ClippingPaperEdge().fill(theme.paper.edge.opacity(0.70))
+                        .offset(x: 2, y: 3)
+                }
+                .modifier(ClippingDepartureModifier(isTaking: isTaking, reduceMotion: reduceMotion))
+                .contentShape(Rectangle())
+        }
+            .buttonStyle(PressedPaperStyle())
+            .disabled(isTaking)
+            // The clip stays attached to the page while the paper slips free.
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "paperclip").font(.system(size: 28, weight: .light))
+                    .foregroundStyle(theme.paper.ink.opacity(0.75)).rotationEffect(.degrees(17))
+                    .scaleEffect(clipBounced ? 1.13 : 1).offset(x: -18, y: -11)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+            .rotationEffect(.degrees(arrived ? 0 : 6)).offset(x: arrived ? 0 : 30).opacity(arrived ? 1 : 0)
             .shadow(color: .black.opacity(0.14), radius: 3, x: 1, y: 3)
-            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Take \(clipping.name). \(clipping.detail). Skip Puzzle and take reward.")
+            .accessibilityHint("Uses one of your \(remaining) remaining skips. You will not play this Puzzle.")
+            .accessibilityIdentifier("briefing.clipping")
     }
 
-    private var ticket: some View {
+    private func ticket(compact: Bool) -> some View {
         VStack(spacing: 0) {
-            ticketTop
+            ticketTop(compact: compact)
             Divider().overlay(theme.paper.ruleInk.opacity(0.65))
             HStack(spacing: 15) {
-                TicketSeal()
+                TicketSeal(side: compact ? 44 : 60)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(clipping.name)
-                        .font(.system(size: 27, weight: .medium, design: .serif))
+                        .font(.system(size: compact ? 22 : 27, weight: .medium, design: .serif))
                         .foregroundStyle(theme.paper.ink)
-                    Text(clipping.detail).font(Print.body(14)).foregroundStyle(theme.paper.softInk).fixedSize(horizontal: false, vertical: true)
+                    Text(clipping.detail).font(Print.body(compact ? 12.5 : 14)).foregroundStyle(theme.paper.softInk).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 17).padding(.vertical, 24)
+            .padding(.horizontal, 17).padding(.vertical, compact ? 10 : 24)
             .frame(maxHeight: .infinity)
             DashedPerforation(color: theme.paper.ruleInk)
-            Button(action: onTake) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Tear off to take").font(Print.caption(9.5)).tracking(1).textCase(.uppercase).foregroundStyle(Paper.redPencil)
@@ -873,9 +618,7 @@ struct ClippingOfferTicket: View {
                     Spacer()
                     Image(systemName: "arrow.right").font(.system(size: 17, weight: .bold))
                 }
-                .foregroundStyle(theme.paper.ink).padding(.horizontal, 17).padding(.vertical, 20).contentShape(Rectangle())
-            }
-            .buttonStyle(PressedPaperStyle()).accessibilityLabel("Skip Puzzle and take \(clipping.name)")
+                .foregroundStyle(theme.paper.ink).padding(.horizontal, 17).padding(.vertical, compact ? 12 : 20).contentShape(Rectangle())
         }
         .background {
             theme.paper.warm
@@ -883,14 +626,9 @@ struct ClippingOfferTicket: View {
         }
         .clipShape(ClippingPaperEdge())
         .overlay { ClippingPaperEdge().stroke(theme.paper.ruleInk.opacity(0.55), lineWidth: 0.6) }
-        .overlay(alignment: .topTrailing) {
-            Image(systemName: "paperclip").font(.system(size: 28, weight: .light))
-                .foregroundStyle(theme.paper.ink.opacity(0.75)).rotationEffect(.degrees(17))
-                .scaleEffect(clipBounced ? 1.13 : 1).offset(x: -18, y: -11).accessibilityHidden(true)
-        }
     }
 
-    private var ticketTop: some View {
+    private func ticketTop(compact: Bool) -> some View {
         HStack {
             Text("Clipping on offer").font(Print.caption(9.5)).tracking(1.05).textCase(.uppercase)
                 .foregroundStyle(Paper.redPencil).padding(.horizontal, 8).padding(.vertical, 5)
@@ -903,15 +641,16 @@ struct ClippingOfferTicket: View {
             }
             .padding(.trailing, 31)
         }
-        .padding(.horizontal, 17).padding(.vertical, 13)
+        .padding(.horizontal, 17).padding(.vertical, compact ? 8 : 13)
     }
 }
 
 private struct TicketSeal: View {
     @Environment(\.cosmeticTheme) private var theme
+    var side: CGFloat = 60
     var body: some View {
-        Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 25, weight: .medium))
-            .foregroundStyle(theme.paper.ink).frame(width: 60, height: 60)
+        Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: side * 0.42, weight: .medium))
+            .foregroundStyle(theme.paper.ink).frame(width: side, height: side)
             .overlay { Circle().strokeBorder(theme.paper.ink.opacity(0.75), lineWidth: 1.3) }
             .overlay { Circle().inset(by: 5).strokeBorder(theme.paper.ruleInk, style: StrokeStyle(lineWidth: 0.8, dash: [2, 2])) }
     }

@@ -11,8 +11,8 @@ final class BriefingBoundsTests: XCTestCase {
         for size in [CGSize(width: 300, height: 590), CGSize(width: 327, height: 646),
                      CGSize(width: 365, height: 700), CGSize(width: 390, height: 760)] {
             XCTAssertEqual(PuzzleBriefingLayout(available: size).contentSize, size)
-            XCTAssertNil(PuzzleBriefingLayout(available: size).clippingMaximumHeight,
-                         "Phone tickets keep their original flexible height.")
+            XCTAssertEqual(PuzzleBriefingLayout(available: size).clippingMaximumHeight, 280,
+                           "Phone coupons must not stretch into empty portrait cards either.")
         }
         for size in [CGSize(width: 708, height: 870), CGSize(width: 774, height: 1_040),
                      CGSize(width: 964, height: 1_210)] {
@@ -52,8 +52,8 @@ final class BriefingBoundsTests: XCTestCase {
             renderer.scale = 2
             let image = try XCTUnwrap(renderer.uiImage)
             XCTAssertEqual(image.size.width, min(width, PuzzleBriefingLayout.routeMaximumWidth), accuracy: 0.5)
-            XCTAssertEqual(image.size.height, 156, accuracy: 0.5,
-                           "The tablet route remains the same three compact paper cards.")
+            XCTAssertEqual(image.size.height, RunRouteStrip.height(for: width), accuracy: 0.5,
+                           "Labels sit outside true square boards; there is no portrait card shell.")
         }
     }
 
@@ -114,6 +114,58 @@ final class BriefingBoundsTests: XCTestCase {
         }
     }
 
+    func testTakingBothClippingsDoesNotMoveTheRouteOrPlayButton() async throws {
+        for phone in Phone.all {
+            let first = try await measure(slot: .easy, boss: .editor, phone: phone)
+            let route = try recognizedFrame(in: first.image, containing: BossModifier.editor.name)
+            let play = try recognizedFrame(in: first.image, containing: "Play Puzzle")
+            let skip = try recognizedFrame(in: first.image, containing: "Skip + reward")
+            let receipt = try recognizedFrame(in: first.image, containing: "Clippings are optional")
+            XCTAssertLessThan(skip.maxY, receipt.minY,
+                              "The entire coupon must fit above the reserved receipt without scrolling.")
+            for skips in 1...2 {
+                let after = try await measure(slot: .easy, boss: .editor, phone: phone, skips: skips)
+                let nextRoute = try recognizedFrame(in: after.image, containing: BossModifier.editor.name)
+                let nextPlay = try recognizedFrame(in: after.image, containing: "Play Puzzle")
+                XCTAssertEqual(nextRoute.midY, route.midY, accuracy: 1.5,
+                    "A receipt must not squeeze the square boards after skip \(skips).")
+                XCTAssertEqual(nextPlay.midY, play.midY, accuracy: 1.5,
+                    "The fixed Play action must not jump after skip \(skips).")
+                XCTAssertEqual(after.book, first.book)
+                XCTAssertEqual(after.bookmarks, first.bookmarks)
+                XCTAssertTrue(after.text.contains(normalize("Play Puzzle")))
+            }
+        }
+    }
+
+    func testLongBossRulesFitTheCompactEncounterWithoutCoveringPlay() async throws {
+        let phone = Phone(size: CGSize(width: 375, height: 812), top: 44, bottom: 34)
+        for boss in [BossModifier.unluckyLucky, .overPusher, .grayTheGarry, .garryTheGray] {
+            let page = try await measure(slot: .boss, boss: boss, phone: phone)
+            XCTAssertTrue(page.text.contains(normalize(boss.text)), "Keep the complete \(boss.name) rule.")
+            let note = try recognizedFrame(in: page.image, containing: "No clipping gets you past")
+            let play = try recognizedFrame(in: page.image, containing: "Play Puzzle")
+            XCTAssertLessThan(note.maxY, play.minY - 20)
+        }
+    }
+
+    func testCompactClippingTicketKeepsEveryRewardAndActionReadable() throws {
+        for clipping in Clipping.allCases {
+            let renderer = ImageRenderer(content: ClippingOfferTicket(
+                clipping: clipping, remaining: 2, arrived: true,
+                clipBounced: false, stampVisible: true, onTake: {})
+                .frame(width: 296, height: 176)
+                .environment(\.cosmeticTheme, .standard)
+                .environment(\.dynamicTypeSize, .large))
+            renderer.scale = 3
+            let image = try XCTUnwrap(renderer.uiImage)
+            let text = try recognize(image)
+            XCTAssertTrue(text.contains(normalize(clipping.name)), clipping.name)
+            XCTAssertTrue(text.contains(normalize(clipping.detail)), clipping.detail)
+            XCTAssertTrue(text.contains(normalize("Skip + reward")))
+        }
+    }
+
     func testBlankBossBandPreservesTheExactPreviousBoardHeightBudget() throws {
         for width: CGFloat in [280, 300, 327, 365] {
             for type in [DynamicTypeSize.large, .accessibility5] {
@@ -160,11 +212,15 @@ final class BriefingBoundsTests: XCTestCase {
         let image: UIImage
     }
 
-    private func measure(slot: PuzzleSlot, boss: BossModifier, phone: Phone) async throws -> Measurement {
+    private func measure(slot: PuzzleSlot, boss: BossModifier, phone: Phone, skips: Int = 0) async throws -> Measurement {
         var run = RunState(seed: "briefing-height-regression")
         run.slot = slot
         run.pendingBoss = boss
         let model = GameModel(frozen: Game(run: run), page: .briefing)
+        for _ in 0..<skips {
+            let claim = try XCTUnwrap(model.currentClippingClaim)
+            XCTAssertTrue(model.takeClipping(ifCurrent: claim))
+        }
         let flipper = PageFlipper()
         let ready = expectation(description: "Briefing frames \(slot)-\(boss.rawValue)-\(phone.size.width)")
         var frames = [String: CGRect]()
@@ -223,7 +279,7 @@ final class BriefingBoundsTests: XCTestCase {
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
         let attachment = XCTAttachment(image: image)
-        attachment.name = "briefing-\(Int(phone.size.width))-\(slot.rawValue)-\(boss.rawValue)"
+        attachment.name = "briefing-\(Int(phone.size.width))-\(slot.rawValue)-\(boss.rawValue)-skips\(skips)"
         attachment.lifetime = .keepAlways
         add(attachment)
         return Measurement(book: try XCTUnwrap(frames["book"]),

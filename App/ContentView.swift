@@ -206,7 +206,7 @@ struct ContentView: View {
                     onChooseRemote: { resume(.remote, from: conflict) },
                     onCancel: dismissRunConflict
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.965)))
+                .transition(.opacity)
                 .zIndex(40)
             }
 
@@ -224,7 +224,8 @@ struct ContentView: View {
                     onStartNew: { startReplacement(from: replacement) },
                     onCancel: dismissBookReplacement
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.965)))
+                .environment(\.bookPresentation, BookPresentationTheme(book: replacement.savedRun.run.book))
+                .transition(.opacity)
                 .zIndex(40)
             }
 
@@ -256,6 +257,7 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.22), value: isShowingRunDecision)
+        .background { GameMusicObserver(model: model, isClosingBook: closingBook != nil) }
         .onDisappear { menuReturn.cancel() }
     }
 
@@ -405,7 +407,9 @@ struct ContentView: View {
 
 /// The destructive counterpart to `RunConflictSlip`: the saved Book remains
 /// untouched unless the red replacement action is pressed explicitly.
-private struct BookReplacementSlip: View {
+struct BookReplacementSlip: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 14
     var savedRunLabel: String
     var savedRunCompleted = false
     var newBookLabel: String
@@ -414,136 +418,39 @@ private struct BookReplacementSlip: View {
     var onCancel: () -> Void
 
     var body: some View {
-        GeometryReader { proxy in
-            VStack(spacing: 0) {
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(savedRunCompleted ? "COMPLETED BOOK" : "UNFINISHED BOOK")
-                            .font(Print.caption(10))
-                            .tracking(1.8)
-                            .foregroundStyle(Paper.redPencil)
+        PaperSlip(title: savedRunCompleted ? "Another Book?" : "Unfinished Book",
+                  subtitle: nil,
+                  closeLabel: "Back to the shelf",
+                  dismissesOnBackground: false,
+                  dimsBackground: false,
+                  maximumWidth: 390,
+                  onClose: onCancel) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(savedRunLabel)
+                    .font(Print.subheading(bodySize))
+                    .foregroundStyle(theme.paper.ink)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                        Text("Start a different Book?")
-                            .font(.system(size: 24, weight: .semibold, design: .serif))
-                            .foregroundStyle(Paper.ink)
+                PaperButton(title: savedRunCompleted ? "View final page" : "Continue current Book",
+                            kind: .primary, action: onContinueSaved)
+                    .accessibilityIdentifier("book-replacement.continue")
 
-                        Text(savedRunCompleted
-                             ? "View your final page, or begin another Book. Your earned progress stays saved."
-                             : "Your current run stays safe unless you replace it.")
-                            .font(.system(size: 13, design: .serif))
-                            .foregroundStyle(Paper.inkSoft)
-                    }
+                Text(savedRunCompleted
+                     ? "Your earned progress stays saved when you begin another Book."
+                     : "Starting \(newBookLabel) replaces this unfinished run. Your earned unlocks stay saved.")
+                    .font(Print.body(bodySize))
+                    .foregroundStyle(theme.paper.softInk)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                    Spacer(minLength: 8)
-
-                    Button(action: onCancel) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(Paper.inkSoft)
-                            .frame(width: 32, height: 32)
-                            .background(Circle().fill(Paper.pageEdge.opacity(0.55)))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Keep current Book")
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 19)
-                .padding(.bottom, 15)
-
-                Rectangle()
-                    .fill(Paper.redPencil.opacity(0.48))
-                    .frame(height: 1)
-                    .padding(.horizontal, 20)
-
-                VStack(spacing: 11) {
-                    decisionButton(
-                        eyebrow: savedRunCompleted ? "VIEW COMPLETION" : "CONTINUE CURRENT",
-                        label: savedRunLabel,
-                        symbol: "bookmark",
-                        tint: Paper.sage,
-                        action: onContinueSaved
-                    )
-
-                    decisionButton(
-                        eyebrow: savedRunCompleted ? "START NEXT BOOK" : "REPLACE CURRENT RUN",
-                        label: "Start \(newBookLabel)",
-                        symbol: "book.closed",
-                        tint: Paper.redPencil,
-                        action: onStartNew
-                    )
-
-                    Button("KEEP CURRENT BOOK", action: onCancel)
-                        .font(Print.caption(10))
-                        .tracking(1.5)
-                        .foregroundStyle(Paper.inkSoft)
-                        .frame(maxWidth: .infinity, minHeight: 36)
-                        .buttonStyle(.plain)
-                }
-                .padding(16)
+                PaperButton(title: "Start \(newBookLabel)",
+                            kind: savedRunCompleted ? .quiet : .danger,
+                            action: onStartNew)
+                    .accessibilityIdentifier("book-replacement.replace")
+                    .accessibilityHint(savedRunCompleted
+                        ? "Begins the selected Book"
+                        : "Replaces the unfinished run; earned unlocks stay saved")
             }
-            .frame(width: min(proxy.size.width - 30, 390))
-            .background {
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Paper.page)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Paper.pageEdge, lineWidth: 1)
-                    }
-                    .shadow(color: .black.opacity(0.45), radius: 20, y: 12)
-            }
-            .overlay(alignment: .leading) {
-                Rectangle()
-                    .fill(Paper.redPencil)
-                    .frame(width: 3)
-                    .padding(.vertical, 18)
-            }
-            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
         }
-        .ignoresSafeArea()
-    }
-
-    private func decisionButton(
-        eyebrow: String,
-        label: String,
-        symbol: String,
-        tint: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 13) {
-                Image(systemName: symbol)
-                    .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(tint)
-                    .frame(width: 34, height: 34)
-                    .overlay(Circle().stroke(tint.opacity(0.65), lineWidth: 1))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(eyebrow)
-                        .font(Print.caption(9))
-                        .tracking(1.4)
-                        .foregroundStyle(tint)
-                    Text(label)
-                        .font(.system(size: 15, weight: .semibold, design: .serif))
-                        .foregroundStyle(Paper.ink)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 6)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Paper.inkSoft)
-            }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 64)
-            .background(RoundedRectangle(cornerRadius: 3).fill(Paper.pageWarm))
-            .overlay {
-                RoundedRectangle(cornerRadius: 3)
-                    .strokeBorder(Paper.pageEdge, lineWidth: 1)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(eyebrow), \(label)")
     }
 }
 
@@ -561,6 +468,7 @@ private struct GameView: View {
     @State private var usingBuff: Int?
     @State private var claimingMarker: Int?
     @State private var isClosingSlip = false
+    @State private var isInspectingShopOffer = false
 
     var body: some View {
         DeskView {
@@ -576,6 +484,13 @@ private struct GameView: View {
 
                 BookView(flipper: flipper) {
                     page(of: model)
+                        .background {
+                            if model.page == .briefing || model.page == .shop || model.page == .results {
+                                BookAmbientBackground(book: model.run.book,
+                                                      isActive: !isPresentingSlip && !isInspectingShopOffer && !flipper.isFlipping)
+                                    .modifier(BookPageMarginPlacement())
+                            }
+                        }
                 }
                 .padding(.leading, 8)
                 .padding(.trailing, 10)
@@ -739,6 +654,9 @@ private struct GameView: View {
             }
         }
         .environment(flipper)
+        .environment(\.bookPresentation, BookPresentationTheme(book: model.run.book))
+        .environment(\.bossMotionIsActive, !isPresentingSlip && !isInspectingShopOffer
+                     && !flipper.isFlipping && !model.hasRewardedRescueInFlight)
         .preferredColorScheme(.dark)
         .statusBarHidden()
     }
@@ -802,11 +720,11 @@ private struct GameView: View {
                             onAbandon: { onAbandon(source) })
         case .shop:
             if let shop = source.shop {
-                ShopPageView(model: source, shop: shop) { index in
+                ShopPageView(model: source, shop: shop, onClaimMarker: { index in
                     guard source.page == .shop, source.run.markers.indices.contains(index),
                           source.run.markers[index].pendingSquares(atLevel: source.run.level) > 0 else { return }
                     claimingMarker = index
-                }
+                }, onOfferPresentationChange: { isInspectingShopOffer = $0 })
             }
         case .achievements:
             AchievementsPageView {
@@ -825,13 +743,6 @@ private struct GameView: View {
     /// Puzzle page and Reroll onto the Shop page, because both act on a page.
     private var controls: [StripControl] {
         [
-            StripControl(systemImage: "rosette", label: "Achievements") {
-                Task {
-                    await flipper.flip(from: model, reduceMotion: reduceMotion) {
-                        model.openAchievements()
-                    }
-                }
-            },
             StripControl(systemImage: "questionmark", label: "Run information") {
                 showingRunInfo = true
             },

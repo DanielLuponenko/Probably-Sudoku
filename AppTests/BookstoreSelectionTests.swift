@@ -1,10 +1,55 @@
 import XCTest
+import SwiftUI
 import CoreGraphics
 import simd
 import ProbablySudokuEngine
 @testable import ProbablySudoku
 
 final class BookstoreSelectionTests: XCTestCase {
+    @MainActor
+    func testAccessibleShelfActionsBrowseEveryVolumeWithoutSelectingOrChangingTheSceneDirectly() throws {
+        let editions = BookEdition.shelf
+        XCTAssertEqual(editions.count, 12)
+        var current = try XCTUnwrap(editions.first)
+        var requestedIDs: [String] = []
+        var selectedIDs: [String] = []
+
+        func selector(canBrowse: Bool = true) -> BookstoreShelfSelector {
+            let displayed = current
+            return BookstoreShelfSelector(editions: editions, selectedEdition: displayed,
+                                           canBrowse: canBrowse,
+                                           onSelect: { selectedIDs.append(displayed.id) },
+                                           onBrowse: { requestedID in
+                requestedIDs.append(requestedID)
+                if let requested = editions.first(where: { $0.id == requestedID }) { current = requested }
+            })
+        }
+
+        var visited: [String] = []
+        for volume in 1...editions.count {
+            let control = selector()
+            visited.append(current.id)
+            XCTAssertEqual(control.accessibilityValue, "Volume \(volume) of 12. \(current.title)")
+            control.browse(.increment)
+        }
+        XCTAssertEqual(visited, editions.map(\.id), "Native browsing must reach every shelf edition in order.")
+        XCTAssertEqual(current.id, editions[0].id, "Next Book wraps from the last volume to the first.")
+        XCTAssertTrue(selectedIDs.isEmpty, "Browsing must not extract or open a Book.")
+
+        selector().browse(.decrement)
+        XCTAssertEqual(current.id, editions.last?.id, "Previous Book wraps back to the final volume.")
+        selector().selectCurrentBook()
+        XCTAssertEqual(selectedIDs, [current.id], "Activation keeps the existing Select action separate from browsing.")
+
+        let requestsBeforeDisabledActions = requestedIDs
+        selector(canBrowse: false).browse(.increment)
+        selector(canBrowse: false).browse(.decrement)
+        selector(canBrowse: false).selectCurrentBook()
+        XCTAssertEqual(requestedIDs, requestsBeforeDisabledActions,
+                       "Focused, returning or opening Books must reject stale browse actions.")
+        XCTAssertEqual(selectedIDs.count, 1)
+    }
+
     private let phoneViewports: [CGSize] = [
         CGSize(width: 320, height: 568),
         CGSize(width: 375, height: 667),
@@ -15,31 +60,7 @@ final class BookstoreSelectionTests: XCTestCase {
         CGSize(width: 440, height: 956),
     ]
 
-    func testPlaqueHasEqualScreenGuttersForEveryPhoneAndObstacleHeight() {
-        for viewport in phoneViewports {
-            let layout = BookstoreSelectionLayout(viewport: viewport)
-            for height in [CGFloat(84), CGFloat(122)] {
-                let frame = layout.plaqueFrame(height: height)
-                let leftGap = frame.minX
-                let rightGap = viewport.width - frame.maxX
-
-                XCTAssertGreaterThan(leftGap, 0)
-                XCTAssertGreaterThan(rightGap, 0)
-                // Floating-point roundoff is not a visual margin. This is
-                // tighter than one millionth of a display pixel.
-                XCTAssertEqual(leftGap, rightGap, accuracy: 0.000000001,
-                               "Unequal plaque gutters in \(viewport)")
-                XCTAssertEqual(frame.midX, viewport.width / 2, accuracy: 0.000000001)
-                XCTAssertEqual(frame.height, height)
-                for scale in [CGFloat(2), CGFloat(3)] {
-                    XCTAssertEqual((leftGap * scale).rounded(), (rightGap * scale).rounded(),
-                                   "Plaque gutters differ at \(scale)x in \(viewport)")
-                }
-            }
-        }
-    }
-
-    func testSharedCanvasCentersTheCoverBodyAndKeepsPlaqueBelowTheFinalBook() {
+    func testSharedCanvasCentersTheVisibleCoverAndBookmarkSilhouette() {
         for viewport in phoneViewports {
             let layout = BookstoreSelectionLayout(viewport: viewport)
             let canvas = CGRect(
@@ -48,36 +69,62 @@ final class BookstoreSelectionTests: XCTestCase {
                 width: layout.canvasSize.width,
                 height: layout.canvasSize.height
             )
-            // LiveBook is top-leading in the larger canvas so its bookmarks
-            // can extend beyond the front cover without recentering the body.
-            let coverLeft = canvas.minX
-            let coverRight = coverLeft + layout.bookWidth
-            XCTAssertEqual(coverLeft, viewport.width - coverRight, accuracy: 0.000000001,
-                           "The physical cover body moved off the screen center in \(viewport)")
+            // LiveBook is top-leading in the larger canvas. Center the actual
+            // cover-plus-bookmark silhouette while retaining its right gutter.
+            XCTAssertEqual(layout.visualBookFrame.midX, viewport.width / 2,
+                           accuracy: 0.000000001,
+                           "The visible Book silhouette moved off center in \(viewport)")
+            XCTAssertEqual(layout.visualBookFrame.width, layout.bookWidth * 1.107,
+                           accuracy: 0.000000001,
+                           "Optical centering includes the full bookmark silhouette.")
+            XCTAssertLessThanOrEqual(layout.visualBookFrame.maxX, canvas.maxX)
             XCTAssertGreaterThan(layout.canvasSize.width, layout.bookWidth)
             XCTAssertEqual(canvas.midX, layout.coverCenter.x, accuracy: 0.000000001)
             XCTAssertEqual(canvas.midY, layout.coverCenter.y, accuracy: 0.000000001)
-
-            let plain = layout.plaqueFrame(height: 84)
-            let obstacle = layout.plaqueFrame(height: 122)
-            XCTAssertEqual(plain.minY - canvas.maxY, 10, accuracy: 0.000000001)
-            XCTAssertEqual(obstacle.minY, plain.minY)
-            XCTAssertEqual(obstacle.minX, plain.minX)
-            XCTAssertEqual(obstacle.width, plain.width)
         }
     }
 
-    func testPhoneSelectionRetainsItsApprovedCoverSizePositionAndButtonGutter() {
+    func testPhoneSelectionClearsTheTopSignAndPlacesOpenDirectlyBelowTheBook() {
         for viewport in phoneViewports {
             let layout = BookstoreSelectionLayout(viewport: viewport)
-            XCTAssertEqual(layout.bookWidth, viewport.width * 0.80)
-            XCTAssertEqual(layout.coverCenter.y, viewport.height * 0.478)
+            XCTAssertGreaterThan(layout.bookWidth, 0)
+            XCTAssertLessThanOrEqual(layout.bookWidth, viewport.width * 0.80)
+            XCTAssertEqual(layout.headerClearance, 160)
+            XCTAssertGreaterThanOrEqual(layout.visualBookFrame.minY,
+                                        layout.headerClearance - 0.000001)
+            XCTAssertEqual(layout.openButtonFrame.minY - layout.visualBookFrame.maxY, 28,
+                           accuracy: 0.000001, "Open must follow the Book: \(viewport)")
+            XCTAssertEqual(layout.openButtonFrame.height, 52)
+            XCTAssertEqual(layout.openButtonFrame.midX, viewport.width / 2, accuracy: 0.000001)
+            XCTAssertLessThan(layout.openButtonFrame.width, layout.visualBookFrame.width)
+            XCTAssertLessThanOrEqual(layout.openButtonFrame.width, 280)
+            XCTAssertGreaterThanOrEqual(viewport.height - layout.openButtonFrame.maxY,
+                                        layout.openButtonBottomPadding - 0.000001)
             XCTAssertEqual(layout.openButtonBottomPadding, 14)
         }
     }
 
-    @MainActor
-    func testTabletSelectionFitsEveryBooksFullPlaqueAboveTheOpenButton() {
+    func testCompactPhoneReservesOnlyTheSignBookClearanceAndOpenAction() {
+        let viewport = CGSize(width: 320, height: 568)
+        let layout = BookstoreSelectionLayout(viewport: viewport)
+        let availableHeight = viewport.height - 160 - 14 - 52 - 28
+        XCTAssertEqual(layout.canvasSize.height, availableHeight, accuracy: 0.000001,
+                       "The removed lower benefit plaque must not leave a reserved 112pt band.")
+        XCTAssertEqual(layout.bookWidth, availableHeight / 1.445, accuracy: 0.000001)
+        XCTAssertEqual(layout.visualBookFrame.minY, 160, accuracy: 0.000001)
+        XCTAssertEqual(layout.openButtonFrame.maxY, viewport.height - 14, accuracy: 0.000001)
+    }
+
+    func testTallPhoneOpenActionIsRaisedWithTheBookInsteadOfPinnedToTheScreenBottom() {
+        let viewport = CGSize(width: 390, height: 844)
+        let layout = BookstoreSelectionLayout(viewport: viewport)
+        XCTAssertEqual(layout.openButtonFrame.minY, layout.visualBookFrame.maxY + 28,
+                       accuracy: 0.000001)
+        XCTAssertGreaterThan(viewport.height - layout.openButtonFrame.maxY, 80,
+                             "A tall viewport must not strand Open at the screen edge.")
+    }
+
+    func testTabletSelectionFitsTheBookBetweenTheTopSignAndFollowingOpenAction() {
         let tablets = [
             CGSize(width: 744, height: 1133), CGSize(width: 768, height: 1024),
             CGSize(width: 810, height: 1080), CGSize(width: 820, height: 1180),
@@ -90,25 +137,15 @@ final class BookstoreSelectionTests: XCTestCase {
             let bookBottom = layout.coverCenter.y + layout.canvasSize.height / 2
             XCTAssertGreaterThan(layout.bookWidth, 0)
             XCTAssertLessThanOrEqual(layout.bookWidth, viewport.width * 0.80)
-            XCTAssertGreaterThanOrEqual(bookTop, 80 - 0.000001,
-                                        "Selected cover overlaps the back-button band: \(viewport)")
-            XCTAssertEqual(layout.openButtonFrame.height, 58)
-            XCTAssertGreaterThanOrEqual(viewport.height - layout.openButtonFrame.maxY, 34)
-
-            // All twelve editions (and therefore all three rack tiers) share
-            // this destination. Obstacle selection must not move that cover.
-            for edition in BookEdition.shelf {
-                for obstacle in Obstacle.allCases {
-                    let height = SelectedBookBenefitPlaque.height(
-                        width: viewport.width * 0.96, showsObstacle: obstacle != .none)
-                    let plaque = layout.plaqueFrame(height: height)
-                    XCTAssertEqual(plaque.minY - bookBottom, 10, accuracy: 0.000001)
-                    XCTAssertLessThanOrEqual(plaque.maxY + 12,
-                                             layout.openButtonFrame.minY - BookstoreSelectionLayout.openButtonTopPadding + 0.000001,
-                                             "Plaque obscures Open: \(edition.id), \(obstacle), \(viewport)")
-                    XCTAssertEqual(plaque.minX, viewport.width - plaque.maxX, accuracy: 0.000001)
-                }
-            }
+            XCTAssertGreaterThanOrEqual(bookTop, layout.headerClearance - 0.000001,
+                                        "Selected cover overlaps the top sign: \(viewport)")
+            XCTAssertEqual(layout.visualBookFrame.midX, viewport.width / 2,
+                           accuracy: 0.000001)
+            XCTAssertEqual(layout.openButtonFrame.height, 52)
+            XCTAssertGreaterThanOrEqual(viewport.height - layout.openButtonFrame.maxY,
+                                        34 - 0.000001)
+            XCTAssertEqual(layout.openButtonFrame.minY - bookBottom, 28, accuracy: 0.000001,
+                           "The same viewport-only destination serves all twelve Books: \(viewport)")
         }
     }
 

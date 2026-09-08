@@ -217,6 +217,12 @@ public enum Shop {
             guard run.bookmarks.indices.contains(index) else { throw ShopError.nothingToSell }
             price = sellPrice(run.bookmarks[index].pricePaid)
             run.bookmarks.remove(at: index)
+            // The Executive Editor put an item to sleep, not an array slot.
+            // Selling before it must not wake it or disable its neighbour.
+            if let sleeping = run.puzzle?.bossTurn?.disabledBookmark {
+                run.puzzle?.bossTurn?.disabledBookmark = sleeping == index
+                    ? nil : (sleeping > index ? sleeping - 1 : sleeping)
+            }
         case .buff:
             guard run.buffs.indices.contains(index) else { throw ShopError.nothingToSell }
             price = sellPrice(run.buffs[index].pricePaid)

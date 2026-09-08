@@ -134,6 +134,13 @@ struct LiveBook: View {
                 }
             }
             .frame(width: w, height: h, alignment: .topLeading)
+            // The printed title, sticky notes and checklist illustrations are
+            // one cover, not dozens of separate navigation stops. Ribbons
+            // live in textBlock, outside this artwork-only accessibility node.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(edition.title)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("book.coverTitle")
         } inside: {
             board(w: w, h: h) {
                 Endpaper(colour: design.accent)
@@ -141,6 +148,7 @@ struct LiveBook: View {
                                         bottom: w * 0.032, trailing: w * 0.032))
             }
             .frame(width: w, height: h, alignment: .topLeading)
+            .accessibilityHidden(true)
         }
     }
 
@@ -291,7 +299,7 @@ private struct ObstacleRibbonTab: View {
             .accessibilityHint(unlocked ? "Select this obstacle." : "Shows obstacle details.")
             .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
             .accessibilityAction(named: "Show obstacle details") {
-                guard let obstacle, !unlocked else { return }
+                guard let obstacle else { return }
                 onShowInfo(obstacle)
             }
     }

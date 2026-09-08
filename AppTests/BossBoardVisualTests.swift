@@ -1,11 +1,226 @@
 import XCTest
 import SwiftUI
 import UIKit
+import Vision
 import ProbablySudokuEngine
 @testable import ProbablySudoku
 
 @MainActor
 final class BossBoardVisualTests: XCTestCase {
+    func testTwentyFourPointBossSealsHaveDistinctReadableGlyphsAndMovingEdges() throws {
+        var images = Set<Data>()
+        for boss in BossModifier.allCases {
+            func render(_ phase: Double) throws -> UIImage {
+                let renderer = ImageRenderer(content:
+                    BossSignatureBadge(boss: boss, side: 24, phaseOverride: phase)
+                        .background(Paper.page)
+                )
+                renderer.scale = 3
+                return try XCTUnwrap(renderer.uiImage)
+            }
+            let resting = try render(0)
+            let moving = try render(0.25)
+            XCTAssertEqual(resting.size, CGSize(width: 24, height: 24))
+            images.insert(try XCTUnwrap(resting.pngData()))
+            XCTAssertNotEqual(resting.pngData(), moving.pngData(), "\(boss.name)'s seal has no visible edge motion")
+            let a = try pixels(resting)
+            let b = try pixels(moving)
+            var inkCount = 0
+            var changedCenter = 0
+            for y in (a.width / 4)..<(a.width * 3 / 4) {
+                for x in (a.width / 4)..<(a.width * 3 / 4) {
+                    if Int(a.channel(x: x, y: y, channel: 0))
+                        + Int(a.channel(x: x, y: y, channel: 1))
+                        + Int(a.channel(x: x, y: y, channel: 2)) < 300 { inkCount += 1 }
+                    for channel in 0..<3 {
+                        if a.channel(x: x, y: y, channel: channel) != b.channel(x: x, y: y, channel: channel) {
+                            changedCenter += 1
+                        }
+                    }
+                }
+            }
+            XCTAssertGreaterThan(inkCount, 20, "The 24pt seal must have a real full-ink glyph")
+            XCTAssertEqual(changedCenter, 0, "The identifying glyph must not wobble or disappear")
+            attach(resting, name: "boss-seal-24pt-\(boss.rawValue)")
+        }
+        XCTAssertEqual(images.count, BossModifier.allCases.count)
+    }
+
+    func testCompactBossHeaderPreservesTheActualRuleMeaning() {
+        XCTAssertEqual(BossBoardDesign(boss: .censor).headerRule(censored: .seven), "Digit 7 scores 0")
+        XCTAssertEqual(BossBoardDesign(boss: .tikTak).headerRule(censored: nil), "4-minute limit")
+        XCTAssertEqual(BossBoardDesign(boss: .handyDandy).headerRule(censored: nil),
+                       "Up to 2 Hand cards barred each turn")
+        for boss in BossModifier.allCases {
+            XCTAssertFalse(BossBoardDesign(boss: boss).headerRule(censored: nil).isEmpty)
+        }
+    }
+
+    func testBossMotionClockResumesWithoutChargingTimeUnderSettingsOrInBackground() {
+        var clock = BossMotionClock()
+        clock.setRunning(true, at: 100)
+        XCTAssertEqual(clock.phase(at: 101.5, duration: 6), 0.25, accuracy: 0.0001)
+        clock.setRunning(false, at: 101.5)
+        XCTAssertEqual(clock.phase(at: 900, duration: 6), 0.25, accuracy: 0.0001)
+        clock.setRunning(true, at: 900)
+        XCTAssertEqual(clock.phase(at: 900, duration: 6), 0.25, accuracy: 0.0001)
+        XCTAssertEqual(clock.phase(at: 901.5, duration: 6), 0.5, accuracy: 0.0001)
+        // Repeated lifecycle notifications cannot restart or double-charge it.
+        clock.setRunning(true, at: 902)
+        XCTAssertEqual(clock.elapsed(at: 903), 4.5, accuracy: 0.0001)
+        clock.setRunning(false, at: 903)
+        clock.setRunning(false, at: 904)
+        XCTAssertEqual(clock.elapsed(at: 905), 4.5, accuracy: 0.0001)
+    }
+
+    func testBossMotionStartsStillAndIgnoresInvalidClockSamples() {
+        var clock = BossMotionClock()
+        XCTAssertEqual(clock.phase(at: 500, duration: 6), 0)
+        clock.setRunning(false, at: 500)
+        XCTAssertEqual(clock.phase(at: 9_000, duration: 6), 0,
+                       "Reduce Motion or disabled background motion starts with a static treatment")
+        clock.setRunning(true, at: .infinity)
+        XCTAssertNil(clock.startedAt)
+        clock.setRunning(true, at: 10)
+        XCTAssertEqual(clock.elapsed(at: 9), 0)
+        XCTAssertEqual(clock.phase(at: 12, duration: 0), 0)
+        clock.setRunning(false, at: 12)
+        XCTAssertEqual(clock.elapsed(at: .nan), 2)
+    }
+
+    func testAllBossPresentationAtlasAtRestAndQuarterCycle() throws {
+        let fixtures = try BossModifier.allCases.map { boss in
+            BossAtlasFixture(boss: boss, puzzle: try XCTUnwrap(makeGame(boss: boss).puzzle))
+        }
+        for phase in [0.0, 0.25] {
+            let renderer = ImageRenderer(content:
+                BossPresentationAtlas(fixtures: fixtures, phase: phase)
+                    .environment(\.colorScheme, .light)
+                    .environment(\.cosmeticTheme, .standard)
+                    .background(Paper.page)
+            )
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.uiImage)
+            attach(image, name: "boss-presentation-atlas-phase-\(phase)")
+        }
+        // Real gameplay header, not a substitute title in the atlas. Font and
+        // rule survive at the narrowest supported page text width.
+        for boss in BossModifier.allCases {
+            let renderer = ImageRenderer(content:
+                BossStamp(boss: boss, censored: boss == .censor ? .seven : nil)
+                    .frame(width: 280)
+                    .padding(8)
+                    .background(Paper.page)
+            )
+            renderer.scale = 3
+            let image = try XCTUnwrap(renderer.uiImage)
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = false
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+            let recognized = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                .joined(separator: " ").lowercased().filter(\.isLetter)
+            let name = boss.name.lowercased().filter(\.isLetter)
+            XCTAssertTrue(recognized.contains(name), "Boss name is not readable: \(boss.name). OCR: \(recognized)")
+        }
+    }
+
+    func testDisablingBackgroundMotionKeepsBossInkAtItsRestingPose() throws {
+        let suite = "boss-motion-disabled-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: AppPreferences.Key.ambientMotion)
+        for boss in BossModifier.allCases {
+            let renderer = ImageRenderer(content:
+                BossPerimeterVignette(boss: boss)
+                    .frame(width: 180, height: 180)
+                    .environment(\.scenePhase, .active)
+                    .defaultAppStorage(defaults)
+                    .background(Paper.page)
+            )
+            renderer.scale = 2
+            XCTAssertEqual(try XCTUnwrap(renderer.uiImage?.pngData()),
+                           try renderPerimeter(boss: boss, phase: 0).pngData(),
+                           "The background-motion preference must freeze \(boss.name)'s decorative ink")
+        }
+    }
+
+    func testEveryBossHasItsOwnRuleLinkedInkSignature() {
+        let signatures = Set(BossModifier.allCases.map { BossInkSignature(boss: $0) })
+        XCTAssertEqual(signatures.count, BossModifier.allCases.count)
+        XCTAssertEqual(signatures, Set(BossInkSignature.allCases))
+        XCTAssertEqual(BossInkSignature(boss: .deadline), .eightTicks)
+        XCTAssertEqual(BossInkSignature(boss: .tikTak), .clock)
+        XCTAssertEqual(BossInkSignature(boss: .unluckyLucky), .sleepingBookmark)
+        XCTAssertEqual(BossInkSignature(boss: .grayTheGarry), .rowBrackets)
+        XCTAssertEqual(BossInkSignature(boss: .garryTheGray), .boxBrackets)
+    }
+
+    func testAmbientInkAnimatesOnlyThePerimeterAndNeverThePlayableDigits() throws {
+        for boss in BossModifier.allCases {
+            let first = try renderPerimeter(boss: boss, phase: 0)
+            let second = try renderPerimeter(boss: boss, phase: 0.25)
+            XCTAssertNotEqual(first.pngData(), second.pngData(),
+                              "\(boss.name) must have its own living ink treatment")
+            let a = try pixels(first)
+            let b = try pixels(second)
+            // All glyph centers, not only the large central rectangle. Even
+            // the outside row/column retain a motion-free number/tap region.
+            let cell = a.width / 9
+            var changedGlyphChannels = 0
+            for square in Square.all {
+                for dx in (cell / 3)...(cell * 2 / 3) {
+                    for dy in (cell / 3)...(cell * 2 / 3) {
+                        let x = square.col * cell + dx
+                        let y = square.row * cell + dy
+                        for channel in 0..<3 {
+                            if a.channel(x: x, y: y, channel: channel)
+                                != b.channel(x: x, y: y, channel: channel) {
+                                changedGlyphChannels += 1
+                            }
+                        }
+                    }
+                }
+            }
+            XCTAssertEqual(changedGlyphChannels, 0,
+                           "\(boss.name)'s animation intruded into a number")
+        }
+    }
+
+    func testRouteArtworkIsSquareAndEachBossRetainsAVisibleSudoku() throws {
+        var snapshots = Set<Data>()
+        for boss in BossModifier.allCases {
+            let renderer = ImageRenderer(content:
+                BossRouteArtwork(boss: boss, isActive: false)
+                    .frame(width: 180, height: 180)
+                    .background(Paper.page)
+            )
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.uiImage)
+            XCTAssertEqual(image.size, CGSize(width: 180, height: 180))
+            snapshots.insert(try XCTUnwrap(image.pngData()))
+            attach(image, name: "square-route-\(boss.rawValue)")
+        }
+        XCTAssertEqual(snapshots.count, BossModifier.allCases.count)
+    }
+
+    func testPausedAndReduceMotionRouteArtworkShareTheSameRestingPose() throws {
+        for boss in BossModifier.allCases {
+            func render(active: Bool, reduced: Bool, presented: Bool = true) throws -> Data {
+                let renderer = ImageRenderer(content:
+                    BossRouteArtwork(boss: boss, isActive: active, reduceMotionOverride: reduced)
+                        .frame(width: 144, height: 144)
+                        .environment(\.scenePhase, .active)
+                        .environment(\.bossMotionIsActive, presented)
+                )
+                return try XCTUnwrap(renderer.uiImage?.pngData())
+            }
+            let paused = try render(active: false, reduced: false)
+            XCTAssertEqual(paused, try render(active: true, reduced: true))
+            XCTAssertEqual(paused, try render(active: true, reduced: false, presented: false))
+        }
+    }
+
     func testAllNineteenBossesHaveDistinctRenderableBoardTreatments() throws {
         var symbols = Set<String>()
         var renderedBoards = Set<Data>()
@@ -111,6 +326,31 @@ final class BossBoardVisualTests: XCTestCase {
         XCTAssertFalse(feedback.censoredSquares.isEmpty)
     }
 
+    func testHandAndDigitRestrictionsDoNotPaintFalseBlockedSquaresUnderTheGrid() throws {
+        for boss in [BossModifier.handyDandy, .censor] {
+            let renderer = ImageRenderer(content:
+                BossBoardUnderprint(boss: boss, fouled: [], greyed: [])
+                    .frame(width: 180, height: 180)
+                    .background(Paper.page)
+            )
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.uiImage)
+            let bitmap = try pixels(image)
+            let paper = (0..<3).map { bitmap.channel(x: 1, y: 1, channel: $0) }
+            var markedPixels = 0
+            for y in 1..<(bitmap.width - 1) {
+                for x in 1..<(bitmap.width - 1) {
+                    if (0..<3).contains(where: {
+                        abs(Int(bitmap.channel(x: x, y: y, channel: $0)) - Int(paper[$0])) > 2
+                    }) { markedPixels += 1 }
+                }
+            }
+            XCTAssertEqual(markedPixels, 0,
+                           "\(boss.name) may tint paper, but only real rule state may mark board squares")
+            attach(image, name: "no-false-board-restriction-\(boss.rawValue)")
+        }
+    }
+
     func testGarryAndOverPusherFeedbackUsesOnlyTheirActualRuleState() throws {
         for boss in [BossModifier.grayTheGarry, .garryTheGray, .overPusher] {
             let puzzle = try XCTUnwrap(makeGame(boss: boss).puzzle)
@@ -141,6 +381,37 @@ final class BossBoardVisualTests: XCTestCase {
         XCTAssertTrue(BossRestrictionOutline(squares: []).path(in: rect).isEmpty)
     }
 
+    func testGarryGameplayDoesNotDrawDecorativeBracketsAroundUnbarredUnits() throws {
+        for boss in [BossModifier.grayTheGarry, .garryTheGray] {
+            var puzzle = try XCTUnwrap(makeGame(boss: boss).puzzle)
+            // Move the real restriction well below the former decorative
+            // middle-row/upper-corner brackets. This is a rendering fixture,
+            // not playthrough evidence or a change to live player state.
+            puzzle.bossTurn?.greyed = Set(boss == .grayTheGarry ? Geometry.rows[7] : Geometry.boxes[8])
+            let renderer = ImageRenderer(content:
+                BossBoardOverlay(puzzle: puzzle, phaseOverride: 0.25)
+                    .frame(width: 360, height: 360)
+                    .background(Color.white)
+            )
+            renderer.scale = 3
+            let image = try XCTUnwrap(renderer.uiImage)
+            let raster = try pixels(image)
+            let scale = CGFloat(raster.width) / 360
+            // Inside the left board edge, away from the permanent frame.
+            // Neither the true bottom restriction nor its outline is here.
+            var falseCuePixels = 0
+            for y in Int(36 * scale)..<Int(252 * scale) {
+                for x in Int(5 * scale)..<Int(11 * scale) {
+                    if (0..<3).contains(where: { raster.channel(x: x, y: y, channel: $0) < 250 }) {
+                        falseCuePixels += 1
+                    }
+                }
+            }
+            XCTAssertEqual(falseCuePixels, 0, "\(boss.name) must not bracket an unrelated row or box")
+            attach(image, name: "garry-only-actual-restriction-\(boss.rawValue)")
+        }
+    }
+
     func testTikTakFeedbackChangesOnlyAtUrgencyThreshold() throws {
         let puzzle = try XCTUnwrap(makeGame(boss: .tikTak).puzzle)
         let normal = BossBoardFeedback(puzzle: puzzle, secondsLeft: 180)
@@ -153,20 +424,26 @@ final class BossBoardVisualTests: XCTestCase {
         XCTAssertFalse(BossBoardFeedback(puzzle: other, secondsLeft: 1).clockIsUrgent)
     }
 
-    func testAllBossNamesFitTwoLinesInNarrowPhoneStamps() throws {
-        let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
+    func testAllBossNamesAndRulesFitTheExistingTwoLineHeaderHeight() throws {
+        let font = UIFont.systemFont(ofSize: 11.5, weight: .semibold)
         for width: CGFloat in [280, 300, 340] {
-            // BossStamp gives its two columns equal flexible width. Keep the
-            // padding, symbol and gap out of the actual title text budget.
-            let titleWidth = (width - 7) / 2 - 14 - 14 - 4
+            let titleWidth = width - 26 - 7
             for boss in BossModifier.allCases {
                 let title = NSAttributedString(string: boss.name.uppercased(),
-                                               attributes: [.font: font, .kern: 0.6])
+                                               attributes: [.font: font])
                 let bounds = title.boundingRect(with: CGSize(width: titleWidth, height: 200),
                                                 options: [.usesLineFragmentOrigin, .usesFontLeading],
                                                 context: nil)
-                XCTAssertLessThanOrEqual(bounds.height, font.lineHeight * 2 + 1,
+                XCTAssertLessThanOrEqual(bounds.height, font.lineHeight + 1,
                                          "\(boss.name) clips in a \(width)-point stamp")
+                let renderer = ImageRenderer(content:
+                    BossStamp(boss: boss, censored: boss == .censor ? .seven : nil)
+                        .frame(width: width)
+                        .background(Paper.page)
+                )
+                let image = try XCTUnwrap(renderer.uiImage)
+                XCTAssertLessThanOrEqual(image.size.height, font.lineHeight * 2 + 1,
+                                         "The seal must not make the Boss header taller or shrink the board")
             }
         }
         for boss in BossModifier.allCases {
@@ -217,6 +494,16 @@ final class BossBoardVisualTests: XCTestCase {
         return try XCTUnwrap(renderer.uiImage)
     }
 
+    private func renderPerimeter(boss: BossModifier, phase: Double) throws -> UIImage {
+        let renderer = ImageRenderer(content:
+            BossPerimeterDrawing(boss: boss, phase: phase)
+                .frame(width: 180, height: 180)
+                .background(Paper.page)
+        )
+        renderer.scale = 2
+        return try XCTUnwrap(renderer.uiImage)
+    }
+
     private func attach(_ image: UIImage, name: String) {
         let attachment = XCTAttachment(image: image)
         attachment.name = name
@@ -248,5 +535,83 @@ final class BossBoardVisualTests: XCTestCase {
         }
         XCTAssertTrue(rendered)
         return Pixels(width: cgImage.width, bytes: bytes)
+    }
+}
+
+private struct BossAtlasFixture: Identifiable {
+    let boss: BossModifier
+    let puzzle: PuzzleState
+    var id: String { boss.rawValue }
+}
+
+/// A design-proof sheet: real BossStamp, real route artwork, and the real
+/// BossBoardOverlay on a public-board proof. No hidden solution is rendered.
+private struct BossPresentationAtlas: View {
+    let fixtures: [BossAtlasFixture]
+    let phase: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Boss ink proof · phase \(phase.formatted())")
+                .font(Print.heading(24))
+                .foregroundStyle(Paper.ink)
+            ForEach(Array(stride(from: 0, to: fixtures.count, by: 3)), id: \.self) { start in
+                HStack(alignment: .top, spacing: 18) {
+                    ForEach(Array(fixtures[start..<min(start + 3, fixtures.count)])) { fixture in
+                        VStack(alignment: .leading, spacing: 10) {
+                            BossStamp(boss: fixture.boss, censored: fixture.puzzle.censoredDigit)
+                                .frame(width: 318, height: 44, alignment: .topLeading)
+                            HStack(spacing: 18) {
+                                BossRouteArtwork(boss: fixture.boss, phaseOverride: phase)
+                                    .frame(width: 150, height: 150)
+                                ZStack {
+                                    PublicBossProofBoard(board: fixture.puzzle.board)
+                                    BossBoardOverlay(puzzle: fixture.puzzle, phaseOverride: phase)
+                                }
+                                .frame(width: 150, height: 150)
+                            }
+                            Text("Route / in-play overlay")
+                                .font(Print.caption(11))
+                                .foregroundStyle(Paper.inkSoft)
+                        }
+                        .padding(10)
+                        .background(Paper.pageWarm)
+                    }
+                }
+            }
+        }
+        .padding(18)
+    }
+}
+
+private struct PublicBossProofBoard: View {
+    let board: Board
+
+    var body: some View {
+        Canvas { context, size in
+            let cell = size.width / 9
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Paper.page))
+            for square in Square.all {
+                if board.isGiven[square.index] {
+                    context.fill(Path(CGRect(x: CGFloat(square.col) * cell, y: CGFloat(square.row) * cell,
+                                             width: cell, height: cell)), with: .color(Paper.cellGiven))
+                }
+                if let digit = board[square] {
+                    context.draw(Text(String(digit.rawValue)).font(Print.numeral(cell * 0.62, weight: .medium))
+                        .foregroundStyle(Paper.ink),
+                                 at: CGPoint(x: (CGFloat(square.col) + 0.5) * cell,
+                                             y: (CGFloat(square.row) + 0.5) * cell))
+                }
+            }
+            for index in 0...9 {
+                var rule = Path()
+                rule.move(to: CGPoint(x: CGFloat(index) * cell, y: 0))
+                rule.addLine(to: CGPoint(x: CGFloat(index) * cell, y: size.height))
+                rule.move(to: CGPoint(x: 0, y: CGFloat(index) * cell))
+                rule.addLine(to: CGPoint(x: size.width, y: CGFloat(index) * cell))
+                context.stroke(rule, with: .color(Paper.ink.opacity(index.isMultiple(of: 3) ? 0.85 : 0.32)),
+                               lineWidth: index.isMultiple(of: 3) ? 1.3 : 0.5)
+            }
+        }
     }
 }

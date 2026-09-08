@@ -1,7 +1,40 @@
 import XCTest
+import SwiftUI
+import ProbablySudokuEngine
 @testable import ProbablySudoku
 
 final class BookmarkPressTests: XCTestCase {
+    @MainActor
+    func testBuffActivationOpensItsUseSlipExactlyOnceInsteadOfThePassivePopover() throws {
+        var passivePopover = false
+        var activations = 0
+        let item = InventoryBookmark(
+            def: try XCTUnwrap(Catalog.item("bf_insurance")),
+            colour: Paper.coverBoard, ink: Paper.page, flagged: true,
+            slot: 5, pulling: false, asleep: false, fired: false,
+            explaining: Binding(get: { passivePopover }, set: { passivePopover = $0 }),
+            onActivate: { activations += 1 })
+
+        item.activate()
+
+        XCTAssertEqual(activations, 1)
+        XCTAssertFalse(passivePopover)
+    }
+
+    @MainActor
+    func testBookmarkActivationStillOpensItsItemDetails() throws {
+        var passivePopover = false
+        let item = InventoryBookmark(
+            def: try XCTUnwrap(Catalog.item(Bookmarks.syndication)),
+            colour: Paper.pageWarm, ink: Paper.ink, flagged: false,
+            slot: 0, pulling: false, asleep: false, fired: false,
+            explaining: Binding(get: { passivePopover }, set: { passivePopover = $0 }))
+
+        item.activate()
+
+        XCTAssertTrue(passivePopover)
+    }
+
     func testSameGestureUpdatesDoNotRestartTheHold() throws {
         var press = BookmarkPressState()
         let generation = try XCTUnwrap(press.begin(itemKey: 0))

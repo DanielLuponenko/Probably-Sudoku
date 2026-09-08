@@ -271,13 +271,32 @@ final class BossModifierTests: XCTestCase {
     }
 
     func testTikTakDefinesTheClockAndExpiryFailsEvenWhileKeepingFilling() throws {
-        XCTAssertEqual(BossModifier.tikTak.secondsAllowed, 180)
+        XCTAssertEqual(BossModifier.tikTak.secondsAllowed, 240)
+        XCTAssertEqual(BossModifier.tikTak.text, "Four minutes for the whole Puzzle")
         var game = Game(seed: "clock")
         try game.startPuzzle()
         game.run.puzzle?.phase = .keepFilling
         game.failPuzzle()
         XCTAssertEqual(game.puzzle?.phase, .failed)
         XCTAssertEqual(game.run.outcome, .failed)
+    }
+
+    func testNewTikTakEncounterStartsAtFourMinutesAndPersistsTheActualRemainingTime() throws {
+        var run = RunState(seed: "four-minute-tik-tak")
+        run.slot = .boss
+        run.pendingBoss = .tikTak
+        var game = Game(run: run)
+        try game.startPuzzle()
+        XCTAssertEqual(game.puzzle?.boss, .tikTak)
+        XCTAssertEqual(game.puzzle?.clockSecondsRemaining, 240)
+
+        // Three-minute encounters saved by an earlier build remain exactly as
+        // the player left them. Do not add or refund time during decoding.
+        game.run.puzzle?.clockSecondsRemaining = 127.25
+        let encoded = try game.encoded()
+        let restored = try Game(decoding: encoded)
+        XCTAssertEqual(restored.puzzle?.clockSecondsRemaining, 127.25)
+        XCTAssertEqual(try restored.encoded(), encoded)
     }
 
     #if DEBUG

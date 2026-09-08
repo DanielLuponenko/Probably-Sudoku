@@ -594,6 +594,7 @@ public enum Actions {
             run.runItemState[Bookmarks.syndication] = (run.runItemState[Bookmarks.syndication] ?? 0) + 1
         }
 
+        puzzle.bankedPayout = payout
         puzzle.phase = .cashedOut
         run.puzzle = puzzle
         return payout

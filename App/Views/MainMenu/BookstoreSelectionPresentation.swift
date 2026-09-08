@@ -3,56 +3,83 @@ import Foundation
 import simd
 
 /// One measured destination for the physical cover and its interactive view.
-/// The plaque is deliberately outside the moving Book's coordinate system.
+/// The top sign owns the benefit; the Open action follows the visible Book.
 struct BookstoreSelectionLayout {
     let viewport: CGSize
 
-    private var needsVerticalFit: Bool { viewport.width >= 600 }
-    private let topControlClearance: CGFloat = 80
-    private let bookToPlaqueSpacing: CGFloat = 10
-    private let plaqueToControlSpacing: CGFloat = 12
-    static let openButtonHeight: CGFloat = 58
+    // Fit once before extraction. Neither benefit copy nor obstacle selection
+    // participates in the physical Book's dimensions or its return path.
+    private var needsTabletCTA: Bool { viewport.width >= 600 }
+    /// Keep the Book below the fixed top sign.
+    var headerClearance: CGFloat { 160 }
+    private let bookToControlSpacing: CGFloat = 28
+    static let openButtonHeight: CGFloat = 52
     static let openButtonTopPadding: CGFloat = 5
+    static let plaqueBaseHeight: CGFloat = 72
+    static let plaqueObstacleHeight: CGFloat = 40
+
+    // LiveBook draws the front cover plus the selected bookmark silhouette in
+    // the top-leading 1.20w canvas. These are the authored horizontal pieces:
+    // trailing hit-frame start, tab offset, selected pull, printed width,
+    // trailing padding, and leaf-block offset. Center the
+    // visible ink, rather than the canvas (whose right gutter is intentional).
+    private static let visibleBookRightScale: CGFloat =
+        0.80 + 0.155 + 0.030 + 0.088 + 0.018 + 0.016
 
     // Both renderers receive a full-screen viewport. On a tablet, reserve the
     // home-indicator area as well as the existing bottom gutter for the CTA.
-    var openButtonBottomPadding: CGFloat { needsVerticalFit ? 34 : 14 }
+    var openButtonBottomPadding: CGFloat { needsTabletCTA ? 34 : 14 }
+    private var latestOpenButtonTop: CGFloat {
+        max(0, viewport.height - openButtonBottomPadding - Self.openButtonHeight)
+    }
     var openButtonFrame: CGRect {
-        CGRect(x: 16, y: viewport.height - openButtonBottomPadding - Self.openButtonHeight,
-               width: max(0, viewport.width - 32), height: Self.openButtonHeight)
+        let width = min(280, visibleBookWidth * 0.82)
+        return CGRect(x: (viewport.width - width) * 0.5,
+                      y: min(visualBookFrame.maxY + bookToControlSpacing, latestOpenButtonTop),
+                      width: width, height: Self.openButtonHeight)
     }
 
-    static func plaqueHeight(width: CGFloat, showsObstacle: Bool) -> CGFloat {
-        width * 0.245 + (showsObstacle ? 32 : 0)
+    // Standalone benefit-component preview helpers. These no longer reserve
+    // space or influence the live Book/CTA destination.
+    static func plaqueHeight(width _: CGFloat, showsObstacle: Bool) -> CGFloat {
+        // The label is a compact printed insert. Its height must not grow
+        // with the device width and squeeze the physical Book on iPad.
+        plaqueBaseHeight + (showsObstacle ? plaqueObstacleHeight : 0)
     }
 
     private var availableBookBottom: CGFloat {
-        // Reserve the taller plaque before extraction, even with Obstacle I.
-        // Picking a ribbon must not resize the cover or change its return path.
-        openButtonFrame.minY - Self.openButtonTopPadding - plaqueToControlSpacing
-            - Self.plaqueHeight(width: viewport.width * 0.96, showsObstacle: true)
-            - bookToPlaqueSpacing
+        max(headerClearance, latestOpenButtonTop - bookToControlSpacing)
     }
     var bookWidth: CGFloat {
         let preferred = viewport.width * 0.80
-        guard needsVerticalFit else { return preferred }
-        return min(preferred, max(0, availableBookBottom - topControlClearance) / 1.445)
+        return min(preferred, max(0, availableBookBottom - headerClearance) / 1.445)
     }
     var canvasSize: CGSize {
         CGSize(width: bookWidth * 1.20, height: bookWidth * 1.445)
     }
+    private var visibleBookWidth: CGFloat { bookWidth * Self.visibleBookRightScale }
+    /// Width for standalone benefit-component previews, not the live menu.
+    var plaqueWidth: CGFloat {
+        min(bookWidth, max(0, viewport.width - 32))
+    }
     var coverCenter: CGPoint {
         let preferredY = viewport.height * 0.478
         let halfHeight = canvasSize.height * 0.5
-        let fittedY = min(max(preferredY, topControlClearance + halfHeight),
+        let fittedY = min(max(preferredY, headerClearance + halfHeight),
                           availableBookBottom - halfHeight)
-        return CGPoint(x: viewport.width * 0.5 + bookWidth * 0.10,
-                       y: needsVerticalFit ? fittedY : preferredY)
+        let visualCenterOffset = (canvasSize.width - visibleBookWidth) * 0.5
+        return CGPoint(x: viewport.width * 0.5 + visualCenterOffset,
+                       y: fittedY)
+    }
+    var visualBookFrame: CGRect {
+        CGRect(x: coverCenter.x - canvasSize.width * 0.5,
+               y: coverCenter.y - canvasSize.height * 0.5,
+               width: visibleBookWidth, height: canvasSize.height)
     }
     func plaqueFrame(height: CGFloat) -> CGRect {
-        CGRect(x: viewport.width * 0.02,
-               y: coverCenter.y + canvasSize.height * 0.5 + bookToPlaqueSpacing,
-               width: viewport.width * 0.96, height: height)
+        return CGRect(x: (viewport.width - plaqueWidth) * 0.5,
+               y: visualBookFrame.maxY + 18,
+               width: plaqueWidth, height: height)
     }
 }
 

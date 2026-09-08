@@ -38,19 +38,19 @@ public enum Obstacle: Int, Codable, CaseIterable, Sendable {
         case .shortHanded:
             return "One fewer number in hand."
         case .shortHandedAndBlocked:
-            return "One fewer in hand, one blocked each Turn."
+            return "One fewer in hand, up to one blocked each Turn."
         case .smallerHand:
-            return "Two fewer in hand, one blocked each Turn."
+            return "Two fewer in hand, up to one blocked each Turn."
         case .smallerHandAndBlocked:
-            return "Two fewer in hand, two blocked each Turn."
+            return "Two fewer in hand, up to two blocked each Turn."
         case .doubleBlocked:
-            return "Two fewer in hand, two blocked, one fewer Turn."
+            return "Two fewer in hand, up to two blocked, one fewer Turn."
         case .shortDeadline:
-            return "Two fewer in hand, two blocked, one fewer Turn, no Tosses."
+            return "Two fewer in hand, up to two blocked, one fewer Turn, no Tosses."
         case .noTosses:
-            return "Two fewer in hand, three blocked, one fewer Turn, no Tosses."
+            return "Two fewer in hand, up to three blocked, one fewer Turn, no Tosses."
         case .finalEdition:
-            return "Three fewer in hand, three blocked, one fewer Turn, no Tosses."
+            return "Three fewer in hand, up to three blocked, one fewer Turn, no Tosses."
         }
     }
 

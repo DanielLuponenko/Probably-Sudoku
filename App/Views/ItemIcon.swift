@@ -16,6 +16,7 @@ enum ItemIcon {
         case "bf_lucky_dip": return "hand.draw"
         case "bf_bird_seed": return "bird"
         case "bf_fresh_ink": return "drop"
+        case "bf_litmus": return "eyedropper.halffull"
         case "bf_paper_crane": return "paperplane"
         // Markers
         case let id where id.hasPrefix("mk_"): return "square.fill"

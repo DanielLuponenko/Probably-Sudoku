@@ -503,7 +503,7 @@ final class GameModel {
     }
 
     /// Scheduled once a second, but charges the real monotonic interval so
-    /// a delayed main-actor wakeup cannot silently lengthen the three minutes.
+    /// a delayed main-actor wakeup cannot silently lengthen the four minutes.
     func tickClock(at now: ContinuousClock.Instant = ContinuousClock().now) {
         guard animatesHandArrival, page == .puzzle, !wantsMenu,
               clockPuzzleID == currentClockPuzzleID, clockLastSample != nil else { return }
@@ -672,7 +672,14 @@ final class GameModel {
 
     // MARK: - Actions
 
+    /// The score can finish printing after the engine has already won/lost.
+    /// Outgoing controls must not submit another action during that interval.
+    var acceptsPuzzleInput: Bool {
+        puzzle?.phase == .playing || puzzle?.phase == .keepFilling
+    }
+
     func tapHand(_ index: Int) {
+        guard acceptsPuzzleInput else { return }
         guard hand.indices.contains(index) else { return }
         let choosingClue = isChoosingClue
         if isBlocked(handIndex: index) {
@@ -700,7 +707,8 @@ final class GameModel {
     }
 
     func tapSquare(_ square: Square) {
-        guard let puzzle else { return }
+        guard let puzzle,
+              puzzle.phase == .playing || puzzle.phase == .keepFilling else { return }
         guard !puzzle.isBarred(square) else {
             message = "That square is barred this Turn"
             return
@@ -717,6 +725,10 @@ final class GameModel {
     }
 
     func place(handIndex: Int, at square: Square) {
+        // A delayed drag/tap can arrive after the results page has replaced
+        // the board. The engine rejects it, but the presentation boundary
+        // must also avoid turning that expected rejection into a new message.
+        guard puzzle?.phase == .playing || puzzle?.phase == .keepFilling else { return }
         guard hand.indices.contains(handIndex) else { return }
         let digit = hand[handIndex]
         let wasKeepingFilling = puzzle?.phase == .keepFilling
@@ -829,6 +841,7 @@ final class GameModel {
     /// Pool. The allowance controls how often the player may repeat that
     /// action; it never turns several selected cards into a batch operation.
     func tossSelected() {
+        guard acceptsPuzzleInput else { return }
         guard let index = selectedHandIndex, hand.indices.contains(index) else {
             message = "Pick one number to Toss"
             return
@@ -850,7 +863,7 @@ final class GameModel {
     }
 
     var canToss: Bool {
-        !handCards.isEmpty && (puzzle?.tossesRemaining ?? 0) > 0
+        acceptsPuzzleInput && !handCards.isEmpty && (puzzle?.tossesRemaining ?? 0) > 0
     }
 
     var tossButtonTitle: String {
@@ -891,6 +904,7 @@ final class GameModel {
     /// Selection mode itself is free; the engine spends the clue only when it
     /// has a legal destination to reveal for a playable held number.
     func chooseClue() {
+        guard acceptsPuzzleInput else { return }
         if isChoosingClue {
             dismissSelection()
         } else if selectedHandIndex != nil {
@@ -956,6 +970,7 @@ final class GameModel {
     }
 
     func endTurn() {
+        guard acceptsPuzzleInput else { return }
         let bossBefore = BossFeedbackSnapshot(puzzle)
         let previousScore = puzzle?.score ?? 0
         do {
@@ -974,9 +989,11 @@ final class GameModel {
     // MARK: - Page turns
 
     /// What cashing out would pay, worked out before you commit to it. Pure, so
-    /// showing it costs nothing and the decision is an informed one.
+    /// showing it costs nothing and the decision is an informed one. A banked
+    /// Puzzle instead returns its original receipt, if the save contains one.
     var payoutPreview: RunState.Payout? {
         guard let puzzle else { return nil }
+        if puzzle.phase == .cashedOut { return puzzle.bankedPayout }
         return run.payout(for: puzzle)
     }
 
@@ -1082,7 +1099,8 @@ final class GameModel {
     /// neither the live board stream nor a saved Book has advanced.
     func prepareUpcomingPuzzle(
         reportFailure: Bool = false,
-        using generate: @escaping @Sendable (Game) throws -> Game = GameModel.generateUpcomingPuzzle
+        using generate: @escaping @Sendable (Game) throws -> Game = { try GameModel.generateUpcomingPuzzle($0) },
+        warmingPersistenceWith warmEncoding: @escaping @Sendable (Game) -> Void = { GameModel.warmPersistenceEncoding($0) }
     ) async -> PreparedPuzzle? {
         guard canPreparePuzzle, !Task.isCancelled else { return nil }
         if let preparedPuzzle, preparedPuzzle.revision == puzzlePreparationRevision {
@@ -1099,6 +1117,12 @@ final class GameModel {
                 Result<Game, Error> {
                     try Task.checkCancellation()
                     let generated = try generate(source)
+                    try Task.checkCancellation()
+                    // First-use Codable metadata was being realized by the
+                    // synchronous save inside the page curl's first-frame
+                    // callback. Warm only the worker's value; this writes no
+                    // save and cannot advance the live Book or its RNG.
+                    warmEncoding(generated)
                     try Task.checkCancellation()
                     return generated
                 }
@@ -1167,6 +1191,12 @@ final class GameModel {
         return generated
     }
 
+    nonisolated static func warmPersistenceEncoding(_ game: Game) {
+        // Discard these bytes. The accepted commit still saves the current
+        // live state synchronously, preserving durable reward/clock ordering.
+        _ = try? game.encoded()
+    }
+
     private func finishBeginningPuzzle() {
         #if DEBUG && targetEnvironment(simulator)
         applyPendingQAMarker()
@@ -1187,6 +1217,28 @@ final class GameModel {
         lastClipping = nil
         page = .puzzle
         presentBossChanges(from: BossFeedbackSnapshot(nil))
+    }
+
+    /// An animated coupon commits only if the exact offer is still on this
+    /// page. The game revision changes after a skip, purchase, restore or deal.
+    struct ClippingClaim: Equatable {
+        fileprivate let ownerID: UUID
+        fileprivate let revision: UInt64
+        fileprivate let clipping: Clipping
+    }
+    @ObservationIgnored private let clippingOwnerID = UUID()
+
+    var currentClippingClaim: ClippingClaim? {
+        guard page == .briefing, !wantsMenu, game.puzzle == nil, game.shop == nil,
+              game.run.outcome == nil, let clipping = run.currentClipping else { return nil }
+        return ClippingClaim(ownerID: clippingOwnerID, revision: puzzlePreparationRevision, clipping: clipping)
+    }
+
+    @discardableResult
+    func takeClipping(ifCurrent claim: ClippingClaim) -> Bool {
+        guard currentClippingClaim == claim else { return false }
+        skipCurrentPuzzle()
+        return puzzlePreparationRevision != claim.revision
     }
 
     func skipCurrentPuzzle() {

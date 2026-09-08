@@ -252,21 +252,14 @@ struct BookmarkRow: View {
                              pulling: pulled?.kind == .buff && pulled?.index == index,
                              asleep: false,
                              fired: false,
-                             explaining: .constant(false))
+                             explaining: .constant(false),
+                             onActivate: { onTapBuff(index) })
                         .gesture(handle(kind: .buff, index: index,
                                         defID: buff.defID,
                                         price: model.sellPrice(buff.pricePaid),
                                         width: width) {
                             onTapBuff(index)
                         })
-                        // Pulling is an enhancement, not the only way to use
-                        // a Buff. Keep a semantic activation for VoiceOver and
-                        // switch control users.
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(buff.def.name). \(buff.def.text)")
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityHint("Uses this Buff")
-                        .accessibilityAction { onTapBuff(index) }
                         .accessibilityAction(named: sale.actionTitle) { sell(sale) }
                 } else {
                     EmptyBookmark(slot: ItemKind.bookmark.capacity + slot, dark: true)
@@ -453,6 +446,17 @@ struct InventoryBookmark: View {
     var sale: InventorySale? = nil
     var onSell: (() -> Void)? = nil
     var scoreLabel: String? = nil
+    /// Buffs open their use slip instead of the passive-item popover. Keep
+    /// activation on this one accessible element, not a second wrapping button.
+    var onActivate: (() -> Void)? = nil
+
+    func activate() {
+        if let onActivate {
+            onActivate()
+        } else {
+            explaining = true
+        }
+    }
 
     /// Hand-inserted things are never quite straight, and the tilt has to be
     /// the same every render or the row twitches on each state change.
@@ -545,8 +549,9 @@ struct InventoryBookmark: View {
         .accessibilityLabel("\(def.name). \(def.text)")
         .accessibilityValue(asleep ? "Asleep this Turn. Does not contribute." : "")
         .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Shows item details and sell price")
-        .accessibilityAction { explaining = true }
+        .accessibilityHint(onActivate == nil ? "Shows item details and sell price"
+                                            : "Shows Buff details and use options")
+        .accessibilityAction { activate() }
     }
 }
 

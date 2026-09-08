@@ -10,14 +10,22 @@ final class BookstoreSCNView: SCNView {
     private var hasAppliedSceneUpdate = false
     private var hasReportedFirstFrame = false
     private var isSceneVisible = true
+    private var scenePhase: BookstoreScenePhase = .store
+    private var thermalObserver: NSObjectProtocol?
 
     /// Warm the actual destination once, then stop its hidden render loop while
     /// the studio camera moves. The prepared drawable survives the handoff.
-    func updateRenderActivity(isSceneVisible: Bool) {
+    func updateRenderActivity(isSceneVisible: Bool, phase: BookstoreScenePhase? = nil) {
         self.isSceneVisible = isSceneVisible
+        if let phase { scenePhase = phase }
         let shouldRender = isSceneVisible || !hasReportedFirstFrame || onNextFrame != nil
         isPlaying = shouldRender
         rendersContinuously = shouldRender
+        preferredFramesPerSecond = BookstoreRenderPolicy.preferredFramesPerSecond(
+            phase: scenePhase,
+            hasReportedFirstFrame: hasReportedFirstFrame,
+            awaitingFrame: onNextFrame != nil,
+            thermalState: ProcessInfo.processInfo.thermalState)
     }
 
     func updateFirstFrameReporting(_ callback: (() -> Void)?) {
@@ -90,8 +98,27 @@ final class BookstoreSCNView: SCNView {
             // SwiftUI sizing pass. Force the Metal surface to native device
             // scale once the view reaches its real window.
             contentScaleFactor = screen.scale
+            if thermalObserver == nil {
+                thermalObserver = NotificationCenter.default.addObserver(
+                    forName: ProcessInfo.thermalStateDidChangeNotification,
+                    object: nil, queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.window != nil else { return }
+                        self.updateRenderActivity(isSceneVisible: self.isSceneVisible)
+                    }
+                }
+            }
+            updateRenderActivity(isSceneVisible: isSceneVisible)
+        } else if let thermalObserver {
+            NotificationCenter.default.removeObserver(thermalObserver)
+            self.thermalObserver = nil
         }
         updateFirstFrameViewport()
+    }
+
+    deinit {
+        if let thermalObserver { NotificationCenter.default.removeObserver(thermalObserver) }
     }
 
     override func layoutSubviews() {
@@ -232,6 +259,7 @@ struct BookstoreSceneView: UIViewRepresentable {
     var cameraForward: Double
     var cameraSide: Double
     var reduceMotion: Bool
+    var ambientMotionEnabled = true
     var debugCameraPosition: BookstoreDebugCameraPosition?
     var onSelectEdition: (String) -> Void
     var onRequestBookFocus: (String) -> Void
@@ -267,7 +295,7 @@ struct BookstoreSceneView: UIViewRepresentable {
     func updateUIView(_ view: SCNView, context: Context) {
         context.coordinator.updateViewport(view.bounds.size)
         if !isSceneVisible { context.coordinator.stopRackMotionWhenHidden() }
-        (view as? BookstoreSCNView)?.updateRenderActivity(isSceneVisible: isSceneVisible)
+        (view as? BookstoreSCNView)?.updateRenderActivity(isSceneVisible: isSceneVisible, phase: phase)
         view.setNeedsDisplay()
         context.coordinator.update(
             phase: phase,
@@ -288,6 +316,7 @@ struct BookstoreSceneView: UIViewRepresentable {
             cameraForward: cameraForward,
             cameraSide: cameraSide,
             reduceMotion: reduceMotion,
+            ambientMotionEnabled: ambientMotionEnabled,
             debugCameraPosition: debugCameraPosition,
             onSelectEdition: onSelectEdition,
             onRequestBookFocus: onRequestBookFocus,

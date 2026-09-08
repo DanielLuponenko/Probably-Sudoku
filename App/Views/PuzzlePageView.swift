@@ -85,7 +85,9 @@ struct PuzzlePageView: View {
                        queuedBase: model.presentedQueue ?? puzzle.pendingBase,
                        queuedMultiplier: puzzle.pendingMultiplier,
                        recentCoins: model.lastOutcome?.coinsEarned,
-                       compact: compact)
+                       compact: compact,
+                       beat: model.scoreBeat,
+                       performanceSummary: model.scorePerformance?.summary)
                 .dismissesPuzzleSelection(when: hasSelection) {
                     model.dismissSelection()
                 }
@@ -106,6 +108,7 @@ struct PuzzlePageView: View {
                     model.dismissSelection()
                 }
         }
+        .disabled(!model.acceptsPuzzleInput)
     }
 
     // MARK: Header
@@ -161,20 +164,7 @@ struct PuzzlePageView: View {
     /// The Book's own handwriting, given room whether or not it speaks, so a
     /// note appearing never shifts the grid.
     private func marginBand(compact: Bool) -> some View {
-        ZStack {
-            if let beat = model.scoreBeat, let performance = model.scorePerformance {
-                ScoreReceiptView(beat: beat, summary: performance.summary)
-                    .id(beat.id)
-                    .transition(reduceMotion ? .opacity : .scale(scale: 1.04).combined(with: .opacity))
-            } else if let note = model.marginNote {
-                MarginNoteView(note: note)
-                    .id(note.text)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: compact ? 38 : 46)
-        .animation(.easeInOut(duration: 0.45), value: model.marginNote)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: model.scoreBeat?.id)
+        PuzzleMarginBand(note: model.marginNote, compact: compact)
     }
 
     // MARK: Actions
@@ -243,6 +233,8 @@ struct ScoreMeter: View {
     /// beside the placement that triggered it rather than inferred by the UI.
     var recentCoins: Int?
     var compact = false
+    var beat: ScorePerformance.Beat? = nil
+    var performanceSummary: String? = nil
 
     private var fraction: Double {
         target > 0 ? min(1, Double(score) / Double(target)) : 0
@@ -272,23 +264,35 @@ struct ScoreMeter: View {
                 .frame(height: (compact ? 24 : 28) * 1.18, alignment: .topLeading)
 
                 HStack(spacing: 8) {
-                    if queuedBase > 0 {
-                        Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
-                            .font(Print.caption(11))
-                            .foregroundStyle(palette.accent)
-                            .accessibilityLabel("\(queued) points queued until end turn")
-                    }
-                    Spacer(minLength: 0)
-                    if let recentCoins, recentCoins > 0 {
-                        Text("+\(recentCoins.formatted()) coins")
-                            .font(Print.caption(12))
-                            .foregroundStyle(Paper.coinRim)
-                            .accessibilityLabel("Last placement, plus \(recentCoins) coins")
+                    if let beat {
+                        // Attribute the staged score where its total lives,
+                        // using the already-reserved queue line. The margin
+                        // below the board remains handwriting, not a banner.
+                        ScoreReceiptView(beat: beat, summary: performanceSummary ?? "\(beat.source), \(beat.value)")
+                    } else {
+                        if queuedBase > 0 {
+                            Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
+                                .font(Print.caption(11))
+                                .foregroundStyle(palette.accent)
+                                .accessibilityLabel("\(queued) points queued until end turn")
+                        }
+                        Spacer(minLength: 0)
+                        if let recentCoins, recentCoins > 0 {
+                            Text("+\(recentCoins.formatted()) coins")
+                                .font(Print.caption(12))
+                                .foregroundStyle(Paper.coinRim)
+                                .accessibilityLabel("Last placement, plus \(recentCoins) coins")
+                        }
                     }
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .frame(height: compact ? 14 : 16)
+                // Each printed attribution replaces the previous one. Inherit
+                // neither the queue's spring nor its cross-fading text layers:
+                // rapid beats otherwise print two sources over the same line.
+                // The score digits and progress ruler keep their animations.
+                .transaction { $0.animation = nil }
             }
 
             ScoreRuler(fraction: fraction, reach: reach, target: target, score: score,
@@ -351,9 +355,9 @@ private struct ScoreRuler: View {
     }
 }
 
-private struct PuzzleActionButton: View {
+struct PuzzleActionButton: View {
     @Environment(\.cosmeticTheme) private var theme
-    @Environment(\.levelPalette) private var palette
+    @Environment(\.bookPresentation) private var bookTheme
     enum Kind { case primary, quiet }
     var title: String
     var subtitle: String? = nil
@@ -366,21 +370,22 @@ private struct PuzzleActionButton: View {
         Button(action: action) {
             VStack(spacing: 2) {
                 Text(title).font(Print.subheading(compact ? 16 : 18)).tracking(1.1).textCase(.uppercase)
-                if let subtitle { Text(subtitle).font(Print.body(11.5)).opacity(0.72) }
+                if let subtitle { Text(subtitle).font(Print.body(11.5)) }
             }
             // Clue availability changes two columns to three (and back),
             // but wrapping button copy must never renegotiate the grid height.
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(kind == .primary ? Color.white : theme.paper.ink)
+            .foregroundStyle(kind == .primary ? bookTheme.buttonForeground
+                             : bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
             .frame(maxWidth: .infinity)
             .frame(height: compact ? 44 : 52)
             .background {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(kind == .primary ? palette.target : theme.paper.warm)
+                    .fill(kind == .primary ? bookTheme.buttonFill : theme.paper.warm)
                     .shadow(color: .black.opacity(kind == .primary ? 0.27 : 0.15), radius: 2, x: 0, y: 2)
             }
-            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(palette.rule.opacity(0.8), lineWidth: 1) }
+            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(bookTheme.accent.opacity(0.7), lineWidth: 1) }
         }
         .buttonStyle(PressedPaperStyle())
         .disabled(!isEnabled)
@@ -418,23 +423,32 @@ struct BossStampReservation: View {
     }
 }
 
-/// The Boss Modifier, annotated in ink without taking width from its rule.
+/// A compact two-line caption and its ink seal. The same height is reserved
+/// on every Puzzle, so identifying a Boss never shrinks the playable grid.
 struct BossStamp: View {
     @Environment(\.levelPalette) private var palette
     var boss: BossModifier
     var censored: Digit?
 
-    private var design: BossBoardDesign { BossBoardDesign(boss: boss) }
+    private var fullRule: String {
+        censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text
+    }
 
     var body: some View {
-        let rule = censored.map { "\(boss.text) (\($0.rawValue))" } ?? boss.text
-        Text("\(Text(boss.name.uppercased()).font(Print.caption(11.5)).foregroundStyle(design.ink)) · \(rule)")
-            .font(Print.body(11.5))
-            .foregroundStyle(palette.ink.opacity(0.78))
-            .lineLimit(2, reservesSpace: true)
-            .minimumScaleFactor(0.85)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityLabel("\(boss.name). \(rule)")
+        HStack(alignment: .center, spacing: 7) {
+            BossSignatureBadge(boss: boss)
+            // Let the full name and engine-authored rule share both lines.
+            // Reserving an entire line for the name forced rule truncation
+            // or shorthand that omitted important exceptions.
+            Text("\(Text(boss.name.uppercased()).font(Print.caption(11.5)).foregroundStyle(palette.ink)) · \(Text(fullRule))")
+                .font(Print.body(11.5))
+                .foregroundStyle(palette.ink.opacity(0.78))
+                .lineLimit(2, reservesSpace: true)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(boss.name). \(fullRule)")
     }
 }
 
@@ -443,6 +457,9 @@ struct BossStamp: View {
 struct PaperButton: View {
     @Environment(\.levelPalette) private var palette
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
+    @ScaledMetric(relativeTo: .headline) private var labelSize: CGFloat = 16
+    @ScaledMetric(relativeTo: .caption) private var detailSize: CGFloat = 10
     enum Kind { case primary, quiet, danger }
 
     var title: String
@@ -455,18 +472,21 @@ struct PaperButton: View {
         Button(action: action) {
             VStack(spacing: 1) {
                 Text(title)
-                    .font(Print.subheading(16))
+                    .font(Print.subheading(labelSize))
                     .textCase(.uppercase)
                     .tracking(0.8)
                 if let subtitle {
                     Text(subtitle)
-                        .font(Print.caption(10))
-                        .opacity(0.8)
+                        .font(Print.caption(detailSize))
                 }
             }
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .frame(minHeight: 52)
             .background {
                 RoundedRectangle(cornerRadius: 5).fill(background)
             }
@@ -482,20 +502,20 @@ struct PaperButton: View {
 
     private var foreground: Color {
         switch kind {
-        case .primary: return theme.paper.isDark ? theme.paper.ink : palette.paper
-        case .quiet: return theme.paper.ink
+        case .primary: return bookTheme.buttonForeground
+        case .quiet: return bookTheme.quietInk(onDarkPaper: theme.paper.isDark)
         case .danger: return palette.danger
         }
     }
     private var background: Color {
         switch kind {
-        case .primary: return palette.target
+        case .primary: return bookTheme.buttonFill
         case .quiet: return theme.paper.warm.opacity(0.9)
         case .danger: return theme.paper.warm.opacity(0.9)
         }
     }
     private var border: Color {
-        kind == .danger ? palette.danger.opacity(0.6) : theme.paper.ruleInk
+        kind == .danger ? palette.danger.opacity(0.6) : bookTheme.accent.opacity(0.7)
     }
 }
 

@@ -7,22 +7,63 @@ import ProbablySudokuEngine
 
 @MainActor
 final class PuzzleAnnotationRenderingTests: XCTestCase {
+    func testChangingTurnReplacesHandwritingWithoutSuperimposingThePreviousSentence() async throws {
+        try XCTSkipIf(UIAccessibility.isReduceMotionEnabled,
+                      "This mid-animation check requires the normal-motion simulator setting.")
+        let state = MarginBandTestState()
+        let content = MarginBandTestView(state: state)
+            .frame(width: 365, height: 46)
+            .padding(20)
+            .background(Color.white)
+            .environment(\.cosmeticTheme, .standard)
+            .environment(\.colorScheme, .light)
+        let host = UIHostingController(rootView: content)
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previousKey = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 405, height: 86)
+        window.rootViewController = host
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKey?.makeKey()
+        }
+        window.makeKeyAndVisible()
+        try await Task.sleep(for: .milliseconds(100))
+        state.note = MarginNote(text: "Clear a row for more points.", lateral: 0.5,
+                                angle: 1.2, underlined: false)
+        // Capture the middle of the actual 450ms transition, not a settled
+        // ImageRenderer frame that would hide the old/new text collision.
+        try await Task.sleep(for: .milliseconds(220))
+        window.layoutIfNeeded()
+        let image = UIGraphicsImageRenderer(size: window.bounds.size).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
+        }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "margin-note-mid-turn-transition"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        let printed = try recognizedText(in: image, handwriting: true)
+        XCTAssertEqual(normalize(printed), normalize(state.note.text),
+                       "Only the new sentence should be visible halfway through the transition: \(printed)")
+    }
+
     func testEveryBossNameAndCompleteRuleFitTheTwoLineAnnotation() throws {
-        for width: CGFloat in [300, 327, 365] {
+        for width: CGFloat in [280, 300, 327, 365] {
             let reservation = try render(BossStampReservation().frame(width: width),
                                          name: "boss-reservation-\(Int(width))", attach: false)
             for boss in BossModifier.allCases {
                 let censored: Digit? = boss == .censor ? .seven : nil
                 let image = try render(BossStamp(boss: boss, censored: censored).frame(width: width),
                                        name: "boss-\(boss.rawValue)-\(Int(width))")
-                var text = try recognizedText(in: image)
-                if boss == .erratum {
-                    // Visually verified the rendered zero. Vision reads this
-                    // isolated proportional-font glyph as O; correct only
-                    // this exact phrase, not digits elsewhere in the suite.
-                    XCTAssertEqual(boss.text, "Toss allowance 0")
-                    text = text.replacingOccurrences(of: "Toss allowance O", with: "Toss allowance 0")
-                }
+                // OCR the complete copy, not the adjacent decorative seal.
+                // The verified Garry render is fully legible, but Vision
+                // reads its 3x3 glyph as "00‹" between the two text lines.
+                // Keep rendering/containment checks over the entire image.
+                let copyLeading = padding + 26 + 7 // BossStamp's seal and gap.
+                let copyRegion = CGRect(x: copyLeading / image.size.width, y: 0,
+                                        width: 1 - copyLeading / image.size.width, height: 1)
+                let text = try recognizedText(in: image, region: copyRegion)
                 XCTAssertTrue(normalize(text).contains(normalize(boss.name)),
                               "\(boss.rawValue), \(width): incomplete name: \(text)")
                 XCTAssertTrue(normalize(text).contains(normalize(boss.text)),
@@ -102,8 +143,10 @@ final class PuzzleAnnotationRenderingTests: XCTestCase {
         return image
     }
 
-    private func recognizedText(in image: UIImage, handwriting: Bool = false) throws -> String {
+    private func recognizedText(in image: UIImage, handwriting: Bool = false,
+                                region: CGRect? = nil) throws -> String {
         let request = VNRecognizeTextRequest()
+        if let region { request.regionOfInterest = region }
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["en-US"]
         request.usesLanguageCorrection = handwriting
@@ -147,5 +190,19 @@ final class PuzzleAnnotationRenderingTests: XCTestCase {
         XCTAssertGreaterThan(inkCount, 20, "\(context): blank render cannot satisfy containment", file: file, line: line)
         XCTAssertEqual(escapedCount, 0, "\(context): \(escapedCount) ink pixels escaped the allocated band",
                        file: file, line: line)
+    }
+}
+
+@MainActor @Observable
+private final class MarginBandTestState {
+    var note = MarginNote(text: "Pick a number from your Hand.", lateral: 0.5,
+                          angle: 1.2, underlined: false)
+}
+
+private struct MarginBandTestView: View {
+    var state: MarginBandTestState
+
+    var body: some View {
+        PuzzleMarginBand(note: state.note, compact: false)
     }
 }

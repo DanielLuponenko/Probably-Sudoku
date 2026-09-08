@@ -41,25 +41,25 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
 
     public var text: String {
         switch self {
-        case .censor: return "One random number scores 0 points this Puzzle"
+        case .censor: return "One random number scores no points this Puzzle"
         case .editor: return "Hand size -1"
         case .deadline: return "8 Turns instead of 10"
         case .fog: return "Marked squares are hidden this Puzzle"
         case .critic: return "Wrong-placement penalty doubled"
-        case .mirror: return "Line Clear bonuses score 0"
+        case .mirror: return "No Line Clear bonuses this Puzzle"
         case .paywall: return "All Clues disabled, including Buff-granted"
-        case .erratum: return "Toss allowance 0"
+        case .erratum: return "No Tosses this Puzzle"
         case .collector: return "This Puzzle's payout includes no interest"
         case .heavyLifter: return "The target is four times what it would be"
-        case .unluckyLucky: return "One Bookmark sleeps each Turn"
+        case .unluckyLucky: return "One triggered Bookmark sleeps each Turn; passive upgrades stay active"
         case .buffborger: return "No Buff can be spent this Puzzle"
         case .sashimi: return "All score multipliers are cut in half"
-        case .overPusher: return "Three squares are fouled each Turn, and clear two Turns later"
+        case .overPusher: return "Up to three squares are fouled each Turn for two Turns; one blank stays free"
         case .accountant: return "Every placement costs a coin, even if you have none"
-        case .tikTak: return "Three minutes for the whole Puzzle"
-        case .handyDandy: return "Two numbers in your Hand are barred each Turn"
-        case .grayTheGarry: return "A row is greyed out each Turn and cannot be written in"
-        case .garryTheGray: return "A box is greyed out each Turn and cannot be written in"
+        case .tikTak: return "Four minutes for the whole Puzzle"
+        case .handyDandy: return "Up to two cards are barred each Turn; your whole Hand is never barred"
+        case .grayTheGarry: return "A row is barred each Turn, unless it holds every remaining blank"
+        case .garryTheGray: return "A box is barred each Turn, unless it holds every remaining blank"
         }
     }
 
@@ -108,7 +108,7 @@ public enum BossModifier: String, Codable, CaseIterable, Sendable {
     public var greysARowEachTurn: Bool { self == .grayTheGarry }
     public var greysABoxEachTurn: Bool { self == .garryTheGray }
     public var disablesABookmarkEachTurn: Bool { self == .unluckyLucky }
-    public var secondsAllowed: Double? { self == .tikTak ? 180 : nil }
+    public var secondsAllowed: Double? { self == .tikTak ? 240 : nil }
 
     /// Needs a digit rolled alongside it.
     public var censorsARandomDigit: Bool { self == .censor }

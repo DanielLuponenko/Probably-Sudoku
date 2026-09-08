@@ -1,5 +1,18 @@
 import Foundation
 
+/// Decorative scenery and user-driven rack motion have separate switches.
+/// Disabling background motion must not turn a swipe into a hard page change.
+enum BookstoreMotionPolicy {
+    static func isSceneVisible(isVisible: Bool, sceneIsActive: Bool, isCovered: Bool) -> Bool {
+        isVisible && sceneIsActive && !isCovered
+    }
+
+    static func animatesScenery(isSceneVisible: Bool, preference: Bool,
+                               reduceMotion: Bool, lowPower: Bool) -> Bool {
+        isSceneVisible && preference && !reduceMotion && !lowPower
+    }
+}
+
 enum BookstoreScenePhase: Equatable {
     case store
     case transitioningToStand
@@ -12,6 +25,28 @@ enum BookstoreScenePhase: Equatable {
     var showsHomeControls: Bool { self == .store }
     var showsSelectionControls: Bool { self == .choosingBook }
     var showsShopControls: Bool { self == .shopping }
+}
+
+/// SceneKit remains continuous for reliable intermediate frames, but a resting
+/// bookstore aisle does not need the same cadence as user-driven motion.
+enum BookstoreRenderPolicy {
+    static let interactiveFramesPerSecond = 60
+    static let restingStoreFramesPerSecond = 30
+
+    static func preferredFramesPerSecond(phase: BookstoreScenePhase,
+                                         hasReportedFirstFrame: Bool,
+                                         awaitingFrame: Bool,
+                                         thermalState: ProcessInfo.ThermalState = .nominal) -> Int {
+        // Keep controls and frame-readiness handoffs alive while reducing GPU
+        // demand when iOS reports thermal pressure. No timing or game rule changes.
+        if thermalState == .serious || thermalState == .critical {
+            return restingStoreFramesPerSecond
+        }
+        guard hasReportedFirstFrame, !awaitingFrame else {
+            return interactiveFramesPerSecond
+        }
+        return phase == .store ? restingStoreFramesPerSecond : interactiveFramesPerSecond
+    }
 }
 
 struct BookstoreTurnCommand: Equatable {
