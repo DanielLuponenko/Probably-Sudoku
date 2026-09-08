@@ -10,6 +10,9 @@ struct ResultsPageView: View {
     @Environment(PageFlipper.self) private var flipper
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         if let summary = model.bookCompletionSummary {
@@ -19,18 +22,37 @@ struct ResultsPageView: View {
         } else if isRescueDecision || model.run.outcome == .failed || model.puzzle?.phase == .failed {
             FailureResultsPage(model: model, offersRescue: isRescueDecision, onAbandon: onAbandon)
         } else {
-            successfulResults
+            GeometryReader { proxy in
+                successfulResults(availableSize: proxy.size)
+            }
         }
     }
 
-    private var successfulResults: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private func successfulResults(availableSize: CGSize) -> some View {
+        let compact = availableSize.width < 500
+        return ViewThatFits(in: .vertical) {
+            resultsColumn(availableSize: availableSize, compact: compact)
+                .fixedSize(horizontal: false, vertical: true)
+            ScrollView(.vertical) {
+                resultsColumn(availableSize: availableSize, compact: compact)
+            }
+        }
+    }
+
+    private func resultsColumn(availableSize: CGSize, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 11 : 16) {
             header
-            Spacer(minLength: 0)
+
+            // The receipt stays attached to the score; this bounded gap is
+            // deliberate white space, never a flexible hole in the page.
+            Color.clear.frame(height: compact ? 6 : 24)
+
+            playedBoardPreview(availableSize: availableSize)
 
             if let payout = model.lastPayout ?? (didWin ? model.payoutPreview : nil) {
-                payoutLines(payout)
+                payoutBlock(payout, compact: compact)
             }
+
             if model.puzzle?.canKeepFilling == true {
                 Text("Keep Filling freezes the score, but every clear banks coins.")
                     .font(Print.body(12))
@@ -38,9 +60,51 @@ struct ResultsPageView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer(minLength: 0)
-
             actions
+        }
+        .frame(maxWidth: 560, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .padding(.bottom, compact ? 12 : 0)
+    }
+
+    /// A real, read-only board makes this a record of the player's win, not
+    /// an empty receipt. The enclosing column scrolls only when it needs to.
+    @ViewBuilder
+    private func playedBoardPreview(availableSize: CGSize) -> some View {
+        let compact = availableSize.width < 500
+        if let board = model.puzzle?.board {
+            let compactHeightCap = dynamicTypeSize.isAccessibilitySize
+                ? 160
+                : max(180, min(220, availableSize.height * 0.30))
+            let side = min(compact ? compactHeightCap : 420,
+                           max(120, availableSize.width - 36),
+                           max(120, availableSize.height * (compact ? 0.30 : 0.35)))
+            VStack(spacing: compact ? 4 : 6) {
+                Text(board.isFull ? "FULL CLEAR" : "TARGET MET")
+                    .font(Print.caption(compact ? 12 : 16))
+                    .tracking(1)
+                    .foregroundStyle(bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .overlay {
+                        Rectangle().strokeBorder(bookTheme.quietInk(onDarkPaper: theme.paper.isDark),
+                                                 lineWidth: 1.5)
+                    }
+                    .rotationEffect(.degrees(-3))
+                    .padding(.bottom, 6)
+                    .accessibilityHidden(true)
+                VictoryBoardPrint(board: board)
+                    .frame(width: side, height: side)
+                    .overlay { Rectangle().stroke(theme.paper.ruleInk, lineWidth: 1) }
+                Text(board.isFull ? "Board complete" : "Target met · Your board, as played")
+                    .font(Print.caption(compact ? 10 : 11))
+                    .foregroundStyle(theme.paper.softInk)
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(board.isFull
+                                ? "Board complete. Read-only board as played."
+                                : "Target met. Your board, as played. Read-only board thumbnail.")
         }
     }
 
@@ -95,6 +159,8 @@ struct ResultsPageView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).pageHeading(34)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text(subtitle)
                 .font(Print.body(13.5))
                 .foregroundStyle(theme.paper.softInk)
@@ -151,6 +217,50 @@ struct ResultsPageView: View {
             Rectangle().fill(theme.paper.ruleInk).frame(height: 1).padding(.vertical, 2)
             line("Total", payout.total, bold: true)
         }
+    }
+
+    @ViewBuilder
+    private func payoutBlock(_ payout: RunState.Payout, compact: Bool) -> some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Total")
+                        .font(Print.body(13))
+                        .foregroundStyle(theme.paper.softInk)
+                    Spacer(minLength: 8)
+                    Text("+\(payout.total)")
+                        .font(Print.numeral(20, weight: .bold))
+                        .foregroundStyle(theme.paper.ink)
+                    Text("coins")
+                        .font(Print.caption(11))
+                        .foregroundStyle(theme.paper.softInk)
+                }
+                let details = payoutDetails(payout)
+                if !details.isEmpty {
+                    Text(details)
+                        .font(Print.caption(10.5))
+                        .foregroundStyle(theme.paper.softInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .background(theme.paper.warm.opacity(0.72), in: .rect(cornerRadius: 4))
+            .overlay { RoundedRectangle(cornerRadius: 4).stroke(theme.paper.ruleInk, lineWidth: 1) }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Coins earned, \(payout.total). \(payoutDetails(payout))")
+        } else {
+            payoutLines(payout)
+        }
+    }
+
+    private func payoutDetails(_ payout: RunState.Payout) -> String {
+        var details = ["Base +\(payout.base)"]
+        if payout.unusedTurns > 0 { details.append("Unused turns +\(payout.unusedTurns)") }
+        if payout.keepFillingBank > 0 { details.append("Kept filling +\(payout.keepFillingBank)") }
+        if payout.interest > 0 { details.append("Interest +\(payout.interest)") }
+        if payout.paperRoute > 0 { details.append("Paper Route +\(payout.paperRoute)") }
+        return details.joined(separator: " · ")
     }
 
     private func line(_ label: String, _ amount: Int, bold: Bool = false) -> some View {

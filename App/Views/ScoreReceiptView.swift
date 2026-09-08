@@ -1,47 +1,40 @@
 import SwiftUI
 
-/// A small printed receipt in the existing margin, never an input-blocking overlay.
+/// One plain line of attribution beside the score. The queue line already
+/// reserves its height, so score beats never add a banner or move the board.
 struct ScoreReceiptView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.levelPalette) private var palette
     var beat: ScorePerformance.Beat
     var summary: String
 
     private var ink: Color {
         switch beat.kind {
-        case .multiplier: Paper.redPencil
+        case .multiplier: palette.danger
         case .coins: Paper.coinRim
-        case .bank: Paper.sageDeep
-        default: Paper.ink
+        case .bank: palette.accent
+        default: palette.ink
         }
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: beat.kind == .bank ? "checkmark.seal" : "pencil.tip")
-                .font(.system(size: 12, weight: .semibold))
-                .accessibilityHidden(true)
+        HStack(spacing: 6) {
             Text(beat.source)
-                .font(Print.caption(12))
+                .font(Print.caption(11))
                 .lineLimit(1)
-                .minimumScaleFactor(0.65)
+                .minimumScaleFactor(0.75)
             Spacer(minLength: 2)
             Text(beat.value)
-                .font(Print.numeral(19, weight: .bold))
+                .font(Print.numeral(12, weight: .bold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .minimumScaleFactor(0.75)
                 .monospacedDigit()
         }
         .foregroundStyle(ink)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 4)
-        .background(Paper.pageWarm.opacity(0.94), in: .rect(cornerRadius: 3))
-        .overlay {
-            RoundedRectangle(cornerRadius: 3)
-                .strokeBorder(ink.opacity(beat.kind == .bank ? 0.7 : 0.25), lineWidth: 1)
-        }
-        .rotationEffect(.degrees(reduceMotion ? 0 : (beat.kind == .bank ? -1 : 0)))
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Scoring receipt")
+        .accessibilityLabel("Score breakdown")
         .accessibilityValue(summary)
+        .accessibilityIdentifier("puzzle.scoreBreakdown")
     }
 }

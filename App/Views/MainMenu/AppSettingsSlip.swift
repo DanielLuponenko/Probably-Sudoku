@@ -9,64 +9,13 @@ import SwiftUI
 struct AppSettingsSlip: View {
     var onClose: () -> Void
 
-    @AppStorage(AppPreferences.Key.haptics) private var haptics = true
-    @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         PaperSlip(title: "Settings",
-                  subtitle: "Probably Sudoku, everywhere — not just this Book.",
+                  subtitle: nil,
+                  maximumWidth: 540, maximumHeight: 740,
                   onClose: onClose) {
-            VStack(alignment: .leading, spacing: 0) {
-                SlipSection(title: "The room") {
-                    SlipToggle(label: "Haptics",
-                               note: "What the buttons and the board feel like.",
-                               isOn: $haptics)
-                    SlipToggle(label: "Ambient animation",
-                               note: "The lamp, the dust and the plant. The numbers stay "
-                                   + "either way.",
-                               isOn: $ambientMotion)
-                }
-
-                AudioSettingsSection()
-
-                if reduceMotion {
-                    SlipSection(title: "Reduce Motion") {
-                        Text("Reduce Motion is on in iOS, so the room is already still. "
-                             + "That setting always wins — this slip cannot turn movement "
-                             + "back on, and should not pretend to.")
-                            .font(Print.body(12.5))
-                            .foregroundStyle(Paper.inkSoft)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                LearningSection()
-
-                GameCenterSection(service: GameCenterService.shared)
-                AdsPrivacySection()
-
-                AppSupportSection()
-
-                SlipSection(title: "Accessibility",
-                            note: "Every number, price and label in the game is live text, so "
-                                + "Dynamic Type, VoiceOver and Increase Contrast all reach it. "
-                                + "The room itself is scenery and is skipped by VoiceOver.") {
-                    EmptyView()
-                }
-
-                SlipSection(title: "The club") {
-                    LeaderRow(label: "Version", value: Self.version)
-                    LeaderRow(label: "Numbers", value: "1 to 9")
-                }
-            }
+            SettingsCommonContent()
         }
-        .onChange(of: haptics) { Haptics.preferencesChanged() }
-    }
-
-    private static var version: String {
-        let marketing = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return marketing ?? "0.1"
     }
 }
 
@@ -147,6 +96,8 @@ private struct PaperThemeOption: View {
 /// A printed checkbox with a pencil tick in it. A system `Toggle` here would
 /// be the one iOS control in a room made of wood and paper.
 struct SlipToggle: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var label: String
     var note: String?
     @Binding var isOn: Bool
@@ -160,12 +111,12 @@ struct SlipToggle: View {
                 box
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
-                        .font(Print.body(14))
-                        .foregroundStyle(Paper.ink)
+                        .font(Print.body(14 * textScale))
+                        .foregroundStyle(theme.paper.ink)
                     if let note {
                         Text(note)
-                            .font(Print.body(11.5))
-                            .foregroundStyle(Paper.inkFaint)
+                            .font(Print.body(11.5 * textScale))
+                            .foregroundStyle(theme.paper.softInk)
                             .fixedSize(horizontal: false, vertical: true)
                             .multilineTextAlignment(.leading)
                     }
@@ -183,8 +134,8 @@ struct SlipToggle: View {
 
     private var box: some View {
         RoundedRectangle(cornerRadius: 2)
-            .strokeBorder(Paper.rule, lineWidth: 1.2)
-            .background(RoundedRectangle(cornerRadius: 2).fill(Paper.pageWarm))
+            .strokeBorder(theme.paper.ruleInk, lineWidth: 1.2)
+            .background(RoundedRectangle(cornerRadius: 2).fill(theme.paper.warm))
             .frame(width: 20, height: 20)
             .overlay {
                 if isOn {

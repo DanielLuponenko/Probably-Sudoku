@@ -42,7 +42,7 @@ final class PreparedPuzzleTests: XCTestCase {
         let started = expectation(description: "Detached generator started")
         probe.started = started
         let waiting = Task {
-            await model.prepareUpcomingPuzzle(using: probe.generate)
+            await model.prepareUpcomingPuzzle(using: { try probe.generate($0) })
         }
         await fulfillment(of: [started], timeout: 3)
         // This assertion runs while the generator is still waiting, proving
@@ -55,11 +55,40 @@ final class PreparedPuzzleTests: XCTestCase {
         XCTAssertEqual(model.page, .briefing)
     }
 
+    func testPersistenceEncodingWarmsOffMainWithoutCommittingASaveState() async throws {
+        let model = makeModel()
+        let original = try model.game.encoded()
+        let originalSaveState = try RunStore.dataForStorage(of: model.game)
+        let probe = PersistenceWarmupProbe()
+        let started = expectation(description: "Detached persistence encoding completed")
+        probe.started = started
+        let waiting = Task {
+            await model.prepareUpcomingPuzzle(warmingPersistenceWith: { probe.warm($0) })
+        }
+        await fulfillment(of: [started], timeout: 8)
+
+        XCTAssertFalse(probe.ranOnMain)
+        XCTAssertNotNil(probe.warmedGame?.puzzle, "Warm the dealt board, not the empty briefing state.")
+        XCTAssertEqual(try model.game.encoded(), original)
+        XCTAssertEqual(try RunStore.dataForStorage(of: model.game), originalSaveState,
+                       "The durable live snapshot must remain the briefing until acceptance.")
+        XCTAssertEqual(model.page, .briefing)
+        XCTAssertFalse(model.hasPreparedPuzzle)
+        probe.release()
+        let result = await waiting.value
+        let prepared = try XCTUnwrap(result)
+        XCTAssertEqual(try model.game.encoded(), original,
+                       "Completing warm-up is not permission to save the future puzzle.")
+        XCTAssertTrue(model.beginPreparedPuzzle(prepared))
+        XCTAssertEqual(model.page, .puzzle)
+        XCTAssertEqual(try model.game.encoded(), try probe.warmedGame?.encoded())
+    }
+
     func testWarmLookupReusesOneGeneration() async throws {
         let model = makeModel()
         let probe = PreparationProbe(blocking: false)
-        let first = await model.prepareUpcomingPuzzle(using: probe.generate)
-        let second = await model.prepareUpcomingPuzzle(using: probe.generate)
+        let first = await model.prepareUpcomingPuzzle(using: { try probe.generate($0) })
+        let second = await model.prepareUpcomingPuzzle(using: { try probe.generate($0) })
         XCTAssertNotNil(first)
         XCTAssertNotNil(second)
         XCTAssertEqual(probe.calls, 1)
@@ -111,7 +140,7 @@ final class PreparedPuzzleTests: XCTestCase {
         let probe = PreparationProbe()
         let started = expectation(description: "Preparation can be cancelled")
         probe.started = started
-        let waiting = Task { await model.prepareUpcomingPuzzle(using: probe.generate) }
+        let waiting = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
         await fulfillment(of: [started], timeout: 3)
         waiting.cancel()
         model.cancelPuzzlePreparation()
@@ -127,7 +156,7 @@ final class PreparedPuzzleTests: XCTestCase {
         let probe = PreparationProbe()
         let started = expectation(description: "Old snapshot worker started")
         probe.started = started
-        let waiting = Task { await model.prepareUpcomingPuzzle(using: probe.generate) }
+        let waiting = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
         await fulfillment(of: [started], timeout: 3)
         model.qaAward(coins: 13)
         let changed = try model.game.encoded()
@@ -146,9 +175,9 @@ final class PreparedPuzzleTests: XCTestCase {
         let probe = PreparationProbe()
         let started = expectation(description: "Shared worker started")
         probe.started = started
-        let prewarm = Task { await model.prepareUpcomingPuzzle(using: probe.generate) }
+        let prewarm = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
         await fulfillment(of: [started], timeout: 3)
-        let play = Task { await model.prepareUpcomingPuzzle(using: probe.generate) }
+        let play = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
         await Task.yield()
         probe.release()
         let first = await prewarm.value
@@ -165,9 +194,9 @@ final class PreparedPuzzleTests: XCTestCase {
         let probe = PreparationProbe()
         let started = expectation(description: "Briefing owns shared worker")
         probe.started = started
-        let prewarm = Task { await model.prepareUpcomingPuzzle(using: probe.generate) }
+        let prewarm = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
         await fulfillment(of: [started], timeout: 3)
-        let play = Task { await model.prepareUpcomingPuzzle(using: probe.generate) }
+        let play = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
         await Task.yield()
         play.cancel()
         probe.release()
@@ -196,7 +225,7 @@ final class PreparedPuzzleTests: XCTestCase {
         let original = Game(seed: "prepared-frozen")
         let model = GameModel(frozen: original, page: .briefing)
         let probe = PreparationProbe(blocking: false)
-        let prepared = await model.prepareUpcomingPuzzle(using: probe.generate)
+        let prepared = await model.prepareUpcomingPuzzle(using: { try probe.generate($0) })
         XCTAssertNil(prepared)
         XCTAssertEqual(probe.calls, 0)
         XCTAssertEqual(try model.game.encoded(), try original.encoded())
@@ -245,6 +274,28 @@ final class PreparedPuzzleTests: XCTestCase {
 }
 
 private enum PreparationFailure: Error { case expected }
+
+private final class PersistenceWarmupProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private let gate = DispatchSemaphore(value: 0)
+    private var recordedMain = false
+    private var recordedGame: Game?
+    var started: XCTestExpectation?
+
+    var ranOnMain: Bool { lock.withLock { recordedMain } }
+    var warmedGame: Game? { lock.withLock { recordedGame } }
+    func release() { gate.signal() }
+
+    func warm(_ game: Game) {
+        GameModel.warmPersistenceEncoding(game)
+        lock.withLock {
+            recordedMain = Thread.isMainThread
+            recordedGame = game
+        }
+        started?.fulfill()
+        _ = gate.wait(timeout: .now() + 3)
+    }
+}
 
 /// Only the test worker waits. A bounded wait makes a scheduling regression
 /// fail rather than hanging the suite if someone moves generation to main.

@@ -7,18 +7,19 @@ struct BookstoreOpeningView: View {
     var isSceneVisible: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PlayerProfileStore.self) private var profile
     @AppStorage(AppPreferences.Key.haptics) private var haptics = true
+    @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true
+    @State private var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
     @State private var phase: BookstoreScenePhase
     @State private var selectedIndex = 0
     @State private var turnSerial = 0
     @State private var focusSerial = 0
     @State private var returnFocusSerial = 0
     @State private var isFocusedBookPresented = false
-    @State private var isBenefitPlaqueVisible = false
     @State private var isReturningFocusedBook = false
     @State private var returnsToStoreAfterBook = false
-    @State private var focusPresentationSerial = 0
     @State private var showingSettings = false
     @State private var isOpeningBook = false
     @State private var focusedEditionID: String?
@@ -41,6 +42,17 @@ struct BookstoreOpeningView: View {
     private let debugDestination = BookstoreDebugDestination.current
     private var books: [BookEdition] { BookEdition.shelf }
     private var selectedBook: BookEdition { books[selectedIndex] }
+    private var isCoveredByPaper: Bool { showingSettings || obstacleInfo != nil }
+    private var sceneryIsVisible: Bool {
+        BookstoreMotionPolicy.isSceneVisible(isVisible: isSceneVisible,
+                                             sceneIsActive: scenePhase == .active,
+                                             isCovered: showingSettings || obstacleInfo != nil)
+    }
+    private var sceneryMotionEnabled: Bool {
+        BookstoreMotionPolicy.animatesScenery(isSceneVisible: sceneryIsVisible,
+                                              preference: ambientMotion,
+                                              reduceMotion: reduceMotion, lowPower: lowPower)
+    }
     private var shopCategories: [CosmeticCategory] {
         CosmeticCategory.allCases
     }
@@ -134,6 +146,7 @@ struct BookstoreOpeningView: View {
                     cameraForward: cameraForward,
                     cameraSide: cameraSide,
                     reduceMotion: reduceMotion,
+                    ambientMotionEnabled: sceneryMotionEnabled,
                     debugCameraPosition: debugCameraPosition,
                     onSelectEdition: selectEdition,
                     onRequestBookFocus: requestBookFocus,
@@ -147,23 +160,15 @@ struct BookstoreOpeningView: View {
                     onBookFocusChanged: bookFocusChanged,
                     onTransitionFinished: transitionFinished,
                     onFirstFrame: onFirstFrame,
-                    isSceneVisible: isSceneVisible
+                    isSceneVisible: sceneryIsVisible
                 )
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .allowsHitTesting(!isReturningFocusedBook)
             }
             .ignoresSafeArea()
 
-            if phase.showsSelectionControls, focusedEditionID == selectedBook.id {
-                Color.black.opacity(isFocusedBookPresented && !isReturningFocusedBook ? 0.30 : 0)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                    .zIndex(4)
-                    .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.14),
-                               value: isFocusedBookPresented && !isReturningFocusedBook)
-
-                // This is intentionally a real button.  The dimmed room is
+            if phase.showsSelectionControls, focusedEditionID == selectedBook.id, !isCoveredByPaper {
+                // This is intentionally a real button. The undimmed room is
                 // the one-tap target for returning to the spinning stand;
                 // it no longer depends on hit testing through LiveBook.
                 Button(action: returnFocusedBookToShelf) {
@@ -171,10 +176,12 @@ struct BookstoreOpeningView: View {
                 }
                 .buttonStyle(.plain)
                 .ignoresSafeArea()
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Return book to shelf")
+                .accessibilityAddTraits(.isButton)
                 .accessibilityHint("Returns the selected book to the spinning book shelf")
                 .disabled(isReturningFocusedBook || isOpeningBook)
-                .accessibilityHidden(isReturningFocusedBook)
+                .accessibilityHidden(isReturningFocusedBook || isCoveredByPaper)
                 .zIndex(4)
             }
 
@@ -186,7 +193,10 @@ struct BookstoreOpeningView: View {
                 focusedLiveBook
                     .ignoresSafeArea()
                     .allowsHitTesting(!isReturningFocusedBook)
-                    .accessibilityHidden(isReturningFocusedBook)
+                    // GeometryReader does not establish an AX container. Drop
+                    // its explicit child nodes while a modal paper covers it.
+                    .accessibilityElement(children: isCoveredByPaper ? .ignore : .contain)
+                    .accessibilityHidden(isReturningFocusedBook || isCoveredByPaper)
                     .transition(.identity)
                     .zIndex(5)
             }
@@ -194,6 +204,8 @@ struct BookstoreOpeningView: View {
             if phase.showsHomeControls {
                 homeControls
                     .ignoresSafeArea()
+                    .accessibilityElement(children: isCoveredByPaper ? .ignore : .contain)
+                    .accessibilityHidden(isCoveredByPaper)
                     .transition(.opacity.combined(with: .scale(scale: 0.985)))
             }
 
@@ -201,6 +213,8 @@ struct BookstoreOpeningView: View {
                 selectionControls
                     .ignoresSafeArea()
                     .disabled(isReturningFocusedBook)
+                    .accessibilityElement(children: isCoveredByPaper ? .ignore : .contain)
+                    .accessibilityHidden(isCoveredByPaper)
                     .transition(.opacity)
                     .zIndex(10)
             }
@@ -229,7 +243,9 @@ struct BookstoreOpeningView: View {
             }
 
             if let obstacleInfo {
-                ObstacleInfoPopup(obstacle: obstacleInfo) {
+                ObstacleInfoPopup(obstacle: obstacleInfo,
+                                  isLocked: ObstacleInfoPopup.lockedState(
+                                      obstacle: obstacleInfo, unlockedThrough: unlockedObstacleRawValue)) {
                     withAnimation(.snappy(duration: 0.2)) { self.obstacleInfo = nil }
                 }
                 .zIndex(30)
@@ -247,6 +263,10 @@ struct BookstoreOpeningView: View {
         .background(Color(red: 0.035, green: 0.031, blue: 0.027))
         .preferredColorScheme(.dark)
         .statusBarHidden()
+        .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)) { _ in
+            let updated = ProcessInfo.processInfo.isLowPowerModeEnabled
+            if lowPower != updated { lowPower = updated }
+        }
         .animation(.easeOut(duration: reduceMotion ? 0.08 : 0.32), value: phase)
         .animation(.snappy(duration: 0.22), value: showingSettings)
         .sensoryFeedback(.selection, trigger: shopSelectionFeedback)
@@ -334,7 +354,8 @@ struct BookstoreOpeningView: View {
     private var selectionControls: some View {
         GeometryReader { proxy in
             let layout = BookstoreSelectionLayout(viewport: proxy.size)
-            VStack(spacing: 0) {
+            let bookTheme = BookPresentationTheme(book: selectedBook.rule)
+            ZStack(alignment: .topLeading) {
                 HStack {
                     Button(action: returnToStore) {
                         Image(systemName: "chevron.left")
@@ -353,45 +374,47 @@ struct BookstoreOpeningView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
-                Spacer()
-
-                VStack(spacing: 8) {
                     if focusedEditionID == selectedBook.id {
                         Button(action: openSelectedBook) {
                             Text(isOpeningBook
                                  ? "OPENING…"
                                  : "OPEN THE BOOK")
-                            .font(Print.subheading(19))
-                            .tracking(1)
+                            .font(Print.subheading(18))
+                            .tracking(0.8)
                             .frame(maxWidth: .infinity, minHeight: BookstoreSelectionLayout.openButtonHeight)
-                            .foregroundStyle(BookstoreInk.paper)
-                            .background(BookstoreInk.green)
-                            .contentShape(Rectangle())
-                            .overlay(Rectangle().stroke(BookstoreInk.paper.opacity(0.62), lineWidth: 1))
-                            .clipped()
+                            .foregroundStyle(bookTheme.buttonForeground)
                         }
-                        .buttonStyle(BookstorePressedStyle())
+                        .buttonStyle(RaisedBookOpenStyle(fill: bookTheme.buttonFill))
                         .disabled(isOpeningBook || !isFocusedBookPresented)
                         .opacity(isFocusedBookPresented ? 1 : 0)
-                        .padding(.top, BookstoreSelectionLayout.openButtonTopPadding)
+                        .frame(width: layout.openButtonFrame.width,
+                               height: layout.openButtonFrame.height)
+                        .position(x: layout.openButtonFrame.midX, y: layout.openButtonFrame.midY)
                         .accessibilityHint("Open or resume this Book")
+                        .accessibilityIdentifier("bookstore.openBook")
+
+                        // The sign itself is rendered by SceneKit. Expose its
+                        // complete rule natively without adding a second banner.
+                        Color.clear
+                            .frame(width: proxy.size.width * 0.64, height: 72)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Book benefit: \(selectedBook.benefit.title). \(selectedBook.benefit.detail)")
+                            .accessibilityIdentifier("bookstore.benefitSign")
+                            .accessibilityHidden(!isFocusedBookPresented || isReturningFocusedBook)
+                            .accessibilitySortPriority(2)
+                            .position(x: proxy.size.width * 0.5, y: layout.headerClearance * 0.58)
+                            .allowsHitTesting(false)
                     } else {
-                        Button(action: focusSelectedBook) {
-                            Text("TAP A COVER TO SELECT IT")
-                                .font(Print.caption(9.5))
-                                .tracking(1.4)
-                                .foregroundStyle(BookstoreInk.paper.opacity(0.62))
-                                .frame(maxWidth: .infinity, minHeight: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(BookstorePressedStyle())
-                        .padding(.top, 5)
-                        .accessibilityLabel("Select \(selectedBook.title)")
-                        .accessibilityHint("Bring this Book forward and show its obstacle bookmarks")
+                        BookstoreShelfSelector(
+                            editions: books, selectedEdition: selectedBook,
+                            canBrowse: phase == .choosingBook && focusedEditionID == nil
+                                && !isFocusedBookPresented && !isReturningFocusedBook && !isOpeningBook,
+                            onSelect: focusSelectedBook, onBrowse: browseShelf
+                        )
+                        .frame(width: max(0, proxy.size.width - 32), height: 40)
+                        .position(x: proxy.size.width * 0.5,
+                                  y: proxy.size.height - layout.openButtonBottomPadding - 20)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, layout.openButtonBottomPadding)
             }
 
         }
@@ -400,9 +423,6 @@ struct BookstoreOpeningView: View {
     private var focusedLiveBook: some View {
         GeometryReader { proxy in
             let layout = BookstoreSelectionLayout(viewport: proxy.size)
-            let benefitHeight = SelectedBookBenefitPlaque.height(width: proxy.size.width * 0.96,
-                                                                showsObstacle: obstacle != .none)
-            let plaqueFrame = layout.plaqueFrame(height: benefitHeight)
 
             ZStack {
                 LiveBook(
@@ -431,27 +451,6 @@ struct BookstoreOpeningView: View {
                 // rectangle before handing interaction to LiveBook.
                 .position(layout.coverCenter)
 
-                // The Book's actual starting-board rule belongs beside the
-                // focused cover, with the selected obstacle shown only when it
-                // changes the run.
-                SelectedBookBenefitPlaque(edition: selectedBook, obstacle: obstacle)
-                    // The plaque is a screen-level reading aid, not part of
-                    // the Book's physical frame. Keep its measured right
-                    // gutter (2% of the current screen width) and mirror it
-                    // exactly on the left at every device size.
-                    .frame(width: plaqueFrame.width, height: plaqueFrame.height)
-                    .position(x: plaqueFrame.midX, y: plaqueFrame.midY)
-                    .opacity(isBenefitPlaqueVisible ? 1 : 0)
-                    .allowsHitTesting(false)
-            }
-        }
-        .task(id: focusPresentationSerial) {
-            let serial = focusPresentationSerial
-            await Task.yield()
-            guard !Task.isCancelled, serial == focusPresentationSerial,
-                  isFocusedBookPresented, !isReturningFocusedBook else { return }
-            withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.24)) {
-                isBenefitPlaqueVisible = true
             }
         }
     }
@@ -567,6 +566,14 @@ struct BookstoreOpeningView: View {
         requestBookFocus(selectedBook.id)
     }
 
+    private func browseShelf(to editionID: String) {
+        guard phase == .choosingBook, focusedEditionID == nil,
+              !isFocusedBookPresented, !isReturningFocusedBook, !isOpeningBook,
+              editionID != selectedBook.id, books.contains(where: { $0.id == editionID }) else { return }
+        selectEdition(editionID)
+        turnSerial += 1
+    }
+
     private func requestBookFocus(_ id: String) {
         guard phase == .choosingBook, focusedEditionID == nil,
               let index = books.firstIndex(where: { $0.id == id }) else { return }
@@ -603,31 +610,19 @@ struct BookstoreOpeningView: View {
         focusedEditionID = focus.editionID
         isFocusedBookPresented = focus.isPresented
         if case .returning = focus { isReturningFocusedBook = true }
-        isBenefitPlaqueVisible = false
-        focusPresentationSerial += 1
     }
 
     private func returnFocusedBookToShelf() {
-        guard let editionID = focusedEditionID, !isReturningFocusedBook, !isOpeningBook else { return }
+        guard focusedEditionID != nil, !isReturningFocusedBook, !isOpeningBook else { return }
         Haptics.menuPress()
         isReturningFocusedBook = true
-        focusPresentationSerial += 1
-        let serial = focusPresentationSerial
-        // Fade the reading aid IN PLACE before the physical Book moves. Keep
-        // LiveBook mounted until SceneKit reports its visible twin GPU-ready.
-        withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.14), completionCriteria: .removed) {
-            isBenefitPlaqueVisible = false
-        } completion: {
-            guard phase == .choosingBook, isReturningFocusedBook,
-                  focusedEditionID == editionID, focusPresentationSerial == serial else { return }
-            returnFocusSerial += 1
-        }
+        // The stationary sign changes its print independently. Keep LiveBook
+        // mounted until SceneKit reports its physical twin GPU-ready.
+        returnFocusSerial += 1
     }
 
     private func resetFocusedBookPresentation() {
-        focusPresentationSerial += 1
         isFocusedBookPresented = false
-        isBenefitPlaqueVisible = false
         isReturningFocusedBook = false
         returnsToStoreAfterBook = false
         focusedEditionID = nil
@@ -684,117 +679,103 @@ private enum BookstoreInk {
 struct SelectedBookBenefitPlaque: View {
     let edition: BookEdition
     let obstacle: Obstacle
+    var scrollHeight: CGFloat? = nil
+    var onContentHeightChange: ((CGFloat) -> Void)? = nil
 
+    @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private var benefit: BookBenefit { edition.benefit }
     private var showsObstacle: Bool { obstacle != .none }
-    private let stock = Color(hex: 0xF2EEE4)
-    private let olive = Color(hex: 0xB6BD98)
-    private let secondaryInk = Color(hex: 0x817D79)
-    private var accent: Color { edition.design.accent }
-    private var strongInk: Color { accent.mixed(with: .black, by: 0.54) }
-    private var tint: Color { accent.mixed(with: stock, by: 0.77) }
+    @ScaledMetric(relativeTo: .body) private var illustrationSize: CGFloat = 36
+    @ScaledMetric(relativeTo: .headline) private var titleSize: CGFloat = 18
+    @ScaledMetric(relativeTo: .body) private var detailSize: CGFloat = 13
+    @ScaledMetric(relativeTo: .caption) private var obstacleTitleSize: CGFloat = 9.5
+    @ScaledMetric(relativeTo: .body) private var obstacleDetailSize: CGFloat = 10
+    private var bookTheme: BookPresentationTheme { BookPresentationTheme(book: edition.rule) }
+    private var accent: Color { bookTheme.accent }
+    private var strongInk: Color { bookTheme.buttonFill }
 
     static func height(width: CGFloat, showsObstacle: Bool) -> CGFloat {
         BookstoreSelectionLayout.plaqueHeight(width: width, showsObstacle: showsObstacle)
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let scale = proxy.size.width / 386
-            VStack(spacing: 0) {
-                HStack(spacing: 12 * scale) {
-                    Image(systemName: benefitSymbol)
-                        .font(.system(size: 36 * scale, weight: .medium))
-                        .foregroundStyle(strongInk)
-                        .frame(width: 64 * scale, height: 64 * scale)
-                        .background(tint, in: Circle())
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 5 * scale) {
-                        Text(benefit.title)
-                            .font(Print.subheading(24 * scale))
-                            .foregroundStyle(strongInk)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.66)
-                        Text(detail)
-                            .font(.system(size: 14 * scale, weight: .medium, design: .serif))
-                            .foregroundStyle(secondaryInk)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // Fit the complete comparison as one line. Separate Text
-                    // siblings let the HStack truncate only the first value.
-                    Text(badgeText(scale: scale))
-                    .font(Print.numeral(25 * scale, weight: .bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .padding(.horizontal, 5 * scale)
-                    .frame(width: badgeWidth * scale, height: 46 * scale)
-                    .background(tint, in: RoundedRectangle(cornerRadius: 13 * scale))
-                    .shadow(color: .black.opacity(0.07), radius: 1, y: 1)
-                    .accessibilityHidden(true)
+        Group {
+            if let scrollHeight {
+                ScrollView(.vertical, showsIndicators: false) {
+                    plaqueContent
                 }
-                .frame(maxHeight: .infinity)
-                .padding(.horizontal, 18 * scale)
-
-                if showsObstacle {
-                    HStack(spacing: 7 * scale) {
-                        Text(obstacle.name)
-                            .font(Print.caption(9.5 * scale))
-                            .foregroundStyle(ObstacleRibbon.colour(for: obstacle).mixed(with: .black, by: 0.45))
-                            .fixedSize()
-                        Text(obstacle.text)
-                            .font(.system(size: 10 * scale, weight: .medium, design: .serif))
-                            .foregroundStyle(secondaryInk)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(height: 30)
-                    .overlay(alignment: .top) {
-                        Rectangle().fill(olive.opacity(0.52)).frame(height: 0.65)
-                    }
-                    .padding(.horizontal, 18 * scale)
-                    .padding(.bottom, 6)
-                }
+                .frame(height: scrollHeight)
+            } else {
+                plaqueContent
             }
-            .padding(.vertical, showsObstacle ? 3 : 0)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(stock)
-            .clipShape(RoundedRectangle(cornerRadius: 14 * scale))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14 * scale)
-                    .stroke(olive.opacity(0.90), lineWidth: 0.8)
-                    .padding(0.75)
-                RoundedRectangle(cornerRadius: 11 * scale)
-                    .stroke(olive.opacity(0.74), lineWidth: 0.8)
-                    .padding(4 * scale)
-            }
-            .shadow(color: .black.opacity(0.32), radius: 7, y: 4)
         }
+        .paperSurface(kind: .label)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
 
-    private var badgeWidth: CGFloat {
-        let digits = String(benefit.before).count + String(benefit.after).count
-        return 79 + CGFloat(max(0, digits - 2)) * 6
-    }
+    private var plaqueContent: some View {
+        VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 10) {
+                    // Each Book has its own little stationery illustration:
+                    // a seventh card, a lamp, an eraser, a biscuit, and so on.
+                    // Removing the generic circle also gives the drawing air.
+                    BookBenefitIllustration(book: edition.rule)
+                        .frame(width: min(illustrationSize, 48), height: min(illustrationSize, 48))
+                        .accessibilityHidden(true)
 
-    private func badgeText(scale: CGFloat) -> AttributedString {
-        var before = AttributedString(String(benefit.before))
-        before.foregroundColor = strongInk.opacity(0.54)
-        var arrow = AttributedString(" → ")
-        arrow.foregroundColor = Color(hex: 0x7A8954)
-        arrow.font = .system(size: 17 * scale, weight: .medium)
-        var after = AttributedString(String(benefit.after))
-        after.foregroundColor = strongInk
-        before.append(arrow)
-        before.append(after)
-        return before
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(benefit.title)
+                            .font(Print.subheading(titleSize))
+                            .foregroundStyle(strongInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(detail)
+                            .font(Print.body(detailSize))
+                            .foregroundStyle(theme.paper.softInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: .infinity)
+                .padding(.horizontal, 12)
+
+                if showsObstacle {
+                    let ruleLayout = dynamicTypeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                        : AnyLayout(HStackLayout(spacing: 7))
+                    ruleLayout {
+                        Text(obstacle.name)
+                            .font(Print.caption(obstacleTitleSize))
+                            .foregroundStyle(ObstacleRibbon.colour(for: obstacle).mixed(with: .black, by: 0.45))
+                            .fixedSize()
+                        Text(obstacle.text)
+                            .font(Print.body(obstacleDetailSize))
+                            .foregroundStyle(theme.paper.softInk)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .overlay(alignment: .top) {
+                        Rectangle().fill(accent.opacity(0.32)).frame(height: 0.65)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 7)
+                    .padding(.bottom, 10)
+                }
+            }
+            .padding(.vertical, showsObstacle ? 3 : 10)
+            .frame(maxWidth: .infinity,
+                   minHeight: BookstoreSelectionLayout.plaqueHeight(width: 0,
+                                                                      showsObstacle: showsObstacle),
+                   alignment: .center)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height.rounded(.up)
+            } action: { height in
+                // This is the intrinsic child height even when the outer
+                // plaque becomes a capped ScrollView, so the parent can grow
+                // and shrink the measured target without moving the Book.
+                if height > 0 { onContentHeightChange?(height) }
+            }
     }
 
     /// Concise print copy for the plaque; the accessibility label retains the
@@ -813,23 +794,6 @@ struct SelectedBookBenefitPlaque: View {
         case .interestCap: return "Up to \(benefit.after) interest coins"
         case .freeReroll: return "First reroll in every Shop"
         case .puzzleCoin: return "\(benefit.after) base coins per puzzle"
-        }
-    }
-
-    private var benefitSymbol: String {
-        switch benefit {
-        case .extraNumber: return "rectangle.stack"
-        case .openingFloat: return "dollarsign.circle"
-        case .marginClue: return "lightbulb"
-        case .oneMoreTurn: return "clock.arrow.circlepath"
-        case .extraToss: return "arrow.triangle.2.circlepath"
-        case .boxCoin: return "square.grid.3x3"
-        case .firstMistakeFree: return "eraser"
-        case .placementBonus: return "pencil.and.outline"
-        case .unitBonus: return "checkmark.rectangle.stack"
-        case .interestCap: return "chart.line.uptrend.xyaxis"
-        case .freeReroll: return "arrow.clockwise"
-        case .puzzleCoin: return "checkmark.seal"
         }
     }
 
@@ -889,11 +853,95 @@ private struct BookstoreIdentity: View {
     }
 }
 
+/// One native action surface for the physical rack. SceneKit stays decorative
+/// to assistive technology; these actions turn and select its actual editions.
+struct BookstoreShelfSelector: View {
+    let editions: [BookEdition]
+    let selectedEdition: BookEdition
+    let canBrowse: Bool
+    let onSelect: () -> Void
+    let onBrowse: (String) -> Void
+
+    var accessibilityValue: String {
+        let volume = (editions.firstIndex(where: { $0.id == selectedEdition.id }) ?? 0) + 1
+        return "Volume \(volume) of \(editions.count). \(selectedEdition.title)"
+    }
+
+    var body: some View {
+        Button(action: selectCurrentBook) {
+            Text("TAP A COVER TO SELECT IT")
+                .font(Print.caption(9.5))
+                .tracking(1.4)
+                .foregroundStyle(BookstoreInk.paper.opacity(0.62))
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(BookstorePressedStyle())
+        .disabled(!canBrowse)
+        .accessibilityIdentifier("bookstore.shelfSelector")
+        .accessibilityLabel("Select \(selectedEdition.title)")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityHint("Adjust to browse Books. Activate to bring this Book forward and show its obstacle bookmarks.")
+        .accessibilityAdjustableAction(browse)
+        .accessibilityAction(named: "Next Book") { browse(.increment) }
+        .accessibilityAction(named: "Previous Book") { browse(.decrement) }
+    }
+
+    func selectCurrentBook() {
+        guard canBrowse else { return }
+        onSelect()
+    }
+
+    func browse(_ direction: AccessibilityAdjustmentDirection) {
+        guard canBrowse, !editions.isEmpty,
+              let index = editions.firstIndex(where: { $0.id == selectedEdition.id }) else { return }
+        let step: Int
+        switch direction {
+        case .increment: step = 1
+        case .decrement: step = -1
+        @unknown default: return
+        }
+        let nextIndex = (index + step + editions.count) % editions.count
+        onBrowse(editions[nextIndex].id)
+    }
+}
+
 private struct BookstorePressedStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .brightness(configuration.isPressed ? -0.07 : 0)
+    }
+}
+
+/// A small cloth-faced paper stack, using the same Book ink and stock. Its
+/// depth is static; only an intentional press compresses the raised face.
+private struct RaisedBookOpenStyle: ButtonStyle {
+    let fill: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(LinearGradient(colors: [fill.mixed(with: .white, by: 0.06), fill],
+                                         startPoint: .top, endPoint: .bottom))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(BookstoreInk.paper.opacity(0.38), lineWidth: 1)
+                    }
+            }
+            .offset(y: configuration.isPressed ? 3 : 0)
+            .background {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(fill.mixed(with: .black, by: 0.36))
+                    .offset(y: 4)
+                    .shadow(color: .black.opacity(configuration.isPressed ? 0.18 : 0.32),
+                            radius: configuration.isPressed ? 2 : 5,
+                            y: configuration.isPressed ? 3 : 7)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 4))
+            .animation(.easeOut(duration: reduceMotion ? 0 : 0.10), value: configuration.isPressed)
     }
 }
 

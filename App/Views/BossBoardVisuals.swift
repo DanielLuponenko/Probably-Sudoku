@@ -48,6 +48,32 @@ struct BossBoardDesign {
         default: return -1.0
         }
     }
+
+    /// Header shorthand keeps both name and rule readable beside the seal.
+    /// The full engine-authored rule remains the accessibility description.
+    func headerRule(censored: Digit?) -> String {
+        switch boss {
+        case .censor: return censored.map { "Digit \($0.rawValue) scores 0" } ?? "One digit scores 0"
+        case .editor: return "Hand size −1"
+        case .deadline: return "8 turns"
+        case .fog: return "Markers hidden"
+        case .critic: return "Wrong-placement penalty ×2"
+        case .mirror: return "No line-clear bonus"
+        case .paywall: return "Clues disabled"
+        case .erratum: return "No tosses"
+        case .collector: return "No interest payout"
+        case .heavyLifter: return "Target ×4"
+        case .unluckyLucky: return "One triggered Bookmark sleeps"
+        case .buffborger: return "Buffs disabled"
+        case .sashimi: return "Multipliers halved"
+        case .overPusher: return "Up to 3 squares fouled for 2 turns"
+        case .accountant: return "Each placement costs 1 coin"
+        case .tikTak: return "\(Int((boss.secondsAllowed ?? 240) / 60))-minute limit"
+        case .handyDandy: return "Up to 2 Hand cards barred each turn"
+        case .grayTheGarry: return "One row locked each turn"
+        case .garryTheGray: return "One box locked each turn"
+        }
+    }
 }
 
 /// A render-only projection of public rules. No random choices, Marker
@@ -79,17 +105,23 @@ struct BossBoardFeedback: Equatable {
 
 /// Mounted above cell backgrounds and below the printed grid rules. Mist
 /// stays translucent; restriction strokes use only each cell's margin, never
-/// its number. There are no ambient timers or continuously redrawing loops.
+/// its number. The only ambient clock belongs to the small perimeter vignette,
+/// not to this state projection or the 81 interactive cells underneath it.
 struct BossBoardOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private let feedback: BossBoardFeedback
     private let reduceMotionOverride: Bool?
+    private let isActive: Bool
+    private let phaseOverride: Double?
 
     private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
 
-    init(puzzle: PuzzleState?, secondsLeft: Double? = nil, reduceMotionOverride: Bool? = nil) {
+    init(puzzle: PuzzleState?, secondsLeft: Double? = nil, reduceMotionOverride: Bool? = nil,
+         isActive: Bool = true, phaseOverride: Double? = nil) {
         feedback = BossBoardFeedback(puzzle: puzzle, secondsLeft: secondsLeft)
         self.reduceMotionOverride = reduceMotionOverride
+        self.isActive = isActive
+        self.phaseOverride = phaseOverride
     }
 
     var body: some View {
@@ -99,6 +131,16 @@ struct BossBoardOverlay: View {
             ZStack(alignment: .topLeading) {
                 if let boss = feedback.boss {
                     BossEdgeImpression(boss: boss, urgent: feedback.clockIsUrgent)
+                    // A decorative row/box bracket looks like a restriction
+                    // indicator on a playable board. The Garrys already have
+                    // a state-driven outline below; never add a second one at
+                    // an unrelated location. Their seals/routes still animate.
+                    if !boss.greysARowEachTurn && !boss.greysABoxEachTurn {
+                        BossPerimeterVignette(boss: boss, isActive: isActive,
+                                              urgent: feedback.clockIsUrgent,
+                                              reduceMotionOverride: reduceMotionOverride,
+                                              phaseOverride: phaseOverride)
+                    }
                     if feedback.showsFog {
                         BossFogVeil()
                             .blur(radius: 6)
@@ -280,14 +322,9 @@ struct BossBoardUnderprint: View {
     private func paper(for boss: BossModifier, side: CGFloat, cell: CGFloat) -> some View {
         switch boss {
         case .censor:
-            ZStack(alignment: .topLeading) {
-                Rectangle().fill(.black.opacity(0.035))
-                ForEach(0..<4, id: \.self) { index in
-                    Rectangle().fill(.black.opacity(0.22))
-                        .frame(width: side * (index.isMultiple(of: 2) ? 0.19 : 0.12), height: 5)
-                        .offset(x: side * (0.05 + Double(index) * 0.21), y: side * 0.04)
-                }
-            }
+            // Redaction motion belongs at the perimeter. On the board only
+            // the actual censored digit is underlined by the state overlay.
+            Rectangle().fill(.black.opacity(0.035))
         case .editor:
             Canvas { context, size in
                 let blue = GraphicsContext.Shading.color(Paper.editorBlue.opacity(0.28))
@@ -344,7 +381,9 @@ struct BossBoardUnderprint: View {
             CornerClock().frame(width: cell * 3.1, height: cell * 3.1)
                 .offset(x: cell * 0.12, y: cell * 0.12)
         case .handyDandy:
-            HandCross(side: side)
+            // This Boss bars Hand cards, not the center box. The crossed-out
+            // cards and animated paired edge marks already explain its rule.
+            Color.clear
         case .grayTheGarry:
             // Only the engine's actual greyed squares carry this treatment.
             // A fixed middle stripe suggested a second, nonexistent lock.

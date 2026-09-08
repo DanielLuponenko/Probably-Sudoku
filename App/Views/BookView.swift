@@ -66,6 +66,7 @@ enum Volume {
     static let head: CGFloat = 5
     static let tail: CGFloat = 13
     static let corner: CGFloat = 5
+    static let pageContentInsets = EdgeInsets(top: 14, leading: 12, bottom: 12, trailing: 14)
 }
 
 struct BookVolume: View {
@@ -192,7 +193,7 @@ struct PageSurface<Content: View>: View {
                 .overlay { gutter }
                 .overlay { bow }
 
-            content.padding(.init(top: 14, leading: 12, bottom: 12, trailing: 14))
+            content.padding(Volume.pageContentInsets)
         }
         .clipShape(
             UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,

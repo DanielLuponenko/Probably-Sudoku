@@ -15,7 +15,7 @@ struct GameCenterSection: View {
                 .accessibilityHint("Opens Apple's Game Center leaderboards.")
             dashboardButton("Game Center achievements", dashboard: .achievements)
                 .accessibilityIdentifier("settings.gameCenter.achievements")
-                .accessibilityHint("Opens Apple's Game Center achievements. Your local achievements stay in the Book.")
+                .accessibilityHint("Opens Apple's Game Center achievements. Your local collection remains available without signing in.")
         }
         .font(Print.body(14))
         .foregroundStyle(Paper.ink)

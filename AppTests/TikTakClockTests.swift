@@ -11,15 +11,15 @@ final class TikTakClockTests: XCTestCase {
     func testFreshClockWaitsForVisibleActivePuzzleBeforeCounting() throws {
         let model = try makeModel()
         let now = ContinuousClock().now
-        XCTAssertEqual(model.secondsLeft, 180)
+        XCTAssertEqual(model.secondsLeft, 240)
         XCTAssertFalse(model.isClockRunning)
 
         model.tickClock(at: now.advanced(by: .seconds(60)))
 
-        XCTAssertEqual(model.secondsLeft, 180)
+        XCTAssertEqual(model.secondsLeft, 240)
         model.setClockRunning(true, at: now)
         model.tickClock(at: now.advanced(by: .seconds(1)))
-        XCTAssertEqual(model.secondsLeft, 179)
+        XCTAssertEqual(model.secondsLeft, 239)
     }
 
     func testDelayedTickChargesActualMonotonicTimeInsteadOfOneSecond() throws {
@@ -29,8 +29,8 @@ final class TikTakClockTests: XCTestCase {
 
         model.tickClock(at: now.advanced(by: .milliseconds(3250)))
 
-        XCTAssertEqual(model.secondsLeft, 177, "The label rounds up; the saved budget does not")
-        XCTAssertEqual(try remaining(model), 176.75, accuracy: 0.000_001)
+        XCTAssertEqual(model.secondsLeft, 237, "The label rounds up; the saved budget does not")
+        XCTAssertEqual(try remaining(model), 236.75, accuracy: 0.000_001)
     }
 
     func testPauseSavesPartialSecondAndResumeDoesNotChargeTimeAway() throws {
@@ -40,17 +40,17 @@ final class TikTakClockTests: XCTestCase {
         model.tickClock(at: now.advanced(by: .seconds(1)))
         model.setClockRunning(false, at: now.advanced(by: .milliseconds(1500)))
         XCTAssertFalse(model.isClockRunning)
-        XCTAssertEqual(try remaining(model), 178.5, accuracy: 0.000_001)
+        XCTAssertEqual(try remaining(model), 238.5, accuracy: 0.000_001)
 
         // The same gate is driven by inactive/background, Settings, run info,
         // Buff slips, page flips and leaving the puzzle for achievements.
         model.tickClock(at: now.advanced(by: .seconds(90)))
         model.setClockRunning(false, at: now.advanced(by: .seconds(100)))
-        XCTAssertEqual(try remaining(model), 178.5, accuracy: 0.000_001)
+        XCTAssertEqual(try remaining(model), 238.5, accuracy: 0.000_001)
 
         model.setClockRunning(true, at: now.advanced(by: .seconds(100)))
         model.tickClock(at: now.advanced(by: .milliseconds(100750)))
-        XCTAssertEqual(try remaining(model), 177.75, accuracy: 0.000_001)
+        XCTAssertEqual(try remaining(model), 237.75, accuracy: 0.000_001)
     }
 
     func testRepeatedResumeDoesNotResetTheSamplingOriginOrBudget() throws {
@@ -59,7 +59,7 @@ final class TikTakClockTests: XCTestCase {
         model.setClockRunning(true, at: now)
         model.setClockRunning(true, at: now.advanced(by: .seconds(2)))
         model.tickClock(at: now.advanced(by: .seconds(3)))
-        XCTAssertEqual(try remaining(model), 177)
+        XCTAssertEqual(try remaining(model), 237)
     }
 
     func testNegativeOrRepeatedInstantCannotAddTime() throws {
@@ -68,10 +68,10 @@ final class TikTakClockTests: XCTestCase {
         model.setClockRunning(true, at: now)
         model.tickClock(at: now.advanced(by: .seconds(-10)))
         model.tickClock(at: now)
-        XCTAssertEqual(try remaining(model), 180)
+        XCTAssertEqual(try remaining(model), 240)
         model.tickClock(at: now.advanced(by: .seconds(2)))
         model.tickClock(at: now.advanced(by: .seconds(2)))
-        XCTAssertEqual(try remaining(model), 178)
+        XCTAssertEqual(try remaining(model), 238)
     }
 
     func testSaveAndRelaunchPreserveFractionalBudgetAndBoardExactly() throws {
@@ -81,21 +81,21 @@ final class TikTakClockTests: XCTestCase {
         model.setClockRunning(true, at: now)
         model.tickClock(at: now.advanced(by: .milliseconds(37250)))
         let saved = model.gameForPersistence
-        XCTAssertEqual(saved.puzzle?.clockSecondsRemaining, 142.75)
+        XCTAssertEqual(saved.puzzle?.clockSecondsRemaining, 202.75)
         XCTAssertEqual(try model.game.encoded(), original,
                        "Timer-only ticks must not replace the observed board Game")
 
         let restoredGame = try Game(decoding: saved.encoded())
         let restored = GameModel(resuming: restoredGame, savesProgress: false)
-        XCTAssertEqual(restored.secondsLeft, 143)
-        XCTAssertEqual(try remaining(restored), 142.75)
+        XCTAssertEqual(restored.secondsLeft, 203)
+        XCTAssertEqual(try remaining(restored), 202.75)
         XCTAssertFalse(restored.isClockRunning)
         XCTAssertEqual(restored.puzzle?.board.placed, model.puzzle?.board.placed)
         XCTAssertEqual(restored.puzzle?.hand, model.puzzle?.hand)
         XCTAssertEqual(restored.run.streams.pool.state, model.run.streams.pool.state)
         restored.setClockRunning(true, at: now.advanced(by: .seconds(1000)))
         restored.tickClock(at: now.advanced(by: .seconds(1001)))
-        XCTAssertEqual(try remaining(restored), 141.75)
+        XCTAssertEqual(try remaining(restored), 201.75)
     }
 
     func testLegacySaveWithoutClockFieldStartsOneCompatibleBudget() throws {
@@ -108,14 +108,27 @@ final class TikTakClockTests: XCTestCase {
         let restoredGame = try Game(decoding: data)
         XCTAssertNil(restoredGame.puzzle?.clockSecondsRemaining)
         let model = GameModel(resuming: restoredGame, savesProgress: false)
-        XCTAssertEqual(model.secondsLeft, 180)
-        XCTAssertEqual(try remaining(model), 180)
+        XCTAssertEqual(model.secondsLeft, 240)
+        XCTAssertEqual(try remaining(model), 240)
         let now = ContinuousClock().now
         model.setClockRunning(true, at: now)
         model.tickClock(at: now.advanced(by: .seconds(7)))
         let nextLaunch = GameModel(resuming: try Game(decoding: model.gameForPersistence.encoded()),
                                    savesProgress: false)
-        XCTAssertEqual(nextLaunch.secondsLeft, 173)
+        XCTAssertEqual(nextLaunch.secondsLeft, 233)
+    }
+
+    func testSavedThreeMinuteEncounterIsNotResetOrExtendedByNewFourMinuteLimit() throws {
+        for budget in [180.0, 127.25] {
+            let game = try makeGame(remaining: budget)
+            let restored = GameModel(resuming: try Game(decoding: game.encoded()), savesProgress: false)
+            XCTAssertEqual(try remaining(restored), budget,
+                           "An in-progress encounter owns its saved budget; only new encounters get four minutes")
+            let now = ContinuousClock().now
+            restored.setClockRunning(true, at: now)
+            restored.tickClock(at: now.advanced(by: .seconds(1)))
+            XCTAssertEqual(try remaining(restored), budget - 1)
+        }
     }
 
     func testExpiryFailsNormalPlayAndKeepFillingThroughEngineFailure() throws {
@@ -237,7 +250,7 @@ final class TikTakClockTests: XCTestCase {
                        "Activation must let GameView present the failure through its normal page turn")
     }
 
-    private func makeGame(remaining: Double = 180, phase: PuzzlePhase = .playing) throws -> Game {
+    private func makeGame(remaining: Double = 240, phase: PuzzlePhase = .playing) throws -> Game {
         var run = RunState(seed: "tik-tak-lifecycle")
         run.slot = .boss
         run.pendingBoss = .tikTak
@@ -249,7 +262,7 @@ final class TikTakClockTests: XCTestCase {
         return Game(run: prepared)
     }
 
-    private func makeModel(remaining: Double = 180, phase: PuzzlePhase = .playing) throws -> GameModel {
+    private func makeModel(remaining: Double = 240, phase: PuzzlePhase = .playing) throws -> GameModel {
         GameModel(resuming: try makeGame(remaining: remaining, phase: phase), savesProgress: false)
     }
 

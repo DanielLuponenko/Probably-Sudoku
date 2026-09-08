@@ -8,6 +8,8 @@ struct PaperSlip<Content: View>: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var cardHasAppeared = false
+    @ScaledMetric(relativeTo: .title2) private var headingSize: CGFloat = 22
+    @ScaledMetric(relativeTo: .subheadline) private var subtitleSize: CGFloat = 13
     var title: String
     var subtitle: String?
     var closeLabel: String = "Close"
@@ -15,8 +17,15 @@ struct PaperSlip<Content: View>: View {
     /// Tapping the desk behind the slip puts it down. Off for slips that are
     /// asking a question rather than showing something.
     var dismissesOnBackground: Bool = true
+    /// Native sheets already dim the underlying Book; never stack two veils.
+    var dimsBackground = true
+    var closeAccessibilityID: String? = nil
     var revealsCardOnArrival = false
+    var maximumWidth: CGFloat? = 440
     var maximumHeight: CGFloat = 620
+    /// Short decisions should look like slips, not empty full-page articles.
+    /// Long content still falls back to scrolling within the available height.
+    var fitsContent = true
     /// A small, stable optional footer keeps guide navigation outside the
     /// scrolling article. Existing slips retain their original layout.
     var footer: AnyView? = nil
@@ -26,18 +35,22 @@ struct PaperSlip<Content: View>: View {
     var body: some View {
         ZStack {
             // The desk dims, the way it would under a lamp turned to the slip.
-            Rectangle()
-                .fill(.black.opacity(0.55))
-                .ignoresSafeArea()
-                .onTapGesture { if dismissesOnBackground { onClose() } }
-                .accessibilityHidden(true)
+            if dimsBackground {
+                Rectangle()
+                    .fill(.black.opacity(0.48))
+                    .ignoresSafeArea()
+                    .onTapGesture { if dismissesOnBackground { onClose() } }
+                    .accessibilityHidden(true)
+            }
 
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title).pageHeading(26)
+                    Text(title).pageHeading(headingSize)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
                     if let subtitle {
                         Text(subtitle)
-                            .font(Print.body(12.5))
+                            .font(Print.body(subtitleSize))
                             .foregroundStyle(theme.paper.softInk)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -48,10 +61,13 @@ struct PaperSlip<Content: View>: View {
                 .padding(.top, 18)
                 .padding(.bottom, 12)
 
-                ScrollView {
-                    content
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 14)
+                if fitsContent {
+                    ViewThatFits(in: .vertical) {
+                        paddedContent.fixedSize(horizontal: false, vertical: true)
+                        ScrollView { paddedContent }
+                    }
+                } else {
+                    ScrollView { paddedContent }
                 }
 
                 if let footer {
@@ -62,24 +78,23 @@ struct PaperSlip<Content: View>: View {
 
                 if showsCloseButton {
                     PaperButton(title: closeLabel, kind: .quiet, action: onClose)
+                        .accessibilityIdentifier(closeAccessibilityID ?? "paper-slip.close")
                         .padding(.horizontal, 18)
                         .padding(.bottom, 18)
                 }
             }
-            .frame(maxHeight: maximumHeight)
-            .background {
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(theme.paper.page)
-                    .overlay { PaperGrain(opacity: 0.06) }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(theme.paper.edge, lineWidth: 1)
-                    }
-                    .shadow(color: .black.opacity(0.55), radius: 26, x: 4, y: 14)
-            }
-            .padding(.horizontal, 22)
+            .frame(maxWidth: maximumWidth)
+            .paperSurface(kind: .slip)
+            // Constrain the proposal without painting the constraint's empty
+            // space as paper. Content-fitting decisions keep their own height;
+            // scrolling articles still fill the capped height as before.
+            .frame(maxHeight: dimsBackground ? maximumHeight : nil)
+            .padding(.horizontal, dimsBackground ? 22 : 0)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            .accessibilityAction(.escape) {
+                if showsCloseButton || dismissesOnBackground { onClose() }
+            }
             // Only the new card fades in. Its dimming layer stays steady, and
             // no removed Settings/Help modal is retained for a crossfade.
             .opacity(revealsCardOnArrival && !cardHasAppeared ? 0 : 1)
@@ -94,6 +109,12 @@ struct PaperSlip<Content: View>: View {
         // expose an undimmed border. Fade the slip in place on every device;
         // its presenter shortens this same non-spatial motion for Reduce Motion.
         .transition(.opacity)
+    }
+
+    private var paddedContent: some View {
+        content
+            .padding(.horizontal, 18)
+            .padding(.bottom, 14)
     }
 }
 
@@ -165,11 +186,11 @@ struct SettingsSlip: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var model: GameModel
-    @AppStorage(AppPreferences.Key.haptics) private var haptics = true
     var onAbandon: () -> Void
     var onClose: () -> Void
     @State private var confirmingAbandon = false
     @State private var copied = false
+    @State private var showingBookDetails = false
     #if DEBUG && targetEnvironment(simulator)
     @State private var showingQA = false
     #endif
@@ -179,77 +200,21 @@ struct SettingsSlip: View {
         #if DEBUG && targetEnvironment(simulator)
         .sheet(isPresented: $showingQA) { QAPanel(model: model) }
         #endif
-        .onChange(of: haptics) { Haptics.preferencesChanged() }
     }
 
     private var settings: some View {
         PaperSlip(title: "Settings", subtitle: nil,
-                  revealsCardOnArrival: true, onClose: onClose) {
+                  revealsCardOnArrival: true, maximumWidth: 540, maximumHeight: 740,
+                  onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
-                AudioSettingsSection()
-                SlipSection(title: "Feel") {
-                    SlipToggle(label: "Haptics", note: "What the buttons and board feel like.", isOn: $haptics)
-                }
-                SlipSection(title: "This Book") {
-                    LeaderRow(label: "Level", value: "\(model.run.level) of 9")
-                    LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
-                    LeaderRow(label: "Coins", value: "\(model.coins)")
-                }
+                SettingsCommonContent()
+                bookDetails
 
                 SlipSection(
-                    title: "Seed",
-                    note: "A Book is decided by its seed and the choices you make, so the "
-                        + "same seed played the same way gives the same Book."
-                ) {
-                    HStack(spacing: 10) {
-                        Text(model.run.seed)
-                            .font(Print.numeral(17, weight: .bold))
-                            .foregroundStyle(theme.paper.ink)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background {
-                                RoundedRectangle(cornerRadius: 3).fill(theme.paper.warm)
-                            }
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .strokeBorder(theme.paper.ruleInk, lineWidth: 1)
-                            }
-                        Spacer()
-                        Button {
-                            UIPasteboard.general.string = model.run.seed
-                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) { copied = true }
-                        } label: {
-                            Text(copied ? "Copied" : "Copy")
-                                .font(Print.caption(12))
-                                .textCase(.uppercase)
-                                .tracking(0.8)
-                                .foregroundStyle(theme.paper.ink)
-                                .padding(.horizontal, 12)
-                                .frame(height: 32)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 3)
-                                    .strokeBorder(theme.paper.ruleInk, lineWidth: 1)
-                                }
-                        }
-                        .buttonStyle(PressedPaperStyle())
-                    }
-                }
-
-                LearningSection()
-
-                GameCenterSection(service: GameCenterService.shared)
-
-                AdsPrivacySection()
-
-                AppSupportSection()
-
-                SlipSection(
-                    title: "This run",
+                    title: "Leave this Book",
                     note: confirmingAbandon
                         ? nil
-                        : "Throws the Book away. Bookmarks, Markers and Buffs do not carry "
-                          + "over, Marker stacks reset, and coins go back to the starting "
-                          + "amount."
+                        : "Ends this attempt permanently. Your achievements stay saved."
                 ) {
                     if confirmingAbandon {
                         VStack(alignment: .leading, spacing: 9) {
@@ -276,6 +241,7 @@ struct SettingsSlip: View {
                                 confirmingAbandon = true
                             }
                         }
+                        .accessibilityIdentifier("settings.abandonBook")
                     }
                 }
 
@@ -286,9 +252,56 @@ struct SettingsSlip: View {
                 #endif
             }
         }
-        // Help replaces this card rather than covering another modal. The
-        // owning SettingsSlip retains its state, but only one card contributes
-        // controls to VoiceOver and hit testing at a time.
+        // Learning and achievement destinations are owned by the settings
+        // content. This slip stays mounted beneath their full-screen cover,
+        // preserving its scroll position and the presenter's paused game.
+    }
+
+    private var bookDetails: some View {
+        SlipSection(title: "This Book") {
+            DisclosureGroup(isExpanded: $showingBookDetails) {
+                VStack(alignment: .leading, spacing: 10) {
+                    LeaderRow(label: "Level", value: "\(model.run.level) of 9")
+                    LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
+                    LeaderRow(label: "Coins", value: "\(model.coins)")
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Seed").font(Print.caption(11)).foregroundStyle(theme.paper.softInk)
+                            Text(model.run.seed)
+                                .font(Print.numeral(15, weight: .semibold))
+                                .foregroundStyle(theme.paper.ink)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                        Button {
+                            UIPasteboard.general.string = model.run.seed
+                            copied = true
+                        } label: {
+                            Text(copied ? "Copied" : "Copy")
+                                .font(Print.caption(12))
+                                .foregroundStyle(theme.paper.ink)
+                                .padding(.horizontal, 12)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .background(theme.paper.warm, in: .rect(cornerRadius: 3))
+                        }
+                        .buttonStyle(PressedPaperStyle())
+                        .accessibilityLabel(copied ? "Seed copied" : "Copy Book seed")
+                    }
+                    Text("The same seed and choices produce the same Book.")
+                        .font(Print.body(11.5)).foregroundStyle(theme.paper.softInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 8)
+            } label: {
+                Text("Progress & seed")
+                    .font(Print.body(14))
+                    .foregroundStyle(theme.paper.ink)
+                    .frame(minHeight: 44)
+            }
+            .tint(theme.paper.ink)
+            .accessibilityIdentifier("settings.bookDetails")
+        }
     }
 }
 

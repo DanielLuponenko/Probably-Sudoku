@@ -5,6 +5,10 @@ import ProbablySudokuEngine
 /// Marker is gained. Asked on a blank grid, because the board is regenerated
 /// every Puzzle and the position is what persists, not the numbers.
 struct MarkerPlacementSlip: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
+    @Environment(\.levelPalette) private var palette
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     @Bindable var model: GameModel
     var markerIndex: Int
     var onPlaced: () -> Void
@@ -36,29 +40,38 @@ struct MarkerPlacementSlip: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     if let marker {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Paper.markerColor(marker.defID))
-                            .frame(width: 16, height: 16)
+                        PrintedItemIllustration(size: 28) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Paper.markerColor(marker.defID))
+                                .frame(width: 16, height: 16)
+                        }
+                        .accessibilityHidden(true)
                     }
                     Text(pending > 0
                          ? "\(pending) square\(pending == 1 ? "" : "s") to place"
                          : "All placed")
-                        .font(Print.caption(11))
-                        .tracking(1.2)
-                        .textCase(.uppercase)
-                        .foregroundStyle(pending > 0 ? Paper.redPencil : Paper.sageDeep)
+                        .font(Print.caption(11 * textScale))
+                        .foregroundStyle(pending > 0
+                                         ? palette.resolved(for: theme.paper).danger
+                                         : bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
                 }
 
                 BlankGridPicker(model: model, markerIndex: markerIndex, onPlaced: onPlaced)
+                    // Reserve room for the complete two-line footer inside
+                    // the 620-point slip. Phones still use their available
+                    // width; tablets keep all nine rows and the footer visible.
+                    .frame(maxWidth: 360)
+                    .frame(maxWidth: .infinity)
 
                 Text("Tap any square. An occupied square is replaced by this Marker.")
-                    .font(Print.body(11.5))
-                    .foregroundStyle(Paper.inkSoft)
+                    .font(Print.body(11.5 * textScale))
+                    .foregroundStyle(theme.paper.softInk)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("Marked squares are worth more on harder Puzzles: the fewer numbers "
                      + "are already printed, the more of your marks come into play.")
-                    .font(Print.body(11.5))
-                    .foregroundStyle(Paper.inkFaint)
+                    .font(Print.body(11.5 * textScale))
+                    .foregroundStyle(theme.paper.faintInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -68,6 +81,8 @@ struct MarkerPlacementSlip: View {
 /// The grid as positions rather than as a puzzle: no numbers, because a Marker
 /// outlives every board it sits on.
 private struct BlankGridPicker: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.levelPalette) private var palette
     @Bindable var model: GameModel
     var markerIndex: Int
     var onPlaced: () -> Void
@@ -92,9 +107,10 @@ private struct BlankGridPicker: View {
                     } label: {
                         Rectangle()
                             .fill(owner.map { Paper.markerColor($0.defID).opacity(0.55) }
-                                  ?? Paper.pageWarm)
+                                  ?? theme.paper.warm)
                             .overlay {
-                                Rectangle().strokeBorder(owner == nil ? Paper.gridHair : Paper.redPencil,
+                                Rectangle().strokeBorder(owner == nil ? theme.board.hair
+                                                                         : palette.resolved(for: theme.paper).danger,
                                                           lineWidth: owner == nil ? 0.5 : 1.5)
                             }
                             .frame(width: cell, height: cell)
@@ -110,11 +126,11 @@ private struct BlankGridPicker: View {
                         let at = CGFloat(i) * cell
                         var v = Path(); v.move(to: .init(x: at, y: 0)); v.addLine(to: .init(x: at, y: side))
                         var h = Path(); h.move(to: .init(x: 0, y: at)); h.addLine(to: .init(x: side, y: at))
-                        context.stroke(v, with: .color(Paper.gridBold), lineWidth: 2)
-                        context.stroke(h, with: .color(Paper.gridBold), lineWidth: 2)
+                        context.stroke(v, with: .color(theme.board.bold), lineWidth: 2)
+                        context.stroke(h, with: .color(theme.board.bold), lineWidth: 2)
                     }
                     context.stroke(Path(CGRect(x: 0, y: 0, width: side, height: side)),
-                                   with: .color(Paper.gridBold), lineWidth: 2.5)
+                                   with: .color(theme.board.bold), lineWidth: 2.5)
                 }
                 .frame(width: side, height: side)
                 .allowsHitTesting(false)

@@ -45,6 +45,7 @@ struct BookVictoryContents: View {
     var compact = false
     var onClose: () -> Void = {}
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     private var nextObstacle: Obstacle? { Obstacle(rawValue: obstacle.rawValue + 1) }
@@ -190,10 +191,10 @@ struct BookVictoryContents: View {
                     .font(Print.body(11 * textScale))
             }
             .multilineTextAlignment(.center)
-            .foregroundStyle(Paper.page)
+            .foregroundStyle(bookTheme.buttonForeground)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 10).padding(.vertical, 12)
-            .background(Paper.sageDeep, in: .rect(cornerRadius: 5))
+            .background(bookTheme.buttonFill, in: .rect(cornerRadius: 5))
         }
         .buttonStyle(PressedPaperStyle())
         .accessibilityIdentifier("completion.closeBook")
@@ -202,7 +203,7 @@ struct BookVictoryContents: View {
 
 /// A read-only print of the ACTUAL board, including its remaining blanks. A
 /// score victory is not a solved Sudoku, and must never be illustrated as one.
-private struct VictoryBoardPrint: View {
+struct VictoryBoardPrint: View {
     let board: Board
     @Environment(\.cosmeticTheme) private var theme
 

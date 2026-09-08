@@ -44,6 +44,8 @@ struct StartBookView: View {
     /// A slower one, counted in whole turns, for the boxes at the head of the
     /// desk: each turn is one of them solving itself.
     @State private var solve: Double = 0
+    @State private var idleClock = BossMotionClock()
+    @State private var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
 
     /// `-shelfPage 5` opens on that page of the shelf.
     private static func debugIndex() -> Int {
@@ -72,7 +74,9 @@ struct StartBookView: View {
         return .none
     }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PlayerProfileStore.self) private var profile
+    @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true
 
     private var unlockedThrough: Int {
         book.unlockedObstacleRawValue(progressByBookID: BookEdition.obstacleUnlocks(
@@ -82,6 +86,12 @@ struct StartBookView: View {
 
     private var books: [BookEdition] { BookEdition.shelf }
     private var book: BookEdition { books[min(max(index, 0), books.count - 1)] }
+    var selectedBookTheme: BookPresentationTheme { BookPresentationTheme(book: book.rule) }
+    private var animatesIdle: Bool {
+        BookAmbientMotionPolicy.shouldAnimate(
+            isActive: ambientMotion && obstacleInfo == nil,
+            sceneIsActive: scenePhase == .active, reduceMotion: reduceMotion, lowPower: lowPower)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -107,34 +117,56 @@ struct StartBookView: View {
             controls
 
             if let obstacleInfo {
-            ObstacleInfoPopup(obstacle: obstacleInfo) {
+                ObstacleInfoPopup(obstacle: obstacleInfo,
+                                  isLocked: ObstacleInfoPopup.lockedState(
+                                      obstacle: obstacleInfo, unlockedThrough: unlockedThrough)) {
                     withAnimation(.snappy(duration: 0.2)) { self.obstacleInfo = nil }
                 }
                 .zIndex(2)
             }
         }
         .background(Paper.deskDark)
+        .environment(\.bookPresentation, selectedBookTheme)
         .preferredColorScheme(.dark)
         .statusBarHidden()
-        .onAppear {
-            guard !reduceMotion else { return }
-            // Linear, and never reversed: everything takes its movement from
-            // a sine of this, so the turn has to happen in the maths rather
-            // than in the animation, or it stalls at both ends of every cycle.
-            withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
-                phase = 1
-            }
-            // Nine turns before it repeats, so the boxes are not solving the
-            // same three arrangements over and over.
-            withAnimation(.linear(duration: 63).repeatForever(autoreverses: false)) {
-                solve = 9
-            }
+        .onAppear { setIdleAnimationRunning(animatesIdle) }
+        .onChange(of: animatesIdle) { _, running in setIdleAnimationRunning(running) }
+        .onDisappear { setIdleAnimationRunning(false) }
+        .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)) { _ in
+            let updated = ProcessInfo.processInfo.isLowPowerModeEnabled
+            if lowPower != updated { lowPower = updated }
         }
         .onReceive(NotificationCenter.default.publisher(for: CloudSync.didReceiveExternalChange)) { _ in
             resumable = RunStore.displayedRun()
         }
         .onChange(of: index) {
             obstacle = book.availableObstacle(obstacle, progressUnlockedThrough: unlockedThrough)
+        }
+    }
+
+    /// Keep SwiftUI's native interpolation local to the existing idle
+    /// modifiers. The monotonic clock is sampled only when pausing/resuming,
+    /// never published each frame to the picker or its selection controls.
+    private func setIdleAnimationRunning(_ running: Bool) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if running {
+            guard idleClock.startedAt == nil else { return }
+            idleClock.setRunning(true, at: now)
+            withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
+                phase += 1
+            }
+            withAnimation(.linear(duration: 63).repeatForever(autoreverses: false)) {
+                solve += 9
+            }
+        } else {
+            idleClock.setRunning(false, at: now)
+            let elapsed = idleClock.elapsed(at: now)
+            var transaction = Transaction(animation: nil)
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                phase = BookShelfIdleTiming.bookPhase(at: elapsed)
+                solve = BookShelfIdleTiming.solvingPhase(at: elapsed)
+            }
         }
     }
 
@@ -201,11 +233,39 @@ struct StartBookView: View {
 
 }
 
+enum BookShelfIdleTiming {
+    static func bookPhase(at elapsed: TimeInterval) -> Double {
+        max(0, elapsed).truncatingRemainder(dividingBy: 18) / 18
+    }
+
+    static func solvingPhase(at elapsed: TimeInterval) -> Double {
+        max(0, elapsed).truncatingRemainder(dividingBy: 63) / 7
+    }
+}
+
 /// A locked ribbon gets a small desk card — enough to explain the rule without
 /// covering the Book the player was looking at.
 struct ObstacleInfoPopup: View {
     var obstacle: Obstacle
+    var isLocked: Bool
     var onClose: () -> Void
+
+    static let closeHitTarget: CGFloat = 44
+    static let closeIconSize: CGFloat = 28
+
+    static func lockedState(obstacle: Obstacle, unlockedThrough: Int) -> Bool {
+        obstacle.rawValue > unlockedThrough
+    }
+
+    var statusText: String { isLocked ? "LOCKED" : "AVAILABLE" }
+
+    var detailFooter: String {
+        guard isLocked else { return "Ready to play in this Book." }
+        guard let preceding = Obstacle(rawValue: obstacle.rawValue - 1) else {
+            return "Finish this Book to unlock it."
+        }
+        return "Finish \(preceding.name) in this Book to unlock \(obstacle.name)."
+    }
 
     var body: some View {
         ZStack {
@@ -213,6 +273,10 @@ struct ObstacleInfoPopup: View {
                 Color.black.opacity(0.28).ignoresSafeArea()
             }
             .buttonStyle(.plain)
+            // Sighted players can tap the dimmed room to dismiss; VoiceOver
+            // gets the named close control below instead of a duplicate full-
+            // screen button competing with the popup's content.
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 12) {
@@ -222,17 +286,22 @@ struct ObstacleInfoPopup: View {
                             .tracking(-0.5)
                             .foregroundStyle(Paper.ink)
                             .textCase(.uppercase)
-                        Text("LOCKED")
+                        Text(statusText)
                             .font(Print.caption(9)).tracking(1.4)
                             .foregroundStyle(Paper.inkFaint)
                     }
                     Spacer()
                     Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Paper.inkSoft)
-                            .frame(width: 28, height: 28)
-                            .background(Circle().fill(Paper.rule.opacity(0.35)))
+                        ZStack {
+                            Color.clear
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Paper.inkSoft)
+                                .frame(width: Self.closeIconSize, height: Self.closeIconSize)
+                                .background(Circle().fill(Paper.rule.opacity(0.35)))
+                        }
+                        .frame(width: Self.closeHitTarget, height: Self.closeHitTarget)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close obstacle details")
@@ -245,7 +314,7 @@ struct ObstacleInfoPopup: View {
                     .foregroundStyle(Paper.ink)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("Finish a Book to unlock it.")
+                Text(detailFooter)
                     .font(Print.body(12.5))
                     .foregroundStyle(Paper.inkSoft)
                     .padding(.top, 8)
@@ -264,7 +333,7 @@ struct ObstacleInfoPopup: View {
             }
             .padding(.horizontal, 40)
         }
-        .accessibilityLabel("\(obstacle.name). \(obstacle.text). Locked.")
+        .accessibilityElement(children: .contain)
         .transition(.opacity.combined(with: .scale(scale: 0.94)))
     }
 }

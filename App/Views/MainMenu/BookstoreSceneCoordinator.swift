@@ -59,6 +59,10 @@ enum ShopSampleTextureCacheKey {
 
 @MainActor
 final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
+    // Shelf covers are small SceneKit planes; 1.5x preserves print clarity
+    // while reducing the first-frame bitmap conversion/upload work. The
+    // selected LiveBook remains a full-resolution SwiftUI view.
+    private static let shelfLiveBookTextureScale: CGFloat = 1.5
     private let scene = SCNScene()
     private let cameraNode = SCNNode()
     private let cameraTarget = SCNNode()
@@ -73,6 +77,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private let shopPendantLight = SCNLight()
     private let focusedBookLight = SCNLight()
     private let focusedBookLightNode = SCNNode()
+    private weak var standTitlePrintNode: SCNNode?
+    private var standTitlePrintMaterial: SCNMaterial?
+    private var standTitleContentKey: String?
+    private var standTitleTextureCache: [String: UIImage] = [:]
     private let editions: [BookEdition]
     private var editionBookNodes: [String: SCNNode] = [:]
     private var coverMaterials: [String: SCNMaterial] = [:]
@@ -166,6 +174,8 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var boardPanStartAngle: Float = 0
     private var shopPanStartTransform = SCNMatrix4Identity
     private var reduceMotion = false
+    private var ambientMotionEnabled = true
+    private var animatesScenery: Bool { ambientMotionEnabled && !reduceMotion }
     private var selectedObstacle: Obstacle = .none
     // Gestures can move selectedIndex before SwiftUI delivers its next update.
     // Remember whose preview is actually baked into the current textures.
@@ -195,6 +205,13 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var selectedShopPresentation: BookstoreShopPresentation?
     private var appliedShopDragOffset: CGFloat?
     private var viewportSize = CGSize.zero
+    private var shopInstalled = false
+
+    // Read-only accessors used by the focused scene-presentation gate. The
+    // sign itself remains owned by the scene graph; tests never mutate it.
+    var standTitlePrintNodeForTesting: SCNNode? { standTitlePrintNode }
+    var standTitleContentKeyForTesting: String? { standTitleContentKey }
+    var standTitleTextureCountForTesting: Int { standTitleTextureCache.count }
 
     private struct FocusedBook {
         let id: String
@@ -351,6 +368,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         view.autoenablesDefaultLighting = false
         view.allowsCameraControl = false
         view.accessibilityElementsHidden = true
+        // SceneKit's automation tree is separate from VoiceOver hiding. Its
+        // default mesh enumeration projects thousands of decorative bounds
+        // under the scene lock, starving the main thread during UI inspection.
+        // Real actions remain in the native overlays; coordinate gestures on
+        // the rack still use the unmodified SceneKit hit-testing path.
+        view.automationElements = []
         Task { @MainActor in
             await Task.yield()
             guard view.isPlaying else { return }
@@ -403,6 +426,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         cameraForward: Double,
         cameraSide: Double,
         reduceMotion: Bool,
+        ambientMotionEnabled: Bool = true,
         debugCameraPosition: BookstoreDebugCameraPosition?,
         onSelectEdition: @escaping (String) -> Void,
         onRequestBookFocus: @escaping (String) -> Void,
@@ -415,12 +439,14 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         onTransitionFinished: @escaping (BookstoreScenePhase) -> Void
     ) {
         let motionPreferenceChanged = self.reduceMotion != reduceMotion
+        let sceneryPreferenceChanged = self.ambientMotionEnabled != ambientMotionEnabled
         self.reduceMotion = reduceMotion
+        self.ambientMotionEnabled = ambientMotionEnabled
         if motionPreferenceChanged, reduceMotion, standSpinPlayback != nil {
             let angle = stopStandMotion()
             releaseStand(from: angle, velocity: 0, animated: false, deferSelectionNotification: true)
         }
-        shopDustSystem?.birthRate = reduceMotion ? 0 : 3
+        shopDustSystem?.birthRate = animatesScenery ? 3 : 0
         self.onSelectEdition = onSelectEdition
         self.onRequestBookFocus = onRequestBookFocus
         self.onSelectObstacle = onSelectObstacle
@@ -441,6 +467,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let obstacleChanged = self.selectedObstacle != selectedObstacle
         self.selectedObstacle = selectedObstacle
         self.unlockedObstaclesByBookID = unlockedObstaclesByBookID
+        updateStandTitle(edition: editions[selectedIndex],
+                         showsBookability: phase == .choosingBook && isLiveBookPresented,
+                         animated: !reduceMotion)
         if progressChanged {
             updateObstacleTabs()
         } else if selectionChanged || obstacleChanged {
@@ -450,27 +479,36 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
 
         let shopSelectionChanged = selectedShopCategory != shopCategory || selectedShopItemID != shopItem?.id
-        if shopSelectionChanged {
+        // The store camera never frames the shop's alcove. Keep its authored
+        // counter and merchandise out of the first-frame construction, then
+        // install that same subtree before the camera can enter the shop.
+        let shopJustInstalled: Bool
+        if phase == .transitioningToShop || phase == .shopping {
+            shopJustInstalled = ensureShopInstalled()
+        } else {
+            shopJustInstalled = false
+        }
+        if shopSelectionChanged || shopJustInstalled {
             selectedShopCategory = shopCategory
             selectedShopItemID = shopItem?.id
             updateShopSelection(category: shopCategory, item: shopItem, animated: currentPhase != nil)
         }
-        if shopSelectionChanged || selectedShopPresentation != shopPresentation {
+        if shopSelectionChanged || shopJustInstalled || selectedShopPresentation != shopPresentation {
             selectedShopPresentation = shopPresentation
             if let shopItem {
                 updateShopPresentation(category: shopCategory, item: shopItem, state: shopPresentation)
             }
         }
-        if appliedShopDragOffset != shopDragOffset {
+        if shopJustInstalled || appliedShopDragOffset != shopDragOffset {
             let shouldSnap = appliedShopDragOffset != nil && shopDragOffset == nil
             appliedShopDragOffset = shopDragOffset
             updateShopDragOffset(shopDragOffset, shouldSnap: shouldSnap)
         }
-        if appliedCounterYaw != counterYaw {
+        if shopJustInstalled || appliedCounterYaw != counterYaw {
             appliedCounterYaw = counterYaw
             importedShopCounter?.eulerAngles.y = Float(counterYaw)
         }
-        if appliedCounterForward != counterForward || appliedCounterSide != counterSide {
+        if shopJustInstalled || appliedCounterForward != counterForward || appliedCounterSide != counterSide {
             appliedCounterForward = counterForward
             appliedCounterSide = counterSide
             if let basePosition = importedShopCounterBasePosition {
@@ -481,12 +519,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 )
             }
         }
-        if appliedCameraForward != cameraForward {
+        if shopJustInstalled || appliedCameraForward != cameraForward {
             appliedCameraForward = cameraForward
             cameraForwardOffset = cameraForward
             if currentPhase == .shopping { apply(resolvedShopPose) }
         }
-        if appliedCameraSide != cameraSide {
+        if shopJustInstalled || appliedCameraSide != cameraSide {
             appliedCameraSide = cameraSide
             cameraSideOffset = cameraSide
             if currentPhase == .shopping { apply(resolvedShopPose) }
@@ -543,9 +581,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // Hide the physical print only in the same SwiftUI update that installs
         // the matching interactive cover. It stays visible for the whole lift.
         focusedBook?.book.isHidden = isLiveBookPresented && !isReturningFocusedBook
-        if motionPreferenceChanged {
+        if motionPreferenceChanged || sceneryPreferenceChanged {
             updateShopShowcaseMotion()
-            if reduceMotion {
+            if !animatesScenery {
                 // Birth rate alone leaves already-emitted sparks and the
                 // 7±2-second dust motes moving, so clear both immediately.
                 if let emitterNode = shopNumberEffectEmitterNode,
@@ -1439,8 +1477,20 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         addRoom()
         addLighting()
         addStand()
-        addShop()
         apply(storePose)
+    }
+
+    /// The shop is physically part of the room, but it sits outside the
+    /// initial store camera. Defer its authored subtree until the first shop
+    /// transition so the opening frame does not synchronously import its USDZ
+    /// fixtures and merchandise. This stays one-shot: all existing caches and
+    /// construction code remain owned by `addShop()`.
+    @discardableResult
+    private func ensureShopInstalled() -> Bool {
+        guard !shopInstalled else { return false }
+        shopInstalled = true
+        addShop()
+        return true
     }
     private func addRoom() {
         // Build the detailed room once. Geometry and materials are shared by
@@ -3346,7 +3396,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private func startBoardAutoRotation() {
         guard let displayBoard = shopBoardDisplayNode else { return }
         displayBoard.removeAction(forKey: "board-auto-spin")
-        guard !reduceMotion else { return }
+        guard animatesScenery else { return }
         let turn = SCNAction.rotateBy(x: 0, y: .pi * 2, z: 0, duration: 18)
         displayBoard.runAction(.repeatForever(turn), forKey: "board-auto-spin")
     }
@@ -4059,7 +4109,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         shopWallRoot.addChildNode(wallWashNode)
 
         let dust = SCNParticleSystem()
-        dust.birthRate = reduceMotion ? 0 : 3
+        dust.birthRate = animatesScenery ? 3 : 0
         dust.particleLifeSpan = 7
         dust.particleLifeSpanVariation = 2
         dust.particleSize = 0.012
@@ -4090,7 +4140,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
         for (category, turntable) in shopTurntableNodes {
             let isSelected = category == selectedShopCategory
-            let shouldSpin = isShopActive && isSelected && !reduceMotion
+            let shouldSpin = isShopActive && isSelected && animatesScenery
             shopTurntableRingMaterials[category]?.emission.contents = isShopActive && isSelected
                 ? rgb(0x7A5827)
                 : UIColor.black
@@ -4135,9 +4185,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 turntable.eulerAngles.y = visibleYaw
             }
 
-            let restingYaw: Float = isShopActive && isSelected && reduceMotion ? 0.14 : 0
+            let restingYaw: Float = isShopActive && isSelected && !animatesScenery ? 0.14 : 0
             turntable.removeAction(forKey: "shop-turntable-settle")
-            if isShopActive && !reduceMotion {
+            if isShopActive && animatesScenery {
                 let settle = SCNAction.rotateTo(
                     x: 0,
                     y: CGFloat(restingYaw),
@@ -4156,7 +4206,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             && shopNumberFinish.isAnimated
         let numberPulseDuration = shopNumberFinish == .flame ? 0.30 : 0.88
         for glyph in shopNumberGlyphNodes {
-            if numberEffectActive && !reduceMotion {
+            if numberEffectActive && animatesScenery {
                 if glyph.action(forKey: "shop-number-pulse") == nil {
                     let dim = SCNAction.fadeOpacity(to: 0.78, duration: numberPulseDuration)
                     dim.timingMode = .easeInEaseOut
@@ -4174,7 +4224,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // Motion or when Hot Type is not the active selected finish.
         let flameEffectActive = numberEffectActive && shopNumberFinish == .flame
         for flame in shopNumberFlameNodes {
-            if flameEffectActive && !flame.isHidden && !reduceMotion {
+            if flameEffectActive && !flame.isHidden && animatesScenery {
                 if flame.action(forKey: "shop-flame-pulse") == nil {
                     let dim = SCNAction.group([
                         .fadeOpacity(to: 0.74, duration: 0.36),
@@ -4197,16 +4247,16 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         }
         for material in shopNumberGlyphMaterials {
             material.emission.intensity = numberEffectActive
-                ? (reduceMotion ? 0.48 : 0.82)
+                ? (animatesScenery ? 0.82 : 0.48)
                 : (shopNumberFinish.glowColor == nil ? 0 : 0.18)
         }
         shopNumberEffectParticles?.birthRate = numberEffectActive
-            && shopNumberFinish == .flame && !reduceMotion ? 7 : 0
+            && shopNumberFinish == .flame && animatesScenery ? 7 : 0
 
         let boardEffectActive = isShopActive && selectedShopCategory == .board
             && shopBoardFinish == .laser
         for rule in shopBoardInternalRules {
-            if boardEffectActive && !reduceMotion {
+            if boardEffectActive && animatesScenery {
                 if rule.action(forKey: "shop-grid-pulse") == nil {
                     let dim = SCNAction.fadeOpacity(to: 0.52, duration: 0.9)
                     dim.timingMode = .easeInEaseOut
@@ -4221,7 +4271,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             }
         }
         shopBoardRuleMaterial?.emission.intensity = boardEffectActive
-            ? (reduceMotion ? 0.42 : 0.74)
+            ? (animatesScenery ? 0.74 : 0.42)
             : (shopBoardFinish.glowColor == nil ? 0 : 0.14)
     }
 
@@ -4518,34 +4568,77 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // attached to standRoot disappears edge-on and shows a blank back.
         let header = SCNNode()
         header.name = "stand-title-plaque"
-        header.position = SCNVector3(standRoot.position.x, 5.60, standRoot.position.z)
+        // A shallower frame fits between the device cutout and the top Book
+        // without moving the rack or squeezing the lettering horizontally.
+        header.position = SCNVector3(standRoot.position.x, 5.53, standRoot.position.z)
         header.eulerAngles.y = standHomeAngle
         scene.rootNode.addChildNode(header)
 
         let plaqueMaterial = self.material(color: rgb(0x20251F), roughness: 0.72, metalness: 0.18)
-        let plaque = node(box: SCNVector3(1.54, 0.48, 0.08), material: plaqueMaterial, chamfer: 0.04)
+        let plaque = node(box: SCNVector3(1.54, 0.36, 0.08), material: plaqueMaterial, chamfer: 0.04)
         // Mount the entire plaque in FRONT of the pole (radius 0.055).
         // Its old printed face at z=0.052 was cut through by the metal shaft.
         plaque.position.z = 0.105
         header.addChildNode(plaque)
 
         let plateMaterial = SCNMaterial()
-        plateMaterial.diffuse.contents = signTexture()
         plateMaterial.lightingModel = .constant
         plateMaterial.diffuse.mipFilter = .linear
-        let plate = SCNPlane(width: 1.40, height: 0.37)
+        plateMaterial.setValue(Float(1), forKey: "standTitleReveal")
+        plateMaterial.setValue(Float(1), forKey: "standTitleTwoLines")
+        plateMaterial.shaderModifiers = [.fragment: standTitleRevealShader]
+        let plate = SCNPlane(width: 1.40, height: 0.29)
         plate.firstMaterial = plateMaterial
         let plateNode = SCNNode(geometry: plate)
         plateNode.name = "stand-title-print"
         plateNode.position.z = 0.157
         header.addChildNode(plateNode)
+        standTitlePrintNode = plateNode
+        standTitlePrintMaterial = plateMaterial
+        let identityTexture = signTexture()
+        standTitleTextureCache["identity"] = identityTexture
+        plateMaterial.diffuse.contents = identityTexture
+        standTitleContentKey = "identity"
+    }
+
+    private var standTitleRevealShader: String {
+        """
+        #pragma arguments
+        float standTitleReveal;
+        float standTitleTwoLines;
+        #pragma body
+        float3 standTitleInkColor = _output.color.rgb;
+        float2 standTitleUV = _surface.diffuseTexcoord;
+        float standTitleInside = step(0.035, standTitleUV.x)
+            * step(standTitleUV.x, 0.965)
+            * step(0.08, standTitleUV.y)
+            * step(standTitleUV.y, 0.94);
+        float standTitleProgress = clamp(standTitleReveal, 0.0, 1.0);
+        float standTitleRowProgress = standTitleTwoLines < 0.5
+            ? standTitleProgress
+            : standTitleUV.y < 0.66
+            ? clamp(standTitleProgress * 1.45, 0.0, 1.0)
+            : clamp((standTitleProgress - 0.28) * 1.40, 0.0, 1.0);
+        float standTitleWriteEdge = smoothstep(
+            standTitleRowProgress - 0.055, standTitleRowProgress - 0.005,
+            standTitleUV.x + sin(standTitleUV.y * 480.0) * 0.004);
+        // Mask the entire inner writing area, including anti-aliased strokes;
+        // a brightness threshold leaves ghost outlines after erasing.
+        float standTitleKeep = 1.0 - standTitleWriteEdge * standTitleInside;
+        _output.color.rgb = mix(float3(0.01764, 0.02315, 0.01681), standTitleInkColor, standTitleKeep);
+        """
     }
 
     private func signTexture() -> UIImage {
-        // Match the physical 1.40:0.37 face exactly. The old 512:256 texture
+        signTexture(title: "PROBABLY", detail: "SUDOKU BOOKS", preservesIdentityTypography: true)
+    }
+
+    private func signTexture(title: String, detail: String? = nil,
+                             preservesIdentityTypography: Bool = false) -> UIImage {
+        // Match the physical 1.40:0.29 face exactly. The old 512:256 texture
         // stretched every letter almost twice as wide, flattening the title.
-        let size = CGSize(width: 1008, height: 1008 * 0.37 / 1.40)
-        return UIGraphicsImageRenderer(size: size).image { context in
+        let size = CGSize(width: 1008, height: 1008 * 0.29 / 1.40)
+        return UIGraphicsImageRenderer(size: size, format: oneXTextureFormat()).image { context in
             let cg = context.cgContext
             cg.setFillColor(rgb(0x242A23).cgColor)
             cg.fill(CGRect(origin: .zero, size: size))
@@ -4558,25 +4651,111 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
             let paragraph = NSMutableParagraphStyle()
             paragraph.alignment = .center
-            ("PROBABLY" as NSString).draw(
-                in: CGRect(x: 36, y: 48, width: size.width - 72, height: 148),
+            let titleFont: UIFont
+            let titleFrame: CGRect
+            let detailFont: UIFont
+            let detailFrame: CGRect
+            if preservesIdentityTypography {
+                titleFont = .systemFont(ofSize: 100, weight: .heavy)
+                titleFrame = CGRect(x: 36, y: 18, width: size.width - 72, height: 118)
+                detailFont = .systemFont(ofSize: 36, weight: .semibold)
+                detailFrame = CGRect(x: 36, y: 142, width: size.width - 72, height: 46)
+            } else {
+                func fittingFont(for value: String, maximum: CGFloat, minimum: CGFloat) -> UIFont {
+                    var pointSize = maximum
+                    while pointSize > minimum {
+                        let font = UIFont.systemFont(ofSize: pointSize, weight: .heavy)
+                        let width = (value as NSString).size(withAttributes: [.font: font]).width
+                        if width <= size.width - 72 { return font }
+                        pointSize -= 1
+                    }
+                    return .systemFont(ofSize: minimum, weight: .heavy)
+                }
+                titleFont = fittingFont(for: title.uppercased(), maximum: 100, minimum: 72)
+                titleFrame = CGRect(x: 36, y: (size.height - titleFont.lineHeight) * 0.5,
+                                    width: size.width - 72, height: titleFont.lineHeight)
+                detailFont = .systemFont(ofSize: 36, weight: .semibold)
+                detailFrame = CGRect(x: 48, y: 142, width: size.width - 96, height: 46)
+            }
+            (title.uppercased() as NSString).draw(
+                in: titleFrame,
                 withAttributes: [
-                    .font: UIFont.systemFont(ofSize: 126, weight: .heavy),
+                    .font: titleFont,
                     .foregroundColor: rgb(0xFFF8E9),
                     .kern: 2,
                     .paragraphStyle: paragraph
                 ]
             )
-            ("SUDOKU BOOKS" as NSString).draw(
-                in: CGRect(x: 36, y: 187, width: size.width - 72, height: 66),
-                withAttributes: [
-                    .font: UIFont.systemFont(ofSize: 48, weight: .semibold),
-                    .foregroundColor: rgb(0xD0DABB),
-                    .kern: 6,
-                    .paragraphStyle: paragraph
-                ]
-            )
+            if let detail {
+                (detail as NSString).draw(
+                    in: detailFrame,
+                    withAttributes: [
+                        .font: detailFont,
+                        .foregroundColor: rgb(0xD0DABB),
+                        .kern: 0,
+                        .paragraphStyle: paragraph
+                    ]
+                )
+            }
         }
+    }
+
+    private func updateStandTitle(edition: BookEdition, showsBookability: Bool,
+                                  animated: Bool) {
+        let key = showsBookability ? "benefit|\(edition.id)" : "identity"
+        guard let material = standTitlePrintMaterial,
+              let node = standTitlePrintNode else { return }
+        if key == standTitleContentKey {
+            guard !animated else { return }
+            node.removeAction(forKey: "stand-title-writing")
+            material.setValue(Float(1), forKey: "standTitleReveal")
+            material.diffuse.contents = standTitleTextureCache[key]
+            material.setValue(Float(showsBookability ? 0 : 1), forKey: "standTitleTwoLines")
+            node.opacity = 1
+            return
+        }
+        let texture: UIImage
+        if let cached = standTitleTextureCache[key] {
+            texture = cached
+        } else if showsBookability {
+            // Keep the identity print and at most the currently displayed
+            // benefit; old editions must not accumulate title bitmaps.
+            standTitleTextureCache = standTitleTextureCache.filter { $0.key == "identity" || $0.key == key }
+            // The benefit is a single centered title; the full explanation
+            // remains in the native accessibility label, not on the sign.
+            let rendered = signTexture(title: edition.benefit.title)
+            standTitleTextureCache[key] = rendered
+            texture = rendered
+        } else {
+            texture = signTexture()
+            standTitleTextureCache[key] = texture
+        }
+        standTitleContentKey = key
+        node.removeAction(forKey: "stand-title-writing")
+        guard animated else {
+            material.diffuse.contents = texture
+            material.setValue(Float(showsBookability ? 0 : 1), forKey: "standTitleTwoLines")
+            material.setValue(Float(1), forKey: "standTitleReveal")
+            node.opacity = 1
+            return
+        }
+        // Keep the board and frame visible while light chalk pixels erase, then
+        // write title and detail left-to-right. Removing the keyed action makes
+        // a rapid return/selection settle on the newest content.
+        node.opacity = 1
+        let startingReveal = (material.value(forKey: "standTitleReveal") as? NSNumber)?.doubleValue ?? 1
+        let eraseProgress = SCNAction.customAction(duration: 0.12) { _, elapsed in
+            material.setValue(Float(startingReveal * max(0, 1.0 - Double(elapsed) / 0.12)), forKey: "standTitleReveal")
+        }
+        let write = SCNAction.run { _ in
+            material.diffuse.contents = texture
+            material.setValue(Float(showsBookability ? 0 : 1), forKey: "standTitleTwoLines")
+        }
+        let chalkWrite = SCNAction.customAction(duration: 0.80) { _, elapsed in
+            material.setValue(Float(min(1, max(0, elapsed / 0.80))), forKey: "standTitleReveal")
+        }
+        let finish = SCNAction.run { _ in material.setValue(Float(1), forKey: "standTitleReveal") }
+        node.runAction(.sequence([eraseProgress, write, chalkWrite, finish]), forKey: "stand-title-writing")
     }
 
     private func addEditionBooks() {
@@ -4763,7 +4942,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func obstacleTabTexture(slot: Int, unlocked: Bool, selected: Bool) -> UIImage {
         let size = CGSize(width: 96, height: 44)
-        return UIGraphicsImageRenderer(size: size).image { context in
+        return UIGraphicsImageRenderer(size: size, format: oneXTextureFormat()).image { context in
             let bounds = CGRect(origin: .zero, size: size)
             let shape = UIBezierPath(
                 roundedRect: bounds,
@@ -4939,7 +5118,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             }
             .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
         )
-        renderer.scale = 2
+        renderer.scale = Self.shelfLiveBookTextureScale
         return renderer.uiImage
     }
 
@@ -5022,7 +5201,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let palette = [0x5A2A25, 0x2B4438, 0x26374B, 0x86602D, 0x7A6A4D, 0x493129, 0x4E3A57]
         let base = rgb(palette[paletteIndex])
         let size = CGSize(width: 128, height: 512)
-        return UIGraphicsImageRenderer(size: size).image { context in
+        return UIGraphicsImageRenderer(size: size, format: oneXTextureFormat()).image { context in
             let cg = context.cgContext
             cg.setFillColor(base.cgColor)
             cg.fill(CGRect(origin: .zero, size: size))
@@ -5105,7 +5284,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func woodTexture(base: UIColor) -> UIImage {
         let size = CGSize(width: 96, height: 96)
-        return UIGraphicsImageRenderer(size: size).image { context in
+        return UIGraphicsImageRenderer(size: size, format: oneXTextureFormat()).image { context in
             base.setFill()
             context.fill(CGRect(origin: .zero, size: size))
 
@@ -5134,6 +5313,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
                 cg.strokeEllipse(in: CGRect(x: x, y: 32 + sin(x) * 8, width: 12, height: 4))
             }
         }
+    }
+
+    private func oneXTextureFormat() -> UIGraphicsImageRendererFormat {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return format
     }
 
     /// Bakes the exact page renderer into the physical shop sample. Illustrated

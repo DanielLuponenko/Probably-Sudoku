@@ -76,11 +76,12 @@ final class ShopBookmarkPresentationTests: XCTestCase {
         XCTAssertTrue(text.contains("sellfor3coins"), "The visible sale action must show the actual refund.")
     }
 
-    func testOfferDetailsUseReadablePaperNavigationEvenWhenTheGameIsDark() async throws {
+    func testOfferDetailsUseTheSharedPaperHeadingAndCloseEvenWhenTheGameIsDark() async throws {
         let offer = try JSONDecoder().decode(ShopOffer.self, from: Data(
             #"{"slot":0,"defID":"bm_syndication","price":8,"sold":false}"#.utf8))
         let model = GameModel(frozen: Game(seed: "offer-navigation"), page: .shop)
         let host = UIHostingController(rootView: OfferSlip(model: model, offer: offer, markerBought: { _ in })
+            .environment(\.cosmeticTheme, .standard)
             .environment(\.colorScheme, .dark))
         host.overrideUserInterfaceStyle = .dark
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -96,14 +97,91 @@ final class ShopBookmarkPresentationTests: XCTestCase {
         window.makeKeyAndVisible()
         try await Task.sleep(for: .milliseconds(100))
         window.layoutIfNeeded()
-        let navigationBar = try XCTUnwrap(descendants(of: UINavigationBar.self, in: host.view).first)
-        XCTAssertEqual(navigationBar.barStyle, .default,
-                       "The paper navigation bar needs dark title ink even when the game uses a dark scheme.")
+        XCTAssertTrue(descendants(of: UINavigationBar.self, in: host.view).isEmpty,
+                      "Item details use the same printed heading and actions as the other paper slips.")
         let image = UIGraphicsImageRenderer(size: window.bounds.size).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
         attach(image, name: "item-details-dark-game")
-        XCTAssertTrue(try recognize(image).contains("itemdetails"))
+        let printed = try recognize(image)
+        XCTAssertTrue(printed.contains("syndication"), "The offer's name is the shared slip heading.")
+        XCTAssertTrue(printed.contains("close"), "The paper Close action remains visible in a dark game.")
+        XCTAssertTrue(printed.contains("resetsonlyatanewbook"), "The complete rule stays readable on paper.")
+    }
+
+    func testRedrawOfferNativeSheetUsesMeasuredDetentAndShowsCompleteCopy() async throws {
+        let offer = try JSONDecoder().decode(ShopOffer.self, from: Data(
+            #"{"slot":0,"defID":"bf_redraw","price":3,"sold":false}"#.utf8))
+        let model = GameModel(frozen: Game(seed: "redraw-offer-sheet"), page: .shop)
+        let content = OfferSheetHarness(model: model, offer: offer)
+            .environment(\.colorScheme, .light)
+            .environment(\.cosmeticTheme, .standard)
+            .environment(\.locale, Locale(identifier: "en_US"))
+            .transaction { $0.disablesAnimations = true }
+        let host = UIHostingController(rootView: content)
+        host.safeAreaRegions = []
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }.first)
+        let previousKey = scene.windows.first { $0.isKeyWindow }
+        let viewport = CGSize(width: 402, height: 874)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: viewport)
+        window.rootViewController = host
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKey?.makeKey()
+        }
+        window.makeKeyAndVisible()
+
+        var sheet: UIViewController?
+        for _ in 0..<50 {
+            window.layoutIfNeeded()
+            host.view.layoutIfNeeded()
+            if let presented = host.presentedViewController {
+                sheet = presented
+                break
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let presented = try XCTUnwrap(sheet, "The native OfferSlip sheet did not present within 3 seconds.")
+        for _ in 0..<4 {
+            window.layoutIfNeeded()
+            presented.view.layoutIfNeeded()
+            await Task.yield()
+        }
+
+        let sheetFrame = presented.view.convert(presented.view.bounds, to: window)
+        XCTAssertGreaterThan(sheetFrame.height, 300, "The offer sheet should retain a readable article.")
+        XCTAssertLessThan(sheetFrame.height, 500,
+                          "The offer sheet must use the measured article detent, not a full-height page.")
+
+        let image = UIGraphicsImageRenderer(size: viewport).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        attach(image, name: "redraw-offer-native-sheet-402x874")
+        let text = try recognize(image)
+        for phrase in ["Redraw", "Return your whole Hand to the Pool",
+                       "immediately draw a fresh one", "Does not spend Toss allowance",
+                       "Buy this item", "Close"] {
+            XCTAssertTrue(text.contains(phrase.lowercased().filter { $0.isLetter || $0.isNumber }),
+                          "Native sheet omitted or clipped '\(phrase)': \(text)")
+        }
+    }
+
+    private struct OfferSheetHarness: View {
+        @Bindable var model: GameModel
+        let offer: ShopOffer
+        @State private var isPresented = false
+
+        var body: some View {
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear { isPresented = true }
+                .sheet(isPresented: $isPresented) {
+                    OfferSlip(model: model, offer: offer, markerBought: { _ in })
+                }
+        }
     }
 
     private func render<V: View>(_ content: V, width: CGFloat, name: String) throws -> UIImage {

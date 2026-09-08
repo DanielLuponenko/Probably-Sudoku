@@ -58,6 +58,26 @@ struct MarginNote: Equatable {
     }
 }
 
+/// Retains one handwriting view when the Turn changes. Giving each sentence
+/// a new identity cross-faded two complete paragraphs on top of each other.
+/// The ink changes in place; only its position and appearance animate.
+struct PuzzleMarginBand: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var note: MarginNote?
+    var compact: Bool
+
+    var body: some View {
+        ZStack {
+            if let note {
+                MarginNoteView(note: note)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: compact ? 38 : 46)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: note)
+    }
+}
+
 /// Draws the note in the band under the grid — the one part of the page with
 /// nothing printed on it and nothing to tap, so a note can never cover a
 /// square, a number or a button, and can never fall off the page.
@@ -93,6 +113,7 @@ struct MarginNoteView: View {
     private var noteText: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(note.text)
+                .contentTransition(.identity)
                 .font(MarginNote.font(16))
                 .foregroundStyle(theme.paper.handwritingInk(Paper.pencil))
                 // Two lines, shrinking rather than wrapping to a third: the

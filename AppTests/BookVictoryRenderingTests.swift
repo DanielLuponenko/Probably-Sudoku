@@ -156,6 +156,71 @@ final class BookVictoryRenderingTests: XCTestCase {
         XCTAssertNil(banked.run.outcome)
     }
 
+    func testIPadResultsKeepPayoutNearHeaderAndActionsAtBottomWithoutMutatingRun() async throws {
+        var game = Game(seed: "book-victory-ipad-results-spacing")
+        try game.startPuzzle()
+        game.qaMeetTarget()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        let won = GameModel(frozen: game, page: .results)
+        let wonBoard = try XCTUnwrap(won.puzzle?.board)
+        XCTAssertFalse(wonBoard.isFull, "The preview fixture must retain real blank cells.")
+        let wonBefore = try encoder.encode(won.run)
+        let wonImage = try await renderResultsInBook(
+            won,
+            viewport: CGSize(width: 834, height: 1210),
+            horizontalSizeClass: .regular,
+            named: "regular-won-results-real-book-ipad"
+        )
+        try assertResultsSpacing(in: wonImage, action: "Cash Out",
+                                 score: try XCTUnwrap(won.puzzle?.score),
+                                 target: try XCTUnwrap(won.puzzle?.target))
+        assertContains(try recognizedText(in: wonImage), "Your board, as played")
+        XCTAssertEqual(try encoder.encode(won.run), wonBefore,
+                       "Rendering the won results page must not mutate the run")
+
+        _ = try game.cashOut()
+        let banked = GameModel(frozen: game, page: .results)
+        let bankedBefore = try encoder.encode(banked.run)
+        let bankedImage = try await renderResultsInBook(
+            banked,
+            viewport: CGSize(width: 834, height: 1210),
+            horizontalSizeClass: .regular,
+            named: "regular-banked-results-real-book-ipad"
+        )
+        try assertResultsSpacing(in: bankedImage, action: "Continue",
+                                 score: try XCTUnwrap(banked.puzzle?.score),
+                                 target: try XCTUnwrap(banked.puzzle?.target))
+        assertContains(try recognizedText(in: bankedImage), "Your board, as played")
+        XCTAssertEqual(try encoder.encode(banked.run), bankedBefore,
+                       "Rendering the banked results page must not mutate the run")
+    }
+
+    func testShortRegularResultsOmitBoardPreviewAndKeepActionsVisible() async throws {
+        var game = Game(seed: "book-victory-short-regular-results")
+        try game.startPuzzle()
+        game.qaMeetTarget()
+        let won = GameModel(frozen: game, page: .results)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let before = try encoder.encode(won.run)
+        let image = try await renderResultsInBook(
+            won,
+            viewport: CGSize(width: 834, height: 700),
+            horizontalSizeClass: .regular,
+            named: "short-regular-won-results"
+        )
+        let text = try recognizedText(in: image)
+        XCTAssertFalse(text.contains(normalize("Your board, as played")), text)
+        assertContains(text, "Puzzle Complete", "Cash Out")
+        try assertResultsSpacing(in: image, action: "Cash Out",
+                                 score: try XCTUnwrap(won.puzzle?.score),
+                                 target: try XCTUnwrap(won.puzzle?.target))
+        XCTAssertEqual(try encoder.encode(won.run), before,
+                       "Short regular rendering must not mutate the run")
+    }
+
     func testAccessibilityFiveCanScrollToCloseInsideTheRealBookContainer() async throws {
         let fixture = try completedBook()
         let flipper = PageFlipper()
@@ -266,9 +331,13 @@ final class BookVictoryRenderingTests: XCTestCase {
         return image
     }
 
-    private func renderResultsInBook(_ model: GameModel, named name: String) async throws -> UIImage {
+    private func renderResultsInBook(
+        _ model: GameModel,
+        viewport: CGSize = CGSize(width: 375, height: 812),
+        horizontalSizeClass: UserInterfaceSizeClass = .compact,
+        named name: String
+    ) async throws -> UIImage {
         let flipper = PageFlipper()
-        let viewport = CGSize(width: 375, height: 812)
         let content = VStack(spacing: 0) {
             // Use the real HUD with frozen values and inert controls, while
             // retaining the same combined HUD/bookmark space as the layout proof.
@@ -290,6 +359,7 @@ final class BookVictoryRenderingTests: XCTestCase {
         .environment(\.cosmeticTheme, .standard)
         .environment(\.colorScheme, .light)
         .environment(\.locale, Locale(identifier: "en_US"))
+        .environment(\.horizontalSizeClass, horizontalSizeClass)
         .environment(\.dynamicTypeSize, .large)
         .transaction { $0.disablesAnimations = true }
         // BookView contains a UIKit capture anchor. Host the actual hierarchy
@@ -317,6 +387,56 @@ final class BookVictoryRenderingTests: XCTestCase {
         }
         attach(image, named: name)
         return image
+    }
+
+    private struct PrintedObservation {
+        let text: String
+        let bounds: CGRect
+    }
+
+    private func assertResultsSpacing(in image: UIImage, action: String,
+                                      score: Int, target: Int) throws {
+        let observations = try printedObservations(in: image)
+        let base = try XCTUnwrap(observations.first { normalize($0.text).contains("base") },
+                                 "The payout Base line must remain visible")
+        let baseTop = (1 - base.bounds.maxY) * image.size.height
+        let expectedNumbers = [score, target].map { normalize(String($0)) }
+        let scoreOrTarget = observations
+            .filter { observation in
+                let printed = normalize(observation.text)
+                let bottom = (1 - observation.bounds.minY) * image.size.height
+                let matchesHeaderNumber = expectedNumbers.contains { printed.contains($0) }
+                return matchesHeaderNumber && bottom <= baseTop + 8
+            }
+            .min { lhs, rhs in
+                lhs.bounds.minY < rhs.bounds.minY
+            }
+        let score = try XCTUnwrap(scoreOrTarget,
+                                  "The score or target must remain visible above the payout")
+        let scoreBottom = (1 - score.bounds.minY) * image.size.height
+        XCTAssertLessThanOrEqual(baseTop - scoreBottom, 120,
+                                 "The payout Base line drifted too far below the score/target")
+
+        let expectedAction = normalize(action)
+        let actionObservation = try XCTUnwrap(
+            observations.first { normalize($0.text).contains(expectedAction) },
+            "The \(action) action must remain visible"
+        )
+        let actionBottom = (1 - actionObservation.bounds.minY) * image.size.height
+        XCTAssertLessThanOrEqual(image.size.height - actionBottom, 180,
+                                 "The \(action) action must remain near the bottom of the Book")
+    }
+
+    private func printedObservations(in image: UIImage) throws -> [PrintedObservation] {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+        return (request.results ?? []).compactMap { result in
+            guard let candidate = result.topCandidates(1).first else { return nil }
+            return PrintedObservation(text: candidate.string, bounds: result.boundingBox)
+        }
     }
 
     private func attach(_ image: UIImage, named name: String) {

@@ -7,6 +7,27 @@ import ProbablySudokuEngine
 
 @MainActor
 final class BookstoreObstacleTests: XCTestCase {
+    func testObstacleInfoUsesPerBookUnlockStateAndNamesThePrecedingObstacle() {
+        XCTAssertTrue(ObstacleInfoPopup.lockedState(obstacle: .shortHandedAndBlocked,
+                                                    unlockedThrough: Obstacle.shortHanded.rawValue))
+        XCTAssertFalse(ObstacleInfoPopup.lockedState(obstacle: .shortHandedAndBlocked,
+                                                     unlockedThrough: Obstacle.shortHandedAndBlocked.rawValue))
+
+        let locked = ObstacleInfoPopup(obstacle: .shortHandedAndBlocked, isLocked: true, onClose: {})
+        XCTAssertEqual(locked.statusText, "LOCKED")
+        XCTAssertEqual(locked.detailFooter,
+                       "Finish Obstacle II in this Book to unlock Obstacle III.")
+
+        let available = ObstacleInfoPopup(obstacle: .shortHandedAndBlocked, isLocked: false, onClose: {})
+        XCTAssertEqual(available.statusText, "AVAILABLE")
+        XCTAssertEqual(available.detailFooter, "Ready to play in this Book.")
+    }
+
+    func testObstacleInfoCloseKeepsVisibleIconButProvidesAccessibleHitTarget() {
+        XCTAssertEqual(ObstacleInfoPopup.closeIconSize, 28)
+        XCTAssertGreaterThanOrEqual(ObstacleInfoPopup.closeHitTarget, 44)
+    }
+
     func testEveryBookUsesItsOwnSuppliedCeilingIncludingNormalDebugLaunches() {
         XCTAssertEqual(BookEdition.shelf.count, 12)
         for progress in [-10, 0, 1, 4, 9, 20] {

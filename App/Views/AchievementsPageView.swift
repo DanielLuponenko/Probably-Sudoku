@@ -5,6 +5,8 @@ import SwiftUI
 /// or being signed into Game Center.
 struct AchievementsPageView: View {
     @Environment(PlayerProfileStore.self) private var profile
+    var backLabel = "Back to the Book"
+    var showsGameCenter = false
     var onBack: () -> Void
 
     var body: some View {
@@ -18,11 +20,15 @@ struct AchievementsPageView: View {
                         AchievementSection(category: category, achievements: achievements,
                                            earnedIDs: profile.profile.earnedAchievementIDs)
                     }
+                    if showsGameCenter {
+                        GameCenterSection(service: GameCenterService.shared)
+                    }
                 }
                 .padding(.bottom, 4)
             }
 
-            PaperButton(title: "Back to the Book", kind: .quiet, action: onBack)
+            PaperButton(title: backLabel, kind: .quiet, action: onBack)
+                .accessibilityIdentifier("achievements.back")
         }
     }
 
@@ -36,7 +42,7 @@ struct AchievementsPageView: View {
                     .foregroundStyle(Paper.sageDeep)
                     .accessibilityLabel("\(profile.profile.earnedAchievementIDs.count) of \(AchievementCatalog.all.count) achievements earned")
             }
-            Text("Your progress lives here first. Game Center catches up when it can.")
+            Text("Saved on this device. Game Center sync is optional.")
                 .font(Print.body(12.5))
                 .foregroundStyle(Paper.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)

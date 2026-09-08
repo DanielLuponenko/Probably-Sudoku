@@ -299,6 +299,7 @@ private struct FailurePageButton: View {
     let compact: Bool
     var action: () -> Void
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     var body: some View {
@@ -315,10 +316,11 @@ private struct FailurePageButton: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, minHeight: compact ? 50 : (primary ? 60 : 52))
-            .foregroundStyle(primary ? Paper.page : theme.paper.ink)
+            .foregroundStyle(primary ? bookTheme.buttonForeground
+                             : bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
             .background {
                 RoundedRectangle(cornerRadius: 9)
-                    .fill(primary ? Self.oliveInk : theme.paper.page.opacity(0.35))
+                    .fill(primary ? bookTheme.buttonFill : theme.paper.page.opacity(0.35))
                     .overlay {
                         if primary {
                             LinearGradient(colors: [.white.opacity(0.12), .clear, .black.opacity(0.16)],
@@ -332,7 +334,7 @@ private struct FailurePageButton: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 9)
-                    .strokeBorder(primary ? Self.oliveInk : theme.paper.ruleInk, lineWidth: 1.2)
+                    .strokeBorder(primary ? bookTheme.buttonFill : bookTheme.accent.opacity(0.7), lineWidth: 1.2)
                 RoundedRectangle(cornerRadius: 7).inset(by: 3)
                     .strokeBorder(.white.opacity(primary ? 0.3 : 0.5), lineWidth: 0.65)
             }

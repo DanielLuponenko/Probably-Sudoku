@@ -103,6 +103,7 @@ public struct RunState: Codable, Sendable {
         shopVisitCount = max(0, knownVisits.max() ?? 0)
         pendingBoss = try c.decodeIfPresent(BossModifier.self, forKey: .pendingBoss)
         outcome = try c.decodeIfPresent(RunOutcome.self, forKey: .outcome)
+        if outcome == nil { puzzle?.repairUntouchedOpeningBars() }
         finishBookIfCashedOut()
         // Repair missing/old-pool announcements only at undealt briefings.
         // An active Puzzle keeps its exact Boss and a Shop consumes no roll.
@@ -243,7 +244,7 @@ public struct RunState: Codable, Sendable {
 
     // MARK: - Economy (§8)
 
-    public struct Payout: Sendable, Equatable {
+    public struct Payout: Codable, Sendable, Equatable {
         public var base = 0
         /// One coin for each Turn left when the Puzzle is banked.
         public var unusedTurns = 0
@@ -259,7 +260,9 @@ public struct RunState: Codable, Sendable {
         p.unusedTurns = puzzle.turnsRemaining
         p.keepFillingBank = puzzle.keepFillingCoins
         if puzzle.boss?.cancelsInterest != true {
-            p.interest = min(interestCap, coins / 10)
+            // Accountant debt remains payable, but cannot create an extra,
+            // unadvertised negative "interest reward" at cash-out.
+            p.interest = max(0, min(interestCap, coins / 10))
         }
         if owns(bookmark: Bookmarks.paperRoute) { p.paperRoute = 2 }
         return p

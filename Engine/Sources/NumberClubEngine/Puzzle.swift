@@ -92,6 +92,10 @@ public struct PuzzleState: Codable, Sendable {
 
     public var phase: PuzzlePhase
     public var keepFillingCoins: Int
+    /// The original cash-out receipt, stored with the awarded coins. A paid
+    /// result must not recalculate interest from its post-payment balance.
+    /// Older saves have no receipt; the next Puzzle starts without one.
+    public var bankedPayout: RunState.Payout? = nil
 
     /// Puzzle-scoped scaling state — Rolling Presses' clear count, the Rose
     /// Marker's accumulated mult, Fresh Ink, Paper Crane. Cleared every Puzzle.
@@ -103,7 +107,7 @@ public struct PuzzleState: Codable, Sendable {
              turnsMax, rewardedRescueUsed, tossedThisPuzzle, tossAllowance, score, target,
              cluesRemaining, clueReveals, pendingBase, pendingMult, boss, clockSecondsRemaining,
              censoredDigit, blockedDigit, obstacleBlockedDigits, bossTurn, phase, keepFillingCoins,
-             itemState, armedFlags
+             bankedPayout, itemState, armedFlags
     }
 
     init(level: Int, slot: PuzzleSlot, difficulty: Difficulty, board: Board,
@@ -166,6 +170,7 @@ public struct PuzzleState: Codable, Sendable {
         bossTurn = try c.decodeIfPresent(BossTurnState.self, forKey: .bossTurn)
         phase = try c.decode(PuzzlePhase.self, forKey: .phase)
         keepFillingCoins = try c.decode(Int.self, forKey: .keepFillingCoins)
+        bankedPayout = try c.decodeIfPresent(RunState.Payout.self, forKey: .bankedPayout)
         itemState = try c.decodeIfPresent([String: Double].self, forKey: .itemState) ?? [:]
         armedFlags = try c.decodeIfPresent(Set<OneShotFlag>.self, forKey: .armedFlags) ?? []
         // Older results pages could offer Keep Filling after Full Clear. Restore
@@ -298,13 +303,33 @@ public extension PuzzleState {
     mutating func startObstacleTurn(_ run: inout RunState) {
         blockedDigit = nil
         obstacleBlockedDigits = []
-        for _ in 0..<run.obstacle.blockedNumbersEachTurn {
+        // A carried Hand cannot recover from every held digit being barred:
+        // high Obstacles also remove Tosses. Keep one held digit available,
+        // without adding cards, moving squares, or exposing a solution.
+        let count = min(run.obstacle.blockedNumbersEachTurn, max(0, Set(hand).count - 1))
+        for _ in 0..<count {
             guard let digit = Self.pickBlocked(from: hand,
                                                 barring: obstacleBlockedDigits,
                                                 rng: &run.streams.pool) else { break }
             obstacleBlockedDigits.insert(digit)
             if blockedDigit == nil { blockedDigit = digit }
         }
+    }
+
+    /// Old builds could deal an opening Hand with every card barred. Repair
+    /// only an untouched opening board, without consuming RNG or refunding a
+    /// move. Once a player has filled any square, fully barred *remaining*
+    /// cards can be legitimate and must stay exactly as saved until End Turn.
+    mutating func repairUntouchedOpeningBars() {
+        guard phase == .playing, turnNumber == 1, tossedThisPuzzle == 0,
+              score == 0, pendingBase == 0, hand.count == handSize, !hand.isEmpty,
+              board.filledBy.allSatisfy({ $0 == nil || $0 == .given }),
+              hand.indices.allSatisfy(isBlocked(handIndex:)) else { return }
+        let digit = hand[0]
+        obstacleBlockedDigits.remove(digit)
+        if blockedDigit == digit { blockedDigit = obstacleBlockedDigits.sorted().first }
+        bossTurn?.blockedDigits.remove(digit)
+        bossTurn?.blockedHandIndices.remove(0)
     }
 
     /// Everything an extended Boss does when a new Turn begins. This happens
@@ -328,34 +353,69 @@ public extension PuzzleState {
                 let selected = run.streams.boss.int(eligibleIndices.count)
                 state.blockedHandIndices.insert(eligibleIndices.remove(at: selected))
             }
+            // Handy Dandy stacks with digit bars, but cannot consume the last
+            // mechanically playable card they left behind. Prefer moving that
+            // bar onto a card already barred by the Obstacle, keeping two
+            // card bars whenever the Hand is large enough. The selected digit
+            // may still need Sudoku reasoning/a free square; this is not a Clue.
+            let obstacleBars = obstacleBlockedDigits.union(blockedDigit.map { [$0] } ?? [])
+            let available = hand.indices.filter { !obstacleBars.contains(hand[$0]) }
+            if !available.isEmpty, available.allSatisfy(state.blockedHandIndices.contains),
+               let keep = available.first {
+                state.blockedHandIndices.remove(keep)
+                if let replacement = hand.indices.first(where: {
+                    obstacleBars.contains(hand[$0]) && !state.blockedHandIndices.contains($0)
+                }) {
+                    state.blockedHandIndices.insert(replacement)
+                }
+            }
         }
 
         if boss.foulsSquaresEachTurn {
-            let count = board.blanks.count < 6 ? 1 : 3
+            let blanks = board.blanks
+            // Near completion, carried fouls (including an older save) may
+            // occupy every remaining square. Release one deterministically,
+            // then never foul the last available blank again this Turn.
+            if let first = blanks.first, blanks.allSatisfy({ state.fouled[$0] != nil }) {
+                state.fouled.removeValue(forKey: first)
+            }
+            let count = blanks.count < 6 ? 1 : 3
             for _ in 0..<count {
                 let unavailable = Set(state.fouled.keys).union(state.greyed)
-                let open = board.blanks.filter { !unavailable.contains($0) }
-                guard !open.isEmpty else { break }
+                let open = blanks.filter { !unavailable.contains($0) }
+                guard open.count > 1 else { break }
                 state.fouled[open[run.streams.boss.int(open.count)]] = turnNumber + 2
             }
         }
 
         if boss.greysARowEachTurn {
-            let candidates = Geometry.rows.map { $0.filter(board.isBlank) }.filter { !$0.isEmpty }
+            let blankCount = board.blanks.count
+            let candidates = Geometry.rows.map { $0.filter(board.isBlank) }
+                .filter { !$0.isEmpty && $0.count < blankCount }
             if !candidates.isEmpty {
                 state.greyed = Set(candidates[run.streams.boss.int(candidates.count)])
             }
         }
 
         if boss.greysABoxEachTurn {
-            let candidates = Geometry.boxes.map { $0.filter(board.isBlank) }.filter { !$0.isEmpty }
+            let blankCount = board.blanks.count
+            let candidates = Geometry.boxes.map { $0.filter(board.isBlank) }
+                .filter { !$0.isEmpty && $0.count < blankCount }
             if !candidates.isEmpty {
                 state.greyed = Set(candidates[run.streams.boss.int(candidates.count)])
             }
         }
 
-        state.disabledBookmark = boss.disablesABookmarkEachTurn && !run.bookmarks.isEmpty
-            ? run.streams.boss.int(run.bookmarks.count) : nil
+        if boss.disablesABookmarkEachTurn {
+            // Sleeping suppresses event hooks, not starting Hand/Turn/Clue
+            // budgets or permanent payout benefits. Only select an item the
+            // resolver can actually put to sleep, preserving its array index.
+            let candidates = run.bookmarks.indices.filter { !run.bookmarks[$0].def.hooks.isEmpty }
+            state.disabledBookmark = candidates.isEmpty ? nil
+                : candidates[run.streams.boss.int(candidates.count)]
+        } else {
+            state.disabledBookmark = nil
+        }
         bossTurn = state
     }
 

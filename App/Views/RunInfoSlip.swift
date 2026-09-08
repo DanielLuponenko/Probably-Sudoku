@@ -83,6 +83,9 @@ struct RunInfoSlip: View {
 
 /// How many of each number are still to come, as `9 x 5`.
 private struct PoolTally: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.bookPresentation) private var bookTheme
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var puzzle: PuzzleState
 
     private let columns = [GridItem(.adaptive(minimum: 62), spacing: 8)]
@@ -95,42 +98,39 @@ private struct PoolTally: View {
                     HStack(spacing: 4) {
                         Text("\(digit.rawValue)")
                             .font(Print.numeral(19, weight: .semibold))
-                            .foregroundStyle(count > 0 ? Paper.ink : Paper.inkFaint)
+                            .foregroundStyle(count > 0 ? theme.paper.ink : theme.paper.faintInk)
                         Text("x")
                             .font(Print.body(11))
-                            .foregroundStyle(Paper.inkFaint)
+                            .foregroundStyle(theme.paper.faintInk)
                         Text("\(count)")
                             .font(Print.numeral(17, weight: .bold))
-                            .foregroundStyle(count > 0 ? Paper.sageDeep : Paper.inkFaint)
+                            .foregroundStyle(count > 0
+                                             ? bookTheme.quietInk(onDarkPaper: theme.paper.isDark)
+                                             : theme.paper.faintInk)
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
-                    .background {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(count > 0 ? Paper.pageWarm : Paper.pageWarm.opacity(0.4))
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(Paper.rule.opacity(count > 0 ? 1 : 0.4), lineWidth: 1)
-                    }
+                    .paperSurface(kind: .label)
                     .accessibilityLabel("\(count) \(digit.rawValue)s left in the pool")
                 }
             }
 
             HStack {
                 Text("Total")
-                    .font(Print.caption(11)).tracking(1.2).textCase(.uppercase)
-                    .foregroundStyle(Paper.inkSoft)
+                    .font(Print.caption(11 * textScale))
+                    .foregroundStyle(theme.paper.softInk)
                 Spacer()
                 Text("\(puzzle.pool.total)")
                     .font(Print.numeral(15, weight: .bold))
-                    .foregroundStyle(Paper.ink)
+                    .foregroundStyle(theme.paper.ink)
             }
         }
     }
 }
 
 private struct OwnedLine: View {
+    @Environment(\.cosmeticTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var name: String
     var detail: String
     var swatch: Color?
@@ -145,11 +145,11 @@ private struct OwnedLine: View {
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(name)
-                    .font(Print.subheading(13))
-                    .foregroundStyle(Paper.ink)
+                    .font(Print.subheading(13 * textScale))
+                    .foregroundStyle(theme.paper.ink)
                 Text(detail)
-                    .font(Print.body(11.5))
-                    .foregroundStyle(Paper.inkSoft)
+                    .font(Print.body(11.5 * textScale))
+                    .foregroundStyle(theme.paper.softInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)

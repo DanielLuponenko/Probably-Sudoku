@@ -6,6 +6,35 @@ import ProbablySudokuEngine
 
 @MainActor
 final class BookstoreRackGestureTests: XCTestCase {
+    func testShopSubtreeInstallsOnDemandAndIsNotRebuiltOnLaterUpdates() throws {
+        let rack = Rack()
+        defer { rack.close() }
+
+        XCTAssertNil(rack.view.scene?.rootNode.childNode(withName: "club-shop-root",
+                                                        recursively: false))
+
+        rack.update(phase: .shopping)
+        let first = try XCTUnwrap(rack.view.scene?.rootNode.childNode(
+            withName: "club-shop-root", recursively: false))
+
+        rack.update(phase: .shopping)
+        let second = try XCTUnwrap(rack.view.scene?.rootNode.childNode(
+            withName: "club-shop-root", recursively: false))
+        XCTAssertTrue(first === second, "The authored shop subtree must install only once")
+    }
+
+    func testDecorativeSceneDoesNotVendThousandsOfAutomationMeshes() throws {
+        let rack = Rack()
+        defer { rack.close() }
+        XCTAssertTrue(rack.view.accessibilityElementsHidden)
+        XCTAssertNotNil(rack.view.automationElements,
+                        "nil lets SceneKit enumerate every decorative mesh")
+        XCTAssertTrue(try XCTUnwrap(rack.view.automationElements).isEmpty)
+        XCTAssertTrue(rack.view.isUserInteractionEnabled,
+                      "Ordinary touch selection and rack flicks stay enabled")
+        XCTAssertNotNil(try rack.stand())
+    }
+
     func testCoalescedFastPanAppliesItsFinalTranslationAndKeepsCoasting() throws {
         for direction: CGFloat in [-1, 1] {
             let rack = Rack()
@@ -58,6 +87,28 @@ final class BookstoreRackGestureTests: XCTestCase {
         XCTAssertNil(rack.node(running: "stand-turn"))
         XCTAssertEqual(stand.eulerAngles.y, home + .pi / 2, accuracy: 0.0001)
         XCTAssertEqual(rack.selectedEditions.count, 1)
+    }
+
+    func testDisablingBackgroundMotionDoesNotCancelUserDrivenFlickOrBookFocus() throws {
+        let rack = Rack()
+        defer { rack.close() }
+        rack.pan(.began, translation: 0)
+        rack.pan(.ended, translation: 100, velocity: 1_200)
+        let coast = try XCTUnwrap(rack.node(running: "stand-coast")?.action(forKey: "stand-coast"))
+
+        rack.ambientMotionEnabled = false
+        rack.update()
+
+        XCTAssertTrue(rack.node(running: "stand-coast")?.action(forKey: "stand-coast") === coast,
+                      "Background scenery is optional; a real flick keeps its physical momentum")
+        rack.selectedIndex = 2
+        rack.focusSerial += 1
+        rack.update()
+        XCTAssertNil(rack.node(running: "stand-coast"))
+        XCTAssertNotNil(rack.node(running: "stand-turn"),
+                        "The user-requested pocket turn still precedes extracting a Book")
+        XCTAssertNil(rack.node(running: "book-extraction"))
+        XCTAssertFalse(rack.coordinator.gestureRecognizerShouldBegin(rack.gesture))
     }
 
     func testEnablingReduceMotionStopsAnExistingCoastImmediately() async throws {
@@ -197,6 +248,7 @@ final class BookstoreRackGestureTests: XCTestCase {
         var selectedIndex = 0
         var focusSerial = 0
         var reduceMotion: Bool
+        var ambientMotionEnabled = true
         var phase: BookstoreScenePhase = .choosingBook
         var selectedEditions: [String] = []
 
@@ -222,10 +274,10 @@ final class BookstoreRackGestureTests: XCTestCase {
             _ = coordinator.perform(action, with: gesture)
         }
 
-        func update() {
+        func update(phase requestedPhase: BookstoreScenePhase? = nil) {
             let editionID = BookEdition.shelf[selectedIndex].id
             coordinator.update(
-                phase: phase,
+                phase: requestedPhase ?? phase,
                 selectedEditionID: editionID,
                 selectedObstacle: .none,
                 unlockedObstaclesByBookID: unlocks,
@@ -244,6 +296,7 @@ final class BookstoreRackGestureTests: XCTestCase {
                 cameraForward: 0,
                 cameraSide: 0,
                 reduceMotion: reduceMotion,
+                ambientMotionEnabled: ambientMotionEnabled,
                 debugCameraPosition: nil,
                 onSelectEdition: { [weak self] in self?.selectedEditions.append($0) },
                 onRequestBookFocus: { _ in },
