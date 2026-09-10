@@ -20,3 +20,7 @@ After build 9 is public, link its App Store listing in AdMob and complete app ve
 ## Update flow
 
 Once version 1.0 is released, create version 1.0.1 in App Store Connect, select the tested production build 12, enter What's New, choose manual release, and submit to App Review. TestFlight approval does not replace App Store approval. After Apple approval, release the update; existing customers receive it through App Store updates. If code/configuration changes, upload another unique build and select it instead.
+
+## Final TestFlight confirmation
+
+Apple processing completed and What to Test notes were saved. Build 12 was added to the existing Public Beta group and submitted for beta review. Apple immediately showed **Approved**, expiring in 90 days. Build UUID: `26f53b68-318a-42e3-a75e-bba4132d6479`. Existing beta link: https://testflight.apple.com/join/SHA5Tbzz. Production-ad testing guidance is included in the saved notes. No App Store version was released or submitted for review.
