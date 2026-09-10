@@ -1,6 +1,6 @@
 # Store metadata — English (U.S.)
 
-**Current portal changes: [Build 9 release status](BUILD-9-RELEASE-STATUS.md).**
+**Current portal changes: [Build 13 delivery](BUILD-13-DELIVERY.md).**
 This file preserves the earlier metadata snapshot and historical ad-free copy.
 Support/marketing/privacy URLs, rewarded-ad review notes, Advertising Yes and
 launch availability have since been saved as documented in the current report.

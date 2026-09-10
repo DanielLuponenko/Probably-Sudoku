@@ -1,6 +1,6 @@
 # App Store release checklist — 1.0 launch preparation
 
-**Current checkpoint: [Build 9 release status](BUILD-9-RELEASE-STATUS.md).**
+**Current checkpoint: [Build 13 delivery](BUILD-13-DELIVERY.md).**
 The sections below preserve the earlier September 6 planning checkpoint;
 their pending URL/message/pricing/build-9 statements are superseded by that
 dated status report and must not be used as the current portal state.
