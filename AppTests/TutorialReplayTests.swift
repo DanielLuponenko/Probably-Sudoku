@@ -21,9 +21,9 @@ final class TutorialReplayTests: XCTestCase {
 
         let first = TutorialSession(practice: try TutorialPractice.make())
         let freshSnapshot = first.snapshot
-        for _ in TutorialSession.Step.allCases { first.continueLesson() }
-        XCTAssertEqual(first.completion, .completed)
+        try TutorialTestDriver.complete(first)
         XCTAssertGreaterThan(first.snapshot?.score ?? 0, 0)
+        XCTAssertNotNil(first.snapshot?.payout)
 
         let second = TutorialSession(practice: try TutorialPractice.make())
         XCTAssertEqual(second.snapshot, freshSnapshot)
@@ -39,10 +39,13 @@ final class TutorialReplayTests: XCTestCase {
         try book.startPuzzle()
         let savedBefore = try RunStore.dataForStorage(of: book)
         let replay = TutorialSession(practice: try TutorialPractice.make())
-        for _ in TutorialSession.Step.allCases { replay.continueLesson() }
-        XCTAssertEqual(replay.completion, .completed)
+        try TutorialTestDriver.complete(replay)
         XCTAssertEqual(try RunStore.dataForStorage(of: book), savedBefore)
         XCTAssertEqual(book.puzzle?.turnNumber, 1)
         XCTAssertEqual(book.puzzle?.score, 0)
+        XCTAssertEqual(book.run.coins, 5)
+        XCTAssertTrue(book.run.bookmarks.isEmpty)
+        XCTAssertTrue(book.run.markers.isEmpty)
+        XCTAssertTrue(book.run.buffs.isEmpty)
     }
 }

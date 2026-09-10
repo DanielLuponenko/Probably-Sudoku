@@ -17,7 +17,7 @@ struct LearningSection: View {
                 .accessibilityIdentifier("learning-how-to-play")
             PaperButton(title: "Replay tutorial", kind: .quiet) { destination = .practice }
                 .accessibilityIdentifier("learning-replay-tutorial")
-                .accessibilityHint("About 90 seconds. Practice without changing your saved Book or achievements. Exit at any time.")
+                .accessibilityHint("Hands-on lessons at your pace: play, buy, use and sell items. Your saved Book and achievements stay unchanged. Exit at any time.")
         }
         .fullScreenCover(item: $destination) { destination in
             LearningPresentation(destination: destination)

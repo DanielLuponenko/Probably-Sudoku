@@ -10,6 +10,13 @@ public struct ShopOffer: Codable, Sendable, Identifiable {
     public let price: Int
     public var sold: Bool = false
 
+    public init(slot: Int, defID: String, price: Int, sold: Bool = false) {
+        self.slot = slot
+        self.defID = defID
+        self.price = price
+        self.sold = sold
+    }
+
     public var id: Int { slot }
     public var def: ItemDef { Catalog.item(defID)! }
 }
@@ -20,6 +27,14 @@ public struct ShopState: Codable, Sendable {
     public var rerollsUsed: Int
     /// One visit can have several stocks. Nil only when decoding an older Shop.
     public var visitID: Int? = nil
+
+    public init(offers: [ShopOffer], rerollCost: Int = ShopState.firstRerollCost,
+                rerollsUsed: Int = 0, visitID: Int? = nil) {
+        self.offers = offers
+        self.rerollCost = rerollCost
+        self.rerollsUsed = rerollsUsed
+        self.visitID = visitID
+    }
 
     /// §9 — 2 coins, rising by 1 with each reroll in the same Shop. Auction
     /// Notices makes the first reroll of every Shop free.

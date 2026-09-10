@@ -18,7 +18,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .guide: "Rules, scoring and real examples"
-        case .practice: "A 90-second practice Book; your run is safe"
+        case .practice: "Hands-on practice: play, buy, use and sell; your run is safe"
         case .achievements: "Your collection and Game Center"
         case .privacy: "Privacy policy, ad choices and help"
         }
