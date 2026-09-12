@@ -91,7 +91,6 @@ final class RewardedAdService {
     @ObservationIgnored private let adapter: any RewardedAdAdapter
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let networkTimeout: Duration
-    @ObservationIgnored private let noFillRetryDelay: Duration
     @ObservationIgnored private let presentationChanged: (Bool) -> Void
     @ObservationIgnored private var externalPresentationCount = 0
     @ObservationIgnored private var ad: (any RewardedAdHandle)?
@@ -109,12 +108,10 @@ final class RewardedAdService {
 
     init(adapter: any RewardedAdAdapter, now: @escaping () -> Date = Date.init,
          networkTimeout: Duration = .seconds(45),
-         noFillRetryDelay: Duration = .seconds(10),
          presentationChanged: @escaping (Bool) -> Void = { _ in }) {
         self.adapter = adapter
         self.now = now
         self.networkTimeout = networkTimeout
-        self.noFillRetryDelay = noFillRetryDelay
         self.presentationChanged = presentationChanged
         if validateAdapterConfiguration(), adapter.isEnabled {
             self.privacyOptionsRequired = adapter.privacyOptionsRequired
@@ -290,28 +287,7 @@ final class RewardedAdService {
             }
             stage = .adLoad
             startTimeout(id: id, stage: stage)
-            let loaded: any RewardedAdHandle
-            do {
-                loaded = try await adapter.loadAd()
-            } catch {
-                guard isCurrentPreparation(id) else { return }
-                guard let failure = error as? RewardedAdFailure, failure.kind == .noFill else { throw error }
-                recordFailure(error, context: "adLoadRetry")
-                // Inventory can become available on a later request. Retry
-                // once while this offer remains active, within the original
-                // load deadline; never restart consent or present an ad here.
-                try await Task.sleep(for: noFillRetryDelay)
-                guard isCurrentPreparation(id) else { return }
-                guard adapter.canRequestAds else {
-                    finishPreparation(id: id, state: .unavailable("Privacy settings changed. Try again."))
-                    return
-                }
-                guard adapter.canPresent else {
-                    finishPreparation(id: id, state: .unavailable("Return to the game to load a video."))
-                    return
-                }
-                loaded = try await adapter.loadAd()
-            }
+            let loaded = try await adapter.loadAd()
             guard isCurrentPreparation(id) else { return }
             guard adapter.canRequestAds else {
                 finishPreparation(id: id, state: .unavailable("Privacy settings changed. Try again."))

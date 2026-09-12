@@ -527,100 +527,23 @@ final class RewardedAdServiceTests: XCTestCase {
     func testNoFillLeavesRetryAvailable() async {
         let adapter = Adapter()
         adapter.loadError = RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed)
-        let service = RewardedAdService(adapter: adapter, noFillRetryDelay: .zero)
+        let service = RewardedAdService(adapter: adapter)
         await service.prepare()
         XCTAssertEqual(service.state, .unavailable("No video is available right now. Try again later."))
-        XCTAssertEqual(adapter.loadCount, 2, "Stop after one automatic retry.")
+        XCTAssertEqual(adapter.loadCount, 1, "No-fill must wait for the player to retry.")
+        XCTAssertEqual(adapter.ad.presentCount, 0)
         adapter.loadError = nil
         await service.prepare()
         XCTAssertTrue(service.isReady)
-        XCTAssertEqual(adapter.loadCount, 3, "The player can still request another attempt.")
+        XCTAssertEqual(adapter.loadCount, 2, "Only the explicit second preparation requests another ad.")
+        XCTAssertEqual(adapter.ad.presentCount, 0, "Loading never starts playback automatically.")
     }
 
-    func testTemporaryNoFillRecoversWithOneRetryWithoutRepeatingConsentOrPresenting() async {
-        let adapter = Adapter()
-        adapter.loadErrors = [RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed)]
-        let service = RewardedAdService(adapter: adapter, noFillRetryDelay: .zero)
-
-        await service.prepare()
-
-        XCTAssertEqual(adapter.calls, ["consent", "load form", "form", "load", "load"])
-        XCTAssertEqual(adapter.loadCount, 2)
-        XCTAssertTrue(service.isReady)
-        XCTAssertNil(service.lastError, "A recovered no-fill must not remain the current failure.")
-        XCTAssertEqual(adapter.ad.presentCount, 0, "The player still chooses whether to watch.")
-        XCTAssertNil(adapter.ad.reward)
-    }
-
-    func testCancellingNoFillDelayPreventsAnotherLoad() async {
-        for cancelCaller in [true, false] {
-            let adapter = Adapter()
-            adapter.loadError = RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed)
-            let service = RewardedAdService(adapter: adapter, noFillRetryDelay: .milliseconds(30))
-            let preparation = Task { await service.prepare() }
-            await waitUntil { adapter.loadCount == 1 }
-            XCTAssertEqual(service.state, .preparing)
-
-            if cancelCaller { preparation.cancel() }
-            else { service.cancelPreparation() }
-            await preparation.value
-            try? await Task.sleep(for: .milliseconds(50))
-
-            XCTAssertEqual(adapter.loadCount, 1)
-            XCTAssertEqual(service.state, .idle)
-            XCTAssertFalse(service.isReady)
-            XCTAssertEqual(adapter.ad.presentCount, 0)
-        }
-    }
-
-    func testNoFillRetryRechecksConsentAndForegroundBeforeRequesting() async {
-        for revokeConsent in [true, false] {
-            let adapter = Adapter()
-            adapter.loadErrors = [RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed)]
-            let service = RewardedAdService(adapter: adapter, noFillRetryDelay: .milliseconds(30))
-            let preparation = Task { await service.prepare() }
-            await waitUntil { adapter.loadCount == 1 }
-
-            if revokeConsent { adapter.canRequestAds = false }
-            else { adapter.canPresent = false }
-            await preparation.value
-
-            XCTAssertEqual(adapter.loadCount, 1)
-            XCTAssertEqual(service.state, .unavailable(revokeConsent
-                ? "Privacy settings changed. Try again."
-                : "Return to the game to load a video."))
-            XCTAssertFalse(service.isReady)
-            XCTAssertEqual(adapter.ad.presentCount, 0)
-        }
-    }
-
-    func testOriginalLoadTimeoutBoundsNoFillDelayAndSecondLoad() async {
-        for delay in [Duration.seconds(1), .zero] {
-            let adapter = Adapter()
-            adapter.loadErrors = [RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed)]
-            adapter.holdLoads = true
-            let service = RewardedAdService(adapter: adapter, networkTimeout: .milliseconds(20),
-                                            noFillRetryDelay: delay)
-
-            await service.prepare()
-
-            XCTAssertEqual(service.state, .unavailable("The request took too long. Try again."))
-            XCTAssertEqual(adapter.loadCount, delay == .zero ? 2 : 1)
-            XCTAssertFalse(service.isReady)
-            // A retry that finishes after the shared deadline cannot publish
-            // its ad or replace the timeout result.
-            adapter.pendingLoads.first?.resume(returning: adapter.ad)
-            await Task.yield()
-            XCTAssertEqual(service.state, .unavailable("The request took too long. Try again."))
-            XCTAssertFalse(service.isReady)
-            XCTAssertEqual(adapter.ad.presentCount, 0)
-        }
-    }
-
-    func testAutomaticRetryDoesNotRepeatOtherAdLoadFailures() async {
+    func testLoadFailuresNeverRetryAutomatically() async {
         let errors: [any Error] = [
             TestError.failed,
             URLError(.notConnectedToInternet),
+            RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed),
             RewardedAdFailure(kind: .network, underlyingError: TestError.failed),
             RewardedAdFailure(kind: .timeout, underlyingError: TestError.failed),
             RewardedAdFailure(kind: .other, underlyingError: TestError.failed)
@@ -628,7 +551,7 @@ final class RewardedAdServiceTests: XCTestCase {
         for error in errors {
             let adapter = Adapter()
             adapter.loadError = error
-            let service = RewardedAdService(adapter: adapter, noFillRetryDelay: .zero)
+            let service = RewardedAdService(adapter: adapter)
 
             await service.prepare()
 
@@ -716,7 +639,6 @@ final class RewardedAdServiceTests: XCTestCase {
         var loadCount = 0
         var consentError: Error?
         var loadError: Error?
-        var loadErrors: [any Error] = []
         var heldConsentStage: String?
         var pendingConsent: CheckedContinuation<Void, Never>?
         var holdPresentations = false
@@ -763,7 +685,6 @@ final class RewardedAdServiceTests: XCTestCase {
         func loadAd() async throws -> any RewardedAdHandle {
             calls.append("load")
             loadCount += 1
-            if !loadErrors.isEmpty { throw loadErrors.removeFirst() }
             if let loadError { throw loadError }
             if holdLoads { return try await withCheckedThrowingContinuation { pendingLoads.append($0) } }
             return ad
