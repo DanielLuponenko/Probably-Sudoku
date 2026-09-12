@@ -391,6 +391,111 @@ final class RewardedAdServiceTests: XCTestCase {
         newerAd.dismiss?()
     }
 
+    func testImmediateRetrySurvivesQueuedCancellationCleanup() async {
+        let adapter = Adapter()
+        adapter.holdLoads = true
+        let service = RewardedAdService(adapter: adapter)
+        let first = Task { await service.prepare() }
+        await waitUntil { adapter.pendingLoads.count == 1 }
+        adapter.holdLoads = false
+
+        first.cancel()
+        // Deliberately do not await the canceled caller: SwiftUI can start
+        // its replacement before the queued MainActor cleanup has run.
+        await service.prepare()
+        await first.value
+        XCTAssertEqual(adapter.loadCount, 2)
+        XCTAssertTrue(service.isReady)
+
+        let obsoleteAd = Ad()
+        adapter.pendingLoads[0].resume(returning: obsoleteAd)
+        await Task.yield()
+        XCTAssertTrue(service.present(onReward: {}, onDismiss: {}))
+        XCTAssertEqual(adapter.ad.presentCount, 1)
+        XCTAssertEqual(obsoleteAd.presentCount, 0)
+        adapter.ad.dismiss?()
+    }
+
+    func testQueuedLoadCompletionCannotBecomeReadyAfterCallerCancellation() async {
+        let adapter = Adapter()
+        adapter.holdLoads = true
+        let service = RewardedAdService(adapter: adapter)
+        let preparation = Task { await service.prepare() }
+        await waitUntil { adapter.pendingLoads.count == 1 }
+
+        // Queue the SDK completion first, then cancel without yielding. The
+        // completion may run before the cancellation handler's MainActor task.
+        adapter.pendingLoads[0].resume(returning: adapter.ad)
+        preparation.cancel()
+        await preparation.value
+        await Task.yield()
+
+        XCTAssertEqual(service.state, .idle)
+        XCTAssertFalse(service.isReady)
+        XCTAssertFalse(service.present(onReward: { XCTFail("Cancelled load cannot reward") },
+                                       onDismiss: { XCTFail("Cancelled load cannot present") }))
+        XCTAssertEqual(adapter.ad.presentCount, 0)
+    }
+
+    func testQueuedConsentCompletionCannotAdvanceAfterCallerCancellation() async {
+        for stage in ["consent", "load form"] {
+            let adapter = Adapter()
+            adapter.heldConsentStage = stage
+            let service = RewardedAdService(adapter: adapter)
+            let preparation = Task { await service.prepare() }
+            await waitUntil { adapter.pendingConsent != nil }
+
+            // Exercise both the consent update and downloaded-form boundary
+            // with their SDK completion ahead of queued cancellation cleanup.
+            adapter.pendingConsent?.resume()
+            preparation.cancel()
+            await preparation.value
+            await Task.yield()
+
+            XCTAssertEqual(adapter.calls, stage == "consent" ? ["consent"] : ["consent", "load form"])
+            XCTAssertEqual(adapter.loadCount, 0)
+            XCTAssertFalse(service.isReady)
+            XCTAssertEqual(service.state, .idle)
+        }
+    }
+
+    func testConcurrentPreparationDoesNotReplaceAnUncancelledLoad() async {
+        let adapter = Adapter()
+        adapter.holdLoads = true
+        let service = RewardedAdService(adapter: adapter)
+        let first = Task { await service.prepare() }
+        await waitUntil { adapter.pendingLoads.count == 1 }
+
+        await service.prepare()
+        await service.refreshPrivacyStatus()
+        XCTAssertEqual(adapter.loadCount, 1)
+        XCTAssertEqual(adapter.calls, ["consent", "load form", "form", "load"])
+        adapter.pendingLoads[0].resume(returning: adapter.ad)
+        await first.value
+        XCTAssertTrue(service.isReady)
+    }
+
+    func testImmediatePrivacyRefreshRetryRemainsPrivacyOnly() async {
+        let adapter = Adapter()
+        adapter.heldConsentStage = "consent"
+        let service = RewardedAdService(adapter: adapter)
+        let first = Task { await service.refreshPrivacyStatus() }
+        await waitUntil { adapter.pendingConsent != nil }
+        adapter.heldConsentStage = nil
+
+        first.cancel()
+        await service.refreshPrivacyStatus()
+        await first.value
+        XCTAssertEqual(adapter.calls, ["consent", "consent"])
+        XCTAssertEqual(adapter.loadCount, 0)
+        XCTAssertEqual(service.state, .idle)
+
+        adapter.pendingConsent?.resume()
+        await Task.yield()
+        XCTAssertEqual(adapter.loadCount, 0)
+        XCTAssertEqual(service.state, .idle)
+    }
+
     func testLoadTimeoutReturnsWithoutWaitingForUncooperativeSDK() async {
         let adapter = Adapter()
         adapter.holdLoads = true
@@ -420,13 +525,38 @@ final class RewardedAdServiceTests: XCTestCase {
 
     func testNoFillLeavesRetryAvailable() async {
         let adapter = Adapter()
-        adapter.loadError = TestError.failed
+        adapter.loadError = RewardedAdFailure(kind: .noFill, underlyingError: TestError.failed)
         let service = RewardedAdService(adapter: adapter)
         await service.prepare()
-        guard case .unavailable = service.state else { return XCTFail("Expected load failure") }
+        XCTAssertEqual(service.state, .unavailable("No video is available right now. Try again later."))
         adapter.loadError = nil
         await service.prepare()
         XCTAssertTrue(service.isReady)
+    }
+
+    func testOfflineLoadShowsConnectionReasonAndCanRecover() async {
+        let adapter = Adapter()
+        adapter.loadError = URLError(.notConnectedToInternet)
+        let service = RewardedAdService(adapter: adapter)
+        await service.prepare()
+        XCTAssertEqual(service.state, .unavailable("Check your internet connection and try again."))
+        XCTAssertTrue(service.lastError?.contains("adLoad: NSURLErrorDomain (-1009)") == true)
+        adapter.loadError = nil
+        await service.prepare()
+        XCTAssertTrue(service.isReady)
+        XCTAssertNil(service.lastError)
+    }
+
+    func testConsentConfigurationFailureIsNotReportedAsNoFill() async {
+        let adapter = Adapter()
+        adapter.canRequestAds = false
+        adapter.consentError = NSError(domain: "UMPErrorDomain", code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "SDK configuration detail"])
+        let service = RewardedAdService(adapter: adapter)
+        await service.prepare()
+        XCTAssertEqual(service.state, .unavailable("Privacy choices could not load. Try again."))
+        XCTAssertTrue(service.lastError?.contains("consentUpdate: UMPErrorDomain (3)") == true)
+        XCTAssertEqual(adapter.loadCount, 0)
     }
 
     func testPrivacyChangeInvalidatesReadyAdWithoutRequestingAnother() async {

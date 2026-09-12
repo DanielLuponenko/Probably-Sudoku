@@ -1,5 +1,51 @@
 # Optional rewarded video: production and testing
 
+## Missing-ad investigation — 2026-09-12
+
+Read-only checks in AdMob found Probably Sudoku **Ready**, ad serving enabled,
+no Policy Center issues, and verified app-ads.txt. The linked App Store ID and
+the active Puzzle Rescue rewarded unit match the build 13 production archive.
+The European privacy message for Probably Sudoku is published; the dashboard
+also lists one active US-state message. No AdMob configuration changed.
+
+The user's App Store installation displayed the generic unavailable message.
+Its exact SDK error is not recoverable from the dashboard. One matched request
+and zero impressions do not identify the affected device or prove a playback bug.
+On an isolated simulator, the unchanged build 13 Debug app loaded Google's demo
+rewarded video, completed it, and resumed the puzzle at Turn 11/13.
+
+Two code issues were identified:
+
+- A caller's cancellation queued MainActor cleanup. A replacement request could
+  arrive first and be dropped. Cancellation now signals synchronously; a new
+  request retires the cancelled one, and late SDK callbacks check that signal
+  before loading a form, publishing an ad, or reporting an error.
+- The offer discarded its supplied failure reason and displayed every failure
+  as no ad available. It now distinguishes connection, timeout, privacy, and
+  actual no-fill errors. SDK details stay out of player-facing text.
+
+Local `RewardedAds` OSLog events record readiness, presentation, reward and
+dismissal. Failures record the stage, original error domain and code; raw SDK
+descriptions remain private. No telemetry service or gameplay targeting was added.
+When diagnosing a device, filter Console for subsystem `com.numberclub.app` and
+category `RewardedAds`. Genuine no-fill remains an AdMob availability outcome;
+this fix cannot guarantee a paid ad for every request.
+
+This repair requires a new App Store binary to reach existing players. It does
+not modify the already distributed build. Routine verification uses demo units
+and an isolated simulator, without paid impressions or clicks.
+
+Validation: 68 focused tests passed in the SDK-enabled app, plus 45 in the
+SDK-free fallback. These cover cancellation ordering, no-fill, offline/retry,
+consent gating, duplicate/stale callbacks, saved rewards and the rendered offer.
+The rebuilt Debug app also completed a Google demo video and resumed at Turn
+11/13. Before/after save comparison confirmed the board, hand, score, target and
+number pool were unchanged, with exactly three added turns and the rescue consumed.
+Local evidence is in `~/Downloads/ProbablySudoku-AdFix-20260912/`, including
+the final xcresult bundles, demo screenshots, save snapshots and lifecycle log.
+
+## Configuration
+
 The user authorized production ad integration on 2026-09-06 after AdMob account
 approval. Account approval is not the app's separate readiness approval.
 

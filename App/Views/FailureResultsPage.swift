@@ -211,7 +211,7 @@ struct FailurePageContents: View {
 
     private var statusText: String {
         switch adState {
-        case .unavailable: return "No ad available. Try again or end this book."
+        case let .unavailable(reason): return reason
         case .preparing: return "Getting your optional ad ready."
         default: return "No purchases or ad clicks required."
         }
