@@ -78,21 +78,23 @@ They provide no server response body or SDK error code. The generic Security
 and WebKit messages likewise do not identify the ad failure. Do not label this
 incident a proven consent error or claim those warnings were repaired.
 
-The narrow recovery change makes one additional load attempt after a 10-second
-delay, only when the ad SDK reports no-fill. Both attempts share the original
-45-second load deadline. Leaving the offer, cancellation, loss of foreground,
-or a consent change prevents the delayed request. Consent forms are not repeated
-and an available ad still requires the player to choose Watch. Two no-fill
-responses stop and leave manual retry available. This handles a temporary miss;
-it cannot manufacture inventory or guarantee a higher fill rate.
+Ad loading remains manual after a failure: each preparation makes at most one load
+request, and another attempt requires the player's existing retry action. The
+10-second automatic retry introduced in PR #119 was removed at the user's
+request before distribution because it did not match the game's intended flow.
+The earlier cancellation fix, error classification and local diagnostic logging
+remain. No automatic playback, consent override or AdMob configuration change
+was introduced.
 
-Retry validation: 73 focused SDK-enabled tests and 50 SDK-free tests passed.
-The new cases cover no-fill followed by success, stopping after the second
-no-fill, cancellation during backoff, changed consent/foreground state, the
-shared deadline, late completion, and no automatic retry for unrelated errors.
-Independent diff review found no actionable issues. The change still requires
-a new distributed binary; the successful phone playback above used original
-build 13 and must not be attributed to this unreleased retry change.
+The original build 13 completed the successful phone playback above. Its exact
+intermittent failure is **not proven fixed**: the aggregate report suggests low
+availability, but neither it nor the empty HTTP traces identifies the SDK error
+for each failed attempt. Do not describe the cancellation repair or clearer
+errors as a verified solution to that particular device incident.
+
+Manual-retry validation: 69 focused tests passed, including one load per failed
+preparation, an additional load only after explicit retry, no automatic playback,
+cancellation, failure classification, and reward persistence.
 
 ## Configuration
 
