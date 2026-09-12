@@ -1,6 +1,6 @@
 # Version 1.0.2 — build 14
 
-Prepared 12 September 2026. Upload and submission are pending at this checkpoint.
+Updated 12 September 2026. **Version 1.0.2 (14) uploaded and submitted to Apple.**
 The owner authorized TestFlight and App Review with **manual release after approval**.
 Public version 1.0.1 (13) remains available while the update is reviewed.
 
@@ -52,10 +52,43 @@ Sources: [Apple search](https://developer.apple.com/app-store/search/),
 - Production archive succeeded. Verified version 1.0.2 (14), bundle ID, live AdMob
   IDs, valid code signature, three privacy manifests, both Google frameworks,
   matching application/dSYM UUID `61443F98-CC5E-3954-8556-A42EA1067C0F`, and no test
-  bundles. Upload is pending. Debug/Release and simulator execution use demo ads.
+  bundles. Debug/Release and simulator execution use demo ads.
 - Version 1.0.2 was created in App Store Connect. Description, keywords, promotional
   text, What's New and review notes were saved. Manual release was selected and
   verified. English (U.S.) subtitle was saved on App Information.
 - Existing review contact, Game Center, ratings, privacy, URLs and pricing are preserved.
 
 Local evidence: `/Users/daniel/Downloads/ProbablySudoku-Build14-20260912/`.
+
+## Upload receipt
+
+- Release source commit `5463b2f` merged through PR #121 to `70a0754` on main.
+  Archive source hashes match the merged app, engine and project configuration.
+- Apple upload succeeded at **18:22:51 Asia/Jerusalem, 12 September 2026**.
+  Xcode reported `Uploaded package is processing` and `EXPORT SUCCEEDED`.
+- GoogleMobileAds and UserMessagingPlatform vendor dSYM warnings were non-blocking.
+  The app's own dSYM matches the executable. No upload validation errors.
+- Corrected the shared TestFlight description and reviewer notes, which still
+  described build 7 and demo ads. Saved copy now describes production live IDs,
+  optional earned rewards, manual retry and registered-test-device playback QA.
+
+- Apple processing completed. Uploaded build ID:
+  `da98bfb6-7ce9-491d-a1a7-4f32c9225849`.
+- Build 14 was assigned to the existing Public Beta group and submitted to Beta
+  App Review with the saved build-specific testing instructions. Final TestFlight
+  state at 18:28 is **Waiting for Review**, group **Public Beta**; the build is not
+  yet available to external testers. Existing invitation: https://testflight.apple.com/join/SHA5Tbzz.
+- Build 14 was selected and saved for App Store version 1.0.2. Manual release
+  remains selected.
+
+## App Review receipt
+
+Apple acknowledged **1 Item Submitted** at **18:27 Asia/Jerusalem on 12 September
+2026** for version **1.0.2 (14)**. The receipt confirms **Waiting for Review**.
+Submission ID:
+`79ebca34-bc0a-4b1c-adaf-7e2cfe11428b`.
+[App Review receipt](https://appstoreconnect.apple.com/apps/6808968186/distribution/reviewsubmissions/details/79ebca34-bc0a-4b1c-adaf-7e2cfe11428b).
+
+The submission includes the revised English (U.S.) subtitle. Manual release is
+selected, so approval will leave the update awaiting the owner's release action.
+No public release of version 1.0.2 was performed.
