@@ -119,8 +119,8 @@ targetTemplates:
         PRODUCT_BUNDLE_IDENTIFIER: com.numberclub.app
         # Both editions compile the same source module and shared test suite.
         PRODUCT_MODULE_NAME: ProbablySudoku
-        MARKETING_VERSION: "1.0.1"
-        CURRENT_PROJECT_VERSION: "13"
+        MARKETING_VERSION: "1.0.2"
+        CURRENT_PROJECT_VERSION: "14"
         DEVELOPMENT_TEAM: 233268ZQDV
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "5.9"
