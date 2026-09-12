@@ -9,8 +9,10 @@ The European privacy message for Probably Sudoku is published; the dashboard
 also lists one active US-state message. No AdMob configuration changed.
 
 The user's App Store installation displayed the generic unavailable message.
-Its exact SDK error is not recoverable from the dashboard. One matched request
-and zero impressions do not identify the affected device or prove a playback bug.
+The initial dashboard selection, Last 7 days, excluded September 12. Its one
+matched request and zero impressions therefore did not describe that day's
+failures or identify the affected device. The later device investigation below
+supersedes that limited initial evidence.
 On an isolated simulator, the unchanged build 13 Debug app loaded Google's demo
 rewarded video, completed it, and resumed the puzzle at Turn 11/13.
 
@@ -43,6 +45,54 @@ The rebuilt Debug app also completed a Google demo video and resumed at Turn
 number pool were unchanged, with exactly three added turns and the rescue consumed.
 Local evidence is in `~/Downloads/ProbablySudoku-AdFix-20260912/`, including
 the final xcresult bundles, demo screenshots, save snapshots and lifecycle log.
+
+### Follow-up on the actual App Store build 13
+
+Device metadata confirmed that the mirrored iPhone 17 Pro was running the
+App Store installation of version 1.0.1, build 13. Several individual load
+attempts returned the generic failure message. Selecting **Today so far** in
+AdMob then showed 13 requests from Israel, 1 matched request (7.69%), and
+1 impression. Filtering for non-personalized ads retained all those requests.
+These are aggregate, potentially delayed statistics, not an error trace for
+an individual phone. They directly establish low ad availability for that
+reported traffic, not a reason for every unmatched request.
+
+A fresh isolated simulator ran the unchanged build 13 Debug binary with the
+production app ID and declared production identifier pair in its copied
+Info.plist. The existing simulator guard still selected Google's demo ad unit.
+The production UMP configuration completed, reported GDPR not applicable in
+the natural test geography, and the rewarded ad reached ready. This tested the
+production consent backend that an ordinary sample-ID Debug build does not.
+
+The original App Store installation subsequently loaded a production ad without
+any app, privacy, or AdMob configuration change. At the user's request to verify
+more than the ready button, one ad was opened and completed. Its own UI displayed
+**Reward granted**. Closing it returned to Puzzle 3 at **Turn 11/13**, with the
+score and target still **200/2,000**. No advertiser link was selected. This proves
+one successful live load/presentation/reward/dismissal cycle on build 13, not
+reliable fill for every request or a byte-for-byte comparison of the phone save.
+
+The user authorized a temporary local HTTP capture. Two bounded Instruments
+captures, including one synchronized with the retry, exported no HTTP entries.
+They provide no server response body or SDK error code. The generic Security
+and WebKit messages likewise do not identify the ad failure. Do not label this
+incident a proven consent error or claim those warnings were repaired.
+
+The narrow recovery change makes one additional load attempt after a 10-second
+delay, only when the ad SDK reports no-fill. Both attempts share the original
+45-second load deadline. Leaving the offer, cancellation, loss of foreground,
+or a consent change prevents the delayed request. Consent forms are not repeated
+and an available ad still requires the player to choose Watch. Two no-fill
+responses stop and leave manual retry available. This handles a temporary miss;
+it cannot manufacture inventory or guarantee a higher fill rate.
+
+Retry validation: 73 focused SDK-enabled tests and 50 SDK-free tests passed.
+The new cases cover no-fill followed by success, stopping after the second
+no-fill, cancellation during backoff, changed consent/foreground state, the
+shared deadline, late completion, and no automatic retry for unrelated errors.
+Independent diff review found no actionable issues. The change still requires
+a new distributed binary; the successful phone playback above used original
+build 13 and must not be attributed to this unreleased retry change.
 
 ## Configuration
 
