@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 
 /// The only SDK seam: consent, one loaded ad, and its presentation callbacks.
 /// Tests use an in-memory adapter; gameplay never imports Google's SDK.
@@ -34,6 +35,20 @@ protocol RewardedAdHandle: AnyObject {
 @MainActor
 @Observable
 final class RewardedAdService {
+    private static let log = Logger(subsystem: "com.numberclub.app", category: "RewardedAds")
+
+    private enum PreparationStage: String {
+        case consentUpdate, consentForm, consentPresentation, adLoad
+
+        var failureMessage: String {
+            switch self {
+            case .consentUpdate, .consentForm: return "Privacy choices could not load. Try again."
+            case .consentPresentation: return "Privacy choices could not open. Try again."
+            case .adLoad: return "The video could not load. Try again."
+            }
+        }
+    }
+
     enum State: Equatable {
         case idle
         case preparing
@@ -81,6 +96,7 @@ final class RewardedAdService {
     @ObservationIgnored private var ad: (any RewardedAdHandle)?
     @ObservationIgnored private var loadedAt: Date?
     @ObservationIgnored private var preparationID: UUID?
+    @ObservationIgnored private var preparationCancellation: PreparationCancellation?
     @ObservationIgnored private var preparationTask: Task<Void, Never>?
     @ObservationIgnored private var preparationCompletion: (() -> Void)?
     @ObservationIgnored private var timeoutTask: Task<Void, Never>?
@@ -124,8 +140,14 @@ final class RewardedAdService {
     }
 
     private func startPreparation(privacyOnly: Bool) async {
-        guard isEnabled, !Task.isCancelled, preparationID == nil, !isPresenting,
+        guard isEnabled, !Task.isCancelled, !isPresenting,
               !isPresentingPrivacyOptions else { return }
+        // A replacement view task can arrive before the canceled caller's
+        // MainActor cleanup. Retire that request now instead of dropping retry.
+        if let id = preparationID, preparationCancellation?.isCancelled == true {
+            cancelPreparation(id: id)
+        }
+        guard preparationID == nil else { return }
         guard validateAdapterConfiguration() else { return }
         if !privacyOnly && isReady { return }
         discardAd()
@@ -134,7 +156,9 @@ final class RewardedAdService {
             return
         }
         let id = UUID()
+        let cancellation = PreparationCancellation()
         preparationID = id
+        preparationCancellation = cancellation
         state = .preparing
         lastError = nil
         await withTaskCancellationHandler {
@@ -145,6 +169,7 @@ final class RewardedAdService {
                 }
             }
         } onCancel: {
+            cancellation.cancel()
             Task { @MainActor [weak self] in self?.cancelPreparation(id: id) }
         }
     }
@@ -174,11 +199,13 @@ final class RewardedAdService {
         dismissalCallback = onDismiss
         expiryTask?.cancel()
         state = .presenting
+        Self.log.notice("Presenting rewarded video")
         beginExternalPresentation()
         do {
             try ad.present(onReward: { [weak self] in
                 guard let self, self.presentationID == id, !self.earnedReward else { return }
                 self.earnedReward = true
+                Self.log.notice("Reward earned")
                 self.rewardCallback?()
             }, onDismiss: { [weak self] in
                 self?.finishPresentation(id: id, error: nil)
@@ -193,7 +220,7 @@ final class RewardedAdService {
             rewardCallback = nil
             dismissalCallback = nil
             discardAd()
-            lastError = error.localizedDescription
+            recordFailure(error, context: "presentation")
             state = .unavailable("The video could not open. Try again.")
             return false
         }
@@ -219,50 +246,56 @@ final class RewardedAdService {
             try await adapter.presentPrivacyOptions()
             lastError = nil
         } catch {
-            lastError = error.localizedDescription
+            recordFailure(error, context: "privacyOptions")
             state = .unavailable("Privacy options could not open. Try again.")
         }
     }
 
     private func prepareAd(id: UUID, privacyOnly: Bool) async {
+        guard isCurrentPreparation(id) else { return }
+        var stage = PreparationStage.consentUpdate
         do {
-            startTimeout(id: id)
+            startTimeout(id: id, stage: stage)
             do {
                 try await adapter.updateConsent()
             } catch {
-                guard preparationID == id else { return }
-                lastError = error.localizedDescription
+                guard isCurrentPreparation(id) else { return }
+                recordFailure(error, context: stage.rawValue)
                 // UMP explicitly allows a still-valid previous-session choice
                 // after update failure. Never infer consent in app storage.
                 guard adapter.canRequestAds else { throw error }
             }
-            guard preparationID == id, !Task.isCancelled else { return }
+            guard isCurrentPreparation(id) else { return }
             privacyOptionsRequired = adapter.privacyOptionsRequired
             if privacyOnly {
                 finishPreparation(id: id, state: .idle)
                 return
             }
-            startTimeout(id: id)
+            stage = .consentForm
+            startTimeout(id: id, stage: stage)
             try await adapter.loadRequiredConsent()
-            guard preparationID == id, !Task.isCancelled else { return }
+            guard isCurrentPreparation(id) else { return }
             timeoutTask?.cancel()
             // Do not impose a timeout on a person's consent decision.
+            stage = .consentPresentation
             try await presentConsentWithAudioSuspended()
-            guard preparationID == id, !Task.isCancelled else { return }
+            guard isCurrentPreparation(id) else { return }
             privacyOptionsRequired = adapter.privacyOptionsRequired
             guard adapter.canRequestAds else {
                 finishPreparation(id: id, state: .unavailable("A video is not available with the current privacy settings."))
                 return
             }
-            startTimeout(id: id)
+            stage = .adLoad
+            startTimeout(id: id, stage: stage)
             let loaded = try await adapter.loadAd()
-            guard preparationID == id, !Task.isCancelled else { return }
+            guard isCurrentPreparation(id) else { return }
             guard adapter.canRequestAds else {
                 finishPreparation(id: id, state: .unavailable("Privacy settings changed. Try again."))
                 return
             }
             ad = loaded
             loadedAt = now()
+            Self.log.notice("Rewarded video loaded and ready")
             finishPreparation(id: id, state: .ready)
             expiryTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(Self.cacheLifetime))
@@ -271,10 +304,11 @@ final class RewardedAdService {
                 self.state = .idle
             }
         } catch {
-            guard preparationID == id else { return }
-            lastError = error.localizedDescription
+            guard isCurrentPreparation(id) else { return }
+            recordFailure(error, context: stage.rawValue)
             privacyOptionsRequired = adapter.privacyOptionsRequired
-            finishPreparation(id: id, state: .unavailable("No video is available right now. Try again later."))
+            let failure = RewardedAdFailure.classify(error, fallback: stage.failureMessage)
+            finishPreparation(id: id, state: .unavailable(failure.playerMessage))
         }
     }
 
@@ -285,7 +319,7 @@ final class RewardedAdService {
         } catch {
             discardAd()
             privacyOptionsRequired = false
-            lastError = error.localizedDescription
+            recordFailure(error, context: "configuration")
             state = .unavailable("Video ads are unavailable in this build.")
             return false
         }
@@ -311,13 +345,22 @@ final class RewardedAdService {
         if externalPresentationCount == 0 { presentationChanged(false) }
     }
 
-    private func startTimeout(id: UUID) {
+    /// Keep SDK details in local diagnostics, never in the player's message.
+    private func recordFailure(_ error: Error, context: String) {
+        let original = ((error as? RewardedAdFailure)?.underlyingError ?? error) as NSError
+        lastError = "\(context): \(original.domain) (\(original.code)): \(original.localizedDescription)"
+        Self.log.error("\(context, privacy: .public): \(original.domain, privacy: .public) (\(original.code)): \(original.localizedDescription, privacy: .private)")
+    }
+
+    private func startTimeout(id: UUID, stage: PreparationStage) {
         timeoutTask?.cancel()
         timeoutTask = Task { [weak self, networkTimeout] in
             try? await Task.sleep(for: networkTimeout)
-            guard !Task.isCancelled, let self, self.preparationID == id else { return }
-            self.lastError = "Ad preparation network timeout"
-            self.finishPreparation(id: id, state: .unavailable("The video took too long to load. Try again."))
+            guard !Task.isCancelled, let self, self.isCurrentPreparation(id) else { return }
+            let error = URLError(.timedOut)
+            self.recordFailure(error, context: stage.rawValue)
+            self.finishPreparation(id: id, state: .unavailable(
+                RewardedAdFailure.classify(error, fallback: stage.failureMessage).playerMessage))
         }
     }
 
@@ -325,9 +368,14 @@ final class RewardedAdService {
         finishPreparation(id: id, state: .idle)
     }
 
+    private func isCurrentPreparation(_ id: UUID) -> Bool {
+        preparationID == id && preparationCancellation?.isCancelled == false && !Task.isCancelled
+    }
+
     private func finishPreparation(id: UUID, state: State) {
         guard preparationID == id else { return }
         preparationID = nil
+        preparationCancellation = nil
         timeoutTask?.cancel()
         timeoutTask = nil
         preparationTask?.cancel()
@@ -347,9 +395,10 @@ final class RewardedAdService {
         dismissalCallback = nil
         discardAd()
         if let error {
-            lastError = error.localizedDescription
+            recordFailure(error, context: "playback")
             state = .unavailable("The video could not play. Try again.")
         } else {
+            Self.log.notice("Rewarded video dismissed")
             state = .idle
         }
         dismissal?()
@@ -361,6 +410,17 @@ final class RewardedAdService {
         ad = nil
         loadedAt = nil
     }
+}
+
+/// Cancellation handlers run outside MainActor. Publish only this signal
+/// synchronously; request ownership and SDK cleanup stay on the actor.
+private final class PreparationCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool { lock.withLock { cancelled } }
+
+    func cancel() { lock.withLock { cancelled = true } }
 }
 
 /// No Google imports, consent reads, requests, notifications or preload work.

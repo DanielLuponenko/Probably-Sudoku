@@ -97,8 +97,30 @@ final class GoogleRewardedAdAdapter: RewardedAdAdapter {
         let runtime = AdConfiguration.Runtime.current
         let unitID = runtime.isDebug || runtime.isSimulator
             ? AdConfiguration.demoRewardedID : configuration.rewardedAdUnitID
-        let ad = try await RewardedAd.load(with: unitID, request: Self.makeRequest())
-        return GoogleRewardedAd(ad)
+        do {
+            let ad = try await RewardedAd.load(with: unitID, request: Self.makeRequest())
+            return GoogleRewardedAd(ad)
+        } catch {
+            throw Self.loadFailure(for: error)
+        }
+    }
+
+    /// Classify only the SDK load boundary; consent and presentation have their
+    /// own failure stages. Never interpret another framework's numeric codes.
+    static func loadFailure(for error: any Error) -> RewardedAdFailure {
+        let failure = error as NSError
+        if failure.domain == GADErrorDomain {
+            let kind: RewardedAdFailure.Kind
+            switch GoogleMobileAds.RequestError.Code(rawValue: failure.code) {
+            case .networkError: kind = .network
+            case .timeout: kind = .timeout
+            case .noFill: kind = .noFill
+            default: kind = .other
+            }
+            return RewardedAdFailure(kind: kind, underlyingError: error)
+        }
+        return RewardedAdFailure.classify(error,
+            fallback: "The video could not load. Try again.")
     }
 
     /// Apply before SDK start as initialization may preload ads. These are

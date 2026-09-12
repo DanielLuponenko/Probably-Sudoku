@@ -70,7 +70,7 @@ final class FailurePageRenderingTests: XCTestCase {
     func testLoadingAndUnavailablePagesKeepTheSeparateEndBookDecisionVisible() throws {
         let states: [(RewardedAdService.State, String, String)] = [
             (.preparing, "loading", "Loading ad"),
-            (.unavailable("Fixture: no fill"), "unavailable", "Try loading again")
+            (.unavailable("Check your internet connection and try again."), "unavailable", "Try loading again")
         ]
         for (state, name, expectedButton) in states {
             let image = try render(
@@ -82,7 +82,9 @@ final class FailurePageRenderingTests: XCTestCase {
             assertContains(text, "Out of turns", expectedButton, "End book",
                            "Finish this attempt without an ad")
             if name == "unavailable" {
-                assertContains(text, "No ad available")
+                assertContains(text, "Check your internet connection and try again")
+                XCTAssertFalse(text.contains(normalize("No ad available")),
+                               "A connection failure must not be presented as missing ad inventory.")
             }
         }
     }
