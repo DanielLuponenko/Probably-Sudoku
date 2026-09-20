@@ -4,7 +4,7 @@ import SwiftUI
 /// and every SwiftUI shop preview. A cosmetic may dress a glyph with print,
 /// light, or flame, but the purchased object is always the digit itself.
 struct CosmeticNumberGlyph: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.cosmeticPulsePhase) private var sharedPulsePhase
 
     let text: String
@@ -13,6 +13,7 @@ struct CosmeticNumberGlyph: View {
     let weight: Font.Weight
     let color: Color
     var intensity: Double = 1
+    var showsPressShadow = true
 
     var body: some View {
         Group {
@@ -59,8 +60,15 @@ struct CosmeticNumberGlyph: View {
     private var renderedGlyph: some View {
         switch skin.finish {
         case .press:
-            baseGlyph()
-                .shadow(color: .black.opacity(0.24 * intensity), radius: 0.35, x: 0.7, y: 1)
+            // Printed ink stays sharp at the board's smallest cell size.
+            // The paper well and tile edge already carry physical depth;
+            // existing Book and cosmetic previews retain their print finish.
+            if showsPressShadow {
+                baseGlyph()
+                    .shadow(color: .black.opacity(0.24 * intensity), radius: 0.35, x: 0.7, y: 1)
+            } else {
+                baseGlyph()
+            }
 
         case .typewriter:
             ZStack {
@@ -163,7 +171,7 @@ extension EnvironmentValues {
 }
 
 private struct CosmeticPulseClock: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     let finish: NumberFinish
 
     /// Flips once; Core Animation owns every later oscillation instead of a
@@ -251,7 +259,7 @@ struct FlameCrown: View {
 /// is a slow optical pulse and becomes a static high-contrast rule when Reduce
 /// Motion is enabled.
 struct CosmeticGridRules: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
 
     let skin: BoardSkin
     let side: CGFloat

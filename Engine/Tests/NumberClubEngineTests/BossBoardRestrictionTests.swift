@@ -73,6 +73,7 @@ final class BossBoardRestrictionTests: XCTestCase {
 
     func testExecutiveEditorOnlySleepsTriggeredBookmarksInMixedInventory() throws {
         var game = encounter(boss: .unluckyLucky, blankIndices: [0, 1, 40])
+        game.run.puzzle?.phase = .playing // Direct bank bonuses never pay during Keep Filling.
         let standing = [Bookmarks.helpWanted, Bookmarks.weatherForecast, Bookmarks.puzzleCorner,
                         Bookmarks.lateCityFinal, Bookmarks.marketWrap, Bookmarks.auctionNotices,
                         Bookmarks.paperRoute]
@@ -81,14 +82,14 @@ final class BossBoardRestrictionTests: XCTestCase {
         let hand = game.puzzle!.hand
         for turn in 1...32 {
             startTurn(&game, number: turn)
-            let puzzle = try XCTUnwrap(game.puzzle)
+            var puzzle = try XCTUnwrap(game.puzzle)
+            puzzle.bookmarkState.turn.eligiblePlacements = 1
             let sleeping = try XCTUnwrap(puzzle.disabledBookmark)
             XCTAssertTrue((standing.count..<ids.count).contains(sleeping))
             let place = Resolver.context(.place, run: game.run, puzzle: puzzle, digit: .five)
-            let end = Resolver.context(.turnEnd, run: game.run, puzzle: puzzle)
             XCTAssertEqual(Resolver.holdings(place, run: game.run, puzzle: puzzle).flat,
                            ids[sleeping] == "bm_local_gossip" ? 0 : 30)
-            XCTAssertEqual(Resolver.holdings(end, run: game.run, puzzle: puzzle).directScore,
+            XCTAssertEqual(BookmarkMechanics.turnEnd(run: game.run, puzzle: &puzzle).directScore,
                            ids[sleeping] == "bm_morning_edition" ? 0 : 100)
             XCTAssertEqual(puzzle.hand, hand)
         }

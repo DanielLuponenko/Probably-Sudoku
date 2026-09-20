@@ -52,6 +52,83 @@ enum TutorialTestDriver {
 
 @MainActor
 final class TutorialSessionTests: XCTestCase {
+    func testChapterProgressCountsOnlyAcceptedLearnerActions() async throws {
+        let session = TutorialSession(practice: try TutorialPractice.make())
+        var accepted = Set<TutorialSession.Step>()
+        XCTAssertEqual(TutorialSession.Chapter.allCases.count, 6)
+        XCTAssertEqual(TutorialSession.actionCount, 15)
+        XCTAssertTrue(session.completedActions.isEmpty)
+        XCTAssertNil(session.successMessage)
+
+        for step in TutorialSession.Step.allCases {
+            XCTAssertEqual(session.step, step)
+            let before = session.snapshot
+            await session.advanceWhenIdle(enabled: true, delay: .zero)
+            if step.requiresInteraction {
+                session.continueLesson()
+                XCTAssertEqual(session.step, step)
+            }
+            XCTAssertEqual(session.completedActions, accepted)
+            XCTAssertEqual(session.snapshot, before)
+            try TutorialTestDriver.act(session)
+            if step.requiresInteraction {
+                accepted.insert(step)
+                XCTAssertEqual(session.lastCompletedAction, step)
+                XCTAssertNotNil(session.successMessage, "An accepted action should have a factual receipt: \(step)")
+            } else {
+                XCTAssertNil(session.lastCompletedAction)
+                XCTAssertNil(session.successMessage)
+            }
+            XCTAssertEqual(session.completedActions, accepted)
+        }
+        XCTAssertEqual(accepted, Set(TutorialSession.Step.allCases.filter(\.requiresInteraction)))
+        XCTAssertEqual(session.completedActions.count, 15)
+        XCTAssertEqual(session.completion, .completed)
+    }
+
+    func testWrongDuplicateAndStoppedActionsCannotEarnProgressOrReplaceSuccess() throws {
+        let session = TutorialSession(practice: try TutorialPractice.make())
+        session.continueLesson()
+        XCTAssertFalse(session.selectCard(-1))
+        XCTAssertTrue(session.completedActions.isEmpty)
+        XCTAssertNil(session.successMessage)
+        XCTAssertTrue(session.selectCard(try XCTUnwrap(session.targetCardID)))
+        XCTAssertEqual(session.completedActions, [.select])
+        let selectionReceipt = session.successMessage
+        XCTAssertFalse(session.selectCard(try XCTUnwrap(session.targetCardID)))
+        let wrong = try XCTUnwrap(session.snapshot?.cells.first { $0.square != session.targetSquare }).square
+        XCTAssertFalse(session.place(at: wrong))
+        XCTAssertEqual(session.completedActions, [.select])
+        XCTAssertEqual(session.successMessage, selectionReceipt)
+        XCTAssertTrue(session.place(at: try XCTUnwrap(session.targetSquare)))
+        XCTAssertEqual(session.completedActions, [.select, .place])
+        XCTAssertEqual(session.successMessage, "+\(try XCTUnwrap(session.snapshot).queued.formatted()) points this turn")
+        let receipt = session.successMessage
+        let state = session.snapshot
+        session.skip()
+        XCTAssertFalse(session.bankTurn())
+        session.continueLesson()
+        XCTAssertEqual(session.completedActions, [.select, .place])
+        XCTAssertEqual(session.successMessage, receipt)
+        XCTAssertEqual(session.snapshot, state)
+    }
+
+    func testPracticeReceiptsUseActualBuffBankSaleAndPayoutResults() throws {
+        let session = TutorialSession(practice: try TutorialPractice.make())
+        try TutorialTestDriver.reach(.buffed, in: session)
+        XCTAssertEqual(session.successMessage, "Fresh Ink used · 1,550 points this turn")
+        XCTAssertEqual(session.snapshot?.queued, 1_550)
+        XCTAssertFalse(try XCTUnwrap(session.snapshot).buffs.contains { $0.defID == Buffs.freshInk })
+        try TutorialTestDriver.reach(.sellBuff, in: session)
+        XCTAssertEqual(session.successMessage, "Local Gossip sold · +2 coins")
+        try TutorialTestDriver.reach(.comboBank, in: session)
+        XCTAssertEqual(session.successMessage, "Overtime sold · +3 coins")
+        try TutorialTestDriver.reach(.won, in: session)
+        XCTAssertEqual(session.successMessage, "\(try XCTUnwrap(session.lastTurn).pointsGained.formatted()) points banked")
+        try TutorialTestDriver.reach(.payout, in: session)
+        XCTAssertEqual(session.successMessage, "+\(try XCTUnwrap(session.snapshot?.payout).total) coins collected")
+    }
+
     func testPracticeIsDeterministicFreshEngineGameWithNormalFirstPuzzleRules() throws {
         let first = TutorialSession(practice: try TutorialPractice.make())
         let second = TutorialSession(practice: try TutorialPractice.make())
@@ -148,12 +225,18 @@ final class TutorialSessionTests: XCTestCase {
         XCTAssertEqual(shop.buffs.map(\.defID), [TutorialPractice.spareBuffID])
         XCTAssertEqual(shop.offers.map(\.defID), [TutorialPractice.bookmarkID,
             TutorialPractice.multiplierID, TutorialPractice.markerID, Buffs.freshInk])
+        for offer in shop.offers {
+            XCTAssertEqual(offer.price, try XCTUnwrap(Catalog.item(offer.defID)).listedPrice,
+                           "Practice purchases teach the current catalogue's real price")
+        }
+        XCTAssertEqual(shop.buffs.first?.pricePaid,
+                       try XCTUnwrap(Catalog.item(TutorialPractice.spareBuffID)).listedPrice)
         XCTAssertTrue(shop.cells.isEmpty)
         session.continueLesson()
         XCTAssertFalse(session.buyOffer(3))
         XCTAssertEqual(session.snapshot, shop)
         XCTAssertTrue(session.buyOffer(0))
-        XCTAssertEqual(session.snapshot?.coins, 26)
+        XCTAssertEqual(session.snapshot?.coins, 25)
         XCTAssertEqual(session.snapshot?.bookmarks.map(\.defID), [TutorialPractice.bookmarkID])
         XCTAssertEqual(session.snapshot?.offers.first?.sold, true)
         let bought = session.snapshot
@@ -163,11 +246,16 @@ final class TutorialSessionTests: XCTestCase {
         XCTAssertTrue(session.buyOffer(2))
         XCTAssertTrue(session.buyOffer(3))
         XCTAssertEqual(session.step, .markerPlacement)
-        XCTAssertEqual(session.snapshot?.coins, 12)
+        XCTAssertEqual(session.snapshot?.coins, 1)
+        XCTAssertEqual(session.snapshot?.target, 1_500,
+                       "The teaching Shop advances to the normal Medium puzzle")
         XCTAssertEqual(session.snapshot?.bookmarks.count, 2)
         XCTAssertEqual(session.snapshot?.markers.count, 1)
         XCTAssertEqual(session.snapshot?.buffs.count, 2)
         XCTAssertTrue(session.snapshot?.offers.isEmpty == true)
+        let started = session.snapshot
+        XCTAssertFalse(session.buyOffer(3), "A delayed purchase cannot advance the new puzzle again")
+        XCTAssertEqual(session.snapshot, started)
     }
 
     func testCuratedRowAndMarkerAreDeterministicAndClaimDoesNotSpendCoinsOrNumber() throws {
@@ -180,6 +268,8 @@ final class TutorialSessionTests: XCTestCase {
         let target = try XCTUnwrap(first.targetSquare)
         XCTAssertEqual(first.targetDigit, .nine)
         XCTAssertEqual(before.cells.filter { $0.square.row == target.row && $0.digit == nil }.count, 1)
+        XCTAssertEqual(before.cells.filter { $0.square.box == target.box && $0.digit == nil }.count, 1)
+        XCTAssertGreaterThan(before.cells.filter { $0.square.col == target.col && $0.digit == nil }.count, 1)
         XCTAssertEqual(before.cells[target.index].digit, nil)
         XCTAssertEqual(before.hand.first?.digit, .nine)
         let other = try XCTUnwrap(before.cells.first { $0.square != target }).square
@@ -202,12 +292,12 @@ final class TutorialSessionTests: XCTestCase {
         let receipt = try XCTUnwrap(session.lastPlacement)
         XCTAssertTrue(receipt.correct)
         XCTAssertEqual(receipt.points, 90 + 30 + 100, "9, Local Gossip, Golden Marker")
-        XCTAssertEqual(receipt.lineClears, [.row])
-        XCTAssertEqual(receipt.lineClearPoints, [45])
-        XCTAssertEqual(scored.completedUnits, 1)
-        XCTAssertEqual(scored.queuedBase, 265)
-        XCTAssertEqual(scored.multiplier, 2, "Op-Ed adds one to the base multiplier")
-        XCTAssertEqual(scored.queued, 530)
+        XCTAssertEqual(receipt.lineClears, [.row, .box])
+        XCTAssertEqual(receipt.lineClearPoints, [45, 45])
+        XCTAssertEqual(scored.completedUnits, 2)
+        XCTAssertEqual(scored.queuedBase, 310)
+        XCTAssertEqual(scored.multiplier, 3, "Front Page Splash adds one per locked Bookmark")
+        XCTAssertEqual(scored.queued, 930)
         XCTAssertEqual(scored.score, 0)
         XCTAssertEqual(scored.phase, .playing)
         XCTAssertEqual(scored.turn, 1)
@@ -224,8 +314,8 @@ final class TutorialSessionTests: XCTestCase {
         let after = try XCTUnwrap(session.snapshot)
         XCTAssertEqual(after.buffs.map(\.defID), [TutorialPractice.spareBuffID])
         XCTAssertEqual(after.queuedBase, before.queuedBase)
-        XCTAssertEqual(after.multiplier, 4)
-        XCTAssertEqual(after.queued, 1_060)
+        XCTAssertEqual(after.multiplier, 5)
+        XCTAssertEqual(after.queued, 1_550)
         XCTAssertEqual(after.score, 0)
         XCTAssertEqual(after.turn, before.turn)
         XCTAssertEqual(after.turns, before.turns)
@@ -253,7 +343,7 @@ final class TutorialSessionTests: XCTestCase {
         XCTAssertTrue(session.sellItem(kind: .buff, index: 0))
         let soldBuff = try XCTUnwrap(session.snapshot)
         XCTAssertTrue(soldBuff.buffs.isEmpty)
-        XCTAssertEqual(soldBuff.coins, before.coins + 4)
+        XCTAssertEqual(soldBuff.coins, before.coins + 5)
         XCTAssertEqual(soldBuff.queued, before.queued)
         XCTAssertEqual(soldBuff.markers, before.markers)
         XCTAssertEqual(soldBuff.markedSquares, before.markedSquares)
@@ -266,17 +356,19 @@ final class TutorialSessionTests: XCTestCase {
         try TutorialTestDriver.reach(.comboBank, in: session)
         let queued = try XCTUnwrap(session.snapshot)
         XCTAssertEqual(queued.score, 0)
-        XCTAssertEqual(queued.queued, 1_060)
+        XCTAssertEqual(queued.queued, 1_550)
+        XCTAssertEqual(queued.target, 1_500)
+        XCTAssertGreaterThanOrEqual(queued.queued, queued.target)
         XCTAssertFalse(session.cashOut(), "Pending points have not won the puzzle")
         XCTAssertTrue(session.bankTurn())
         let won = try XCTUnwrap(session.snapshot)
         XCTAssertEqual(won.phase, .won)
-        XCTAssertEqual(won.score, 1_060)
+        XCTAssertEqual(won.score, 1_550)
         XCTAssertEqual(won.queued, 0)
         XCTAssertEqual(won.turn, 2)
         XCTAssertEqual(won.hand.count, 7)
-        XCTAssertEqual(session.lastTurn?.queuedBase, 265)
-        XCTAssertEqual(session.lastTurn?.multiplier, 4)
+        XCTAssertEqual(session.lastTurn?.queuedBase, 310)
+        XCTAssertEqual(session.lastTurn?.multiplier, 5)
         XCTAssertFalse(session.bankTurn())
         XCTAssertEqual(session.snapshot, won)
         XCTAssertTrue(session.cashOut())
@@ -285,8 +377,8 @@ final class TutorialSessionTests: XCTestCase {
         XCTAssertEqual(paid.phase, .cashedOut)
         XCTAssertEqual(receipt.base, 5)
         XCTAssertEqual(receipt.unusedTurns, 9)
-        XCTAssertEqual(receipt.interest, 1)
-        XCTAssertEqual(receipt.total, 15)
+        XCTAssertEqual(receipt.interest, 0)
+        XCTAssertEqual(receipt.total, 14)
         XCTAssertEqual(paid.coins, won.coins + receipt.total)
         XCTAssertFalse(session.cashOut())
         XCTAssertEqual(session.snapshot, paid)

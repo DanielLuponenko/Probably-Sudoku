@@ -2,14 +2,18 @@ import SwiftUI
 import ProbablySudokuEngine
 
 /// The app's front door. The bookstore owns presentation only; choosing a
-/// volume still exits through ContentView's existing run-conflict callback.
+/// volume or continuing the current Book goes through ContentView's save guard.
 struct MainMenuView: View {
     var onBookSelected: (BookEdition, Obstacle) -> Void
+    var onContinueBook: () -> Void = {}
     var onFirstFrame: (() -> Void)? = nil
     var isSceneVisible = true
+    var completedBookSelection: CompletedBookSelection? = nil
 
     var body: some View {
-        BookstoreOpeningView(onOpenBook: onBookSelected, onFirstFrame: onFirstFrame,
-                             isSceneVisible: isSceneVisible)
+        BookstoreOpeningView(onOpenBook: onBookSelected, onContinueBook: onContinueBook,
+                             onFirstFrame: onFirstFrame,
+                             isSceneVisible: isSceneVisible,
+                             completedBookSelection: completedBookSelection)
     }
 }

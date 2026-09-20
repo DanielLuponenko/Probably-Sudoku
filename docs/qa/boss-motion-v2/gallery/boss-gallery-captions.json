@@ -1,0 +1,480 @@
+[
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "censor",
+    "discussion" : "Red underlines identify the actual zero-scoring digit. Discuss a physical censor stamp when its score is denied.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-01-censor-turn1",
+    "name" : "The Censor",
+    "rule" : "One random number scores no points this Puzzle",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "editor",
+    "discussion" : "The missing hand option is the main effect. Discuss a torn empty hand slot rather than adding obstacles to the board.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 6,
+    "image" : "boss-gallery-02-editor-turn1",
+    "name" : "The Editor",
+    "rule" : "Hand size -1",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "deadline",
+    "discussion" : "Eight-turn budget and clock motif. Discuss a paper deadline stamp on turn changes.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-03-deadline-turn1",
+    "name" : "The Deadline",
+    "rule" : "8 Turns instead of 10",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 8,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "fog",
+    "discussion" : "Mist hides marker locations. Discuss softer moving wisps while keeping every number readable and marker positions secret.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-04-fog-turn1",
+    "name" : "The Fog",
+    "rule" : "Marked squares are hidden this Puzzle",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 0
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "critic",
+    "discussion" : "Red-pencil accents. Discuss an emphatic double strike only after a wrong placement.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-05-critic-turn1",
+    "name" : "The Critic",
+    "rule" : "Wrong-placement penalty doubled",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "mirror",
+    "discussion" : "Reflective edge motif. Discuss a mirrored or struck-through line-clear receipt when the bonus is denied.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-06-mirror-turn1",
+    "name" : "The Mirror",
+    "rule" : "No Line Clear bonuses this Puzzle",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "paywall",
+    "discussion" : "Clue access is disabled. Discuss a tactile locked seal over the clue source; the board remains playable.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-07-paywall-turn1",
+    "name" : "The Paywall",
+    "rule" : "All Clues disabled, including Buff-granted",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "erratum",
+    "discussion" : "Toss is unavailable. Discuss a correction strip across its button.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-08-erratum-turn1",
+    "name" : "The Erratum",
+    "rule" : "No Tosses this Puzzle",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "collector",
+    "discussion" : "Interest is removed at payout. Discuss a receipt stamp on the Results interest line.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-09-collector-turn1",
+    "name" : "The Collector",
+    "rule" : "This Puzzle's payout includes no interest",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "heavyLifter",
+    "discussion" : "Fourfold target. Discuss a heavy press impression behind the target, without reducing board contrast.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-10-heavyLifter-turn1",
+    "name" : "The Final Draft",
+    "rule" : "The target is four times what it would be",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 8000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "unluckyLucky",
+    "discussion" : "One actual triggered Bookmark sleeps. Discuss folding its corner and a small sleeping mark on that exact item.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-11-unluckyLucky-turn1",
+    "name" : "The Executive Editor",
+    "rule" : "One triggered Bookmark sleeps each Turn; passive upgrades stay active",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "sleepingBookmark" : 1,
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "buffborger",
+    "discussion" : "Both owned Buffs are unusable. Discuss removable paper seals on those two slots.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-12-buffborger-turn1",
+    "name" : "The Fine Print",
+    "rule" : "No Buff can be spent this Puzzle",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "sashimi",
+    "discussion" : "Multipliers are halved. Discuss a clean scissor cut through the multiplier during scoring.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-13-sashimi-turn1",
+    "name" : "The Budget Cut",
+    "rule" : "All score multipliers are cut in half",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "overPusher",
+    "discussion" : "Ink fouls mark real blocked blanks. Discuss individual wet splats that dry and clear when their two-turn lifetime ends.",
+    "fouledSquares" : [
+      10,
+      13,
+      41
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-14-overPusher-turn1",
+    "name" : "The Shredder",
+    "rule" : "Up to three squares are fouled each Turn for two Turns; one blank stays free",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "accountant",
+    "discussion" : "Every placement costs a coin. Discuss a small debit receipt moving from that placement to the coin total.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-15-accountant-turn1",
+    "name" : "Natural Born Accountant",
+    "rule" : "Every placement costs a coin, even if you have none",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "tikTak",
+    "discussion" : "Real countdown, plus urgent state below 30 seconds. Discuss clock-hand motion and a restrained urgent pulse.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-16-tikTak-turn1",
+    "name" : "Tik Tak",
+    "rule" : "Four minutes for the whole Puzzle",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+      0,
+      3
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "handyDandy",
+    "discussion" : "Two exact hand copies are crossed out. Discuss physical tags on those cards, keeping the remaining hand readable.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-17-handyDandy-turn1",
+    "name" : "Handy Dandy",
+    "rule" : "Up to two cards are barred each Turn; your whole Hand is never barred",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+      29,
+      30,
+      32,
+      34,
+      35
+    ],
+    "bossID" : "grayTheGarry",
+    "discussion" : "Physical bricks occupy only the barred row's blank cells. Review stagger, landing weight and fading dust.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-18-grayTheGarry-turn1",
+    "name" : "Gray the Garry",
+    "rule" : "A row is barred each Turn, unless it holds every remaining blank",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+      29,
+      45,
+      46,
+      47
+    ],
+    "bossID" : "garryTheGray",
+    "discussion" : "Physical bricks occupy only the barred box's blank cells. Review stagger, landing weight and fading dust.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-19-garryTheGray-turn1",
+    "name" : "Garry the Gray",
+    "rule" : "A box is barred each Turn, unless it holds every remaining blank",
+    "setup" : "Shared partially played QA board, first turn; every digit has a printed copy",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "overPusher",
+    "discussion" : "Ink fouls mark real blocked blanks. Discuss individual wet splats that dry and clear when their two-turn lifetime ends.",
+    "fouledSquares" : [
+      10,
+      13,
+      21,
+      41,
+      59,
+      72
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-20-overPusher-turn2",
+    "name" : "The Shredder",
+    "rule" : "Up to three squares are fouled each Turn for two Turns; one blank stays free",
+    "setup" : "After a real End Turn; three carried fouls plus three new fouls",
+    "target" : 2000,
+    "turn" : 2,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  },
+  {
+    "barredHandIndices" : [
+
+    ],
+    "blockedSquares" : [
+
+    ],
+    "bossID" : "tikTak",
+    "discussion" : "Real countdown, plus urgent state below 30 seconds. Discuss clock-hand motion and a restrained urgent pulse.",
+    "fouledSquares" : [
+
+    ],
+    "handCount" : 7,
+    "image" : "boss-gallery-21-tikTak-urgent",
+    "name" : "Tik Tak",
+    "rule" : "Four minutes for the whole Puzzle",
+    "setup" : "Saved active-play clock at 25 seconds; ticking paused for capture",
+    "target" : 2000,
+    "turn" : 1,
+    "turns" : 10,
+    "visibleMarkerCount" : 3
+  }
+]

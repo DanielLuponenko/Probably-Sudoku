@@ -1,0 +1,62 @@
+[
+  {
+    "path": "docs/qa/one-screen-ux/native/17pro-play-curl-final6.mov",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1206,
+        "height": 2622
+      }
+    ],
+    "format": {
+      "duration": "9.155000"
+    }
+  },
+  {
+    "path": "docs/qa/one-screen-ux/native/17pro-results-shop-curl-final6.mov",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1206,
+        "height": 2622
+      }
+    ],
+    "format": {
+      "duration": "11.700000"
+    }
+  },
+  {
+    "path": "docs/qa/one-screen-ux/native/se-brief-to-play-build3.mov",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 750,
+        "height": 1334
+      }
+    ],
+    "format": {
+      "duration": "22.318333"
+    }
+  },
+  {
+    "path": "docs/qa/one-screen-ux/native/se-skip-transition-build4.mov",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 750,
+        "height": 1334
+      }
+    ],
+    "format": {
+      "duration": "25.083333"
+    }
+  }
+]

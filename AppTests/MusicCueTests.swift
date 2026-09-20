@@ -21,8 +21,10 @@ final class MusicCueTests: XCTestCase {
     }
 
     func testEveryBossUsesTheCorrectRegularOrFinalSuiteInEveryBook() {
-        XCTAssertEqual(BossModifier.allCases.count, 19)
-        XCTAssertEqual(BossModifier.finalBosses.count, 5)
+        XCTAssertEqual(BossModifier.allCases.count, 42)
+        XCTAssertEqual(BossModifier.activeBosses.count, 22)
+        XCTAssertEqual(BossModifier.finalBosses.count, 6)
+        XCTAssertEqual(BossModifier.legacyFinalBosses.count, 10)
         for book in Book.allCases {
             for boss in BossModifier.allCases {
                 XCTAssertEqual(GameMusicCue.forEncounter(book: book, boss: boss),

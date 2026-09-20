@@ -1,0 +1,358 @@
+{
+  "recording": {
+    "device": "9C12E469-F20B-4728-9887-72F94459B081",
+    "movie": "/tmp/nc-boss-animation-clarity.mov",
+    "recordProcessStarted": 1789892993.115676,
+    "firstFrameAcknowledged": 1789892993.34169,
+    "testStarted": 1789892993.341919,
+    "testFinished": 1789893182.1490629,
+    "testExitCode": 0,
+    "recordProcessEnded": 1789893182.18827
+  },
+  "segments": [
+    {
+      "actions": [
+        {
+          "description": "The rolled censored digit is underlined on the real board; this Hand has no matching copy.",
+          "time": 1789893001.8668919
+        }
+      ],
+      "bossID": "censor",
+      "end": 1789893007.030046,
+      "finalPendingPoints": 0,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "The actual random censored digit is not held, so this clip shows the standing cue without inventing a card or score receipt.",
+      "name": "The Censor",
+      "rule": "One random number scores no points this Puzzle",
+      "start": 1789892999.933518,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play1 and then2 from the open packet; the original waiting cards unband after two correct fills.",
+          "time": 1789893008.899846
+        }
+      ],
+      "bossID": "collator",
+      "end": 1789893015.900212,
+      "finalPendingPoints": 30,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Collator",
+      "rule": "Half your Hand waits for 2 correct fills or an empty first packet",
+      "start": 1789893007.20877,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Correct fill1 of4; the fourth cuts and automatically banks exactly once.",
+          "time": 1789893018.16665
+        },
+        {
+          "description": "Correct fill2 of4; the fourth cuts and automatically banks exactly once.",
+          "time": 1789893019.376227
+        },
+        {
+          "description": "Correct fill3 of4; the fourth cuts and automatically banks exactly once.",
+          "time": 1789893020.601548
+        },
+        {
+          "description": "Correct fill4 of4; the fourth cuts and automatically banks exactly once.",
+          "time": 1789893021.831657
+        }
+      ],
+      "bossID": "pageCutter",
+      "end": 1789893027.0615082,
+      "finalPendingPoints": 0,
+      "finalScore": 100,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Page Cutter",
+      "rule": "Every 4 correct fills end the Turn; start with 4 extra Turns",
+      "start": 1789893016.503423,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Place a held number on a deliberately incorrect blank; the engine applies the actual penalty.",
+          "time": 1789893031.165386
+        },
+        {
+          "description": "Bank once; the exact returned copy's seal releases at the Turn boundary.",
+          "time": 1789893033.3978229
+        }
+      ],
+      "bossID": "returnSlip",
+      "end": 1789893038.520673,
+      "finalPendingPoints": 0,
+      "finalScore": 0,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Return Slip",
+      "rule": "Wrong cards return sealed until next Turn; normal penalties still apply",
+      "start": 1789893029.4997292,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Bank real9,8,7 Points with four leftover cards; the80-Point debit tears the score receipt.",
+          "time": 1789893043.669671
+        }
+      ],
+      "bossID": "orphanLine",
+      "end": 1789893048.9066,
+      "finalPendingPoints": 0,
+      "finalScore": 160,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Orphan Line",
+      "rule": "Banking costs 20 queued Points per leftover card, up to 100",
+      "start": 1789893039.8684192,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play Crimson9 with Local Gossip and Sunday; actual1440 pending score exceeds the QA900 target's300 bank cap.",
+          "time": 1789893052.1918669
+        },
+        {
+          "description": "Bank300 and save1140 carry; the production settlement receipt bands the held amount.",
+          "time": 1789893055.499076
+        }
+      ],
+      "bossID": "serialPublisher",
+      "end": 1789893060.649469,
+      "finalPendingPoints": 0,
+      "finalScore": 300,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Explicit QA starting target900 makes the carry readable in a short clip. All1440 Points and1140 saved carry come from real card/item actions.",
+      "name": "The Serial Publisher",
+      "rule": "Bank up to a third of target. Carry overflow; Full Clear pays all",
+      "start": 1789893050.461452,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play Golden1; the tiny real ink pad dries after that marked fill.",
+          "time": 1789893062.5654879
+        },
+        {
+          "description": "Play a plain2; the pad visibly re-inks from the accepted unmarked fill.",
+          "time": 1789893064.5721622
+        }
+      ],
+      "bossID": "dryPress",
+      "end": 1789893069.735457,
+      "finalPendingPoints": 130,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Dry Press",
+      "rule": "After a marked fill, its placement bonuses sleep until an unmarked fill",
+      "start": 1789893060.902874,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Fill R1 C1 with held1; a real row, column and box complete and receive three approval stamps.",
+          "time": 1789893072.698821
+        }
+      ],
+      "bossID": "reviewBoard",
+      "end": 1789893077.972736,
+      "finalPendingPoints": 145,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Review Board",
+      "rule": "Reach the target and complete a row, a column and a box",
+      "start": 1789893071.0378098,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play9 and bank90 to establish the true benchmark.",
+          "time": 1789893079.899185
+        },
+        {
+          "description": "Play1 and bank below the benchmark; the actual fee-adjusted settlement is underlined.",
+          "time": 1789893083.832385
+        }
+      ],
+      "bossID": "rivalColumn",
+      "end": 1789893090.539757,
+      "finalPendingPoints": 0,
+      "finalScore": 98,
+      "finalTurn": 3,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Rival Column",
+      "rule": "Beat your previous bank or lose 20% of this bank, up to 100 points",
+      "start": 1789893078.2041569,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Place Crimson9 with Local Gossip; the measuring-edge receipt shows the real150-extra-Points cap.",
+          "time": 1789893093.444596
+        }
+      ],
+      "bossID": "wordCount",
+      "end": 1789893098.550058,
+      "finalPendingPoints": 240,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Word Count",
+      "rule": "Item bonuses to natural placements share 150 Points per Turn",
+      "start": 1789893091.7814589,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Place1; only the actual score ticket flips to its reversed natural90 value.",
+          "time": 1789893100.4318318
+        }
+      ],
+      "bossID": "backPage",
+      "end": 1789893105.6386452,
+      "finalPendingPoints": 90,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+      "name": "The Back Page",
+      "rule": "Natural number values run backwards: 1 scores 90, 9 scores 10",
+      "start": 1789893098.753049,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 4 at R1 C4; show the real updated boss state.",
+          "time": 1789893127.299175
+        }
+      ],
+      "bossID": "galleyQueue",
+      "end": 1789893132.736253,
+      "finalPendingPoints": 40,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Galley Queue",
+      "rule": "Your two oldest available cards play first. Use one to open the next card.",
+      "start": 1789893125.0141401,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 9 at R1 C9; show the real updated boss state.",
+          "time": 1789893135.586163
+        }
+      ],
+      "bossID": "bookends",
+      "end": 1789893140.9363542,
+      "finalPendingPoints": 90,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Bookends",
+      "rule": "Only the lowest and highest available numbers can play.",
+      "start": 1789893133.32051,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 5 at R1 C5; show the real updated boss state.",
+          "time": 1789893143.426971
+        },
+        {
+          "description": "End the real Turn; the chain anchor or repeat restrictions clear at the committed boundary.",
+          "time": 1789893146.810996
+        }
+      ],
+      "bossID": "reprintBan",
+      "end": 1789893152.1356091,
+      "finalPendingPoints": 0,
+      "finalScore": 50,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Reprint Ban",
+      "rule": "A number you filled this Turn waits while a new number can play. When only repeats remain, they open.",
+      "start": 1789893141.1569471,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 1 at R1 C1; show the real updated boss state.",
+          "time": 1789893154.489218
+        },
+        {
+          "description": "Play held 2 at R1 C2; show the real updated boss state.",
+          "time": 1789893157.5990748
+        },
+        {
+          "description": "Play held 9 at R5 C5; show the real updated boss state.",
+          "time": 1789893160.732429
+        },
+        {
+          "description": "End the real Turn; the chain anchor or repeat restrictions clear at the committed boundary.",
+          "time": 1789893164.115438
+        }
+      ],
+      "bossID": "chainStitcher",
+      "end": 1789893169.4706511,
+      "finalPendingPoints": 0,
+      "finalScore": 75,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Chain Stitcher",
+      "rule": "Follow your last placement: same row, column or box earns full placement Points; elsewhere earns half. Clues don't move the link.",
+      "start": 1789893152.2232819,
+      "width": 402
+    }
+  ]
+}

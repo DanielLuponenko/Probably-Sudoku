@@ -132,7 +132,7 @@ enum AchievementCatalog {
         .init(id: "last-turn-win", category: .character,
               title: "Down to the Wire", detail: "Finish a Puzzle on its last Turn."),
         .init(id: "two-skips", category: .character,
-              title: "Editorial Control", detail: "Take both skips in one Book."),
+              title: "Editorial Control", detail: "Skip two Puzzles in one Book."),
         .init(id: "keep-filling-full-clear", category: .character,
               title: "One More Page", detail: "Keep Filling until you Full Clear a Puzzle."),
 
@@ -163,7 +163,16 @@ enum AchievementCatalog {
               title: "No Outside Help", detail: "Finish a Puzzle without a wrong placement, Clue, or Toss."),
         .init(id: "obstacle-nine-book", category: .character,
               title: "Glutton for Punishment", detail: "Finish a Book on Obstacle IX.")
-    ]
+    ] + Book.allCases.map { bookCompletion(for: $0) }
+
+    /// One permanent identity per published Book, independent of obstacle,
+    /// attempt seed, presentation, or how often its final page is reopened.
+    static func bookCompletion(for book: Book) -> AchievementDefinition {
+        let bookTitle = BookEdition.edition(for: book).title
+        return .init(id: "complete-book-\(book.rawValue)", category: .progress,
+              title: "Volume \(book.volume) Complete",
+              detail: "Finish \(bookTitle)\(bookTitle.hasSuffix(".") ? "" : ".")")
+    }
 
     /// Only these existing awards have App Store Connect records. New local
     /// awards must not poison a GameKit batch with unregistered identifiers.
@@ -186,6 +195,12 @@ enum AchievementCatalog {
 /// Pure eligibility at the existing engine-event boundaries. These rules do
 /// not write player data or infer actions from a UI opening or a preview.
 enum AchievementRules {
+    static func completedBookAwards(progress: AchievementProgress) -> Set<String> {
+        let completed = progress.completedObstacles
+        return Set(Book.allCases.filter { (completed[$0.rawValue] ?? 0) > 0 }
+            .map { AchievementCatalog.bookCompletion(for: $0).id })
+    }
+
     static func bossesDefeated(_ count: Int) -> Set<String> {
         guard count > 0 else { return [] }
         return count >= 10 ? ["first-boss", "beat-ten-bosses"] : ["first-boss"]
@@ -228,6 +243,7 @@ enum AchievementRules {
 
     static func bookCompleted(progress: AchievementProgress, obstacle: Obstacle) -> Set<String> {
         var awards: Set<String> = ["finish-book"]
+        awards.formUnion(completedBookAwards(progress: progress))
         let knownVolumes = Set(Book.allCases.map(\.volume))
         if progress.completedBookVolumes.intersection(knownVolumes).count >= 3 {
             awards.insert("finish-three-books")

@@ -1,16 +1,11 @@
 import SwiftUI
 import ProbablySudokuEngine
 
-/// Everything true about the run right now, including what is still in the Pool.
-///
-/// §4 designs the Pool to be invisible — "never shown, never counted for you,
-/// and has no tally anywhere" — on the grounds that it is knowable anyway
-/// (nine of each digit, minus the board, minus your hand) and that working it
-/// out is the game's deepest source of information. Showing it here is a
-/// deliberate departure from that: the counting is done for the player.
+/// The current run, owned effects and earned history. The draw Pool stays hidden.
 struct RunInfoSlip: View {
     @Bindable var model: GameModel
     var onClose: () -> Void
+    @State private var showingLastScore = false
 
     var body: some View {
         PaperSlip(title: "The run so far", subtitle: nil, onClose: onClose) {
@@ -18,14 +13,10 @@ struct RunInfoSlip: View {
                 SlipSection(title: "Your Marker board") {
                     RunMarkerBoard(run: model.run)
                 }
+                if !CatalogueReadings(run: model.run).isEmpty {
+                    SlipSection(title: "Active readings") { CatalogueReadingsView(run: model.run) }
+                }
                 if let puzzle = model.puzzle {
-                    SlipSection(title: "Still in the pool",
-                                note: "Nine of each number exist in a finished grid. "
-                                    + "What is left is nine, minus what is on the board, "
-                                    + "minus what is in your hand.") {
-                        PoolTally(puzzle: puzzle)
-                    }
-
                     SlipSection(title: "This puzzle") {
                         LeaderRow(label: "Score", value: "\(puzzle.score.formatted()) of \(puzzle.target.formatted())")
                         LeaderRow(label: "Turns left", value: "\(puzzle.turnsRemaining)")
@@ -35,6 +26,16 @@ struct RunInfoSlip: View {
                         if let boss = puzzle.boss {
                             LeaderRow(label: boss.name, value: boss.attacks)
                         }
+                        if puzzle.scoringVersion < 2 {
+                            Text("This saved Turn keeps its original scoring. Ordered scoring starts next Turn.")
+                                .font(Print.body(12))
+                        }
+                        if puzzle.lastScoringLedger != nil {
+                            PaperButton(title: "Last Turn's score", subtitle: "See each scoring step", kind: .quiet) {
+                                showingLastScore = true
+                            }
+                            .accessibilityIdentifier("run-info.last-score")
+                        }
                     }
                 }
 
@@ -42,7 +43,16 @@ struct RunInfoSlip: View {
                     LeaderRow(label: "Level", value: "\(model.run.level) of 9")
                     LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
                     LeaderRow(label: "Coins", value: "\(model.coins)")
-                    LeaderRow(label: "Clippings", value: "\(model.run.skipsUsed) used · \(model.run.skipsRemaining) left")
+                    LeaderRow(label: "Puzzles skipped", value: "\(model.run.skipsUsed)")
+                }
+
+                if !model.run.skipHistory.isEmpty {
+                    SlipSection(title: "Skip rewards") {
+                        ForEach(model.run.skipHistory) { record in
+                            OwnedLine(name: record.offer.buff.name,
+                                      detail: "Level \(record.level), Puzzle \(record.slot.rawValue + 1) · \(record.offer.buff.text)")
+                        }
+                    }
                 }
 
                 if !model.run.takenClippings.isEmpty {
@@ -57,13 +67,19 @@ struct RunInfoSlip: View {
                     SlipSection(title: "Bookmarks") {
                         ForEach(model.run.bookmarks) { ad in
                             OwnedLine(name: ad.def.name, detail: ad.def.text)
+                            if ad.defID == Bookmarks.recycledInsert, model.shop != nil, model.canReopenRecycledChoice(bookmarkID: ad.id) {
+                                PaperButton(title: "Choose a free Buff", kind: .quiet) {
+                                    model.reopenRecycledChoice(bookmarkID: ad.id)
+                                    onClose()
+                                }
+                            }
                         }
                     }
                 }
 
                 if !model.run.buffs.isEmpty {
                     SlipSection(title: "Buffs") {
-                        ForEach(Array(model.run.buffs.enumerated()), id: \.offset) { _, buff in
+                        ForEach(model.run.buffs) { buff in
                             OwnedLine(name: buff.def.name, detail: buff.def.text)
                         }
                     }
@@ -78,51 +94,9 @@ struct RunInfoSlip: View {
                 }
             }
         }
-    }
-}
-
-/// How many of each number are still to come, as `9 x 5`.
-private struct PoolTally: View {
-    @Environment(\.cosmeticTheme) private var theme
-    @Environment(\.bookPresentation) private var bookTheme
-    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
-    var puzzle: PuzzleState
-
-    private let columns = [GridItem(.adaptive(minimum: 62), spacing: 8)]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(Digit.all, id: \.self) { digit in
-                    let count = puzzle.poolCount(of: digit)
-                    HStack(spacing: 4) {
-                        Text("\(digit.rawValue)")
-                            .font(Print.numeral(19, weight: .semibold))
-                            .foregroundStyle(count > 0 ? theme.paper.ink : theme.paper.faintInk)
-                        Text("x")
-                            .font(Print.body(11))
-                            .foregroundStyle(theme.paper.faintInk)
-                        Text("\(count)")
-                            .font(Print.numeral(17, weight: .bold))
-                            .foregroundStyle(count > 0
-                                             ? bookTheme.quietInk(onDarkPaper: theme.paper.isDark)
-                                             : theme.paper.faintInk)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 40)
-                    .paperSurface(kind: .label)
-                    .accessibilityLabel("\(count) \(digit.rawValue)s left in the pool")
-                }
-            }
-
-            HStack {
-                Text("Total")
-                    .font(Print.caption(11 * textScale))
-                    .foregroundStyle(theme.paper.softInk)
-                Spacer()
-                Text("\(puzzle.pool.total)")
-                    .font(Print.numeral(15, weight: .bold))
-                    .foregroundStyle(theme.paper.ink)
+        .paperPanel(isPresented: $showingLastScore) {
+            if let ledger = model.puzzle?.lastScoringLedger {
+                ScoreLedgerSlip(ledger: ledger) { showingLastScore = false }
             }
         }
     }

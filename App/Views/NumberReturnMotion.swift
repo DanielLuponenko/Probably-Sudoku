@@ -9,6 +9,39 @@ enum NumberReturnMotionAnchor {
     static let grid = "grid"
     static let hand = "hand"
     static let pool = "pool"
+    static func cell(_ square: Square) -> String { "cell-\(square.index)" }
+    static func card(_ id: UUID) -> String { "card-\(id.uuidString)" }
+}
+
+/// Layout observations are the only source of coordinates. A reordered Hand,
+/// a wide overflow Hand, and an inset board frame all use the same resolver.
+/// A clipped card travels from/to the visible edge of its actual scroll view.
+struct NumberReturnGeometry {
+    let frames: [String: CGRect]
+
+    func cell(_ square: Square) -> CGRect? {
+        validFrame(NumberReturnMotionAnchor.cell(square))
+    }
+
+    func cardPoint(_ id: UUID) -> CGPoint? {
+        guard let card = validFrame(NumberReturnMotionAnchor.card(id)) else { return nil }
+        let center = CGPoint(x: card.midX, y: card.midY)
+        guard let viewport = validFrame(NumberReturnMotionAnchor.hand) else { return center }
+        let halfWidth = min(card.width / 2, viewport.width / 2)
+        return CGPoint(x: min(viewport.maxX - halfWidth, max(viewport.minX + halfWidth, center.x)),
+                       y: center.y)
+    }
+
+    var poolPoint: CGPoint? {
+        guard let frame = validFrame(NumberReturnMotionAnchor.pool) else { return nil }
+        return CGPoint(x: frame.midX, y: frame.midY)
+    }
+
+    private func validFrame(_ name: String) -> CGRect? {
+        guard let frame = frames[name], !frame.isEmpty, !frame.isNull, !frame.isInfinite,
+              frame.origin.x.isFinite, frame.origin.y.isFinite else { return nil }
+        return frame
+    }
 }
 
 struct NumberReturnMotionFrames: PreferenceKey {
@@ -36,15 +69,15 @@ extension View {
 /// Events stay in `GameModel` only briefly, so this never controls input or
 /// accumulates view state after a turn has finished.
 struct NumberReturnMotionOverlay: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.cosmeticTheme) private var theme
     let events: [GameModel.NumberReturn]
     let frames: [String: CGRect]
 
     var body: some View {
-        GeometryReader { proxy in
+        GeometryReader { _ in
             ForEach(events) { event in
-                NumberReturnMotion(event: event, frames: frames, canvas: proxy.size,
+                NumberReturnMotion(event: event, frames: frames,
                                    reduceMotion: reduceMotion)
             }
         }
@@ -60,7 +93,6 @@ private struct NumberReturnMotion: View {
 
     let event: GameModel.NumberReturn
     let frames: [String: CGRect]
-    let canvas: CGSize
     let reduceMotion: Bool
     @State private var arrived = false
 
@@ -68,7 +100,7 @@ private struct NumberReturnMotion: View {
         Group {
             switch event.kind {
             case .fouled:
-                fouledMarks
+                EmptyView() // The committed impact now lands in BossInkLandingOverlay.
             case .barred:
                 barredNumbers
             case .pool, .hand, .redraw:
@@ -87,87 +119,76 @@ private struct NumberReturnMotion: View {
     }
 
     private var travellingNumbers: some View {
-        ForEach(Array(event.digits.prefix(6).enumerated()), id: \.offset) { index, digit in
-            let start = source(for: event, index: index)
-            let end = destination(for: event, index: index)
-            ReturnNumberTile(digit: digit, theme: theme, palette: palette,
-                             penalty: index == 0 ? event.penalty : nil)
-                .scaleEffect(reduceMotion ? 0.9 : (arrived ? theme.numbers.motion.returnScale : 1))
-                .rotationEffect(.degrees(reduceMotion ? 0 : (arrived ? theme.numbers.motion.returnRotation : 0)))
-                .opacity(reduceMotion ? 0.95 : (arrived ? 0 : 1))
-                .position(reduceMotion ? end : (arrived ? end : start))
+        ForEach(Array(event.digits.enumerated()), id: \.offset) { index, digit in
+            if let start = source(for: event, index: index),
+               let end = destination(for: event, index: index) {
+                ReturnNumberTile(digit: digit, theme: theme, palette: palette,
+                                 penalty: index == 0 ? event.penalty : nil)
+                    .scaleEffect(reduceMotion ? 0.9 : (arrived ? theme.numbers.motion.returnScale : 1))
+                    .rotationEffect(.degrees(reduceMotion ? 0 : (arrived ? theme.numbers.motion.returnRotation : 0)))
+                    .opacity(reduceMotion ? 0.95 : (arrived ? 0 : 1))
+                    .position(reduceMotion ? end : (arrived ? end : start))
+            }
         }
     }
 
     private var barredNumbers: some View {
-        ForEach(Array(event.digits.prefix(4).enumerated()), id: \.offset) { index, digit in
-            let point = handPoint(index: index)
-            ZStack {
-                ReturnNumberTile(digit: digit, theme: theme, palette: palette, penalty: nil)
-                Rectangle()
-                    .fill(palette.danger.opacity(0.85))
-                    .frame(width: 37, height: 2)
-                    .rotationEffect(.degrees(-16))
+        ForEach(Array(event.digits.enumerated()), id: \.offset) { index, digit in
+            if let point = handPoint(index: index) {
+                ZStack {
+                    ReturnNumberTile(digit: digit, theme: theme, palette: palette, penalty: nil)
+                    Rectangle()
+                        .fill(palette.danger.opacity(0.85))
+                        .frame(width: 37, height: 2)
+                        .rotationEffect(.degrees(-16))
+                }
+                .scaleEffect(reduceMotion ? 1 : (arrived ? 1 : 0.55))
+                .opacity(reduceMotion ? 1 : (arrived ? 1 : 0))
+                .position(point)
             }
-            .scaleEffect(reduceMotion ? 1 : (arrived ? 1 : 0.55))
-            .opacity(reduceMotion ? 1 : (arrived ? 1 : 0))
-            .position(point)
         }
     }
 
     private var fouledMarks: some View {
         ForEach(event.fouledSquares, id: \.index) { square in
-            Circle()
-                .fill(palette.ink.opacity(0.22))
-                .frame(width: cellSize * 0.72, height: cellSize * 0.45)
-                .rotationEffect(.degrees(-17))
-                .scaleEffect(reduceMotion ? 1 : (arrived ? 1 : 0.35))
-                .opacity(reduceMotion ? 0.8 : (arrived ? 0.8 : 0))
-                .position(gridPoint(for: square))
+            if let frame = geometry.cell(square) {
+                Circle()
+                    .fill(palette.ink.opacity(0.22))
+                    .frame(width: frame.width * 0.72, height: frame.height * 0.45)
+                    .rotationEffect(.degrees(-17))
+                    .scaleEffect(reduceMotion ? 1 : (arrived ? 1 : 0.35))
+                    .opacity(reduceMotion ? 0.8 : (arrived ? 0.8 : 0))
+                    .position(x: frame.midX, y: frame.midY)
+            }
         }
     }
 
-    private var gridFrame: CGRect { frames[NumberReturnMotionAnchor.grid] ?? .zero }
-    private var handFrame: CGRect { frames[NumberReturnMotionAnchor.hand] ?? .zero }
-    private var poolFrame: CGRect { frames[NumberReturnMotionAnchor.pool] ?? .zero }
-    private var cellSize: CGFloat { gridFrame.width > 0 ? gridFrame.width / 9 : 34 }
+    private var geometry: NumberReturnGeometry { NumberReturnGeometry(frames: frames) }
 
-    private func source(for event: GameModel.NumberReturn, index: Int) -> CGPoint {
+    private func source(for event: GameModel.NumberReturn, index: Int) -> CGPoint? {
         if let square = event.square { return gridPoint(for: square) }
         return handPoint(index: index)
     }
 
-    private func destination(for event: GameModel.NumberReturn, index: Int) -> CGPoint {
+    private func destination(for event: GameModel.NumberReturn, index: Int) -> CGPoint? {
         switch event.kind {
         case .hand:
             return handPoint(index: index)
         case .pool, .redraw:
-            let target = poolFrame == .zero
-                ? CGPoint(x: canvas.width * 0.84, y: canvas.height * 0.77)
-                : CGPoint(x: poolFrame.midX, y: poolFrame.midY)
-            return CGPoint(x: target.x + CGFloat(index % 3 - 1) * 10,
-                           y: target.y + CGFloat(index / 3) * 7)
+            return geometry.poolPoint
         case .barred, .fouled:
             return handPoint(index: index)
         }
     }
 
-    private func handPoint(index: Int) -> CGPoint {
-        guard handFrame != .zero else {
-            return CGPoint(x: canvas.width * 0.5 + CGFloat(index - 2) * 42,
-                           y: canvas.height * 0.82)
-        }
-        let columns = max(1, min(7, event.digits.count))
-        let fraction = (CGFloat(index) + 0.5) / CGFloat(columns)
-        return CGPoint(x: handFrame.minX + handFrame.width * fraction, y: handFrame.midY)
+    private func handPoint(index: Int) -> CGPoint? {
+        guard event.handCardIDs.indices.contains(index) else { return nil }
+        return geometry.cardPoint(event.handCardIDs[index])
     }
 
-    private func gridPoint(for square: Square) -> CGPoint {
-        guard gridFrame != .zero else {
-            return CGPoint(x: canvas.width * 0.5, y: canvas.height * 0.48)
-        }
-        return CGPoint(x: gridFrame.minX + (CGFloat(square.col) + 0.5) * cellSize,
-                       y: gridFrame.minY + (CGFloat(square.row) + 0.5) * cellSize)
+    private func gridPoint(for square: Square) -> CGPoint? {
+        guard let frame = geometry.cell(square) else { return nil }
+        return CGPoint(x: frame.midX, y: frame.midY)
     }
 }
 
@@ -180,12 +201,13 @@ private struct ReturnNumberTile: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             CosmeticNumberGlyph(text: "\(digit.rawValue)", skin: theme.numbers,
-                                size: 27, weight: .medium, color: theme.numbers.ink)
+                                size: 27, weight: .medium, color: theme.numbers.ink,
+                                showsPressShadow: false)
                 .frame(width: 46, height: 52)
-                .background(theme.paper.warm, in: RoundedRectangle(cornerRadius: 4))
+                .background(GameplaySurface.ivory, in: RoundedRectangle(cornerRadius: 4))
                 .overlay {
                     RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(theme.board.hair, lineWidth: 1)
+                        .strokeBorder(GameplaySurface.sage.opacity(0.4), lineWidth: 1)
                 }
             if let penalty, penalty > 0 {
                 Text("−\(penalty)")

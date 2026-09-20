@@ -107,7 +107,7 @@ public enum Shop {
         for rarity in ladder {
             let pool = Catalog.items(of: kind, rarity: rarity).filter { !taken.contains($0.id) }
             guard let pick = rng.pick(pool) else { continue }
-            let price = kind == .subscription ? pick.listedPrice : rng.int(in: priceBand(kind, rarity))
+            let price = pick.listedPrice
             return ShopOffer(slot: slot, defID: pick.id, price: price)
         }
         return nil
@@ -151,7 +151,7 @@ public enum Shop {
     }
 
     private static func hasFreeFirstReroll(_ run: RunState) -> Bool {
-        run.book.benefit.hasFreeFirstReroll || run.owns(bookmark: Bookmarks.auctionNotices)
+        run.book.benefit.hasFreeFirstReroll || BookmarkMechanics.owns(Bookmarks.auctionNotices, run: run)
     }
 
     public enum ShopError: Error, Equatable, Sendable {
@@ -164,20 +164,52 @@ public enum Shop {
         var shop = stock(&run)
         shop.visitID = run.nextShopVisitID()
         run.shop = shop
+        BookmarkMechanics.shopOpened(run: &run)
+        MarkerRuntime.shopOpened(run: &run, visitID: shop.visitID!)
+        BuffShop.didOpen(&run, initialStock: true)
+        BookmarkMechanics.enqueueChoices(run: &run)
+    }
+
+    public static func purchasePrice(_ run: RunState, slot: Int) -> Int? {
+        run.shop?.offers.first(where: { $0.slot == slot }).map { BookmarkMechanics.purchasePrice($0, run: run) }
+    }
+
+    public static func rerollPrice(_ run: RunState) -> Int {
+        guard run.shop != nil else { return 0 }
+        let markerPrice = MarkerRuntime.discountedRerollCost(ordinaryRerollCost(run), run: run)
+        return BuffShop.rerollPrice(run, ordinaryCost: markerPrice)
+    }
+
+    /// A Bookmark bought before the first request can provide its discount;
+    /// selling it cannot preserve an unclaimed benefit. After that request,
+    /// the saved next price is authoritative regardless of inventory changes.
+    private static func ordinaryRerollCost(_ run: RunState) -> Int {
+        guard let shop = run.shop else { return 0 }
+        guard shop.rerollsUsed == 0 else { return shop.rerollCost }
+        if hasFreeFirstReroll(run) { return 0 }
+        return shop.rerollCost == 0 ? ShopState.firstRerollCost : shop.rerollCost
     }
 
     public static func reroll(_ run: inout RunState) throws {
         guard let shop = run.shop else { throw ShopError.noShopOpen }
-        guard run.coins >= shop.rerollCost else { throw ShopError.notEnoughCoins }
-        run.coins -= shop.rerollCost
+        let ordinaryCost = ordinaryRerollCost(run)
+        let cost = rerollPrice(run)
+        guard run.coins >= cost else { throw ShopError.notEnoughCoins }
+        run.coins -= cost
+        BookmarkMechanics.didReroll(run: &run)
+        let markerResidual = MarkerRuntime.discountedRerollCost(ordinaryCost, run: run)
+        MarkerRuntime.paidRerollAccepted(ordinaryCost: ordinaryCost, run: &run)
+        BuffShop.willReroll(&run, ordinaryCost: markerResidual)
         let used = shop.rerollsUsed + 1
         var fresh = stock(&run)
         fresh.visitID = shop.visitID
         fresh.rerollsUsed = used
-        // 2 coins, then 3, then 4… within this Shop. Auction Notices only ever
-        // discounts the first reroll, so subsequent ones climb from the base.
-        fresh.rerollCost = ShopState.firstRerollCost + used - (hasFreeFirstReroll(run) ? 1 : 0)
+        // 0→2→3→4 or 2→3→4. Marker/Buff discounts do not alter this ladder;
+        // buying or selling Auction Notices after the first request cannot
+        // change prices already earned by this canonical visit.
+        fresh.rerollCost = ordinaryCost == 0 ? ShopState.firstRerollCost : ordinaryCost + 1
         run.shop = fresh
+        BuffShop.didOpen(&run, initialStock: false)
     }
 
     public static func buy(_ run: inout RunState, slot: Int) throws {
@@ -187,7 +219,8 @@ public enum Shop {
         }
         guard !shop.offers[index].sold else { throw ShopError.alreadySold }
         let offer = shop.offers[index]
-        guard run.coins >= offer.price else { throw ShopError.notEnoughCoins }
+        let price = BookmarkMechanics.purchasePrice(offer, run: run)
+        guard run.coins >= price else { throw ShopError.notEnoughCoins }
 
         let def = offer.def
         switch def.kind {
@@ -197,21 +230,28 @@ public enum Shop {
             // Existing held items keep nil and cannot be attributed to it.
             if shop.visitID == nil { shop.visitID = run.nextShopVisitID() }
             run.bookmarks.append(OwnedBookmark(defID: def.id, boughtAtLevel: run.level,
-                                               pricePaid: offer.price, boughtInShopVisitID: shop.visitID))
+                                               pricePaid: price, boughtInShopVisitID: shop.visitID,
+                                               id: SkipOffer.stableIdentity(seed: run.seed,
+                                                   domain: "bookmark.purchase.v1.\(shop.visitID!).\(shop.rerollsUsed).\(offer.slot)")))
         case .marker:
-            run.markers.append(OwnedMarker(defID: def.id, boughtAtLevel: run.level, pricePaid: offer.price))
+            run.markers.append(OwnedMarker(defID: def.id, boughtAtLevel: run.level, pricePaid: price))
         case .buff:
-            guard run.buffs.count < ItemKind.buff.capacity else { throw ShopError.slotsFull }
+            guard run.buffs.count < BookmarkMechanics.capacity(run: run) else { throw ShopError.slotsFull }
             if shop.visitID == nil { shop.visitID = run.nextShopVisitID() }
-            run.buffs.append(OwnedBuff(defID: def.id, pricePaid: offer.price,
-                                       boughtInShopVisitID: shop.visitID))
+            run.buffs.append(OwnedBuff(defID: def.id, pricePaid: price,
+                                       boughtInShopVisitID: shop.visitID,
+                                       id: SkipOffer.stableIdentity(seed: run.seed,
+                                           domain: "buff.purchase.v1.\(shop.visitID!).\(shop.rerollsUsed).\(offer.slot)")))
         case .subscription:
-            run.subscriptions.append(OwnedSubscription(defID: def.id, pricePaid: offer.price))
+            run.subscriptions.append(OwnedSubscription(defID: def.id, pricePaid: price))
         }
 
-        run.coins -= offer.price
+        run.coins -= price
         shop.offers[index].sold = true
         run.shop = shop
+        BookmarkMechanics.didPurchase(kind: def.kind, run: &run)
+        BuffShop.didBuy(slot: slot, run: &run)
+        if def.kind == .marker { MarkerRuntime.synchronizeOwnership(run: &run) }
     }
 
     // MARK: - Selling and Marker squares
@@ -230,14 +270,11 @@ public enum Shop {
         switch kind {
         case .bookmark:
             guard run.bookmarks.indices.contains(index) else { throw ShopError.nothingToSell }
-            price = sellPrice(run.bookmarks[index].pricePaid)
-            run.bookmarks.remove(at: index)
-            // The Executive Editor put an item to sleep, not an array slot.
-            // Selling before it must not wake it or disable its neighbour.
-            if let sleeping = run.puzzle?.bossTurn?.disabledBookmark {
-                run.puzzle?.bossTurn?.disabledBookmark = sleeping == index
-                    ? nil : (sleeping > index ? sleeping - 1 : sleeping)
-            }
+            let item = run.bookmarks[index]
+            guard BookmarkMechanics.canRemove(id: item.id, run: run) else { throw ShopError.cannotBeSold }
+            price = BookmarkMechanics.salePrice(for: item, run: run)
+            BookmarkMechanics.didSell(item, run: &run)
+            _ = BookmarkMechanics.retire(id: item.id, run: &run)
         case .buff:
             guard run.buffs.indices.contains(index) else { throw ShopError.nothingToSell }
             price = sellPrice(run.buffs[index].pricePaid)
@@ -248,7 +285,21 @@ public enum Shop {
             throw ShopError.cannotBeSold
         }
         run.coins += price
+        if run.puzzle?.phase == .playing, var puzzle = run.puzzle {
+            BossEncounterRules.actionAccepted(puzzle: &puzzle)
+            run.puzzle = puzzle
+        }
         return price
+    }
+
+    /// All Shop-exit effects commit with the same Run mutation as navigation.
+    /// Call before clearing run.shop; opening/closing a detail is not an exit.
+    public static func close(_ run: inout RunState) {
+        guard run.shop != nil else { return }
+        _ = BookmarkMechanics.shopLeaving(run: &run)
+        BuffShop.leave(&run)
+        MarkerRuntime.shopClosed(run: &run)
+        run.pendingItemDecisions.removeAll { $0.kind.hasPrefix("bookmark.recycled") }
     }
 
     public enum MarkerError: Error, Equatable, Sendable {
@@ -269,6 +320,7 @@ public enum Shop {
             if existingIndex < placedMarkerIndex { placedMarkerIndex -= 1 }
         }
         run.markers[placedMarkerIndex].squares.append(square)
+        MarkerRuntime.synchronizeOwnership(run: &run)
     }
 
     /// §8 — moving an already-placed square costs 2 coins.
@@ -282,5 +334,6 @@ public enum Shop {
         guard run.coins >= RunState.moveSquareCost else { throw MarkerError.notEnoughCoins }
         run.coins -= RunState.moveSquareCost
         run.markers[markerIndex].squares[position] = new
+        MarkerRuntime.synchronizeOwnership(run: &run)
     }
 }

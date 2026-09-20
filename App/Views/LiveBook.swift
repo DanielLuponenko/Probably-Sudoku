@@ -26,6 +26,9 @@ struct LiveBook: View {
     /// What is printed on the first page. Only ever seen while the board is
     /// swinging off it, so there is no point setting one on a shut Book.
     var epigraph: String? = nil
+    /// Exact outgoing gameplay pixels, printed on the exposed closing leaf.
+    /// No game model is reconstructed for the cover animation.
+    var pageImage: UIImage? = nil
 
     /// The ribbons sewn into a Book, and what pulling on one does.
     struct RibbonStrip {
@@ -98,6 +101,15 @@ struct LiveBook: View {
         ZStack(alignment: .topLeading) {
             Leaves(radius: w * Self.radius)
                 .frame(width: w, height: h)
+                .overlay {
+                    if let pageImage {
+                        Image(uiImage: pageImage)
+                            .resizable()
+                            .scaledToFit()
+                            .padding(w * 0.035)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .overlay(alignment: .top) {
                     if let epigraph {
                         Epigraph(text: epigraph, width: w)
@@ -134,6 +146,11 @@ struct LiveBook: View {
                 }
             }
             .frame(width: w, height: h, alignment: .topLeading)
+            // These notes are printed cover artwork with authored dimensions.
+            // Enlarging their custom font independently of the paper makes
+            // them spill across the title and the Open button. Interactive
+            // ribbons and reading controls remain outside this art boundary.
+            .dynamicTypeSize(.large)
             // The printed title, sticky notes and checklist illustrations are
             // one cover, not dozens of separate navigation stops. Ribbons
             // live in textBlock, outside this artwork-only accessibility node.

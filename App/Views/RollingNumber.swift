@@ -4,7 +4,7 @@ import SwiftUI
 /// in one Text matters: separate clipped digit strips compress independently
 /// when the score grows, cutting the sides off otherwise valid numbers.
 struct RollingNumber: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     var value: Int
     var size: CGFloat
     var weight: Font.Weight = .bold

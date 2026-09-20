@@ -17,7 +17,7 @@ struct IslandBar: View {
             CoinBadge(count: coins)
                 .overlay(alignment: .bottomTrailing) {
                     if let charge {
-                        CoinChargeReceipt(amount: charge.amount)
+                        CoinChargeReceipt(charge: charge)
                             .id(charge.id)
                             .offset(y: 16)
                     }
@@ -81,8 +81,10 @@ struct RoundIconButton: View {
 
 /// The brass token the game counts in.
 struct CoinBadge: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     var count: Int
+    var onLightSurface = false
+    var ink: Color? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -102,8 +104,8 @@ struct CoinBadge: View {
             // balance immediately instead of rolling through intermediate digits.
             Text(String(count))
                 .font(Print.numeral(19, weight: .bold))
-                .foregroundStyle(Paper.page)
-                .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+                .foregroundStyle(ink ?? (onLightSurface ? GameplaySurface.ink : Paper.page))
+                .shadow(color: .black.opacity(onLightSurface ? 0 : 0.5), radius: 2, y: 1)
                 .contentTransition(.numericText(value: Double(count)))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: count)
         }
@@ -114,26 +116,36 @@ struct CoinBadge: View {
 
 /// A brief receipt ties Accountant's fee to the placement even if a Marker
 /// earns a coin on that same action and leaves the net balance unchanged.
-private struct CoinChargeReceipt: View {
-    var amount: Int
-    @State private var visible = true
+struct CoinChargeReceipt: View {
+    @Environment(\.gameReduceMotion) private var reduceMotion
+    let charge: GameModel.CoinCharge
+    @State private var visible: Bool
+
+    init(charge: GameModel.CoinCharge) {
+        self.charge = charge
+        // The receipt owns this one-time visibility seed. Recreating either
+        // HUD cannot restart a charge that has already begun fading away.
+        _visible = State(initialValue: charge.isVisible())
+    }
 
     var body: some View {
-        Text("−\(amount) coin")
+        let isVisible = visible && ContinuousClock.now < charge.expiresAt
+        Text("−\(charge.amount) coin")
             .font(Print.caption(10))
             .foregroundStyle(Paper.page)
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
             .background(Capsule().fill(Paper.redPencil))
-            .opacity(visible ? 1 : 0)
-            .task {
-                try? await Task.sleep(for: .milliseconds(950))
+            .opacity(isVisible ? 1 : 0)
+            .task(id: charge.id) {
+                guard charge.isVisible() else { visible = false; return }
+                try? await ContinuousClock().sleep(until: charge.fadesAt)
                 guard !Task.isCancelled else { return }
-                withAnimation(.easeOut(duration: 0.2)) { visible = false }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { visible = false }
             }
             .allowsHitTesting(false)
-            .accessibilityLabel("Accountant charged \(amount) coin")
-            .accessibilityHidden(!visible)
+            .accessibilityLabel("Accountant charged \(charge.amount) coin")
+            .accessibilityHidden(!isVisible)
     }
 }
 
@@ -142,6 +154,7 @@ struct ProgressDots: View {
     @Environment(\.cosmeticTheme) private var theme
     var index: Int
     var count: Int
+    var onLightSurface = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -159,5 +172,74 @@ struct ProgressDots: View {
         }
         .animation(.snappy, value: index)
         .accessibilityLabel("Puzzle \(index + 1) of \(count)")
+    }
+}
+
+/// Highlights only sources that can still be identified in the current run.
+/// These read-only matches never select a square or restore a consumed item.
+enum ScoringSourceHighlights {
+    static func markerSquare(for beat: ScorePerformance.Beat, board: Board,
+                             visibleMarkers: [Square: OwnedMarker], markersAreHidden: Bool,
+                             claims: [MarkerClaim] = []) -> Square? {
+        guard !markersAreHidden, let square = beat.square,
+              let marker = visibleMarkers[square],
+              marker.defID == beat.sourceID,
+              board.filledBy[square.index] != .given else { return nil }
+        // Historical receipts identify the owned type. Expanded rules identify
+        // its exact coordinate record, which survives claim relocation.
+        let exactClaim = claims.contains {
+            $0.id == beat.sourceInstanceID && $0.markerID == marker.defID && $0.square == square
+        }
+        guard marker.id == beat.sourceInstanceID || exactClaim else { return nil }
+        return square
+    }
+
+    static func bookmarkBeatID(for beat: ScorePerformance.Beat?, bookmark: OwnedBookmark) -> UUID? {
+        guard let beat, beat.sourceInstanceID == bookmark.id.uuidString,
+              beat.sourceID == bookmark.defID else { return nil }
+        return beat.id
+    }
+
+    static func consumedBuffSlot(for beat: ScorePerformance.Beat, buffs: [OwnedBuff], capacity: Int = 2) -> Int? {
+        guard let slot = beat.sourceInventorySlot, (0..<capacity).contains(slot),
+              // Consuming the first copy can slide another item into its
+              // place. Never attribute the spent copy's effect to that item.
+              !buffs.indices.contains(slot),
+              let sourceID = beat.sourceID, Catalog.item(sourceID)?.kind == .buff,
+              let instance = beat.sourceInstanceID, let id = UUID(uuidString: instance),
+              !buffs.contains(where: { $0.id == id }) else { return nil }
+        return slot
+    }
+}
+
+/// A small ink pulse stays inside its source's existing frame. Reduce Motion
+/// uses the same outline at steady opacity for the duration of the receipt.
+struct ScoringSourceOutline: View {
+    @Environment(\.gameReduceMotion) private var reduceMotion
+    @Environment(\.bossMotionIsActive) private var isVisible
+    let trigger: String?
+    var cornerRadius: CGFloat = 0
+
+    private var outline: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .strokeBorder(GameplaySurface.sage, lineWidth: 2)
+    }
+
+    var body: some View {
+        let visibleTrigger = isVisible ? trigger : nil
+        Group {
+            if reduceMotion {
+                outline
+            } else {
+                outline.phaseAnimator([1.0, 0.45, 1.0], trigger: visibleTrigger) { content, opacity in
+                    content.opacity(opacity)
+                } animation: { _ in .easeInOut(duration: 0.12) }
+            }
+        }
+        // Ending one source must hide it immediately, independently of the
+        // pulse's in-flight opacity, before the next source is labelled.
+        .opacity(visibleTrigger == nil ? 0 : 1)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

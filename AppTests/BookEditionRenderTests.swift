@@ -8,6 +8,35 @@ import ProbablySudokuEngine
 /// the xcresult so visual review can catch clipped text or reused cover art.
 @MainActor
 final class BookEditionRenderTests: XCTestCase {
+    func testEnlargedTextDoesNotStretchPrintedCoverArtworkAcrossItsTitle() throws {
+        for edition in BookEdition.shelf {
+            var ordinary: Data?
+            for size in [DynamicTypeSize.large, .accessibility5] {
+                let renderer = ImageRenderer(content:
+                    LiveBook(edition: edition)
+                        .frame(width: 300, height: 420)
+                        .frame(width: 360, height: 480, alignment: .topLeading)
+                        .environment(\.dynamicTypeSize, size)
+                        .environment(\.cosmeticTheme, .standard)
+                        .environment(\.colorScheme, .light)
+                )
+                renderer.scale = 2
+                let image = try XCTUnwrap(renderer.uiImage)
+                let pixels = try XCTUnwrap(image.pngData())
+                if let ordinary {
+                    XCTAssertEqual(pixels, ordinary,
+                                   "Volume \(edition.rule.volume)'s printed notes must stay inside their authored paper")
+                } else {
+                    ordinary = pixels
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "cover-art-volume-\(edition.rule.volume)-\(size)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+            }
+        }
+    }
+
     func testAllTwelveLiveBookCoversRenderAtPhoneSize() throws {
         XCTAssertEqual(BookEdition.shelf.count, 12)
         let bookWidth: CGFloat = 300

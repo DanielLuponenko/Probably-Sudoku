@@ -1,170 +1,132 @@
 import SwiftUI
 import ProbablySudokuEngine
 
-/// What you own, slipped into the top of the book like bookmarks.
-///
-/// Bookmarks run for the whole Book and Buffs are spent from here, so both have to be
-/// on screen at all times — but a floating tray above the book is a piece of
-/// interface, and everything else in this game is an object. Bookmarks are
-/// tucked behind the block, so their tails disappear into the pages.
+/// One inventory strip on every in-run screen. Lifts are rendered by the root
+/// portal so neither the row nor a page capture clips freeform movement.
 struct BookmarkRow: View {
     @Bindable var model: GameModel
+    var isGameplay = false
     var onTapBuff: (Int) -> Void
-
-    /// The one being pulled out of the pages to be sold.
-    @State private var pulled: Pulled?
-    /// Which slot has its explanation open. Held here rather than inside the
-    /// card, because the card no longer owns its own tap.
-    @State private var explaining: Int?
-    /// A press that has not yet become either a tap or a pull.
+    @Environment(\.inventoryDragPresenter) private var dragPresenter
+    @Environment(\.paperPanelPresenter) private var paperPresenter
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var owner = UUID()
+    @State private var explaining: UUID?
     @State private var press = BookmarkPressState()
     @State private var holdTask: Task<Void, Never>?
+    @State private var latestPoint = CGPoint.zero
+    @State private var didLift = false
+    @GestureState private var isTouching = false
 
-
-    struct Pulled: Equatable {
-        var kind: ItemKind
-        var index: Int
-        var defID: String
-        var price: Int
-        var point: CGPoint = .zero
-        var overBin = false
-    }
-
-    private static let space = "bookmarkRow"
-    /// How wide the sell counter is when it appears.
-    private static let binWidth: CGFloat = 96
-
-    /// How much of each bookmark is swallowed by the book beneath it.
     static let tuck: CGFloat = 16
-    private static let visible: CGFloat = 34
-    /// The gap that separates the two kinds. Everything in the row is slipped
-    /// into the same pages, so they have to stay one row — but a Bookmark runs
-    /// by itself and a Buff is something you take out and use, and a row of
-    /// seven identical cards says neither.
-    private static let divide: CGFloat = 11
+    private var carried: InventoryDragSession? {
+        dragPresenter?.session.flatMap { $0.owner == owner ? $0 : nil }
+    }
+    private var liftedSale: InventorySale? {
+        carried?.sale ?? dragPresenter?.returning.flatMap { $0.owner == owner ? $0.sale : nil }
+    }
+    private var sourceBeat: ScorePerformance.Beat? {
+        model.page == .puzzle && scenePhase == .active ? model.scoreBeat : nil
+    }
+    private var orderIsPinned: Bool {
+        model.puzzle?.boss == .bindery && model.puzzle?.bossState.scoring.binderyPinned == true
+    }
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack(alignment: .topTrailing) {
-                cards(width: proxy.size.width)
-                    // Out of the way of the counter while one is being sold.
-                    .opacity(pulled == nil ? 1 : 0.35)
-
-                if let pulled {
-                    SellCounter(defID: pulled.defID, price: pulled.price,
-                                armed: pulled.overBin)
-                        .frame(width: Self.binWidth, height: Self.visible)
-                        .transition(.opacity.combined(with: .move(edge: .trailing)))
-
-                    // Held in the strip the bookmarks stand in. Below that is
-                    // the book, which is drawn over this row so its tails tuck
-                    // into the pages — so anything drawn down there is simply
-                    // not seen.
-                    // Once it is over the counter the card is shown *in* the
-                    // counter instead, so the price is not hidden underneath
-                    // the thing you are about to sell.
-                    if !pulled.overBin {
-                        PulledCard(defID: pulled.defID, armed: false)
-                            .position(x: pulled.point.x, y: Self.visible / 2)
-                            .allowsHitTesting(false)
+            let strip = InventoryStripGeometry(frame: proxy.frame(in: .global),
+                                               bookmarkCount: model.run.bookmarks.count, buffCapacity: model.buffCapacity)
+            cards(strip: strip)
+                .overlay(alignment: .topLeading) {
+                    if orderIsPinned {
+                        BossBinderyThread(centers: strip.bookmarkFrames.map { $0.midX - strip.frame.minX },
+                            activeSlot: model.run.bookmarks.firstIndex { owned in
+                                ScoringSourceHighlights.bookmarkBeatID(for: sourceBeat, bookmark: owned) != nil
+                            },
+                            beatID: sourceBeat?.id,
+                            eventKey: model.bossEntranceID.map { "bindery-thread:\($0)" },
+                            consumeEvent: model.consumeBossVisualEvent)
+                            .frame(height: isGameplay ? 44 : 34 + Self.tuck)
                     }
                 }
-            }
-            .coordinateSpace(name: Self.space)
-            #if DEBUG && targetEnvironment(simulator)
-            // `-pullSell` runs the whole thing — works one loose, carries it
-            // to the counter through the same code a finger goes through, and
-            // lets go — so the drop can be proved without a touch.
-            .task {
-                guard ProcessInfo.processInfo.arguments.contains("-pullSell"),
-                      pulled == nil else { return }
-                try? await Task.sleep(for: .milliseconds(900))
-                guard let owned = model.run.bookmarks.first else { return }
-                let width = proxy.size.width
-                withAnimation(.snappy(duration: 0.2)) {
-                    pulled = Pulled(kind: .bookmark, index: 0, defID: owned.defID,
-                                    price: model.sellPrice(owned.pricePaid),
-                                    point: CGPoint(x: 40, y: Self.visible / 2))
+                .overlay(alignment: .topLeading) {
+                    if let beat = sourceBeat,
+                       let slot = ScoringSourceHighlights.consumedBuffSlot(for: beat, buffs: model.run.buffs, capacity: model.buffCapacity) {
+                        let frame = strip.itemFrame(kind: .buff, index: slot)
+                        // The item has already been consumed. Mark its physical
+                        // slot briefly without recreating a card or a tap target.
+                        ScoringSourceOutline(trigger: beat.id.uuidString, cornerRadius: 6)
+                            .frame(width: frame.width, height: frame.height)
+                            .offset(x: frame.minX - strip.frame.minX, y: 0)
+                    }
                 }
-                try? await Task.sleep(for: .milliseconds(400))
-                carry(to: CGPoint(x: width - 24, y: Self.visible / 2), width: width)
-                guard !ProcessInfo.processInfo.arguments.contains("-pullHold") else { return }
-                try? await Task.sleep(for: .milliseconds(600))
-                drop()
-            }
-            #endif
-            .animation(.snappy(duration: 0.18), value: pulled == nil)
-            .animation(.snappy(duration: 0.14), value: pulled?.overBin)
         }
-        .frame(height: Self.visible + Self.tuck)
-        .onDisappear {
-            cancelHold()
-            pulled = nil
+        .frame(height: isGameplay ? 44 : 34 + Self.tuck)
+        .onDisappear { cancelInteraction() }
+        .onChange(of: isTouching) { _, touching in
+            // onEnded already consumed this touch. Do not interrupt the
+            // presentation-only flight home after an outside release.
+            if !touching, press.activeItemKey != nil { cancelInteraction() }
         }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { cancelInteraction() } }
+        .onChange(of: paperPresenter?.isPresenting) { _, showing in if showing == true { cancelInteraction() } }
+        .onChange(of: model.page) { _, _ in cancelInteraction() }
+        .onChange(of: model.run.seed) { _, _ in cancelInteraction() }
+        .onChange(of: model.puzzle?.turnNumber) { _, _ in cancelInteraction() }
+        .onChange(of: model.run.bookmarks.map(\.id) + model.run.buffs.map(\.id)) { _, _ in cancelInteraction() }
     }
 
-    /// Where the counter is, in the row's own space.
-    ///
-    /// The width is handed in from the reader that laid the row out, not kept
-    /// in state: state written from a `GeometryReader` is a frame behind at
-    /// best and zero at worst, and a counter measured against a width of zero
-    /// sits off the left of the screen where nothing will ever be dropped on
-    /// it. That is why the first drop did nothing.
-    private func bin(in width: CGFloat) -> CGRect {
-        // Generous: the finger is somewhere below the strip by the time it
-        // gets here, and a little short of the counter still counts.
-        CGRect(x: width - Self.binWidth - 16, y: -Self.visible,
-               width: Self.binWidth + 40, height: (Self.visible + Self.tuck) * 3)
-    }
-
-    /// Everything a card can be asked to do, as one drag.
-    ///
-    /// Written by hand rather than composed. `LongPressGesture.sequenced(before:
-    /// DragGesture)` inside an `ExclusiveGesture` recognised the hold — the
-    /// card lifted and the counter appeared — but never delivered a single
-    /// drag update, so whatever you picked up stayed at the origin. One
-    /// `DragGesture` with the hold timed here does exactly what it says.
-    private func handle(kind: ItemKind, index: Int, defID: String, price: Int,
-                        width: CGFloat, tap: @escaping () -> Void) -> some Gesture {
-        let token = key(kind, index)
-
-        return DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+    private func handle(sale: InventorySale, strip: InventoryStripGeometry,
+                        tap: @escaping (Int) -> Void) -> some Gesture {
+        let token = (sale.kind == .buff ? 100 : 0) + sale.index
+        return DragGesture(minimumDistance: 0, coordinateSpace: .global)
+            .updating($isTouching) { _, touching, _ in touching = true }
             .onChanged { value in
-                if pulled == nil {
-                    guard let generation = press.begin(itemKey: token) else { return }
-                    hold(token: token, generation: generation, kind: kind, index: index,
-                         defID: defID, price: price, from: value.location)
+                guard model.animatesHandArrival, scenePhase == .active,
+                      paperPresenter?.isPresenting != true else { return }
+                latestPoint = value.location
+                if let generation = press.begin(itemKey: token) {
+                    didLift = false
+                    holdTask?.cancel()
+                    holdTask = Task { @MainActor in
+                        do { try await Task.sleep(for: .milliseconds(220)) } catch { return }
+                        guard !Task.isCancelled,
+                              press.isCurrent(itemKey: token, generation: generation) else { return }
+                        lift(sale: sale, strip: strip, start: value.startLocation)
+                    }
+                }
+                if carried == nil, !didLift,
+                   hypot(value.translation.width, value.translation.height) >= 6 {
+                    lift(sale: sale, strip: strip, start: value.startLocation)
+                }
+                dragPresenter?.move(owner: owner, to: value.location)
+            }
+            .onEnded { value in
+                let active = press.activeItemKey == token
+                let wasLifted = didLift
+                cancelHold()
+                guard active, scenePhase == .active, paperPresenter?.isPresenting != true else {
+                    dragPresenter?.cancel(owner: owner)
                     return
                 }
-                guard pulled?.kind == kind, pulled?.index == index else { return }
-                carry(to: value.location, width: width)
-            }
-            .onEnded { _ in
-                cancelHold()
-                guard pulled != nil else { tap(); return }
-                drop()
+                let action = dragPresenter?.finish(owner: owner, at: value.location) ?? .cancel
+                switch action {
+                case .sell(let selected): sell(selected)
+                case .reorder(let id, let index): model.reorderBookmark(id: id, to: index)
+                case .cancel:
+                    if !wasLifted, let index = sale.resolvedIndex(in: model.run) { tap(index) }
+                }
             }
     }
 
-    private func key(_ kind: ItemKind, _ index: Int) -> Int {
-        (kind == .buff ? 100 : 0) + index
-    }
-
-    /// A quarter of a second down and it comes loose. Long enough that a tap
-    /// is never mistaken for a pull, short enough that it does not feel stuck.
-    private func hold(token: Int, generation: Int, kind: ItemKind, index: Int,
-                      defID: String, price: Int, from point: CGPoint) {
-        holdTask?.cancel()
-        holdTask = Task { @MainActor in
-            do { try await Task.sleep(for: .milliseconds(220)) }
-            catch { return }
-            guard !Task.isCancelled, press.isCurrent(itemKey: token, generation: generation),
-                  pulled == nil else { return }
-            withAnimation(.snappy(duration: 0.18)) {
-                pulled = Pulled(kind: kind, index: index, defID: defID,
-                                price: price, point: point)
-            }
-        }
+    private func lift(sale: InventorySale, strip: InventoryStripGeometry, start: CGPoint) {
+        guard !didLift, sale.matches(model.run), scenePhase == .active,
+              paperPresenter?.isPresenting != true else { return }
+        didLift = true
+        model.cancelClueTargeting()
+        dragPresenter?.begin(owner: owner, sale: sale,
+            itemFrame: strip.itemFrame(kind: sale.kind, index: sale.index),
+            bookmarkFrames: strip.bookmarkFrames, start: start, point: latestPoint)
     }
 
     private func cancelHold() {
@@ -173,119 +135,147 @@ struct BookmarkRow: View {
         press.cancel()
     }
 
-    /// Letting go. Over the counter it sells; anywhere else it goes back.
-    private func drop() {
-        guard let carrying = pulled else { return }
-        withAnimation(.snappy(duration: 0.2)) { pulled = nil }
-        guard carrying.overBin else { return }
-        Haptics.pageTurn()
-        model.sell(kind: carrying.kind, index: carrying.index)
-    }
-
-    private func carry(to point: CGPoint, width: CGFloat) {
-        guard var carrying = pulled else { return }
-        carrying.point = point
-        let over = bin(in: width).contains(point)
-        if over != carrying.overBin {
-            carrying.overBin = over
-        }
-        pulled = carrying
+    private func cancelInteraction() {
+        cancelHold()
+        dragPresenter?.cancel(owner: owner)
     }
 
     private func sell(_ sale: InventorySale) {
-        // A native popover can outlive a row update. Never sell whichever
-        // different item has since moved into the captured slot.
-        guard sale.matches(model.run) else {
-            explaining = nil
-            return
-        }
-        cancelHold()
+        guard let index = sale.resolvedIndex(in: model.run) else { explaining = nil; return }
+        cancelInteraction()
         explaining = nil
-        pulled = nil
         Haptics.pageTurn()
-        model.sell(kind: sale.kind, index: sale.index)
+        model.sell(kind: sale.kind, index: index)
     }
 
-    private func cards(width: CGFloat) -> some View {
+    private func move(_ sale: InventorySale, by offset: Int) {
+        guard let id = sale.bookmarkID, let index = sale.resolvedIndex(in: model.run) else { return }
+        explaining = nil
+        model.reorderBookmark(id: id, to: index + offset)
+    }
+
+    private func cards(strip: InventoryStripGeometry) -> some View {
         HStack(alignment: .top, spacing: 5) {
-            ForEach(0..<ItemKind.bookmark.capacity, id: \.self) { slot in
-                if slot < model.run.bookmarks.count {
-                    let owned = model.run.bookmarks[slot]
-                    let sale = InventorySale(bookmark: owned, index: slot)
-                    InventoryBookmark(def: owned.def, colour: Paper.pageWarm,
-                             ink: Paper.ink, flagged: false, slot: slot,
-                             pulling: pulled?.kind == .bookmark && pulled?.index == slot,
-                             asleep: model.sleepingBookmark == slot,
-                             fired: model.activeBookmarkIDs.contains(owned.defID),
-                             explaining: Binding(
-                                get: { explaining == slot },
-                                set: { explaining = $0 ? slot : nil }),
-                             sale: sale, onSell: { sell(sale) },
-                             scoreLabel: model.bookmarkScoreLabel(owned.defID))
-                        .gesture(handle(kind: .bookmark, index: slot,
-                                        defID: owned.defID,
-                                        price: model.sellPrice(owned.pricePaid),
-                                        width: width) {
-                            explaining = slot
-                        })
-                        .accessibilityAction(named: sale.actionTitle) { sell(sale) }
-                } else {
-                    EmptyBookmark(slot: slot, dark: false)
-                }
+            ForEach(model.run.bookmarks) { owned in
+                let slot = model.run.bookmarks.firstIndex { $0.id == owned.id } ?? 0
+                let sale = InventorySale(bookmark: owned, index: slot, run: model.run)
+                let pulseID = ScoringSourceHighlights.bookmarkBeatID(for: sourceBeat, bookmark: owned)
+                let suspended = BookmarkMechanics.isSuspended(id: owned.id, puzzle: model.puzzle)
+                InventoryBookmark(def: owned.def, colour: isGameplay ? GameplaySurface.ivory : Paper.pageWarm,
+                    ink: isGameplay ? GameplaySurface.ink : Paper.ink, flagged: false, slot: slot,
+                    pulling: liftedSale?.bookmarkID == owned.id,
+                    asleep: model.sleepingBookmark == slot,
+                    suspended: suspended,
+                    fired: pulseID != nil,
+                    explaining: Binding(get: { explaining == owned.id },
+                                        set: { explaining = $0 ? owned.id : nil }),
+                    sale: sale, onSell: { sell(sale) },
+                    scorePulseID: pulseID, isGameplay: isGameplay,
+                    onMoveEarlier: !orderIsPinned && slot > 0 ? { move(sale, by: -1) } : nil,
+                    onMoveLater: !orderIsPinned && slot + 1 < model.run.bookmarks.count ? { move(sale, by: 1) } : nil,
+                    orderNotice: orderIsPinned ? "The Bindery pins this order for the Puzzle. Odd Turns read forwards; even Turns read backwards." : model.puzzle?.scoringOrderLocked == true
+                        ? "This Turn’s scoring is locked. Changes apply next Turn."
+                        : "Bookmarks score from left to right.",
+                    bonusPaid: model.puzzle?.boss == .publicist
+                        && model.puzzle?.bossState.scoring.publicistPaid.contains(owned.id) == true)
+                    .overlay(alignment: .bottom) {
+                        if model.puzzle?.boss == .publicist,
+                           model.puzzle?.bossState.scoring.publicistPaid.contains(owned.id) == true {
+                            BossInventoryStamp(text: "PAID")
+                        }
+                    }
+                    .overlay {
+                        if carried?.reorderIndex == slot {
+                            RoundedRectangle(cornerRadius: 6).strokeBorder(GameplaySurface.sage, lineWidth: 3)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .gesture(handle(sale: sale, strip: strip) { _ in explaining = owned.id })
+                    .accessibilityAction(named: sale.actionTitle) { sell(sale) }
+                    .accessibilityActions {
+                        if !orderIsPinned && slot > 0 { Button("Move earlier in scoring order") { move(sale, by: -1) } }
+                        if !orderIsPinned && slot + 1 < model.run.bookmarks.count {
+                            Button("Move later in scoring order") { move(sale, by: 1) }
+                        }
+                    }
+                    // SwiftUI can retain an old custom-action collection when
+                    // a ForEach item moves. Refresh its presentation whenever
+                    // the available directions change; ownership stays UUID-based.
+                    .id("\(slot):\(model.run.bookmarks.count)")
             }
-
-            // Taken out of the flexible width rather than out of one card, so
-            // all seven stay the same size.
-            Spacer(minLength: 0).frame(width: Self.divide)
-
-            ForEach(0..<ItemKind.buff.capacity, id: \.self) { slot in
-                let index = slot
-                if index < model.run.buffs.count {
-                    let buff = model.run.buffs[index]
-                    let sale = InventorySale(buff: buff, index: index)
-                    // Board, not paper: a Buff is a thing you take out and
-                    // spend on a square, and it should not look like the five
-                    // cards that simply sit there working.
-                    InventoryBookmark(def: buff.def, colour: Paper.coverBoard,
-                             ink: Paper.page, flagged: true,
-                             slot: ItemKind.bookmark.capacity + slot,
-                             pulling: pulled?.kind == .buff && pulled?.index == index,
-                             asleep: false,
-                             fired: false,
-                             explaining: .constant(false),
-                             onActivate: { onTapBuff(index) })
-                        .gesture(handle(kind: .buff, index: index,
-                                        defID: buff.defID,
-                                        price: model.sellPrice(buff.pricePaid),
-                                        width: width) {
-                            onTapBuff(index)
-                        })
-                        .accessibilityAction(named: sale.actionTitle) { sell(sale) }
-                } else {
-                    EmptyBookmark(slot: ItemKind.bookmark.capacity + slot, dark: true)
-                }
+            ForEach(model.run.bookmarks.count..<ItemKind.bookmark.capacity, id: \.self) { slot in
+                EmptyBookmark(slot: slot, dark: false, isGameplay: isGameplay)
+            }
+            Rectangle()
+                .fill(isGameplay ? GameplaySurface.softInk.opacity(0.6) : .clear)
+                .frame(width: 1, height: isGameplay ? 44 : 1)
+                .frame(width: 11)
+                .accessibilityHidden(true)
+            ForEach(model.run.buffs) { buff in
+                let index = model.run.buffs.firstIndex { $0.id == buff.id } ?? 0
+                let sale = InventorySale(buff: buff, index: index)
+                InventoryBookmark(def: buff.def, colour: isGameplay ? GameplaySurface.ink : Paper.coverBoard,
+                    ink: Paper.page, flagged: true, slot: ItemKind.bookmark.capacity + index,
+                    pulling: liftedSale?.buffID == buff.id, asleep: false, fired: false,
+                    explaining: .constant(false), onActivate: {
+                        if let current = sale.resolvedIndex(in: model.run) { onTapBuff(current) }
+                    }, isGameplay: isGameplay, isUnavailable: model.puzzle?.boss == .buffborger
+                        || BossBuffRules.isEmbargoed(buff.defID, puzzle: model.puzzle),
+                    bossEntranceKey: model.puzzle?.boss == .buffborger
+                        ? model.bossEntranceID.map { "fine-print:\($0):\(buff.id)" } : nil,
+                    consumeBossEntrance: model.consumeBossVisualEvent)
+                    .gesture(handle(sale: sale, strip: strip) { onTapBuff($0) })
+                    .accessibilityAction(named: sale.actionTitle) { sell(sale) }
+            }
+            ForEach(model.run.buffs.count..<max(model.run.buffs.count, model.buffCapacity), id: \.self) { slot in
+                EmptyBookmark(slot: ItemKind.bookmark.capacity + slot, dark: true, isGameplay: isGameplay)
+                    .overlay(alignment: .bottomTrailing) {
+                        if model.puzzle?.boss == .buffborger {
+                            BossActionSeal(dark: true).padding(2)
+                                .modifier(BossObjectArrival(eventKey: model.bossEntranceID.map { "fine-print-empty:\($0):\(slot)" },
+                                                            consume: model.consumeBossVisualEvent))
+                        }
+                    }
             }
         }
-        .frame(height: Self.visible + Self.tuck, alignment: .top)
+        .frame(height: isGameplay ? 44 : 34 + Self.tuck, alignment: .top)
     }
 }
 
-/// A sell control captures the paid item, including its slot and purchase
-/// metadata. Matching only a definition ID would confuse differently priced
-/// copies or a replacement item after an inventory update.
+struct InventoryStripGeometry {
+    let frame: CGRect
+    let bookmarkCount: Int
+    var buffCapacity: Int = 2
+    private var cardWidth: CGFloat { max(1, (frame.width - 46 - CGFloat(max(0, buffCapacity - 2)) * 5) / CGFloat(5 + buffCapacity)) }
+    var bookmarkFrames: [CGRect] { (0..<bookmarkCount).map { itemFrame(kind: .bookmark, index: $0) } }
+    func itemFrame(kind: ItemKind, index: Int) -> CGRect {
+        let x = kind == .buff ? 5 * cardWidth + 41 + CGFloat(index) * (cardWidth + 5)
+                             : CGFloat(index) * (cardWidth + 5)
+        return CGRect(x: frame.minX + x, y: frame.minY, width: cardWidth, height: frame.height)
+    }
+}
+
+/// A delayed inventory action captures the actual Buff copy. Identical copies
+/// can have the same price, and a slot can change while a slip or drag is open.
 struct InventorySale: Equatable {
     let kind: ItemKind
     let index: Int
     let defID: String
     let pricePaid: Int
     let boughtAtLevel: Int?
+    let buffID: UUID?
+    let bookmarkID: UUID?
+    let refund: Int
 
-    init(bookmark: OwnedBookmark, index: Int) {
+    init(bookmark: OwnedBookmark, index: Int, run: RunState) {
         kind = .bookmark
         self.index = index
         defID = bookmark.defID
         pricePaid = bookmark.pricePaid
         boughtAtLevel = bookmark.boughtAtLevel
+        buffID = nil
+        bookmarkID = bookmark.id
+        refund = BookmarkMechanics.salePrice(for: bookmark, run: run)
     }
 
     init(buff: OwnedBuff, index: Int) {
@@ -294,24 +284,27 @@ struct InventorySale: Equatable {
         defID = buff.defID
         pricePaid = buff.pricePaid
         boughtAtLevel = nil
+        buffID = buff.id
+        bookmarkID = nil
+        refund = Shop.sellPrice(buff.pricePaid)
     }
 
-    var refund: Int { Shop.sellPrice(pricePaid) }
     var actionTitle: String { "Sell for \(refund) \(refund == 1 ? "coin" : "coins")" }
 
     func matches(_ run: RunState) -> Bool {
+        resolvedIndex(in: run) != nil
+    }
+
+    func resolvedIndex(in run: RunState) -> Int? {
         switch kind {
         case .bookmark:
-            guard run.bookmarks.indices.contains(index) else { return false }
-            let owned = run.bookmarks[index]
-            return owned.defID == defID && owned.pricePaid == pricePaid
-                && owned.boughtAtLevel == boughtAtLevel
+            guard let bookmarkID else { return nil }
+            return run.bookmarks.firstIndex { $0.id == bookmarkID }
         case .buff:
-            guard run.buffs.indices.contains(index) else { return false }
-            let owned = run.buffs[index]
-            return owned.defID == defID && owned.pricePaid == pricePaid
+            guard let buffID else { return nil }
+            return run.buffs.firstIndex { $0.id == buffID }
         case .marker, .subscription:
-            return false
+            return nil
         }
     }
 }
@@ -339,80 +332,15 @@ struct BookmarkPressState: Equatable {
     }
 }
 
-/// The counter, which is only there while something is being carried to it.
-///
-/// Hidden the rest of the time on purpose: a permanent bin over the pages
-/// would be a piece of interface sitting on the book, and it would be the
-/// first thing anyone pressed by mistake.
-private struct SellCounter: View {
-    var defID: String
-    var price: Int
-    var armed: Bool
-
-    var body: some View {
-        HStack(spacing: 5) {
-            if armed {
-                Image(systemName: ItemIcon.symbol(for: defID))
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            Text("Sell")
-                .font(Print.caption(10)).tracking(1.2).textCase(.uppercase)
-            HStack(spacing: 2) {
-                Text("\(price)")
-                    .font(Print.numeral(13, weight: .bold))
-                Image(systemName: "circle.circle.fill")
-                    .font(.system(size: 9))
-            }
-        }
-        .foregroundStyle(armed ? Paper.page : Paper.page.opacity(0.7))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            UnevenRoundedRectangle(topLeadingRadius: 5, bottomLeadingRadius: 5,
-                                   bottomTrailingRadius: 0, topTrailingRadius: 5)
-                .fill(armed ? Paper.sageDeep : Color.black.opacity(0.4))
-                .overlay {
-                    UnevenRoundedRectangle(topLeadingRadius: 5, bottomLeadingRadius: 5,
-                                           bottomTrailingRadius: 0, topTrailingRadius: 5)
-                        .strokeBorder(armed ? Paper.sage : Paper.page.opacity(0.4),
-                                      style: StrokeStyle(lineWidth: 1.4,
-                                                         dash: armed ? [] : [4, 3]))
-                }
-        }
-        .scaleEffect(armed ? 1.04 : 1)
-    }
-}
-
-/// The card itself, out of the pages and in your hand.
-private struct PulledCard: View {
-    var defID: String
-    var armed: Bool
-
-    var body: some View {
-        Image(systemName: ItemIcon.symbol(for: defID))
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(Paper.ink)
-            .frame(width: 38, height: 30)
-            .background {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(armed ? Paper.cellCleared : Paper.pageWarm)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(armed ? Paper.sageDeep : Paper.rule, lineWidth: 1)
-            }
-            .rotationEffect(.degrees(-5))
-            .shadow(color: .black.opacity(0.4), radius: 8, x: 3, y: 7)
-            .scaleEffect(armed ? 1.08 : 1)
-    }
-}
-
 /// A card slipped into the pages: rounded at the head, square at the foot,
 /// because the foot is inside the book.
 private struct BookmarkShape: Shape {
     var radius: CGFloat = 4
+    var isGameplay = false
 
     func path(in rect: CGRect) -> Path {
-        Path(
+        if isGameplay { return RoundedRectangle(cornerRadius: 6).path(in: rect) }
+        return Path(
             UnevenRoundedRectangle(
                 topLeadingRadius: radius,
                 bottomLeadingRadius: 0,
@@ -425,7 +353,7 @@ private struct BookmarkShape: Shape {
 }
 
 struct InventoryBookmark: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var def: ItemDef
     var colour: Color
@@ -440,15 +368,25 @@ struct InventoryBookmark: View {
     /// Unlucky Lucky has this one asleep for the Turn: still yours, still in
     /// the pages, doing nothing.
     var asleep: Bool
+    /// Collateral suspends this exact owned copy for the whole Puzzle.
+    var suspended = false
     /// A passive Bookmark that just contributed to the player’s last action.
     var fired: Bool
     @Binding var explaining: Bool
     var sale: InventorySale? = nil
     var onSell: (() -> Void)? = nil
-    var scoreLabel: String? = nil
-    /// Buffs open their use slip instead of the passive-item popover. Keep
+    var scorePulseID: UUID? = nil
+    /// Buffs open their use slip instead of the passive-item detail panel. Keep
     /// activation on this one accessible element, not a second wrapping button.
     var onActivate: (() -> Void)? = nil
+    var isGameplay = false
+    var isUnavailable = false
+    var onMoveEarlier: (() -> Void)? = nil
+    var onMoveLater: (() -> Void)? = nil
+    var orderNotice: String? = nil
+    var bossEntranceKey: String? = nil
+    var consumeBossEntrance: ((String) -> Bool)? = nil
+    var bonusPaid = false
 
     func activate() {
         if let onActivate {
@@ -468,17 +406,15 @@ struct InventoryBookmark: View {
     var body: some View {
         // Deliberately not a Button: the gestures are attached from the row,
         // and a Button would swallow them.
-        VStack(spacing: 0) {
-            Image(systemName: ItemIcon.symbol(for: def.id))
-            .font(.system(size: 15, weight: flagged ? .semibold : .regular))
+        ItemArtwork(id: def.id, size: isGameplay ? 28 : 23, style: .glyph)
+            .font(.system(size: isGameplay ? 19 : 15, weight: flagged ? .semibold : .regular))
             .foregroundStyle(ink)
-            .padding(.top, flagged ? 10 : 8)
-            Spacer(minLength: 0)
-        }
+        // The symbol shares the card's center on every run page. A top inset
+        // plus a trailing Spacer pushed the former 28-point glyph down by 4pt.
         .frame(maxWidth: .infinity)
-        .frame(height: 34 + BookmarkRow.tuck)
+        .frame(height: isGameplay ? 44 : 34 + BookmarkRow.tuck)
         .background {
-            BookmarkShape()
+            BookmarkShape(isGameplay: isGameplay)
             .fill(colour)
             .overlay(alignment: .top) {
                 if flagged {
@@ -492,66 +428,104 @@ struct InventoryBookmark: View {
             }
             .overlay {
                 // A crease down the card, the way a folded marker sits.
-                BookmarkShape()
+                BookmarkShape(isGameplay: isGameplay)
                     .stroke(flagged ? Paper.page.opacity(0.22)
                                     : Paper.ink.opacity(0.14),
                             lineWidth: 1)
             }
-            .clipShape(BookmarkShape())
-            .shadow(color: .black.opacity(flagged ? 0.5 : 0.35),
+            .clipShape(BookmarkShape(isGameplay: isGameplay))
+            .shadow(color: .black.opacity(isGameplay ? 0.14 : (flagged ? 0.5 : 0.35)),
                     radius: flagged ? 4 : 3, x: 1, y: 2)
         }
         .overlay {
-            if asleep {
-                // Crossed out in the same red pencil a barred number gets.
-                Rectangle()
-                    .fill(Paper.redPencil.opacity(0.75))
-                    .frame(height: 1.6)
-                    .rotationEffect(.degrees(-18))
+            if asleep || suspended {
+                BossFoldedCorner()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .transition(.scale(scale: 0.1, anchor: .topTrailing).combined(with: .opacity))
             }
         }
-        .overlay(alignment: .top) {
-            if fired {
-                HStack(spacing: 2) {
-                    Text(scoreLabel ?? "FIRED")
-                }
-                    .font(Print.caption(11))
-                    .fontWeight(.black)
-                    .foregroundStyle(Paper.ink)
-                    .padding(.horizontal, 4)
-                    .background(Paper.pageWarm, in: .rect(cornerRadius: 2))
-                    .fixedSize()
-                    .offset(y: -12)
-                    .transition(.scale.combined(with: .opacity))
+        .overlay(alignment: .bottom) {
+            if asleep {
+                BossSleepingBookmarkSeal().padding(.bottom, 1)
+                    .transition(.offset(y: -4).combined(with: .opacity))
+            }
+        }
+        .overlay {
+            ScoringSourceOutline(trigger: fired ? (scorePulseID?.uuidString ?? def.id) : nil,
+                                 cornerRadius: isGameplay ? 6 : 4)
+        }
+        .rotationEffect(.degrees(isGameplay ? 0 : tilt), anchor: .bottom)
+        // Out of the pages and in your hand.
+        .overlay(alignment: .bottomTrailing) {
+            if isUnavailable {
+                BossActionSeal(dark: flagged).padding(2)
+                    .modifier(BossObjectArrival(eventKey: bossEntranceKey,
+                                                consume: { consumeBossEntrance?($0) ?? false }))
+                    .transition(.offset(y: -5).combined(with: .opacity))
                     .accessibilityHidden(true)
             }
         }
-        .rotationEffect(.degrees(tilt), anchor: .bottom)
-        // Out of the pages and in your hand.
-        .opacity(pulling ? 0.25 : (asleep ? 0.55 : 1))
-        .saturation(asleep ? 0.2 : 1)
+        .opacity(pulling ? 0.25 : (asleep || suspended || isUnavailable ? 0.55 : 1))
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isUnavailable)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.20), value: asleep || suspended)
+        .saturation(asleep || suspended ? 0.2 : 1)
         .contentShape(Rectangle())
-        .animation(.snappy(duration: 0.16), value: pulling)
-        .scaleEffect(fired && !reduceMotion ? 1.08 : 1)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.20), value: fired)
-        // The row is near the top of the screen. A top-edge arrow puts the
-        // explanation below its bookmark, where the whole card has room.
-        .popover(isPresented: $explaining, arrowEdge: .top) {
-            ItemDetailCard(def: def, sale: sale, onSell: onSell)
-                // The native popover creates a presentation host. Forward the
-                // source's size explicitly so accessibility text keeps its
-                // scrollable layout across that boundary.
-                .environment(\.dynamicTypeSize, dynamicTypeSize)
-                .presentationCompactAdaptation(.popover)
-                .presentationBackground(Paper.page)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.16), value: pulling)
+        // The root paper portal gives item details the whole screen's bounds,
+        // independent of this compact inventory row.
+        .paperPanel(isPresented: $explaining) {
+            PaperSlip(title: def.name, subtitle: nil, maximumWidth: 380,
+                      onClose: { explaining = false }) {
+              VStack(spacing: 8) {
+                ItemDetailCard(def: def, sale: sale, onSell: onSell, showsHeading: false)
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+                if let orderNotice {
+                    Text(orderNotice).font(.system(size: 13)).foregroundStyle(GameplaySurface.softInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 12) {
+                    if let onMoveEarlier {
+                        Button(action: onMoveEarlier) {
+                            Label("Earlier", systemImage: "arrow.left").frame(minHeight: 44)
+                                .padding(.horizontal, 10)
+                                .background(GameplaySurface.sage.opacity(0.1), in: .rect(cornerRadius: 6))
+                        }
+                            .accessibilityLabel("Move earlier in scoring order")
+                    }
+                    if let onMoveLater {
+                        Button(action: onMoveLater) {
+                            Label("Later", systemImage: "arrow.right").frame(minHeight: 44)
+                                .padding(.horizontal, 10)
+                                .background(GameplaySurface.sage.opacity(0.1), in: .rect(cornerRadius: 6))
+                        }
+                            .accessibilityLabel("Move later in scoring order")
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(GameplaySurface.sage)
+                .frame(minHeight: onMoveEarlier != nil || onMoveLater != nil ? 44 : 0)
+              }
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(def.name). \(def.text)")
-        .accessibilityValue(asleep ? "Asleep this Turn. Does not contribute." : "")
+        .accessibilityValue(accessibilityStatus)
         .accessibilityAddTraits(.isButton)
-        .accessibilityHint(onActivate == nil ? "Shows item details and sell price"
+        .accessibilityHint(onActivate == nil ? "Shows item details, scoring order controls and sell price"
                                             : "Shows Buff details and use options")
         .accessibilityAction { activate() }
+    }
+
+    var accessibilityStatus: String {
+        var values: [String] = []
+        if !flagged { values.append("Scoring position \(slot + 1).") }
+        if isUnavailable { values.append("Buffs disabled by this Boss.") }
+        if bonusPaid { values.append("Flat placement or Line Clear bonus already paid this Turn. Other effects remain active.") }
+        if suspended { values.append("Suspended for this Puzzle. Does not contribute.") }
+        else if asleep { values.append("Asleep this Turn. Triggered effects sleep; passive upgrades stay active.") }
+        if let orderNotice { values.append(orderNotice) }
+        return values.joined(separator: " ")
     }
 }
 
@@ -561,12 +535,13 @@ private struct EmptyBookmark: View {
     /// An empty Buff slot has to read as a Buff slot, or the row looks like
     /// five cards and two nothings.
     var dark: Bool
+    var isGameplay = false
 
     var body: some View {
         // Against a dark desk an empty slot has to be lighter than its
         // surroundings, not darker, or it disappears entirely.
-        BookmarkShape()
-            .fill(Paper.page.opacity(dark ? 0.05 : 0.16))
+        BookmarkShape(isGameplay: isGameplay)
+            .fill(isGameplay ? (dark ? GameplaySurface.ink : Color(hex: 0xE8E3D8)) : Paper.page.opacity(dark ? 0.05 : 0.16))
             .overlay(alignment: .top) {
                 if dark {
                     Rectangle()
@@ -575,12 +550,13 @@ private struct EmptyBookmark: View {
                 }
             }
             .overlay {
-                BookmarkShape()
-                    .stroke(Paper.page.opacity(dark ? 0.28 : 0.38), lineWidth: 1)
+                BookmarkShape(isGameplay: isGameplay)
+                    .stroke(isGameplay ? GameplaySurface.softInk.opacity(0.25) : Paper.page.opacity(dark ? 0.28 : 0.38), lineWidth: 1)
             }
-            .clipShape(BookmarkShape())
+            .clipShape(BookmarkShape(isGameplay: isGameplay))
             .frame(maxWidth: .infinity)
-            .frame(height: 26 + BookmarkRow.tuck)
+            .frame(height: isGameplay ? 44 : 26 + BookmarkRow.tuck)
+            .shadow(color: .black.opacity(isGameplay ? 0.1 : 0), radius: 1, x: 0, y: 2)
             .accessibilityLabel(dark ? "Empty buff slot" : "Empty slot")
     }
 }
@@ -590,19 +566,21 @@ struct ItemDetailCard: View {
     var def: ItemDef
     var sale: InventorySale? = nil
     var onSell: (() -> Void)? = nil
+    var showsHeading = true
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     var body: some View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
-                // A bounded native scroll region preserves the complete copy
-                // at the largest sizes, including on a 320-point phone.
+                // A bounded scroll region preserves the complete copy at the
+                // largest sizes. Respect the paper panel's compact margins.
                 ScrollView { printedContent }
-                    .frame(width: 260, height: 360)
+                    .frame(maxWidth: 260)
+                    .frame(height: 360)
             } else {
                 printedContent
-                    .frame(width: 260)
+                    .frame(maxWidth: 260)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -611,8 +589,9 @@ struct ItemDetailCard: View {
 
     private var printedContent: some View {
         VStack(alignment: .leading, spacing: 7) {
+            if showsHeading {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Image(systemName: ItemIcon.symbol(for: def.id))
+                ItemArtwork(id: def.id, size: 23 * textScale, style: .glyph)
                     .font(.system(size: 17 * textScale))
                     .foregroundStyle(Paper.ink)
                     .accessibilityHidden(true)
@@ -621,6 +600,7 @@ struct ItemDetailCard: View {
                     .foregroundStyle(Paper.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
+            }
             }
             Text(def.text)
                 .font(Print.body(14 * textScale))

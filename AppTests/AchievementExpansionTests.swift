@@ -6,11 +6,11 @@ import ProbablySudokuEngine
 /// player save, cloud write or Apple report is touched by this suite.
 @MainActor
 final class AchievementExpansionTests: XCTestCase {
-    func testCatalogAddsTwelveUniqueAwardsAndKeepsTheRegisteredNineteen() {
-        XCTAssertEqual(AchievementCatalog.all.count, 31)
-        XCTAssertEqual(Set(AchievementCatalog.all.map(\.id)).count, 31)
+    func testCatalogAddsPerBookAwardsAndKeepsTheRegisteredNineteen() {
+        XCTAssertEqual(AchievementCatalog.all.count, 43)
+        XCTAssertEqual(Set(AchievementCatalog.all.map(\.id)).count, 43)
         XCTAssertEqual(AchievementCatalog.all.filter(\.isRegisteredWithGameCenter).count, 19)
-        XCTAssertEqual(AchievementCatalog.all.filter { !$0.isRegisteredWithGameCenter }.count, 12)
+        XCTAssertEqual(AchievementCatalog.all.filter { !$0.isRegisteredWithGameCenter }.count, 24)
         XCTAssertTrue(AchievementCatalog.all.allSatisfy { !$0.title.isEmpty && !$0.detail.isEmpty })
     }
 

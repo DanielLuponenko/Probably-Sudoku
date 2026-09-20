@@ -119,6 +119,50 @@ final class PageFlipTests: XCTestCase {
         XCTAssertFalse(flipper.isFlipping)
     }
 
+    func testCancellationDuringStartCannotCommitAnImmediateFirstFrame() async {
+        let driver = ManualPageTurnRenderer()
+        let flipper = makeFlipper(driver: driver)
+        var task: Task<Void, Never>?
+        var changes = 0
+        let finished = expectation(description: "Cancelled start released its waiter")
+        driver.didStart = {
+            // MainActor cleanup cannot execute until this synchronous driver
+            // returns. The cancellation signal must already gate the frame.
+            task?.cancel()
+            driver.starts.last?.firstFrame()
+        }
+        let source = model()
+        task = Task { @MainActor in
+            await flipper.flip(from: source, reduceMotion: false) { changes += 1 }
+            finished.fulfill()
+        }
+        await fulfillment(of: [finished], timeout: 1)
+
+        XCTAssertEqual(changes, 0)
+        XCTAssertEqual(driver.cancelCount, 1)
+        XCTAssertFalse(flipper.isFlipping)
+        XCTAssertNil(flipper.capturedPageSize)
+        driver.starts.first?.firstFrame()
+        driver.starts.first?.completion()
+        XCTAssertEqual(changes, 0)
+    }
+
+    func testTaskCancellationGatesAnAlreadyQueuedFirstFrameBeforeCleanupRuns() async {
+        let driver = ManualPageTurnRenderer()
+        let flipper = makeFlipper(driver: driver)
+        var changes = 0
+        let turn = await startTurn(flipper, driver: driver) { changes += 1 }
+        let callbacks = driver.starts.first
+
+        turn.task.cancel()
+        callbacks?.firstFrame()
+        await fulfillment(of: [turn.finished], timeout: 1)
+
+        XCTAssertEqual(changes, 0)
+        XCTAssertEqual(driver.cancelCount, 1)
+        XCTAssertFalse(flipper.isFlipping)
+    }
+
     func testTurnExhaustionKeepsBoardUntilTheResultLeafIsPresented() async throws {
         var game = Game(seed: "exhaustion-page-handoff")
         try game.startPuzzle()
@@ -154,15 +198,18 @@ final class PageFlipTests: XCTestCase {
         XCTAssertEqual(changes, 0)
         XCTAssertEqual(driver.prepareCount, 1)
         XCTAssertEqual(driver.preparedSize, CGSize(width: 8, height: 12))
+        XCTAssertEqual(flipper.capturedPageSize, CGSize(width: 8, height: 12))
         guard let callbacks = driver.starts.first else { return }
 
         callbacks.firstFrame()
         XCTAssertEqual(changes, 1)
         XCTAssertTrue(flipper.isFlipping)
+        XCTAssertEqual(flipper.capturedPageSize, CGSize(width: 8, height: 12))
 
         callbacks.completion()
         await fulfillment(of: [turn.finished], timeout: 1)
         XCTAssertFalse(flipper.isFlipping)
+        XCTAssertNil(flipper.capturedPageSize)
         XCTAssertEqual(driver.cancelCount, 0)
         callbacks.completion()
         XCTAssertFalse(flipper.isFlipping)
@@ -236,6 +283,7 @@ final class PageFlipTests: XCTestCase {
         await fulfillment(of: [oldTurn.finished], timeout: 1)
         XCTAssertEqual(driver.cancelCount, 1)
         XCTAssertFalse(flipper.isFlipping)
+        XCTAssertNil(flipper.capturedPageSize)
         XCTAssertEqual(oldChanges, 0)
 
         let newTurn = await startTurn(flipper, driver: driver) { newChanges += 1 }
@@ -325,7 +373,7 @@ final class PageFlipTests: XCTestCase {
 }
 
 @MainActor
-private final class ManualPageTurnRenderer: PageTurnRendering {
+final class ManualPageTurnRenderer: PageTurnRendering {
     struct Start {
         let firstFrame: @MainActor () -> Void
         let completion: @MainActor () -> Void
@@ -336,12 +384,14 @@ private final class ManualPageTurnRenderer: PageTurnRendering {
     var didPrepare: (() -> Void)?
     private(set) var prepareCount = 0
     private(set) var preparedSize: CGSize?
+    private(set) var preparedImage: CGImage?
     private(set) var cancelCount = 0
     private(set) var starts: [Start] = []
 
     func prepare(image: CGImage, pageSize: CGSize, scale: CGFloat) -> Bool {
         prepareCount += 1
         preparedSize = pageSize
+        preparedImage = image
         didPrepare?()
         return canPrepare
     }

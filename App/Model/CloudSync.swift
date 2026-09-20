@@ -2,7 +2,7 @@ import Foundation
 
 /// Versioned, non-blocking transport for the small pieces of state a player
 /// expects to follow them between devices. This is deliberately only a
-/// transport layer: choosing between two live Books belongs to KAN-61.
+/// transport layer: RunStore owns the single resumable Book policy.
 final class CloudSync {
     static let shared = CloudSync()
     /// Posted on the main queue after iCloud has supplied (or refreshed) its
@@ -21,6 +21,7 @@ final class CloudSync {
         let schema: Int
         let modifiedAt: Date
         let payload: Data
+        var discardedRuns: [RunStore.DiscardedRunIdentity]? = nil
     }
 
     private let store = NSUbiquitousKeyValueStore.default
@@ -30,10 +31,19 @@ final class CloudSync {
 
     private init() {}
 
+    private var isolatesCloudForQA: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        ProcessInfo.processInfo.arguments.contains("-isolateCloudQA")
+        #else
+        false
+        #endif
+    }
+
     /// Safe to call at launch: synchronization is asynchronous and a signed-out
     /// device simply remains local. No UI depends on the outcome.
     func start(receivingProfiles receiver: @escaping (PlayerProfile) -> Void,
                receivingEquipped equippedReceiver: @escaping (EquippedCosmetics, Date) -> Void) {
+        guard !isolatesCloudForQA else { return }
         profileReceiver = receiver
         self.equippedReceiver = equippedReceiver
         if observer == nil {
@@ -50,6 +60,7 @@ final class CloudSync {
     }
 
     func publish(profile: PlayerProfile) {
+        guard !isolatesCloudForQA else { return }
         guard let data = try? JSONEncoder().encode(profile) else { return }
         publish(data, key: Key.profile, modifiedAt: profile.lastModifiedAt)
     }
@@ -57,35 +68,75 @@ final class CloudSync {
     /// Written only for an explicit local equip decision. Unrelated profile
     /// saves must never make a stale appearance choice look newer.
     func publish(equipped: EquippedCosmetics, decisionAt: Date) {
+        guard !isolatesCloudForQA else { return }
         guard let data = try? JSONEncoder().encode(equipped) else { return }
         publish(data, key: Key.equipped, modifiedAt: decisionAt)
     }
 
-    func publish(run data: Data?) {
-        guard let data else {
-            store.removeObject(forKey: Key.run)
-            store.synchronize()
-            return
-        }
-        publish(data, key: Key.run, modifiedAt: Date())
+    /// Legacy envelopes still contain the original Game JSON in payload.
+    /// An empty payload plus discarded identities is a durable deletion; the
+    /// metadata can also accompany a different, still-active remote Book.
+    struct RunSnapshot {
+        var data: Data?
+        var discardedRuns: [RunStore.DiscardedRunIdentity] = []
+        /// Evidence for rollback, not a last-writer-wins authority rule.
+        var modifiedAt: Date? = nil
+        var envelopeData: Data? = nil
+        var isUnreadable = false
     }
 
-    /// KAN-61 reads this only after the player explicitly chooses which
-    /// unfinished Book to continue. Never make launch silently replace the
-    /// local run with it.
+    func publish(run data: Data?, discardedRuns: [RunStore.DiscardedRunIdentity] = []) {
+        guard !isolatesCloudForQA else { return }
+        let snapshot = Self.snapshotAfterPublishing(run: data, discardedRuns: discardedRuns,
+                                                   previous: remoteRunSnapshot())
+        guard let encoded = try? Self.encodedRunEnvelope(snapshot) else { return }
+        store.set(encoded, forKey: Key.run)
+        store.synchronize()
+    }
+
+    /// RunStore archives and retires observed alternatives before publishing
+    /// a deletion. Clearing the sole active Book must not promote another one.
+    static func snapshotAfterPublishing(run data: Data?, discardedRuns: [RunStore.DiscardedRunIdentity],
+                                        previous: RunSnapshot) -> RunSnapshot {
+        let discarded = RunStore.DiscardedRunIdentity.merged(previous.discardedRuns, discardedRuns)
+        return RunSnapshot(data: data, discardedRuns: discarded)
+    }
+
+    func remoteRunSnapshot() -> RunSnapshot {
+        guard !isolatesCloudForQA else { return RunSnapshot(data: nil) }
+        return Self.runSnapshot(fromEnvelope: store.data(forKey: Key.run))
+    }
+
     func remoteRunData() -> Data? {
-        Self.runData(fromEnvelope: store.data(forKey: Key.run))
+        guard !isolatesCloudForQA else { return nil }
+        return Self.runData(fromEnvelope: store.data(forKey: Key.run))
     }
 
-    /// Pure transport boundary, also used to check existing cloud saves
-    /// without reading or writing a player's iCloud account.
+    /// Pure transport boundaries allow storage tests to simulate delayed cloud
+    /// delivery without connecting to the player's ubiquitous key-value store.
+    static func runSnapshot(fromEnvelope data: Data?) -> RunSnapshot {
+        guard let data else { return RunSnapshot(data: nil) }
+        guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
+              envelope.schema == Envelope.schema else {
+            return RunSnapshot(data: nil, envelopeData: data, isUnreadable: true)
+        }
+        return RunSnapshot(data: envelope.payload.isEmpty ? nil : envelope.payload,
+                           discardedRuns: envelope.discardedRuns ?? [],
+                           modifiedAt: envelope.modifiedAt, envelopeData: data)
+    }
+
     static func runData(fromEnvelope data: Data?) -> Data? {
-        guard let data,
-              let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
-              envelope.schema == Envelope.schema else { return nil }
-        // Decoding Envelope has already unwrapped its base64 Data field.
-        // The payload is Game JSON, not a second JSON-encoded Data value.
-        return envelope.payload
+        let snapshot = runSnapshot(fromEnvelope: data)
+        if let game = RunStore.game(from: snapshot.data),
+           snapshot.discardedRuns.contains(RunStore.DiscardedRunIdentity(game)) { return nil }
+        // Payload is Game JSON, not a second JSON-encoded Data value.
+        return snapshot.data
+    }
+
+    static func encodedRunEnvelope(_ snapshot: RunSnapshot, modifiedAt: Date = Date()) throws -> Data {
+        try JSONEncoder().encode(Envelope(schema: Envelope.schema, modifiedAt: modifiedAt,
+            payload: snapshot.data ?? Data(),
+            discardedRuns: snapshot.discardedRuns.isEmpty ? nil : snapshot.discardedRuns))
     }
 
     private func publish(_ payload: Data, key: String, modifiedAt: Date) {
@@ -107,6 +158,7 @@ final class CloudSync {
     }
 
     private func receiveExternalChange() {
+        guard !isolatesCloudForQA else { return }
         deliverRemoteProfile()
         deliverRemoteEquipped()
         NotificationCenter.default.post(name: Self.didReceiveExternalChange, object: self)
@@ -117,6 +169,7 @@ final class CloudSync {
     }
 
     private func readEnvelope<T: Decodable>(key: String) -> (T, Date)? {
+        guard !isolatesCloudForQA else { return nil }
         guard let data = store.data(forKey: key),
               let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
               envelope.schema == Envelope.schema,

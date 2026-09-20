@@ -32,6 +32,25 @@ final class BookCompletionTests: XCTestCase {
         XCTAssertNil(game.shop)
     }
 
+    func testQAReviewBoardCompletionQualifiesWithAConservedFullBoardAndPaysOnlyOnce() throws {
+        var game = Game(seed: "qa-review-board-completion", book: .smallVictories, obstacle: .shortHanded)
+        game.run.pendingBoss = .reviewBoard
+        let coins = game.run.coins
+        game.qaCompleteBook()
+
+        let puzzle = try XCTUnwrap(game.puzzle)
+        XCTAssertEqual(puzzle.boss, .reviewBoard)
+        XCTAssertTrue(puzzle.board.isFull, "The QA shortcut must satisfy the actual Review Board condition")
+        XCTAssertTrue(BossRuntime.reviewQualified(puzzle: puzzle))
+        XCTAssertEqual(puzzle.phase, .cashedOut)
+        XCTAssertEqual(game.run.outcome, .bookCompleted)
+        XCTAssertEqual(game.run.coins, coins + (try XCTUnwrap(puzzle.bankedPayout)).total)
+        puzzle.assertConservation()
+        let committed = try game.encoded()
+        game.qaCompleteBook()
+        XCTAssertEqual(try game.encoded(), committed)
+    }
+
     func testFinalCashOutCompletesBookOnceAndRetainsFinalBoardWithoutShop() throws {
         for keepFilling in [false, true] {
             var game = Game(seed: "final-cashout-\(keepFilling)")

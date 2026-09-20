@@ -82,6 +82,7 @@ public struct EffectResult: Sendable {
     public var eventMultX = 1.0
     /// Cancels this event outright — The Censor, The Mirror, Ivory, Insurance.
     public var zeroed = false
+    public var zeroSourceID: String?
     /// Violet Marker: score the placement as if the number were a 9.
     public var baseOverride: Digit?
     /// Onyx Marker: a Clue on this square still earns its placement points.
@@ -104,6 +105,24 @@ public struct EffectResult: Sendable {
 
     public init() {}
 
+    /// Combines independently resolved sources without losing their receipts.
+    public mutating func merge(_ other: EffectResult) {
+        contributions += other.contributions
+        flat = ScoreMath.add(flat, other.flat)
+        multAdd += other.multAdd; multX *= other.multX; eventMultX *= other.eventMultX
+        zeroed = zeroed || other.zeroed
+        zeroSourceID = other.zeroSourceID ?? zeroSourceID
+        baseOverride = other.baseOverride ?? baseOverride
+        clueScoresPlacement = clueScoresPlacement || other.clueScoresPlacement
+        wrongReturnsToHand = wrongReturnsToHand || other.wrongReturnsToHand
+        coins += other.coins; directScore = ScoreMath.add(directScore, other.directScore)
+        extraTurns += other.extraTurns; extraClues += other.extraClues; draws += other.draws
+        redrawHand = redrawHand || other.redrawHand
+        puzzleStateWrites.merge(other.puzzleStateWrites, uniquingKeysWith: { _, new in new })
+        runStateWrites.merge(other.runStateWrites, uniquingKeysWith: { _, new in new })
+        armFlags.formUnion(other.armFlags)
+    }
+
     /// Bumps a counter, reading through to the context so several items in one
     /// dispatch accumulate rather than overwrite.
     public mutating func bumpPuzzleState(_ key: String, by amount: Double, in context: EffectContext) {
@@ -119,12 +138,18 @@ public struct EffectResult: Sendable {
 /// A delta recorded while the real hook runs, not a second speculative dispatch.
 public struct ScoreContribution: Sendable, Equatable {
     public var sourceID: String
+    public var instanceID: String? = nil
+    /// Event-local factor; held ×Mult is resolved once in visible slot order.
+    public var localMultX: Double = 1
     public var name: String
-    public var flat: Int
-    public var multAdd: Double
-    public var multX: Double
-    public var directScore: Int
-    public var coins: Int
+    public var flat: Int = 0
+    public var multAdd: Double = 0
+    public var multX: Double = 1
+    public var directScore: Int = 0
+    public var coins: Int = 0
+    /// Actual automatic random draw requests from this exact hook source.
+    /// Nil keeps old receipts/source construction compatible.
+    public var draws: Int? = nil
 }
 
 public struct ScoreEventReceipt: Sendable, Equatable {
@@ -132,6 +157,7 @@ public struct ScoreEventReceipt: Sendable, Equatable {
     public var base: Int
     public var points: Int
     public var contributions: [ScoreContribution]
+    public var operations: [ScoreOperation] = []
 }
 
 public typealias Effect = @Sendable (EffectContext, inout EffectResult) -> Void
@@ -143,9 +169,7 @@ public struct ItemDef: Sendable {
     public let kind: ItemKind
     public let name: String
     public let rarity: Rarity
-    /// The price printed in the design tables. The Shop rolls within the §9
-    /// band for the kind and rarity rather than using this, but it is what the
-    /// item is "worth" and what the tables document.
+    /// The approved base price. Saved offers retain their quoted prices.
     public let listedPrice: Int
     public let text: String
     public let hooks: [GameEvent: Effect]

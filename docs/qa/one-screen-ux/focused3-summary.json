@@ -1,0 +1,61 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "modelName" : "iPhone 17 Pro",
+        "osBuildNumber" : "23D8133",
+        "osVersion" : "26.3.1",
+        "platform" : "iOS Simulator"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 2,
+      "passedTests" : 60,
+      "skippedTests" : 0,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "ProbablySudoku · Built with macOS 26.3.1",
+  "expectedFailures" : 0,
+  "failedTests" : 2,
+  "finishTime" : 1789809793.093,
+  "passedTests" : 60,
+  "result" : "Failed",
+  "skippedTests" : 0,
+  "startTime" : 1789809657.322,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+    {
+      "failureText" : "XCTAssertTrue failed - n5nextpuzzlechapter11easy23easybuthardnaturalbornaccountaplacementscosttarget200010turns35968591294729641864341556823bossencountereveryplacementcostsacoinevenifyouhavenonebosspuzzlesmustbeplayedplaypuzzle",
+      "targetName" : "ProbablySudokuTests",
+      "testIdentifier" : 5,
+      "testIdentifierString" : "BriefingBoundsTests/testLongestBossRulesRemainCompleteOnShortPhoneWithoutScrolling()",
+      "testIdentifierURL" : "test://com.apple.xcode/ProbablySudoku/ProbablySudokuTests/BriefingBoundsTests/testLongestBossRulesRemainCompleteOnShortPhoneWithoutScrolling",
+      "testName" : "testLongestBossRulesRemainCompleteOnShortPhoneWithoutScrolling()"
+    },
+    {
+      "failureText" : "XCTUnwrap failed: expected non-nil value of type \"VNRecognizedTextObservation\" - Missing visible Skip + Buff",
+      "targetName" : "ProbablySudokuTests",
+      "testIdentifier" : 6,
+      "testIdentifierString" : "BriefingBoundsTests/testPhoneAndTabletBriefingsShowBoardOfferAndActionsTogether()",
+      "testIdentifierURL" : "test://com.apple.xcode/ProbablySudoku/ProbablySudokuTests/BriefingBoundsTests/testPhoneAndTabletBriefingsShowBoardOfferAndActionsTogether",
+      "testName" : "testPhoneAndTabletBriefingsShowBoardOfferAndActionsTogether()"
+    }
+  ],
+  "title" : "Test - ProbablySudoku",
+  "topInsights" : [
+    {
+      "category" : "Longest Test Runs",
+      "impact" : "40% of duration",
+      "text" : "2 longest test runs with outlier durations exceeding 16.71s (three standard deviations)"
+    }
+  ],
+  "totalTestCount" : 62
+}

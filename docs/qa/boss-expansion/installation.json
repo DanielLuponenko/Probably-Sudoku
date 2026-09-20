@@ -1,0 +1,10 @@
+{
+  "device": "223A4227-A28E-4939-BB5E-3AAB820EB635",
+  "candidate": "/tmp/NumberClub-boss-final-20260920-045339.app",
+  "backup": "/tmp/NumberClub-boss-user-backup-20260920-045339",
+  "allFilesIdenticalAfterInstall": true,
+  "launch": "com.numberclub.app: 69840",
+  "activeBookIdenticalAfterLaunch": true,
+  "profileIdenticalAfterLaunch": true,
+  "changedAfterLaunch": []
+}

@@ -1,12 +1,7 @@
 import Foundation
 
-public enum ClippingError: Error, Equatable, Sendable {
-    case cannotSkip
-}
-
-/// A small, run-scoped reward for declining a non-Boss Puzzle. Clippings are
-/// derived from the Book seed and position, so inspecting an offer never
-/// perturbs board, Shop, or Boss randomness.
+/// Historical skip rewards, retained only to display earlier saves and honor
+/// effects already earned. New skips award consumable Buffs instead.
 public enum Clipping: String, Codable, CaseIterable, Sendable, Identifiable, Equatable {
     case coupon
     case overprint

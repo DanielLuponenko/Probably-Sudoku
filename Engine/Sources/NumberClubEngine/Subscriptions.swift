@@ -23,7 +23,7 @@ public enum Subscriptions {
         subscription(clippingService, "Clipping Service", 16, "Shops stock 6 items this Book"),
         subscription(tradeJournal, "Trade Journal", 16, "+10% Rare odds in every Shop this Book"),
         subscription(annualRate, "Annual Rate", 18, "Interest cap becomes 20 this Book"),
-        subscription(overseasEdition, "Overseas Edition", 20, "+1 Marker slot for this Book"),
+        subscription(overseasEdition, "Overseas Edition", 20, "Legacy subscription. Marker storage is now unlimited."),
     ]
 }
 

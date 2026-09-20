@@ -15,12 +15,14 @@ final class BookVictoryRenderingTests: XCTestCase {
             let image = try render(contents(fixture, compact: compact),
                                    named: compact ? "compact" : "regular")
             XCTAssertEqual(image.size.width, 328, accuracy: 0.5)
-            XCTAssertLessThanOrEqual(image.size.height, compact ? 590 : 680,
-                                    "The normal-size victory page and its close button must fit the Book.")
+            XCTAssertLessThanOrEqual(image.size.height, 900,
+                                    "The full celebratory article remains bounded before live board sizing.")
             let text = try recognizedText(in: image)
             assertContains(text, "Book Complete", fixture.summary.edition.title,
                            "Final Boss Beaten", fixture.bossName,
-                           "Obstacle II", "In this Book only", "Close the Book")
+                           "Obstacle II", "Congratulations", "Book Achievement", "Volume 1 Complete", "Close the Book")
+            XCTAssertFalse(text.contains(normalize("Achievement Earned")),
+                           "Reopening or replaying a completed Book must not claim a newly earned achievement")
         }
     }
 
@@ -75,7 +77,7 @@ final class BookVictoryRenderingTests: XCTestCase {
             let text = try recognizedText(in: image)
             assertContains(text, "Professionally Overthinking", "The Executive Editor",
                            "123,456,789", "Close the Book")
-            if width == 328 { XCTAssertLessThanOrEqual(image.size.height, 590) }
+            if width == 328 { XCTAssertLessThanOrEqual(image.size.height, 900) }
         }
     }
 
@@ -108,17 +110,26 @@ final class BookVictoryRenderingTests: XCTestCase {
         XCTAssertEqual(try encoder.encode(fixture.model.run), before)
     }
 
-    func testAccessibilityFiveContentGrowsWithoutLosingTheCloseDecision() throws {
+    func testAccessibilityFiveEnlargesTheAwardTextWithoutLosingTheCloseDecision() throws {
         let fixture = try completedBook()
         let content = contents(fixture, compact: true)
         let regular = try render(content, named: "dynamic-type-large")
         let accessible = try render(content, dynamicType: .accessibility5,
                                     named: "dynamic-type-accessibility5-full-content")
-        XCTAssertGreaterThan(accessible.size.height, regular.size.height)
-        XCTAssertGreaterThan(accessible.size.height, 590)
         XCTAssertEqual(accessible.size.width, 328, accuracy: 0.5)
-        assertContains(try recognizedText(in: accessible), "Book Complete", fixture.summary.edition.title,
-                       "Obstacle II", "In this Book only", "Close the Book")
+        let regularAward = try XCTUnwrap(printedObservations(in: regular).first {
+            normalize($0.text).contains("volume1complete")
+        })
+        let accessibleAward = try XCTUnwrap(printedObservations(in: accessible).first {
+            normalize($0.text).hasPrefix("volume1")
+        })
+        XCTAssertGreaterThan(accessibleAward.bounds.height * accessible.size.height,
+                             regularAward.bounds.height * regular.size.height * 1.25,
+                             "The concise hierarchy must enlarge its award type, even if total page height is unchanged")
+        // The concise accessibility hierarchy retains the Book, award, next
+        // challenge and decision. The hosted test below checks their bounds.
+        assertContains(try recognizedText(in: accessible), "Congratulations", fixture.summary.edition.title,
+                       "Obstacle II", "Book Achievement", "Volume 1 Complete", "Close", "The Book")
     }
 
     func testCompletedResultsRoutesToVictoryInTheRealPhoneBookInsteadOfShopActions() async throws {
@@ -197,7 +208,7 @@ final class BookVictoryRenderingTests: XCTestCase {
                        "Rendering the banked results page must not mutate the run")
     }
 
-    func testShortRegularResultsOmitBoardPreviewAndKeepActionsVisible() async throws {
+    func testShortRegularResultsRetainTheBoardAndKeepActionsVisible() async throws {
         var game = Game(seed: "book-victory-short-regular-results")
         try game.startPuzzle()
         game.qaMeetTarget()
@@ -212,7 +223,8 @@ final class BookVictoryRenderingTests: XCTestCase {
             named: "short-regular-won-results"
         )
         let text = try recognizedText(in: image)
-        XCTAssertFalse(text.contains(normalize("Your board, as played")), text)
+        XCTAssertGreaterThanOrEqual(ResultsBoardLayout(available: CGSize(width: 818, height: 588)).side, 300,
+                                   "Short windows retain a substantial scrollable board instead of omitting it.")
         assertContains(text, "Puzzle Complete", "Cash Out")
         try assertResultsSpacing(in: image, action: "Cash Out",
                                  score: try XCTUnwrap(won.puzzle?.score),
@@ -221,72 +233,57 @@ final class BookVictoryRenderingTests: XCTestCase {
                        "Short regular rendering must not mutate the run")
     }
 
-    func testAccessibilityFiveCanScrollToCloseInsideTheRealBookContainer() async throws {
-        let fixture = try completedBook()
-        let flipper = PageFlipper()
-        let viewport = CGSize(width: 375, height: 812)
-        let content = VStack(spacing: 0) {
-            Color.clear.frame(height: 86) // The unchanged HUD/bookmark reservation.
-            BookView(flipper: flipper) {
-                BookVictoryPage(summary: fixture.summary, board: fixture.model.puzzle?.board,
-                                bossName: fixture.bossName, obstacle: fixture.model.run.obstacle,
-                                onClose: {})
+    func testCelebrationAndNextChallengeFitOneScreenOn17ProAndSEAtNormalAndLargeText() async throws {
+        let fixture = try completedBook(edition: .eighth)
+        for viewport in [CGSize(width: 402, height: 874), CGSize(width: 375, height: 667)] {
+            let safeArea = phoneSafeArea(for: viewport)
+            for dynamicType in [DynamicTypeSize.large, .accessibility5] {
+                let image = try await renderResultsInBook(fixture.model, viewport: viewport,
+                    dynamicType: dynamicType, requiresSingleScreen: true,
+                    named: "single-screen-\(Int(viewport.height))-\(dynamicType)")
+                let text = try recognizedText(in: image)
+                assertContains(text, "Congratulations", "Professionally Overthinking",
+                               "Book Achievement", "Volume 8 Complete", "Obstacle II", "Close the Book")
+                let observations = try printedObservations(in: image)
+                let obstacle = try XCTUnwrap(observations.first { normalize($0.text).contains("obstacle") })
+                let close = try XCTUnwrap(observations.first { normalize($0.text).contains("close") })
+                XCTAssertGreaterThan(obstacle.bounds.minY, close.bounds.maxY,
+                                     "The next challenge must sit fully above Close, not clip into it")
+                let closeBottom = (1 - close.bounds.minY) * image.size.height
+                XCTAssertLessThanOrEqual(closeBottom, viewport.height - safeArea.bottom - 4,
+                                         "The complete Close label must remain above the phone's bottom safe area")
+                let congratulations = try XCTUnwrap(observations.first {
+                    normalize($0.text).contains("congratulations")
+                })
+                XCTAssertGreaterThanOrEqual((1 - congratulations.bounds.maxY) * viewport.height, safeArea.top,
+                                            "The celebration must remain below the phone's top safe area")
+                XCTAssertEqual(fixture.model.run.outcome, .bookCompleted)
             }
-            .padding(.leading, 8).padding(.trailing, 10)
         }
-        .padding(.bottom, 8)
-        .frame(width: viewport.width, height: viewport.height)
-        .environment(flipper)
-        .environment(\.cosmeticTheme, .standard)
-        .environment(\.colorScheme, .light)
-        .environment(\.locale, Locale(identifier: "en_US"))
-        .environment(\.dynamicTypeSize, .accessibility5)
-        .transaction { $0.disablesAnimations = true }
-        let controller = UIHostingController(rootView: content)
-        controller.safeAreaRegions = []
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let previousKey = scene.windows.first { $0.isKeyWindow }
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(origin: .zero, size: viewport)
-        window.rootViewController = controller
-        defer {
-            flipper.cancel()
-            window.isHidden = true
-            window.rootViewController = nil
-            previousKey?.makeKey()
-        }
-        window.makeKeyAndVisible()
-        let settled = expectation(description: "Victory scroll view completed layout")
-        DispatchQueue.main.async { window.layoutIfNeeded(); settled.fulfill() }
-        await fulfillment(of: [settled], timeout: 3)
+    }
 
-        func scrollViews(in view: UIView) -> [UIScrollView] {
-            (view as? UIScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
+    func testBoardFitsTheMeasuredHeaderAndFooterWithoutHidingItsLastRow() {
+        for available in [CGSize(width: 374, height: 640), CGSize(width: 347, height: 440)] {
+            let layout = BookVictoryBoardLayout(available: available, headerHeight: 100, footerHeight: 205)
+            XCTAssertGreaterThan(layout.side, 100)
+            XCTAssertLessThanOrEqual(layout.side, available.width)
+            XCTAssertLessThanOrEqual(100 + layout.side + 205 + layout.spacing * 2, available.height)
         }
-        let scroll = try XCTUnwrap(scrollViews(in: controller.view).first)
-        XCTAssertGreaterThan(scroll.bounds.height, 100)
-        XCTAssertLessThanOrEqual(scroll.bounds.height, viewport.height - 86 - 8 - 26 - 18)
-        XCTAssertGreaterThan(scroll.contentSize.height, scroll.bounds.height + 100)
-        let visibleFrame = scroll.convert(scroll.bounds, to: window)
-        XCTAssertGreaterThanOrEqual(visibleFrame.minY, 86)
-        XCTAssertLessThanOrEqual(visibleFrame.maxY, viewport.height - 8)
-        let bottom = scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom
-        scroll.setContentOffset(CGPoint(x: 0, y: bottom), animated: false)
-        window.layoutIfNeeded()
-        XCTAssertEqual(scroll.contentOffset.y, bottom, accuracy: 1)
-        let image = UIGraphicsImageRenderer(size: viewport).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        attach(image, named: "accessibility5-real-book-scrolled-to-close")
-        assertContains(try recognizedText(in: image), "Close the Book", "Back to the shelf")
-        XCTAssertFalse(try XCTUnwrap(fixture.model.puzzle?.board).isFull)
-        XCTAssertEqual(fixture.model.run.outcome, .bookCompleted)
+        XCTAssertEqual(BookVictoryBoardLayout(available: CGSize(width: 340, height: 400),
+            headerHeight: 190, footerHeight: 210).side, 0,
+            "Large text never forces the board behind the celebration or the action")
     }
 
     private struct Fixture {
         let model: GameModel
         let summary: GameModel.BookCompletionSummary
         let bossName: String
+    }
+
+    private func phoneSafeArea(for viewport: CGSize) -> EdgeInsets {
+        viewport.height > 700
+            ? EdgeInsets(top: 62, leading: 0, bottom: 34, trailing: 0)
+            : EdgeInsets(top: 20, leading: 0, bottom: 0, trailing: 0)
     }
 
     private func completedBook(edition: BookEdition = .first, obstacle: Obstacle = .none,
@@ -335,24 +332,18 @@ final class BookVictoryRenderingTests: XCTestCase {
         _ model: GameModel,
         viewport: CGSize = CGSize(width: 375, height: 812),
         horizontalSizeClass: UserInterfaceSizeClass = .compact,
+        dynamicType: DynamicTypeSize = .large, requiresSingleScreen: Bool = false,
         named name: String
     ) async throws -> UIImage {
         let flipper = PageFlipper()
-        let content = VStack(spacing: 0) {
-            // Use the real HUD with frozen values and inert controls, while
-            // retaining the same combined HUD/bookmark space as the layout proof.
-            IslandBar(coins: model.coins, controls: [
-                StripControl(systemImage: "rosette", label: "Achievements", action: {}),
-                StripControl(systemImage: "questionmark", label: "Run information", action: {}),
-                StripControl(systemImage: "gearshape", label: "Settings", action: {})
-            ])
-            .frame(height: 86, alignment: .top)
-            BookView(flipper: flipper) {
+        // Match the live stable host, including its actual header/inventory.
+        let content = RunPageSurface(model: model, flipper: flipper, controls: [
+                    StripControl(systemImage: "questionmark", label: "Run information", action: {}),
+                    StripControl(systemImage: "gearshape", label: "Settings", action: {})
+                ], safeAreaInsets: requiresSingleScreen ? phoneSafeArea(for: viewport) : EdgeInsets(),
+                onTapBuff: { _ in }) {
                 ResultsPageView(model: model, onBookCompletion: {}, onAbandon: {})
-            }
-            .padding(.leading, 8).padding(.trailing, 10)
         }
-        .padding(.bottom, 8)
         .frame(width: viewport.width, height: viewport.height)
         .background(Paper.deskDark)
         .environment(flipper)
@@ -360,7 +351,7 @@ final class BookVictoryRenderingTests: XCTestCase {
         .environment(\.colorScheme, .light)
         .environment(\.locale, Locale(identifier: "en_US"))
         .environment(\.horizontalSizeClass, horizontalSizeClass)
-        .environment(\.dynamicTypeSize, .large)
+        .environment(\.dynamicTypeSize, dynamicType)
         .transaction { $0.disablesAnimations = true }
         // BookView contains a UIKit capture anchor. Host the actual hierarchy
         // rather than flattening that representable through ImageRenderer,
@@ -382,6 +373,14 @@ final class BookVictoryRenderingTests: XCTestCase {
         let settled = expectation(description: "\(name) hosted hierarchy completed layout")
         DispatchQueue.main.async { window.layoutIfNeeded(); settled.fulfill() }
         await fulfillment(of: [settled], timeout: 3)
+        if requiresSingleScreen {
+            func scrollViews(in view: UIView) -> [UIScrollView] {
+                (view as? UIScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
+            }
+            XCTAssertFalse(scrollViews(in: controller.view).contains {
+                $0.contentSize.height > $0.bounds.height + 1
+            }, "Completion must not need vertical scrolling")
+        }
         let image = UIGraphicsImageRenderer(size: viewport).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }

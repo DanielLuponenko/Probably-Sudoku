@@ -41,6 +41,7 @@ final class ProductionCombinationMatrixTests: XCTestCase {
                     if let move = legalMove(in: puzzle) {
                         _ = try game.place(handIndex: move.0, at: move.1)
                     }
+                    try resolvePendingChoices(&game, label: label)
                     var restored = try Game(decoding: game.encoded())
                     XCTAssertEqual(try canonicalSnapshot(game), try canonicalSnapshot(restored), label)
                     XCTAssertEqual(try game.endTurn(), try restored.endTurn(), label)
@@ -71,7 +72,7 @@ final class ProductionCombinationMatrixTests: XCTestCase {
                     XCTAssertEqual(puzzle.turnsMax, game.run.effectiveTurns(boss: boss), label)
                     XCTAssertEqual(puzzle.tossAllowance, game.run.effectiveTossAllowance(boss: boss), label)
                     XCTAssertEqual(puzzle.cluesRemaining, game.run.effectiveClues(boss: boss), label)
-                    XCTAssertEqual(puzzle.target, book.target(level: puzzle.level, slot: .boss) * boss.targetMultiplier, label)
+                    XCTAssertEqual(puzzle.target, BossEncounterRules.startingTarget(base: book.target(level: puzzle.level, slot: .boss), boss: boss), label)
                     XCTAssertEqual(puzzle.clockSecondsRemaining, boss.secondsAllowed, label)
                     try assertState(game, label: label)
 
@@ -81,11 +82,13 @@ final class ProductionCombinationMatrixTests: XCTestCase {
                     if let move = legalMove(in: puzzle) {
                         _ = try game.place(handIndex: move.0, at: move.1)
                     }
+                    try resolvePendingChoices(&game, label: label)
                     let beforeBuff = try game.encoded()
                     let consumed = try? game.useBuff(at: 0, digit: .five)
                     if consumed == false || consumed == nil {
                         XCTAssertEqual(try game.encoded(), beforeBuff, label)
                     }
+                    try resolvePendingChoices(&game, label: label)
                     XCTAssertNil(Conservation.check(board: game.puzzle!.board,
                                                      pool: game.puzzle!.pool, hand: game.puzzle!.hand), label)
 
@@ -105,10 +108,10 @@ final class ProductionCombinationMatrixTests: XCTestCase {
                     let lastTurn = try XCTUnwrap(game.puzzle).turnsMax
                     game.run.puzzle?.turnNumber = lastTurn
                     _ = try game.endTurn()
-                    XCTAssertEqual(game.puzzle?.phase, .outOfTurns, label)
+                    XCTAssertEqual(game.puzzle?.phase, boss == .lastEdition ? .failed : .outOfTurns, label)
                     let saved = try game.encoded()
                     restored = try Game(decoding: saved)
-                    XCTAssertTrue(restored.claimRewardedRescue(), label)
+                    XCTAssertEqual(restored.claimRewardedRescue(), boss != .lastEdition, label)
                     let claimed = try restored.encoded()
                     XCTAssertFalse(restored.claimRewardedRescue(), label)
                     XCTAssertEqual(try restored.encoded(), claimed, label)
@@ -125,7 +128,7 @@ final class ProductionCombinationMatrixTests: XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(combinations, 12 * 19 * 9)
+        XCTAssertEqual(combinations, Book.allCases.count * BossModifier.allCases.count * Obstacle.allCases.count)
     }
 
     func testEveryBossIsActuallyDealtFromItsCorrectPoolWithItsRealStandingRules() throws {
@@ -139,7 +142,7 @@ final class ProductionCombinationMatrixTests: XCTestCase {
             XCTAssertEqual(game.puzzle?.boss, boss)
             XCTAssertEqual(game.puzzle?.difficulty, .boss)
             XCTAssertNil(game.run.pendingBoss)
-            XCTAssertEqual(game.puzzle?.target, game.run.book.target(level: run.level, slot: .boss) * boss.targetMultiplier)
+            XCTAssertEqual(game.puzzle?.target, BossEncounterRules.startingTarget(base: game.run.book.target(level: run.level, slot: .boss), boss: boss))
             try assertState(game, label: boss.rawValue)
         }
     }
@@ -166,7 +169,7 @@ final class ProductionCombinationMatrixTests: XCTestCase {
                                  board: board, pool: pool, hand: hand, handSize: handSize,
                                  turnNumber: 1, turnsMax: run.effectiveTurns(boss: boss),
                                  tossedThisPuzzle: 0, tossAllowance: run.effectiveTossAllowance(boss: boss),
-                                 score: 0, target: book.target(level: run.level, slot: .boss) * boss.targetMultiplier,
+                                 score: 0, target: BossEncounterRules.startingTarget(base: book.target(level: run.level, slot: .boss), boss: boss),
                                  cluesRemaining: run.effectiveClues(boss: boss), boss: boss,
                                  censoredDigit: boss.censorsARandomDigit ? .five : nil,
                                  blockedDigit: nil, bossTurn: nil, phase: .playing, keepFillingCoins: 0)
@@ -229,5 +232,33 @@ final class ProductionCombinationMatrixTests: XCTestCase {
             }) { return (index, square) }
         }
         return nil
+    }
+
+    /// New catalogue effects can pause gameplay for an explicit saved choice.
+    /// Cancel optional rewards and deterministically resolve mandatory ones,
+    /// proving both routes survive save/resume with the same instance IDs.
+    private func resolvePendingChoices(_ game: inout Game, label: String) throws {
+        var resolved = 0
+        while let decision = game.run.pendingItemDecisions.first {
+            resolved += 1
+            guard resolved <= 30 else { return XCTFail("Choice queue did not terminate: \(label)") }
+            var resumed = try Game(decoding: game.encoded())
+            XCTAssertEqual(resumed.run.pendingItemDecisions.first, decision, label)
+            let selected = decision.allowsCancel ? nil : Array(decision.options.prefix(decision.minimum).map(\.id))
+            let heldSource = game.run.buffs.first { $0.id == decision.sourceInstanceID }?.id
+            XCTAssertTrue(try game.resolveItemDecision(id: decision.id, selected: selected), label)
+            XCTAssertTrue(try resumed.resolveItemDecision(id: decision.id, selected: selected), label)
+            XCTAssertEqual(try canonicalSnapshot(game), try canonicalSnapshot(resumed), label)
+            if selected == nil, let heldSource {
+                XCTAssertTrue(game.run.buffs.contains { $0.id == heldSource }, label)
+            }
+            let after = try canonicalSnapshot(game)
+            XCTAssertFalse(try game.resolveItemDecision(id: decision.id, selected: selected), label)
+            XCTAssertEqual(try canonicalSnapshot(game), after, label)
+            XCTAssertEqual(Set(game.run.buffs.map(\.id)).count, game.run.buffs.count, label)
+            if let hand = game.puzzle?.handCards {
+                XCTAssertEqual(Set(hand.map(\.id)).count, hand.count, label)
+            }
+        }
     }
 }

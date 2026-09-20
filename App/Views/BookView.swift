@@ -177,30 +177,33 @@ private struct Binding: View {
 /// because this is the part that lifts when the page turns.
 struct PageSurface<Content: View>: View {
     @Environment(\.cosmeticTheme) private var theme
+    var showsChrome: Bool = true
     var showsStockArtwork: Bool = true
     @ViewBuilder var content: Content
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Rectangle()
-                .fill(theme.paper.page)
-                .overlay { PaperGrain(opacity: theme.paper.grain) }
-                .overlay {
-                    if showsStockArtwork {
-                        PaperStockOverlay(treatment: theme.paper.treatment)
+            if showsChrome {
+                Rectangle()
+                    .fill(theme.paper.page)
+                    .overlay { PaperGrain(opacity: theme.paper.grain) }
+                    .overlay {
+                        if showsStockArtwork { PaperStockOverlay(treatment: theme.paper.treatment) }
                     }
-                }
-                .overlay { gutter }
-                .overlay { bow }
+                    .overlay { gutter }
+                    .overlay { bow }
+            } else {
+                GameplaySurfaceBackground()
+            }
 
-            content.padding(Volume.pageContentInsets)
+            content.padding(showsChrome ? Volume.pageContentInsets : EdgeInsets())
         }
         .clipShape(
             UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
-                                   bottomTrailingRadius: Volume.corner,
-                                   topTrailingRadius: Volume.corner)
+                                   bottomTrailingRadius: showsChrome ? Volume.corner : 0,
+                                   topTrailingRadius: showsChrome ? Volume.corner : 0)
         )
-        .shadow(color: .black.opacity(0.3), radius: 3, x: 3, y: 1)
+        .shadow(color: .black.opacity(showsChrome ? 0.3 : 0), radius: 3, x: 3, y: 1)
     }
 
     /// Paper turning down into the binding, and the crease it makes.
@@ -386,36 +389,53 @@ private struct GardenMarginMask: View {
     }
 }
 
-/// The book as one object: boards, block, binding, and the pages on top.
+/// One stable capture/render host across every page. Chrome changes inside it;
+/// the anchor and Metal canvas never move into conditional gameplay branches.
+/// Put all live controls inside this host so the outgoing frame includes them.
 struct BookView<Live: View>: View {
     var flipper: PageFlipper
+    var showsChrome: Bool = true
     @ViewBuilder var live: Live
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            BookVolume()
+        GeometryReader { proxy in
+            ZStack(alignment: .topLeading) {
+                BookVolume()
+                    .opacity(showsChrome ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
 
-            PageSurface { live }
-                .background { PageCaptureAnchor(flipper: flipper) }
-                .allowsHitTesting(!flipper.isFlipping)
-                .accessibilityHidden(flipper.isFlipping)
-                .overlay(alignment: .topLeading) {
-                    if let renderer = flipper.renderer {
-                        GeometryReader { proxy in
-                            PageCurlCanvas(renderer: renderer)
-                                .frame(width: proxy.size.width + PageCurlRenderer.renderMargin * 2,
-                                       height: proxy.size.height + PageCurlRenderer.renderMargin * 2)
-                                .offset(x: -PageCurlRenderer.renderMargin,
-                                        y: -PageCurlRenderer.renderMargin)
-                        }
+                PageSurface(showsChrome: showsChrome) { live }
+                    .padding(showsChrome
+                        ? EdgeInsets(top: Volume.head, leading: Volume.spine,
+                                     bottom: Volume.tail, trailing: Volume.foreEdge)
+                        : EdgeInsets())
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            // Capture the full host, including header and inventory. Capturing
+            // only the inset leaf would crop the fullscreen gameplay surface.
+            .background { PageCaptureAnchor(flipper: flipper) }
+            .allowsHitTesting(!flipper.isFlipping)
+            .accessibilityHidden(flipper.isFlipping)
+            .overlay(alignment: .topLeading) {
+                if let renderer = flipper.renderer {
+                    let size = flipper.capturedPageSize ?? proxy.size
+                    PageCurlCanvas(renderer: renderer)
+                        .frame(width: size.width + PageCurlRenderer.renderMargin * 2,
+                               height: size.height + PageCurlRenderer.renderMargin * 2)
+                        .offset(x: -PageCurlRenderer.renderMargin,
+                                y: -PageCurlRenderer.renderMargin)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
-                    }
                 }
-                .padding(EdgeInsets(top: Volume.head, leading: Volume.spine,
-                                    bottom: Volume.tail, trailing: Volume.foreEdge))
+            }
+            .onChange(of: proxy.size) { _, _ in
+                // Rotation or window resizing invalidates the captured pixel
+                // coordinates. Keep any committed destination and unlock.
+                flipper.cancel()
+            }
         }
         .task {
             if !reduceMotion { flipper.prepareRenderer() }

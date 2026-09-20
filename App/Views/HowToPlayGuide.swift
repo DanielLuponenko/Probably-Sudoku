@@ -5,10 +5,12 @@ import SwiftUI
 /// Every example is a crop of a captured game screen; opening this guide never
 /// reads or changes the player's run, inventory, or tutorial progress.
 struct HelpSlip: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var onClose: () -> Void
 
     @State private var selectedTopic: HowToPlayTopic = .place
     @State private var selectedFilm: GuideFilm?
+    @State private var showingTopics = false
 
     var body: some View {
         ScrollViewReader { scroll in
@@ -25,8 +27,22 @@ struct HelpSlip: View {
                 scroll.scrollTo(selectedTopic, anchor: .top)
             }
         }
-        .sheet(item: $selectedFilm) { film in
+        .paperPanel(item: $selectedFilm) { film in
             GuideTurnMovie(film: film)
+        }
+        .paperPanel(isPresented: $showingTopics) {
+            PaperSlip(title: "Topics", subtitle: nil, maximumWidth: 460,
+                      onClose: { showingTopics = false }) {
+                VStack(spacing: 8) {
+                    ForEach(HowToPlayTopic.allCases) { topic in
+                        PaperButton(title: topic.title,
+                                    kind: selectedTopic == topic ? .primary : .quiet) {
+                            select(topic)
+                            showingTopics = false
+                        }
+                    }
+                }
+            }
         }
         .accessibilityIdentifier("how-to-play-guide")
     }
@@ -35,16 +51,52 @@ struct HelpSlip: View {
         VStack(spacing: 8) {
             Rectangle().fill(Paper.rule).frame(height: 1)
                 .accessibilityHidden(true)
-            Menu {
-                Picker("Choose a topic", selection: $selectedTopic) {
-                    ForEach(HowToPlayTopic.allCases) { topic in
-                        Text(topic.title).tag(topic)
+            if dynamicTypeSize.isAccessibilitySize {
+                // Symbols retain the full spoken names while leaving room for
+                // enlarged page progress and the guide's scrollable article.
+                HStack(spacing: 8) {
+                    GuideNavigationButton(title: "Previous", symbol: "chevron.left",
+                                          enabled: selectedTopic.previous != nil,
+                                          compact: true) {
+                        select(selectedTopic.previous)
+                    }
+                    .frame(width: 52)
+                    topicPicker(compact: true)
+                    GuideNavigationButton(title: "Next", symbol: "chevron.right",
+                                          enabled: selectedTopic.next != nil,
+                                          compact: true) {
+                        select(selectedTopic.next)
+                    }
+                    .frame(width: 52)
+                }
+            } else {
+                topicPicker(compact: false)
+                HStack(spacing: 12) {
+                    GuideNavigationButton(title: "Previous", symbol: "chevron.left",
+                                          enabled: selectedTopic.previous != nil) {
+                        select(selectedTopic.previous)
+                    }
+                    GuideNavigationButton(title: "Next", symbol: "chevron.right",
+                                          enabled: selectedTopic.next != nil, symbolAfter: true) {
+                        select(selectedTopic.next)
                     }
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "list.bullet")
-                        .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private func topicPicker(compact: Bool) -> some View {
+        Button { showingTopics = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "list.bullet")
+                    .font(compact ? .system(size: 28, weight: .semibold) : .subheadline.weight(.semibold))
+                    .accessibilityHidden(true)
+                if compact {
+                    Text("\(selectedTopic.pageNumber)/\(HowToPlayTopic.allCases.count)")
+                        .font(.body.weight(.semibold))
+                        .monospacedDigit()
+                        .fixedSize()
+                } else {
                     Text("Topics")
                     Spacer(minLength: 8)
                     Text("\(selectedTopic.pageNumber) of \(HowToPlayTopic.allCases.count)")
@@ -52,26 +104,16 @@ struct HelpSlip: View {
                     Image(systemName: "chevron.up.chevron.down")
                         .accessibilityHidden(true)
                 }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Paper.ink)
-                .frame(minHeight: 44)
-                .contentShape(.rect)
             }
-            .accessibilityLabel("Choose a how to play topic")
-            .accessibilityValue("\(selectedTopic.title), \(selectedTopic.pageNumber) of \(HowToPlayTopic.allCases.count)")
-            .accessibilityIdentifier("guide-topic-picker")
-
-            HStack(spacing: 12) {
-                GuideNavigationButton(title: "Previous", symbol: "chevron.left",
-                                      enabled: selectedTopic.previous != nil) {
-                    select(selectedTopic.previous)
-                }
-                GuideNavigationButton(title: "Next", symbol: "chevron.right",
-                                      enabled: selectedTopic.next != nil, symbolAfter: true) {
-                    select(selectedTopic.next)
-                }
-            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Paper.ink)
+            .frame(maxWidth: .infinity, minHeight: compact ? 52 : 44)
+            .contentShape(.rect)
         }
+        .buttonStyle(PressedPaperStyle())
+        .accessibilityLabel("Choose a how to play topic")
+        .accessibilityValue("\(selectedTopic.title), \(selectedTopic.pageNumber) of \(HowToPlayTopic.allCases.count)")
+        .accessibilityIdentifier("guide-topic-picker")
     }
 
     private func select(_ topic: HowToPlayTopic?) {
@@ -118,7 +160,7 @@ enum HowToPlayTopic: String, CaseIterable, Identifiable {
         case .cashOut: "Once you win, choose between moving on and earning more coins."
         case .shop: "Spend the coins you earn on a plan for the next Puzzle."
         case .markers: "A Marker belongs to a position on the board, not to a particular number."
-        case .bosses: "Each Level has two Puzzles and a Boss. Read the route before you play."
+        case .bosses: "Each Chapter has two Puzzles and a Boss. Read the route before you play."
         case .finishing: "Every Book is its own challenge, with its own Obstacle progress."
         }
     }
@@ -140,13 +182,13 @@ enum HowToPlayTopic: String, CaseIterable, Identifiable {
         switch self {
         case .place:
             [
-                .init(1, "Pick from Numbers Drawn", "Tap a number in your Hand. Matching numbers on the board light up to help you look."),
-                .init(2, "Tap an empty square", "Use the row, column and 3×3 box to work out where it belongs. The game checks the Puzzle's solution."),
-                .init(3, "Keep playing, then End Turn", "Place more of your Hand when you can. End Turn banks your queued points and draws replacement numbers. Correctly playing your last Hand card ends the turn automatically.")
+                .init(1, "Pick from your Hand", "Tap a number card below the board. Matching numbers on the board light up to help you look."),
+                .init(2, "Tap an empty square", "Read the row, column and 3×3 box, then tap where the number belongs. For a Clue, tap the lightbulb control, choose a number from your Hand, then tap its revealed square. Revealing a new destination spends a Clue; its placement normally scores zero."),
+                .init(3, "Keep playing, then End Turn", "Place more of your Hand when you can. The live score updates as you play. End Turn banks it and draws replacement numbers. Correctly playing your last Hand card ends the turn automatically.")
             ]
         case .pool:
             [
-                .init(1, "Look at what you have", "Numbers Drawn is your Hand. A selected number stays highlighted until you play it or change your selection."),
+                .init(1, "Look at what you have", "The number cards below the board are your Hand. A selected number stays highlighted until you play it or change your selection."),
                 .init(2, "Think about what remains", "The Pool holds the undrawn numbers. There are nine copies of each number in a finished grid: subtract the copies on the board and in your Hand."),
                 .init(3, "Hold on to a useful number", "End Turn keeps unplayed numbers and refills the empty spaces in your Hand. You do not have to throw away a good number.")
             ]
@@ -158,9 +200,9 @@ enum HowToPlayTopic: String, CaseIterable, Identifiable {
             ]
         case .scoring:
             [
-                .init(1, "Check score and target", "The large score is banked. The queued amount is still waiting for End Turn. Meet the target by the end of your last available turn."),
-                .init(2, "Plan a clear", "Complete a row, column or 3×3 box for a bigger payout. Bookmarks, Markers and Buffs can change the points and multipliers."),
-                .init(3, "Avoid guesses", "Before item and Boss effects, a correct placement starts at 10 × the number; a wrong placement costs 50 × the number and returns it to the Pool.")
+                .init(1, "Check score and target", "Your live Turn score shows Points × Mult, plus direct bonuses. End Turn banks that total. Complete rows, columns and boxes for more Points. Tap the score to inspect each step."),
+                .init(2, "Arrange your Bookmarks", "Bookmarks resolve from left to right. +Mult before ×Mult can score more. Your first correct placement locks this Turn's order; later rearrangements affect the next Turn."),
+                .init(3, "Avoid guesses", "A correct placement starts at 10 × the number. A wrong placement takes 50 × the number from this Turn's Points first, then banked score, and returns the number to the Pool.")
             ]
         case .cashOut:
             [
@@ -176,15 +218,15 @@ enum HowToPlayTopic: String, CaseIterable, Identifiable {
             ]
         case .markers:
             [
-                .init(1, "Choose the effect", "Read a Marker's Shop card. In this example, Sapphire draws a number from the Pool when you correctly place on its square; Crimson multiplies that placement."),
+                .init(1, "Choose the effect", "Read a Marker's Shop card. Sapphire draws a number after a correct fill. Echo draws another copy of the digit placed there, if one remains in the Pool; it can draw up to 3 copies per Puzzle."),
                 .init(2, "Choose a position", "Tap a square on the blank placement grid. An occupied position removes the other Marker, so choose an unused square to keep both. The next Puzzle supplies the numbers."),
-                .init(3, "Use it through the Book", "The marked position carries into later Puzzles. A Given there does not trigger it. Owned Markers gain another square as you complete Levels, up to nine each.")
+                .init(3, "Use it through the Book", "The marked position carries into later Puzzles. A Given there does not trigger it. Owned Markers gain another square as you complete Chapters, up to nine each.")
             ]
         case .bosses:
             [
-                .init(1, "Read Next Puzzle", "The highlighted card is the Puzzle you can play now. Its neighbours show what comes next in this Level."),
+                .init(1, "Read Next Puzzle", "The highlighted card is the Puzzle you can play now. Its neighbours show what comes next in this Chapter."),
                 .init(2, "Check the Boss power", "Every third Puzzle is a Boss. Its name and power are shown before play. That rule can affect scoring, turns, your Hand or the board."),
-                .init(3, "Choose your route", "When offered, a Clipping can skip an ordinary Puzzle for its printed reward. Bosses must be played. The Book's major final Boss appears only at the very last Puzzle.")
+                .init(3, "Choose your route", "Skip any ordinary Puzzle to collect the Buff shown on its ticket. If your Buff slots are full, choose one to replace or cancel. Bosses must be played. The Book's major final Boss appears only at the very last Puzzle.")
             ]
         case .finishing:
             [
@@ -203,7 +245,7 @@ enum HowToPlayTopic: String, CaseIterable, Identifiable {
         case .scoring: "One well-planned placement can complete a row and a box together."
         case .cashOut: "No empty squares, or no turns left? There is nothing more to fill; take your result."
         case .shop: "A cheap item that fits your plan can be better than a rare one that does not."
-        case .markers: "A coloured mark shows an effect's position. It is not a clue to the correct number."
+        case .markers: "Hold a visible marked square to read its effect; release to dismiss. Inspection never places your selected number. With VoiceOver, use the square's Inspect marker action, then Dismiss."
         case .bosses: "A Boss power and a Book's selected Obstacle are different rules; both can be active."
         case .finishing: "To practise without risking a Book, replay the Tutorial from Settings."
         }
@@ -222,7 +264,7 @@ struct GuideInstruction: Identifiable {
     }
 }
 
-/// Coordinates refer to the original 1284×2778 capture, never a resized phone
+/// Coordinates refer to the original 750×1334 native captures, never a resized phone
 /// thumbnail. Cropping in the view preserves legible pixels and excludes HUD
 /// controls unrelated to the explanation.
 enum GuideFigure: String, CaseIterable, Identifiable {
@@ -233,48 +275,59 @@ enum GuideFigure: String, CaseIterable, Identifiable {
         switch self {
         case .board, .hand, .turnControls, .score: "GuideGameplay"
         case .route: "GuideRoute"
-        case .shop, .markerOffers, .buffOffer: "GuideShop"
+        case .shop: "GuideShop"
+        case .markerOffers, .buffOffer: "GuideShopItems"
         }
     }
+
+    var captureSize: CGSize { CGSize(width: 750, height: 1334) }
 
     var crop: CGRect {
-        switch self {
-        case .board: CGRect(x: 0.08, y: 0.28, width: 0.83, height: 0.38)
-        case .hand: CGRect(x: 0.075, y: 0.72, width: 0.84, height: 0.083)
-        case .turnControls: CGRect(x: 0.075, y: 0.72, width: 0.84, height: 0.165)
-        case .score: CGRect(x: 0.075, y: 0.19, width: 0.84, height: 0.085)
-        case .route: CGRect(x: 0.075, y: 0.188, width: 0.84, height: 0.18)
-        case .shop: CGRect(x: 0.075, y: 0.292, width: 0.84, height: 0.19)
-        case .markerOffers: CGRect(x: 0.075, y: 0.485, width: 0.84, height: 0.188)
-        case .buffOffer: CGRect(x: 0.075, y: 0.679, width: 0.84, height: 0.163)
+        // Native SE captures, refreshed with the current catalogue and live
+        // score HUD. Crop only; never redraw or simulate the game artwork.
+        let pixels: CGRect = switch self {
+        case .board: CGRect(x: 72, y: 396, width: 606, height: 612)
+        case .hand: CGRect(x: 16, y: 1080, width: 718, height: 108)
+        case .turnControls: CGRect(x: 16, y: 1080, width: 718, height: 250)
+        case .score: CGRect(x: 20, y: 275, width: 340, height: 110)
+        case .route: CGRect(x: 16, y: 352, width: 718, height: 974)
+        case .shop: CGRect(x: 20, y: 346, width: 714, height: 282)
+        case .markerOffers: CGRect(x: 20, y: 632, width: 714, height: 282)
+        case .buffOffer: CGRect(x: 20, y: 922, width: 714, height: 274)
         }
+        return CGRect(x: pixels.minX / captureSize.width,
+                      y: pixels.minY / captureSize.height,
+                      width: pixels.width / captureSize.width,
+                      height: pixels.height / captureSize.height)
     }
 
-    var aspectRatio: CGFloat { crop.width * 1284 / (crop.height * 2778) }
+    var aspectRatio: CGFloat {
+        crop.width * captureSize.width / (crop.height * captureSize.height)
+    }
 
     var caption: String {
         switch self {
         case .board: "The board: read the row, column and box together."
-        case .hand: "Numbers Drawn: tap one card to select it."
+        case .hand: "Your Hand: tap one number card to select it."
         case .turnControls: "Select a card for Toss. Use End Turn to bank and refill."
-        case .score: "Here, 290 points are banked toward a target of 1,000."
-        case .route: "Your route: two ordinary Puzzles, then the Boss."
+        case .score: "The live calculation shows 40 × 1 = +40 for this Turn, toward a target of 1,000."
+        case .route: "Two ordinary Puzzles, then the Boss. This ordinary Puzzle offers Careful Cut if you skip."
         case .shop: "Bookmark offers print their effect and coin price."
         case .markerOffers: "Marker cards explain what their squares will do."
-        case .buffOffer: "In the Shop, tap Details to read a Buff's complete effect."
+        case .buffOffer: "Tap a Buff offer to read its effect. This Inventory Count has already been bought and is stamped Sold."
         }
     }
 
     var accessibilityDescription: String {
         switch self {
         case .board: "Actual game board with nine rows, nine columns and bold borders around the 3 by 3 boxes. Some squares are filled, and others are empty."
-        case .hand: "Actual Hand of number cards under Numbers Drawn: 5, 8, 2, 8, 8, 1, and 6."
-        case .turnControls: "Actual Hand, Toss button, End Turn button and turn counter."
-        case .score: "Actual score area showing banked score against the target and a progress bar."
-        case .route: "Actual Next Puzzle route with Puzzle 1, Puzzle 2 and a dark Boss card with its power."
-        case .shop: "Actual Bookmark offers in the Shop: Front Page Splash for 6 coins and Op-Ed Column for 5 coins."
-        case .markerOffers: "Actual coloured Marker offers and their effect descriptions in the Shop."
-        case .buffOffer: "Actual Paper Crane Buff offer for 3 coins, with a Details link."
+        case .hand: "Actual Hand of number cards below the board: 8, 2, 3, 7, 9, and 9."
+        case .turnControls: "Actual Hand, Toss with 4 left, End Turn, and Turn 1 of 10."
+        case .score: "Actual score area showing 0 of 1,000 banked, with a live gain of 40 from 40 times 1."
+        case .route: "Actual route with Easy, Easy but hard, and Boss The Mirror, which removes Line Clear bonuses. Careful Cut is offered for skipping; it returns up to 3 selected cards without spending Tosses and draws no replacements."
+        case .shop: "Actual Bookmark offers: Local Gossip for 5 coins adds 30 flat points per correct placement; Auction Notices for 8 coins makes the first reroll in each Shop free."
+        case .markerOffers: "Actual Sapphire Marker for 7 coins draws one number after a correct fill; Echo Marker for 7 coins draws another copy of the digit placed here, if available."
+        case .buffOffer: "Actual Inventory Count Buff for 3 coins, stamped Sold. It reveals the remaining Pool counts of digits 1 through 9 for this Turn."
         }
     }
 }
@@ -434,18 +487,25 @@ private struct GuideNavigationButton: View {
     let symbol: String
     let enabled: Bool
     var symbolAfter = false
+    var compact = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                if !symbolAfter { Image(systemName: symbol).accessibilityHidden(true) }
-                Text(title)
-                if symbolAfter { Image(systemName: symbol).accessibilityHidden(true) }
+                if compact {
+                    Image(systemName: symbol)
+                        .font(.system(size: 28, weight: .semibold))
+                        .accessibilityHidden(true)
+                } else {
+                    if !symbolAfter { Image(systemName: symbol).accessibilityHidden(true) }
+                    Text(title)
+                    if symbolAfter { Image(systemName: symbol).accessibilityHidden(true) }
+                }
             }
             .font(.body.weight(.semibold))
             .foregroundStyle(enabled ? Paper.ink : Paper.inkSoft)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: compact ? 52 : 44)
             .padding(.horizontal, 8)
             .background(enabled ? Paper.pageWarm : Paper.page, in: .rect(cornerRadius: 5))
             .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(Paper.rule, lineWidth: 1) }
@@ -469,35 +529,23 @@ private struct GuideFilm: Identifiable {
 }
 
 private struct GuideTurnMovie: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.paperPanelDismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var player: AVPlayer?
     let film: GuideFilm
 
     var body: some View {
-        NavigationStack {
+        PaperSlip(title: "Watch a turn", subtitle: nil,
+                  maximumWidth: 600, maximumHeight: 800, onClose: close) {
             VStack(spacing: 12) {
                 VideoPlayer(player: player)
                     .accessibilityLabel("Game recording: select a number, place it, and bank the turn")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                Text("Tap a Hand card, tap its correct blank, then use End Turn to bank the queued points. You can pause or replay using the video controls.")
-                    .font(.body)
+                    .aspectRatio(750.0 / 1334.0, contentMode: .fit)
+                    .frame(maxHeight: 480)
+                Text("Placing 1 earns 10 Points plus 30 from Local Gossip. End Turn adds Morning Edition's first-turn bonus of 100 and banks 140 Points, then refills the Hand. This recording plays at 3× speed; pause or replay with the video controls.")
+                    .font(Print.body(14))
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundStyle(Paper.ink)
-                    .padding(.horizontal)
-                    .padding(.bottom, 12)
-            }
-            .background(Paper.page)
-            .navigationTitle("Watch a turn")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Paper.page, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.light, for: .navigationBar)
-            .tint(Paper.ink)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", action: close)
-                }
             }
         }
         .task {

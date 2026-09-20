@@ -76,8 +76,8 @@ final class ShopAndItemRegressionTests: XCTestCase {
         game = try Game(decoding: game.encoded())
 
         for slot in PuzzleSlot.allCases {
-            game.run.slot = slot
-            try game.startPuzzle()
+            XCTAssertEqual(game.run.slot, slot)
+            if game.puzzle == nil { try game.startPuzzle() }
             game.run.puzzle?.boss = nil
             let square = try XCTUnwrap(game.setUpRowClear(row: game.emptiestRow))
             let digit = try XCTUnwrap(game.puzzle?.board.correctDigit(at: square))
@@ -85,6 +85,7 @@ final class ShopAndItemRegressionTests: XCTestCase {
             let outcome = try game.place(handIndex: XCTUnwrap(game.stackHand(with: digit)), at: square)
             XCTAssertGreaterThan(outcome.lineClears.count, 0)
             XCTAssertEqual(game.run.coins - before, outcome.lineClears.count, "Consumed Bird Seed remains active in \(slot)")
+            if slot != .boss { try finishAndAdvance(&game) }
         }
     }
 
@@ -94,7 +95,11 @@ final class ShopAndItemRegressionTests: XCTestCase {
         game.give(buff: Buffs.birdSeed)
         XCTAssertTrue(try game.useBuff(at: 0))
         game.give(buff: Buffs.birdSeed)
-        game.run.level = 2
+        for _ in PuzzleSlot.allCases {
+            try finishAndAdvance(&game)
+            if game.run.level == 1 { try game.startPuzzle() }
+        }
+        XCTAssertEqual(game.run.level, 2)
         try game.startPuzzle()
         let square = try XCTUnwrap(game.setUpRowClear(row: game.emptiestRow))
         let digit = try XCTUnwrap(game.puzzle?.board.correctDigit(at: square))
@@ -103,6 +108,15 @@ final class ShopAndItemRegressionTests: XCTestCase {
         XCTAssertGreaterThan(outcome.lineClears.count, 0)
         XCTAssertEqual(game.run.coins, before, "An old Level's activation must not pay from a held copy")
         XCTAssertEqual(game.run.buffs.count, 1)
+    }
+
+    private func finishAndAdvance(_ game: inout Game) throws {
+        game.run.puzzle!.score = game.run.puzzle!.target
+        game.run.puzzle!.phase = .won
+        _ = try game.cashOut()
+        game.openShop()
+        XCTAssertNotNil(game.shop)
+        XCTAssertTrue(game.advance())
     }
 
     func testBuffsCannotBeSpentAfterThePuzzleStopsBeingPlayable() throws {
@@ -144,6 +158,9 @@ final class ShopAndItemRegressionTests: XCTestCase {
         let square = try XCTUnwrap(game.setUpRowClear(row: game.emptiestRow))
         game.run.puzzle?.pendingBase = 0
         game.run.puzzle?.pendingMult = 1
+        // The synthetic board setup is outside the batch under test.
+        game.run.puzzle?.turnScoringState = nil
+        game.run.puzzle?.turnScoringOperations = []
         game.give(ad: "bm_extra_extra")
         let digit = try XCTUnwrap(game.puzzle?.board.correctDigit(at: square))
         let outcome = try game.place(handIndex: XCTUnwrap(game.stackHand(with: digit)), at: square)
@@ -162,6 +179,9 @@ final class ShopAndItemRegressionTests: XCTestCase {
         let closingSquare = try XCTUnwrap(game.setUpRowClear(row: game.emptiestRow))
         game.run.puzzle?.pendingBase = 0
         game.run.puzzle?.pendingMult = 1
+        // The synthetic board setup is outside the batch under test.
+        game.run.puzzle?.turnScoringState = nil
+        game.run.puzzle?.turnScoringOperations = []
         game.give(ad: "bm_extra_extra")
         game.give(ad: "bm_op_ed")
         game.give(ad: "bm_stop_the_presses")
@@ -185,11 +205,12 @@ final class ShopAndItemRegressionTests: XCTestCase {
         XCTAssertEqual(clear.lineClearPoints, Array(repeating: 135, count: clear.lineClears.count))
         game = try Game(decoding: game.encoded())
         let after = try placeWithoutClear(&game)
+        // The third eligible placement removes Stop's ×3; Op-Ed remains +1.
         let expectedBase = before + closingDigit.rawValue * 10 + clear.lineClears.count * 135 + after
         XCTAssertEqual(game.puzzle?.pendingBase, expectedBase)
-        XCTAssertEqual(game.puzzle?.pendingMultiplier, 6)
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 2)
         _ = try game.endTurn()
-        XCTAssertEqual(game.puzzle?.score, expectedBase * 6)
+        XCTAssertEqual(game.puzzle?.score, expectedBase * 2)
     }
 
     func testBirdSeedDoesNotMultiplyWithUnspentCopiesOrRepeatActivation() throws {
@@ -215,7 +236,7 @@ final class ShopAndItemRegressionTests: XCTestCase {
             try game.startPuzzle()
             game.give(buff: id)
             game.give(buff: id)
-            XCTAssertTrue(try game.useBuff(at: 0), id)
+            XCTAssertTrue(try game.useBuff(at: 0, digit: id == Buffs.litmus ? .five : nil), id)
             let before = try game.encoded()
             XCTAssertFalse(try game.useBuff(at: 0), id)
             XCTAssertEqual(try game.encoded(), before, id)
@@ -246,6 +267,9 @@ final class ShopAndItemRegressionTests: XCTestCase {
         game.run.puzzle?.score = 0
         game.run.puzzle?.pendingBase = 0
         game.run.puzzle?.pendingMult = 1
+        // The synthetic board setup is outside the batch under test.
+        game.run.puzzle?.turnScoringState = nil
+        game.run.puzzle?.turnScoringOperations = []
         game.give(ad: "bm_extra_extra")
         game.give(ad: "bm_society_pages")
         game.give(ad: "bm_op_ed")
@@ -314,8 +338,8 @@ final class ShopAndItemRegressionTests: XCTestCase {
     }
 
     func testKeepFillingKeepsScoreOnlyBuffsButAllowsUsefulResources() throws {
-        let scoreOnly: Set<String> = ["bf_double_down", "bf_insurance", "bf_second_print",
-                                      Buffs.freshInk, Buffs.paperCrane]
+        let usefulAfterWin: Set<String> = [Buffs.peek, Buffs.redraw, Buffs.overtime,
+                                          Buffs.luckyDip, Buffs.birdSeed]
         for def in Buffs.all {
             var game = Game(seed: "keep-filling-buff-effect")
             try game.startPuzzle()
@@ -326,8 +350,8 @@ final class ShopAndItemRegressionTests: XCTestCase {
             game.give(buff: def.id)
             let before = try game.encoded()
             let used = try game.useBuff(at: 0, digit: .five)
-            XCTAssertEqual(used, !scoreOnly.contains(def.id), def.id)
-            if scoreOnly.contains(def.id) {
+            XCTAssertEqual(used, usefulAfterWin.contains(def.id), def.id)
+            if !usefulAfterWin.contains(def.id) {
                 XCTAssertEqual(try game.encoded(), before, "\(def.id) cannot change the frozen score")
             } else {
                 XCTAssertTrue(game.run.buffs.isEmpty, "\(def.id) can still help earn coins from clears")

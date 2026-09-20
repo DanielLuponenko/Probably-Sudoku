@@ -173,6 +173,10 @@ final class FinalBookRoutingTests: XCTestCase {
         var run = RunState(seed: "final-results-\(level)-\(slot.rawValue)")
         run.level = level
         run.slot = slot
+        // This fixture tests payout routing for a score-qualified win. Keep
+        // its encounter explicit as the random catalogue gains bosses with
+        // additional qualifications such as Review Board.
+        run.pendingBoss = level == 9 ? .heavyLifter : .editor
         var game = Game(run: run)
         try game.startPuzzle()
         game.qaMeetTarget()

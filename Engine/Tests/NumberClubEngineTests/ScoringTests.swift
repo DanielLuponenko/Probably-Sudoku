@@ -157,11 +157,10 @@ final class ScoringTests: XCTestCase {
 
         let square = game.blank(wanting: .five)!
         _ = try game.place(handIndex: game.stackHand(with: .five)!, at: square)
-        // Held items collect as x6; Fresh Ink adds +2 and Sashimi halves the
-        // completed Turn, making the displayed and banked multiplier x4.
-        XCTAssertEqual(game.puzzle?.pendingMultiplier, 4)
+        // Version 2: Ink seeds Mult before ordered Bookmarks. (1+2+1)*3/2 = 6.
+        XCTAssertEqual(game.puzzle?.pendingMultiplier, 6)
         _ = try game.endTurn()
-        XCTAssertEqual(game.puzzle?.score, 50 * 4)
+        XCTAssertEqual(game.puzzle?.score, 50 * 6)
     }
 
     func testWrongPlacementDrainsQueuedWorkBeforeBankedScore() throws {

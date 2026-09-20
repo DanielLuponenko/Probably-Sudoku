@@ -140,21 +140,16 @@ final class FailurePageRenderingTests: XCTestCase {
         assertContains(text, "Out of turns", "Watch ad", "End book")
     }
 
-    func testAccessibilityFiveCanScrollToEndBookInsideTheRealBookContainer() async throws {
+    func testAccessibilityFivePinsDecisionsWhileRealBoardScrollsInRunPageSurface() async throws {
         var game = Game(seed: "failure-page-accessible-scroll")
         try game.startPuzzle()
         while game.puzzle?.phase == .playing { _ = try game.endTurn() }
         let model = GameModel(frozen: game, page: .results)
         let flipper = PageFlipper()
         let viewport = CGSize(width: 375, height: 812)
-        let content = VStack(spacing: 0) {
-            Color.clear.frame(height: 86) // Space occupied by the HUD/bookmark band.
-            BookView(flipper: flipper) {
-                FailureResultsPage(model: model, offersRescue: true, onAbandon: {})
-            }
-                .padding(.leading, 8).padding(.trailing, 10)
+        let content = RunPageSurface(model: model, flipper: flipper, controls: [], onTapBuff: { _ in }) {
+            FailureResultsPage(model: model, offersRescue: true, onAbandon: {})
         }
-        .padding(.bottom, 8)
         .frame(width: viewport.width, height: viewport.height)
         .environment(flipper)
         .environment(\.cosmeticTheme, .standard).environment(\.colorScheme, .light)
@@ -182,11 +177,21 @@ final class FailurePageRenderingTests: XCTestCase {
         }
         let scroll = try XCTUnwrap(scrollViews(in: controller.view).first)
         XCTAssertGreaterThan(scroll.bounds.height, 100)
-        XCTAssertLessThanOrEqual(scroll.bounds.height, viewport.height - 86 - 8 - 26 - 18)
+        XCTAssertLessThanOrEqual(scroll.bounds.height, viewport.height - 200, "The action band remains outside the article scroll region.")
         XCTAssertGreaterThan(scroll.contentSize.height, scroll.bounds.height + 300)
         let visibleFrame = scroll.convert(scroll.bounds, to: window)
-        XCTAssertGreaterThanOrEqual(visibleFrame.minY, 86)
-        XCTAssertLessThanOrEqual(visibleFrame.maxY, viewport.height - 8)
+        XCTAssertGreaterThanOrEqual(visibleFrame.minY, 90)
+        XCTAssertLessThanOrEqual(visibleFrame.maxY, viewport.height - 100)
+        let before = UIGraphicsImageRenderer(size: viewport).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        #if NUMBERCLUB_AD_FREE
+        let decisionTitle = "New book"
+        #else
+        let decisionTitle = "End book"
+        #endif
+        assertContains(try recognizedText(in: before), decisionTitle)
+        let initialDecisionBounds = try XCTUnwrap(recognizedBounds(of: decisionTitle, in: before))
         let bottom = scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom
         scroll.setContentOffset(CGPoint(x: 0, y: bottom), animated: false)
         window.layoutIfNeeded()
@@ -195,14 +200,17 @@ final class FailurePageRenderingTests: XCTestCase {
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
         let attachment = XCTAttachment(image: image)
-        attachment.name = "failure-accessibility5-real-book-scrolled-to-bottom"
+        attachment.name = "failure-accessibility5-fullscreen-board-with-pinned-decisions"
         attachment.lifetime = .keepAlways
         add(attachment)
-        #if NUMBERCLUB_AD_FREE
-        assertContains(try recognizedText(in: image), "New book")
-        #else
-        assertContains(try recognizedText(in: image), "End book", "Finish this attempt without an ad")
-        #endif
+        assertContains(try recognizedText(in: image), decisionTitle, "Your board, as played")
+        let finalDecisionBounds = try XCTUnwrap(recognizedBounds(of: decisionTitle, in: image))
+        XCTAssertEqual(finalDecisionBounds.minY, initialDecisionBounds.minY, accuracy: 2,
+                       "Scrolling the preserved board cannot move either decision.")
+        XCTAssertGreaterThan(finalDecisionBounds.minY, visibleFrame.maxY)
+        XCTAssertLessThanOrEqual(finalDecisionBounds.maxY, viewport.height)
+        XCTAssertEqual(model.puzzle?.board.placed, game.puzzle?.board.placed)
+        XCTAssertEqual(model.puzzle?.board.filledBy, game.puzzle?.board.filledBy)
     }
 
     private func page(score: Int = 720, target: Int = 1_000,
@@ -250,6 +258,20 @@ final class FailurePageRenderingTests: XCTestCase {
         return normalize((request.results ?? []).compactMap {
             $0.topCandidates(1).first?.string
         }.joined(separator: " "))
+    }
+
+    private func recognizedBounds(of phrase: String, in image: UIImage) throws -> CGRect? {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+        guard let result = request.results?.first(where: {
+            $0.topCandidates(1).first.map { normalize($0.string).contains(normalize(phrase)) } == true
+        }) else { return nil }
+        let rect = result.boundingBox
+        return CGRect(x: rect.minX * image.size.width, y: (1 - rect.maxY) * image.size.height,
+                      width: rect.width * image.size.width, height: rect.height * image.size.height)
     }
 
     private func assertContains(_ renderedText: String, _ phrases: String...,

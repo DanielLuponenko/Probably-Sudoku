@@ -3,10 +3,11 @@ import ProbablySudokuEngine
 
 struct BookstoreOpeningView: View {
     var onOpenBook: (BookEdition, Obstacle) -> Void
+    var onContinueBook: () -> Void
     var onFirstFrame: (() -> Void)?
     var isSceneVisible: Bool
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(PlayerProfileStore.self) private var profile
     @AppStorage(AppPreferences.Key.haptics) private var haptics = true
@@ -25,6 +26,7 @@ struct BookstoreOpeningView: View {
     @State private var focusedEditionID: String?
     @State private var obstacle: Obstacle = .none
     @State private var obstacleInfo: Obstacle?
+    @State private var savedBook: SavedBookSummary?
     @State private var shopCategory: CosmeticCategory
     @State private var shopItemIDs: [CosmeticCategory: String]
     @State private var shopSelectionFeedback = 0
@@ -81,8 +83,11 @@ struct BookstoreOpeningView: View {
     }
 
     init(onOpenBook: @escaping (BookEdition, Obstacle) -> Void,
-         onFirstFrame: (() -> Void)? = nil, isSceneVisible: Bool = true) {
+         onContinueBook: @escaping () -> Void = {},
+         onFirstFrame: (() -> Void)? = nil, isSceneVisible: Bool = true,
+         completedBookSelection: CompletedBookSelection? = nil) {
         self.onOpenBook = onOpenBook
+        self.onContinueBook = onContinueBook
         self.onFirstFrame = onFirstFrame
         self.isSceneVisible = isSceneVisible
         // Approved, fixed Club Shop framing. These are source defaults rather
@@ -108,12 +113,18 @@ struct BookstoreOpeningView: View {
         #endif
         _shopCategory = State(initialValue: initialCategory)
         _shopItemIDs = State(initialValue: initialSelections)
-        switch BookstoreDebugDestination.current {
-        case .normal: _phase = State(initialValue: .store)
-        case .halfwayToStand: _phase = State(initialValue: .transitioningToStand)
-        case .stand: _phase = State(initialValue: .choosingBook)
-        case .halfwayToShop: _phase = State(initialValue: .transitioningToShop)
-        case .shop: _phase = State(initialValue: .shopping)
+        if let completedBookSelection {
+            _selectedIndex = State(initialValue: BookEdition.shelf.firstIndex(of: completedBookSelection.edition) ?? 0)
+            _obstacle = State(initialValue: completedBookSelection.obstacle)
+            _phase = State(initialValue: .choosingBook)
+        } else {
+            switch BookstoreDebugDestination.current {
+            case .normal: _phase = State(initialValue: .store)
+            case .halfwayToStand: _phase = State(initialValue: .transitioningToStand)
+            case .stand: _phase = State(initialValue: .choosingBook)
+            case .halfwayToShop: _phase = State(initialValue: .transitioningToShop)
+            case .shop: _phase = State(initialValue: .shopping)
+            }
         }
     }
 
@@ -246,7 +257,9 @@ struct BookstoreOpeningView: View {
                 ObstacleInfoPopup(obstacle: obstacleInfo,
                                   isLocked: ObstacleInfoPopup.lockedState(
                                       obstacle: obstacleInfo, unlockedThrough: unlockedObstacleRawValue)) {
-                    withAnimation(.snappy(duration: 0.2)) { self.obstacleInfo = nil }
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.08) : .snappy(duration: 0.2)) {
+                        self.obstacleInfo = nil
+                    }
                 }
                 .zIndex(30)
             }
@@ -263,6 +276,12 @@ struct BookstoreOpeningView: View {
         .background(Color(red: 0.035, green: 0.031, blue: 0.027))
         .preferredColorScheme(.dark)
         .statusBarHidden()
+        .onReceive(NotificationCenter.default.publisher(for: CloudSync.didReceiveExternalChange)) { _ in
+            refreshSavedBook()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active { refreshSavedBook() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)) { _ in
             let updated = ProcessInfo.processInfo.isLowPowerModeEnabled
             if lowPower != updated { lowPower = updated }
@@ -273,6 +292,7 @@ struct BookstoreOpeningView: View {
         .sensoryFeedback(.success, trigger: shopPurchaseFeedback)
         .sensoryFeedback(.warning, trigger: shopRefusalFeedback)
         .task {
+            refreshSavedBook()
             #if DEBUG && targetEnvironment(simulator)
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-menuSettings") {
@@ -296,6 +316,7 @@ struct BookstoreOpeningView: View {
 
     private var homeControls: some View {
         GeometryReader { proxy in
+          ScrollView {
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
@@ -306,7 +327,7 @@ struct BookstoreOpeningView: View {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(BookstoreInk.paper)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 44, height: 44)
                             .background(Circle().fill(.black.opacity(0.64)))
                             .overlay(Circle().stroke(BookstoreInk.brass.opacity(0.75), lineWidth: 1))
                             .shadow(color: .black.opacity(0.5), radius: 7, y: 4)
@@ -323,32 +344,24 @@ struct BookstoreOpeningView: View {
 
                 Spacer()
 
-                VStack(spacing: 18) {
-                    Button(action: walkToStand) {
-                        VStack(spacing: 4) {
-                            Label("PLAY", systemImage: "play.fill")
-                                .font(Print.subheading(22))
-                                .tracking(2)
-                            Text("Walk over to the book stand")
-                                .font(Print.handwritten(13))
-                                .foregroundStyle(BookstoreInk.paper.opacity(0.88))
-                        }
-                        .foregroundStyle(BookstoreInk.paper)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: proxy.size.width * 0.60, height: 73)
-                    .background(BookstoreInk.green)
-                    .clipShape(Rectangle())
-                    .overlay(Rectangle().stroke(BookstoreInk.brass.opacity(0.85), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.7), radius: 17, y: 10)
-                    .accessibilityHint("Move to the rotating book stand")
-
-                }
+                BookstoreHomeActions(saved: savedBook, onContinue: {
+                    Haptics.menuOpen()
+                    onContinueBook()
+                    refreshSavedBook()
+                }, onPlay: walkToStand)
                 .frame(maxWidth: .infinity)
+                .padding(.horizontal, 28)
+                .padding(.top, 20)
                 .padding(.bottom, 34)
             }
+            .frame(minHeight: proxy.size.height)
+          }
+          .scrollBounceBehavior(.basedOnSize)
         }
+    }
+
+    private func refreshSavedBook() {
+        savedBook = SavedBookSummary(game: RunStore.displayedRun())
     }
 
     private var selectionControls: some View {
@@ -398,7 +411,7 @@ struct BookstoreOpeningView: View {
                         Color.clear
                             .frame(width: proxy.size.width * 0.64, height: 72)
                             .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("Book benefit: \(selectedBook.benefit.title). \(selectedBook.benefit.detail)")
+                            .accessibilityLabel(BookstoreSignPresentation(edition: selectedBook, obstacle: obstacle).accessibilityLabel)
                             .accessibilityIdentifier("bookstore.benefitSign")
                             .accessibilityHidden(!isFocusedBookPresented || isReturningFocusedBook)
                             .accessibilitySortPriority(2)
@@ -411,9 +424,9 @@ struct BookstoreOpeningView: View {
                                 && !isFocusedBookPresented && !isReturningFocusedBook && !isOpeningBook,
                             onSelect: focusSelectedBook, onBrowse: browseShelf
                         )
-                        .frame(width: max(0, proxy.size.width - 32), height: 40)
+                        .frame(width: max(0, proxy.size.width - 32), height: 44)
                         .position(x: proxy.size.width * 0.5,
-                                  y: proxy.size.height - layout.openButtonBottomPadding - 20)
+                                  y: proxy.size.height - layout.openButtonBottomPadding - 22)
                     }
             }
 
@@ -652,12 +665,13 @@ struct BookstoreOpeningView: View {
               selectedBook.isUnlocked, !isOpeningBook else { return }
         isOpeningBook = true
         let book = selectedBook
+        let selectedObstacle = obstacle
         Haptics.menuOpen()
         // Let the pressed state commit before ContentView replaces the entire
         // bookstore. This also gives a visible response on slower devices.
         Task { @MainActor in
             await Task.yield()
-            onOpenBook(book, obstacle)
+            onOpenBook(book, selectedObstacle)
             try? await Task.sleep(for: .milliseconds(600))
             if phase == .choosingBook { isOpeningBook = false }
         }
@@ -665,7 +679,7 @@ struct BookstoreOpeningView: View {
 
 }
 
-private enum BookstoreInk {
+enum BookstoreInk {
     static let paper = Color(red: 0.94, green: 0.90, blue: 0.82)
     static let brass = Color(red: 0.74, green: 0.49, blue: 0.18)
     static let green = Color(red: 0.486, green: 0.549, blue: 0.451)
@@ -873,7 +887,7 @@ struct BookstoreShelfSelector: View {
                 .font(Print.caption(9.5))
                 .tracking(1.4)
                 .foregroundStyle(BookstoreInk.paper.opacity(0.62))
-                .frame(maxWidth: .infinity, minHeight: 40)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(BookstorePressedStyle())
@@ -906,7 +920,7 @@ struct BookstoreShelfSelector: View {
     }
 }
 
-private struct BookstorePressedStyle: ButtonStyle {
+struct BookstorePressedStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
@@ -918,7 +932,7 @@ private struct BookstorePressedStyle: ButtonStyle {
 /// depth is static; only an intentional press compresses the raised face.
 private struct RaisedBookOpenStyle: ButtonStyle {
     let fill: Color
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

@@ -1,0 +1,4259 @@
+{
+  "methodCount": 846,
+  "passed": 846,
+  "unresolvedFailures": {},
+  "runs": [
+    {
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "passed": 822,
+      "failedMethods": 16
+    },
+    {
+      "log": "/tmp/nc-boss-ios-focused-3.log",
+      "passed": 111,
+      "failedMethods": 1
+    },
+    {
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "passed": 156,
+      "failedMethods": 0
+    },
+    {
+      "log": "/tmp/nc-boss-ios-captures-4.log",
+      "passed": 3,
+      "failedMethods": 0
+    }
+  ],
+  "latestEvidence": {
+    "AchievementExpansionTests.testAheadOfScheduleAndLastTurnDoNotOverlap": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AchievementExpansionTests.testBossThresholdsAndDuplicateEncounterIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testCatalogAddsPerBookAwardsAndKeepsTheRegisteredNineteen": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testCorrectPlacementAwardsInkHappensAndWrongPlacementAwardsNothing": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.028
+    },
+    "AchievementExpansionTests.testDirectClueFullClearUsesThePhaseBeforeTheEngineFinishesKeepFilling": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.015
+    },
+    "AchievementExpansionTests.testDoubleClearUsesTwoDistinctUnitTypes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "AchievementExpansionTests.testDoubleTargetUsesExactRatioAndCannotOverflow": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testFullClearRetainsExistingAwardsAlongsideNewClearAwards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "AchievementExpansionTests.testHalfMillionAndOriginalScoreThresholdsAreInclusive": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testHardestObstacleAwardOnlyFiresForTheActualNinthObstacle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AchievementExpansionTests.testLegacySubscriptionKindAndOtherPurchasesDoNotAwardPaperwork": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testNoAwardsComeFromAnUnwonOrInvalidPuzzle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testNoOutsideHelpRequiresAllThreeConditions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testOldPaperworkAndNewAwardsSurviveDecodeAndRepeatedCloudMerge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "AchievementExpansionTests.testPaperworkDescribesAnAvailableCoinPurchaseWithoutChangingItsIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AchievementExpansionTests.testRealWinningEndTurnAndCashOutUseThePostBankingTurnCount": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.089
+    },
+    "AchievementExpansionTests.testResumedPuzzleKeepsProvableAwardsButDoesNotInventCleanHistory": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementExpansionTests.testSingleRowCompletionDoesNotAwardDoubleOrTripleClear": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "AchievementExpansionTests.testThreeBooksCountsDistinctKnownVolumesNotUnknownIDsOrRepeatObstacles": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AchievementRegistrationTests.testHistoricalBackfillOnlyMirrorsRegisteredLocalAwards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AchievementRegistrationTests.testNewLocalAwardsAreNeverEnqueuedOrSentBeforeAppleRegistration": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "AchievementRegistrationTests.testRegisteredAwardsStillDeliverWhenAnOlderQueueContainsUnregisteredIDs": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.015
+    },
+    "AdConfigurationTests.testBundleKeysResolveTheVerifiedProductionPairWithoutAnySDK": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.006
+    },
+    "AdConfigurationTests.testDisabledModeDiscardsInheritedIdentifiersRatherThanEnablingAnSDK": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AdConfigurationTests.testExplicitDisabledModeStaysDisabledOnEveryRuntimeWithoutGoogleIdentifiers": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AdConfigurationTests.testMissingAndUnexpandedBuildMetadataCannotEnableAnySDKActivity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AdConfigurationTests.testMixedAndUnknownIdentifiersFailClosedEvenInDebugAndSimulator": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AdConfigurationTests.testOnlyNonDebugPhysicalLiveModeSelectsTheProductionRewardedUnit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AdConfigurationTests.testRewardedHostIncludesValidatedGoogleMetadataAndNoTrackingPrompt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AdConfigurationTests.testRoutineTestModeAlwaysUsesTheCompleteGoogleDemoPair": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AppLinksTests.testSupportAndPrivacyUseTheSameAppSpecificHTTPSHost": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "AudioPreferencesTests.testFeedbackThrottleHasIndependentKeysAndRecoversFromClockReset": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "AudioPreferencesTests.testFreshDefaultsAndAllThreeIndependentVolumesPersist": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "AudioPreferencesTests.testLegacyMutedChannelsRemainMutedUntilTheirSliderChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "AudioPreferencesTests.testMalformedOrOutOfRangePersistedVolumesUseSafeBounds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "AudioPreferencesTests.testMixClampsInputsAndMultipliesMasterIntoBothChannels": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookBenefitPlaqueRenderingTests.testAccessibilityFiveRendersTheCompleteRuleWithoutAClippedFixedHeight": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.87
+    },
+    "BookBenefitPlaqueRenderingTests.testEveryBookPrintsItsConciseAbilityInTheCompactReferencePlaqueAtPhoneWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 41.304
+    },
+    "BookBenefitPlaqueRenderingTests.testPlaqueMatchesThePhysicalBookWidthAndKeepsFullRuleAccessibilityForAllBooks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionAchievementTests.testAllTwelveBooksHaveDistinctStableLocalAchievements": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionAchievementTests.testEveryBookAwardsOnlyItsOwnPermanentIdentityAcrossRepeatedObstaclesAndResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.027
+    },
+    "BookCompletionAchievementTests.testHistoricalIdentifiedWinsBackfillWithoutGuessingFromGenericAwards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionAchievementTests.testLocalProgressAndRepeatedCloudMergesKeepExactlyOneAwardForEachCompletedBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testClosingGapsAdvancesOnlyTheLegacyContiguousPrefix": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testCloudCompletionFactsMergeByBookIdentityAndMaximumNotByTotalCount": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testCompletingAllTwelveBooksOnOneUnlocksOnlyTwoForEachBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testEachBooksFirstWinSurvivesSaveAndCloudRoundTripsWithoutUnlockingAnotherBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.006
+    },
+    "BookCompletionProgressTests.testExplicitNewIdentitySetIsAuthoritativeRatherThanRemigratingLegacyCounter": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testFirstNewCompletionMaterializesLegacyIdentitiesAndRejectsLegacyReplay": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testHarderWinsAdvanceOnlyThatBookAndDuplicateOrEasierWinsCannotAdvanceAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testLegacyGlobalQAUnlockWithoutIdentifiedWinsDoesNotUnlockAnyBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testLegacyTwoBookJSONRetainsCompletedIdentitiesAndObstacleUnlock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testLocalAndLegacyCloudMigrationKeepOnlyIdentifiedCompletions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testNewProgressRoundTripKeepsOutOfOrderIdentitiesAndReplayProtection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testOutOfOrderTwelfthBookCountsOnceWithoutInventingTheFirstElevenCompletions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testReplayingACompletedBookDoesNotIncreaseCountOrUnlockAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookCompletionProgressTests.testUnknownFutureBookFactsSurviveRoundTripWithoutUnlockingCurrentBooks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookCompletionProgressTests.testWholeShelfRequiresAllTwelveBooksButDoesNotRevokeAlreadyEarnedLegacyAchievement": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookEditionCatalogTests.testAllTwelveEditionsAreWrittenUnlockedAndNotPlaceholderCovers": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookEditionCatalogTests.testEveryBookHasItsOwnBenefitAndPrintedBenefitDescription": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookEditionCatalogTests.testEveryEngineBookLooksUpItsExactEditionInsteadOfFallingBackToVolumeOne": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookEditionCatalogTests.testEveryNewEditionHasNonemptyMarginalia": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookEditionCatalogTests.testFirstFourPersistedBookAndEditionIdentitiesArePreserved": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "BookEditionCatalogTests.testPrintedCoverTitleAndVolumeMatchTheEditionCatalog": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookEditionCatalogTests.testShelfContainsTwelveDistinctPlayableRulesInVolumeOrder": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookEditionRenderTests.testAllTwelveLiveBookCoversRenderAtPhoneSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.346
+    },
+    "BookEditionRenderTests.testAuthoredTitleLinesAndFlourishesFitInsideThePrintedCoverRule": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "BookEditionRenderTests.testEnlargedTextDoesNotStretchPrintedCoverArtworkAcrossItsTitle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.811
+    },
+    "BookLivingSceneTests.testContactSheetShowsAllTwelveAuthoredWorldsAtRealSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.027
+    },
+    "BookLivingSceneTests.testEachSceneHasDiscernibleMotionAtActualCompactPhoneSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.23
+    },
+    "BookLivingSceneTests.testEveryBookHasAFullWidthCompositionNotAnEnlargedBenefitBadge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.11
+    },
+    "BookLivingSceneTests.testLivingArtworkFreezesExactlyAndResumesWithoutFastForward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.033
+    },
+    "BookLivingSceneTests.testLivingScenesDoNotLeakIntoNeighboringLabelsAtPhoneAndIPadSizes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.123
+    },
+    "BookLivingSceneTests.testNonFiniteRenderTimeReturnsTheSameSafeRestFrame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.031
+    },
+    "BookPresentationThemeTests.testAllBooksHaveDifferentArtworkAndChangeOnlyInTheMargins": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.399
+    },
+    "BookPresentationThemeTests.testAmbientMotionRequiresAllFourSafetyGates": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookPresentationThemeTests.testCachedPaletteLookupsPreserveAllAuthoredColorsAcrossBookChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookPresentationThemeTests.testEveryBookMeetsSmallLabelContrastOnTheActualWarmQuietSurface": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookPresentationThemeTests.testEveryBookUsesItsOwnCatalogColorAndMarginalMotif": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookPresentationThemeTests.testEveryPrimaryButtonMeetsNormalTextContrastWithoutLosingBookColor": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.01
+    },
+    "BookPresentationThemeTests.testGameplayActionSubtitlesKeepFullContrastWithoutInheritingBookOrPaperColors": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.487
+    },
+    "BookPresentationThemeTests.testMotionFrameIsDeterministicAndMarginBudgetDoesNotGrowOnIPad": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "BookPresentationThemeTests.testPageMarginaliaLeavesTheEntireReadingColumnClearWithoutDisappearing": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.356
+    },
+    "BookPresentationThemeTests.testRenderedSmallSubtitlesKeepFullContrastAcrossAllBooksAndLightAndDarkPaper": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.192
+    },
+    "BookProgressionMatrixTests.testEachBooksFinalReceiptSettlesOnceAndFeedsOnlyItsOwnProgressIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 20.07
+    },
+    "BookProgressionMatrixTests.testEveryBookAndObstacleResumesRewardWithInventoryScoringAndRestrictionsIntact": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.622
+    },
+    "BookProgressionMatrixTests.testEveryBooksWholeObstacleLadderSurvivesCloudMergeAndSelectionWithoutLeaking": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "BookScenePresentationTests.testAllTwelveBenefitIllustrationsHaveDifferentShapesNotJustDifferentColors": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.028
+    },
+    "BookScenePresentationTests.testBookstoreRenderPolicyThrottlesOnlySettledStore": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookScenePresentationTests.testBookstoreSceneryGatesDoNotHideInteractiveSceneWhenMotionIsDisabled": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookScenePresentationTests.testEveryBookHasVisibleInterludeInkAndItsOwnMovingPart": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.157
+    },
+    "BookScenePresentationTests.testInterludesStayInsideTheirDedicatedWhitespaceAtPhoneAndIPadWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.119
+    },
+    "BookScenePresentationTests.testPausedArtworkHasDeterministicAppearance": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "BookScenePresentationTests.testPostCompletionShelfControlsUseTheSelectedBookTheme": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "BookScenePresentationTests.testPostCompletionShelfIdleKeepsItsExactPhaseAcrossPauseAndResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookScenePresentationTests.testSelectionLabelUsesTheSharedPaperSurfaceAndFullBookRule": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.045
+    },
+    "BookScenePresentationTests.testStandSignRevealShaderRendersInkWithoutMagentaAndKeepsIdentityCached": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.422
+    },
+    "BookScenePresentationTests.testStationaryStandSignSwapsBookabilityWithoutDuplicatingOrMovingParent": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.418
+    },
+    "BookScenePresentationTests.testThermalPressureCapsEveryScenePhaseAndRecoversWithoutChangingNormalCadence": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookScenePresentationTests.testTitleSceneTexturesUseLogicalPixelBudgets": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.415
+    },
+    "BookTransitionPlaybackTests.testActualPageWithdrawalPreservesImageAspectRatioAndStaysInsideSmallAndLargeScreens": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookTransitionPlaybackTests.testBothDirectionsKeepTheirTimingsAndCompleteOnlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.031
+    },
+    "BookTransitionPlaybackTests.testCancelledPageWithdrawalCannotStartTheCoverOrCloseTheBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.094
+    },
+    "BookTransitionPlaybackTests.testClosingAndItsSkipNeverWashOutTheCoverDuringTheStandHandoff": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookTransitionPlaybackTests.testClosingKeepsCoverOpenUntilTheActualPageHasWithdrawn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookTransitionPlaybackTests.testDisappearanceRejectsAnAlreadyFinishingWaitWithoutCompletingOrMovingAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookTransitionPlaybackTests.testForegroundRestartOwnsCompletionEvenWhenOldBackgroundWaitReturnsLast": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookTransitionPlaybackTests.testInactiveSceneDoesNotCompleteEvenWithReduceMotionAndActiveReturnFinishesOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookTransitionPlaybackTests.testSkipTakesOwnershipAndOldAutomaticWaitCannotFinishAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookTransitionPlaybackTests.testThrownCancellationNeverFinishesAnOpeningOrClosing": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "BookTransitionPlaybackTests.testViewTaskCancellationRejectsAWaitThatDoesNotThrow": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookVictoryRenderingTests.testAccessibilityFiveEnlargesTheAwardTextWithoutLosingTheCloseDecision": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.35
+    },
+    "BookVictoryRenderingTests.testBoardFitsTheMeasuredHeaderAndFooterWithoutHidingItsLastRow": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookVictoryRenderingTests.testCelebrationAndNextChallengeFitOneScreenOn17ProAndSEAtNormalAndLargeText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 9.569
+    },
+    "BookVictoryRenderingTests.testCompletedBookFitsBothPhoneLayoutsAndPrintsItsActualIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.885
+    },
+    "BookVictoryRenderingTests.testCompletedResultsRoutesToVictoryInTheRealPhoneBookInsteadOfShopActions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.737
+    },
+    "BookVictoryRenderingTests.testIPadResultsKeepPayoutNearHeaderAndActionsAtBottomWithoutMutatingRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 6.842
+    },
+    "BookVictoryRenderingTests.testLongRealNamesAndNineDigitBestScoreStayReadableAtPhoneWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.371
+    },
+    "BookVictoryRenderingTests.testMaximumObstacleDoesNotInventAnotherObstacleOrBookUnlock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.313
+    },
+    "BookVictoryRenderingTests.testNextChallengeTitleUsesTheExactNextObstacleAndStopsAtNine": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.396
+    },
+    "BookVictoryRenderingTests.testOCRAliasCorrectionIsRestrictedToTheTwoVisuallyVerifiedPhrases": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookVictoryRenderingTests.testRegularWonAndBankedResultsKeepTheirExistingPuzzleChoices": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.747
+    },
+    "BookVictoryRenderingTests.testRenderingPreservesTheRealBlanksAndDoesNotChangeTheCompletedRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.531
+    },
+    "BookVictoryRenderingTests.testShortRegularResultsRetainTheBoardAndKeepActionsVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.108
+    },
+    "BookmarkPressTests.testAnotherSlotCannotActivateAnEarlierHold": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookmarkPressTests.testASecondPressOnTheSameSlotRejectsTheFirstDelayedWakeup": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookmarkPressTests.testBookmarkActivationStillOpensItsItemDetails": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookmarkPressTests.testBuffActivationOpensItsUseSlipExactlyOnceInsteadOfThePassivePopover": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookmarkPressTests.testReleaseOrDisappearanceInvalidatesEveryPendingWakeup": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookmarkPressTests.testSameGestureUpdatesDoNotRestartTheHold": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreLowerPocketTests.testEveryLegIsContinuousAndTheExactOriginAndDestinationArePreserved": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "BookstoreLowerPocketTests.testEveryTallerBottomBookGetsMoreReleaseTravelAndEveryTailClearsTheRail": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreLowerPocketTests.testExtractionCreatesNoNewPenetrationOfEitherRetainingWire": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.089
+    },
+    "BookstoreLowerPocketTests.testNoPresentationScaleIsAppliedBeforeTheWholeBookClearsThePocket": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "BookstoreLowerPocketTests.testPoseRoundTripPreservesEveryBottomBooksNonuniformScaleAndTilt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreLowerPocketTests.testSeatingAndTippingNeverRaiseTheTopIntoTheBookAbove": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "BookstoreLowerPocketTests.testSlideAndPullClearTheUpperPocketsLowestFrontWire": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.033
+    },
+    "BookstoreLowerPocketTests.testSlideAndPullRemainInFrontOfTheUpperBookWhereTheirHeightsOverlap": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.033
+    },
+    "BookstoreObstacleTests.testBrowsingKeepsIdenticalCoverImagesAndDoesNotScheduleNoOpScaleActions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.811
+    },
+    "BookstoreObstacleTests.testCompletedBookKeepsItsOwnMaterialUnlockAfterSelectionReturnAndAnotherBookCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.146
+    },
+    "BookstoreObstacleTests.testCoverInvalidationTracksActualPrintedObstacleAndEffectiveUnlockCeiling": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.038
+    },
+    "BookstoreObstacleTests.testEveryBookUsesItsOwnSuppliedCeilingIncludingNormalDebugLaunches": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreObstacleTests.testExplicitSamplerDoesNotPromoteSavedOrCloudProgress": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreObstacleTests.testInitialProgressAndSelectionArePrintedOnceBeforeTheFirstSceneUpdate": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.802
+    },
+    "BookstoreObstacleTests.testObstacleInfoCloseKeepsVisibleIconButProvidesAccessibleHitTarget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreObstacleTests.testObstacleInfoUsesPerBookUnlockStateAndNamesThePrecedingObstacle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreObstacleTests.testPreviewArtworkStaysLocalAndRealMaterialsContinueToRespectSavedAndDebugCeilings": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.397
+    },
+    "BookstoreObstacleTests.testPreviewObstacleCannotCarryIntoAnotherBookAboveItsSavedUnlock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreObstacleTests.testRealShelfMaterialsKeepTheirOwnUnlocksAcrossFirstBookFocusReturnAndOtherBookFocus": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.604
+    },
+    "BookstoreObstacleTests.testSamplerRequiresExplicitArgumentAndIsExcludedFromReleaseAndDevices": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreRackGestureTests.testAccessibleFocusStopsCoastAndFacesTheRequestedPocketBeforeExtraction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.394
+    },
+    "BookstoreRackGestureTests.testCancelledOrFailedPanCannotTurnReportedVelocityIntoMomentum": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.772
+    },
+    "BookstoreRackGestureTests.testCoalescedFastPanAppliesItsFinalTranslationAndKeepsCoasting": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.795
+    },
+    "BookstoreRackGestureTests.testDecorativeSceneDoesNotVendThousandsOfAutomationMeshes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.422
+    },
+    "BookstoreRackGestureTests.testDisablingBackgroundMotionDoesNotCancelUserDrivenFlickOrBookFocus": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.393
+    },
+    "BookstoreRackGestureTests.testEnablingReduceMotionStopsAnExistingCoastImmediately": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.543
+    },
+    "BookstoreRackGestureTests.testHiddenSceneCancelsCoastWithoutPublishingASelection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.389
+    },
+    "BookstoreRackGestureTests.testLeavingBookSelectionCancelsCoastAndIgnoresFurtherPanEvents": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.393
+    },
+    "BookstoreRackGestureTests.testNewPanGrabsACoastingRackWithoutJumpingBackOrLeavingAnOldAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.393
+    },
+    "BookstoreRackGestureTests.testReduceMotionReleaseAlignsImmediatelyWithoutInertia": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.421
+    },
+    "BookstoreRackGestureTests.testShopSubtreeInstallsOnDemandAndIsNotRebuiltOnLaterUpdates": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.488
+    },
+    "BookstoreRackGestureTests.testViewTeardownCancelsCoastAndStopsRendering": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.402
+    },
+    "BookstoreRackSpinTests.testAbsoluteTimeSamplingAgreesAtThirtySixtyAndOneHundredTwentyHertz": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreRackSpinTests.testAStationaryReleaseHasNoCoastAndSettlesWithoutNaN": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreRackSpinTests.testCoastingPreservesReleaseDirectionAndContinuouslyLosesSpeed": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "BookstoreRackSpinTests.testDragSensitivityPreservesRotationForTheSameFractionOfEachScreen": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreRackSpinTests.testFasterReleasesCoastLongerAndFartherInBothDirections": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreRackSpinTests.testInvalidViewportWidthsUseTheBaselineAndTinyWidthsStayBounded": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreRackSpinTests.testNonfiniteAnglesAreSanitizedAndInvalidSampleTimesNeverProduceNaN": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreRackSpinTests.testReleaseAndRestEndpointsRemainContinuousWithoutASecondAcceleration": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreRackSpinTests.testReleaseSpeedIsFiniteAndClampedWithoutLosingItsDirection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreRackSpinTests.testStrongFlickCanCrossAFullRevolutionWithoutWrappingItsAngle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreRackSpinTests.testTheMotionEndsExactlyOnAFaceAtRestAndClampsOutOfRangeTimes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreReturnMotionTests.testInterruptedExtractionReturnsFromItsCurrentPoseWithoutJumpingForward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.062
+    },
+    "BookstoreReturnMotionTests.testLowerReturnCompletesShrinkingBeforeReenteringTheWirePocket": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "BookstoreReturnMotionTests.testReturningRetainsEditionIdentityWithoutExposingLiveBookControls": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreReturnMotionTests.testReturnRetracesEveryUpperAndLowerExtractionSampleOnAllRackFaces": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.057
+    },
+    "BookstoreSelectionTests.testAccessibleShelfActionsBrowseEveryVolumeWithoutSelectingOrChangingTheSceneDirectly": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreSelectionTests.testCompactPhoneReservesOnlyTheSignBookClearanceAndOpenAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testExtractionStartsAtTheShelfEndsAtTheSharedDestinationAndClampsOvershoot": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testFirstLegMovesOnlyUpWithoutMovingThroughTheFrontRail": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreSelectionTests.testLiftDistanceClearsTheHighestRailEdgeWithTheRequiredMargin": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testOnlyPresentedFocusExposesTheInteractiveBookWhileExtractionRetainsItsIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testPhoneSelectionClearsTheTopSignAndPlacesOpenDirectlyBelowTheBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreSelectionTests.testScaleAndOrientationProgressStayAtShelfValuesUntilTheLiftFinishes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testSharedCanvasCentersTheVisibleCoverAndBookmarkSilhouette": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testTabletSelectionFitsTheBookBetweenTheTopSignAndFollowingOpenAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSelectionTests.testTallPhoneOpenActionIsRaisedWithTheBookInsteadOfPinnedToTheScreenBottom": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreSelectionTests.testThereIsNoPositionJumpWhereLiftHandsOffToOutwardTravel": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BookstoreSignPresentationTests.testEveryObstaclePrintsItsActualCombinedRestrictionsAndKeepsTheBookBenefit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "BookstoreSignPresentationTests.testObstacleLetteringKeepsReadableFixedTypeWithoutNarrowingTheText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.836
+    },
+    "BookstoreSignPresentationTests.testRapidObstacleChangesDuringEraseFinishOnOnlyTheLatestArtwork": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 5.5
+    },
+    "BookstoreSignPresentationTests.testRealSceneSignUpdatesForAllObstaclesWithoutMovingOrAccumulatingTextures": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 5.832
+    },
+    "BossBoardVisualTests.testAllBossNamesAndRulesFitTheExistingTwoLineHeaderHeight": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.639
+    },
+    "BossBoardVisualTests.testAllBossPresentationAtlasAtRestAndQuarterCycle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 18.552
+    },
+    "BossBoardVisualTests.testBossMotionClockResumesWithoutChargingTimeUnderSettingsOrInBackground": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "BossBoardVisualTests.testBossMotionStartsStillAndIgnoresInvalidClockSamples": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.0
+    },
+    "BossBoardVisualTests.testBrickFallsStraightAndSettlesInsideItsSquareAtPhoneAndTabletSizes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 3.02
+    },
+    "BossBoardVisualTests.testBrickHasDistinctAirborneImpactAndSettledFrames": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.034
+    },
+    "BossBoardVisualTests.testBrickImpactsAreSeparatedAndLastDustFullyClears": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "BossBoardVisualTests.testBrickLifecycleCancelsPendingLandingWhenCoveredAndRejectsStaleStart": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.0
+    },
+    "BossBoardVisualTests.testBrickLifecycleHandlesReducedAndHiddenTurnsWithoutReplayingThem": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.0
+    },
+    "BossBoardVisualTests.testCompactBossHeaderPreservesTheActualRuleMeaning": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.0
+    },
+    "BossBoardVisualTests.testDeferredBrickEntranceIsCancelledByBackgroundOrReducedMotion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "BossBoardVisualTests.testDisablingBackgroundMotionKeepsBossInkAtItsRestingPose": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.156
+    },
+    "BossBoardVisualTests.testEveryBossHasItsOwnRuleLinkedInkSignature": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "BossBoardVisualTests.testEveryBossRendersAndPassiveBossesLeaveThePlayableBoardUndecorated": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 15.017
+    },
+    "BossBoardVisualTests.testFallingBrickLayerCannotEscapeTheBoardIntoTheHUD": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.307
+    },
+    "BossBoardVisualTests.testFirstBrickEntranceWaitsForPageCurlThenStartsExactlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.0
+    },
+    "BossBoardVisualTests.testFogConcealmentDoesNotWashOutBoardPaperOrDigits": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.765
+    },
+    "BossBoardVisualTests.testFogHidesMarkerDecorationsWithoutRevealingTheirLocations": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.656
+    },
+    "BossBoardVisualTests.testGarryAndOverPusherFeedbackUsesOnlyTheirActualRuleState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.247
+    },
+    "BossBoardVisualTests.testGarryBrickBlocksItsBlankAndLeavesAdjacentBlankSelectable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.124
+    },
+    "BossBoardVisualTests.testGarryBrickFeedbackContainsOnlyEligibleBlankCellsAndLeavesAnExit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.121
+    },
+    "BossBoardVisualTests.testGarryGameplayDoesNotDrawDecorativeBracketsAroundUnbarredUnits": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.164
+    },
+    "BossBoardVisualTests.testPassiveBossOverlayIsEmptyAtEveryMotionAndClockPhase": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.496
+    },
+    "BossBoardVisualTests.testPausedAndReduceMotionRouteArtworkShareTheSameRestingPose": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.407
+    },
+    "BossBoardVisualTests.testReadOnlyBoardSnapshotsKeepPassiveBossesUndecorated": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 3.806
+    },
+    "BossBoardVisualTests.testReduceMotionKeepsEveryBossOverlayTreatmentVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.775
+    },
+    "BossBoardVisualTests.testRepeatedGarryRestrictionStillIdentifiesANewLandingEachTurn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.063
+    },
+    "BossBoardVisualTests.testRouteAndHeaderInkAnimationKeepsItsIllustratedDigitCentersStill": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.48
+    },
+    "BossBoardVisualTests.testRouteArtworkIsSquareAndEachBossRetainsAVisibleSudoku": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.432
+    },
+    "BossBoardVisualTests.testTikTakFeedbackChangesOnlyAtUrgencyThreshold": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.126
+    },
+    "BossBoardVisualTests.testTwentyFourPointBossSealsHaveDistinctReadableGlyphsAndMovingEdges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.181
+    },
+    "BossGalleryCaptureTests.testCaptureEveryBossOnTheSamePlayableBoardWithoutChangingTheRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-captures-4.log",
+      "seconds": 21.956
+    },
+    "BossPhysicalPresentationTests.testBudgetCutReceiptUsesTheActualSingleFinalBankOperation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.831
+    },
+    "BossPhysicalPresentationTests.testCollectorReceiptUsesOnlySavedWithheldInterestAndPreservesPayout": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.836
+    },
+    "BossPhysicalPresentationTests.testCountdownAtEveryThresholdIsReadableInCompactHeaderAllocation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.822
+    },
+    "BossPhysicalPresentationTests.testCountdownUsesCeilingAndWarningCrossingsWithoutAnotherClock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "BossPhysicalPresentationTests.testDryPressAndReviewBoardObjectsReflectOnlyTheirPublicSavedState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.017
+    },
+    "BossPhysicalPresentationTests.testEqualFogBoardsWithDifferentHiddenMapsHaveIdenticalPixelsAtEachPhase": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 3.762
+    },
+    "BossPhysicalPresentationTests.testExpandedBossReceiptsUseRealPlacementAndBankOperations": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 11.083
+    },
+    "BossPhysicalPresentationTests.testFogHasTwoVisibleMovingStrataAndRemainsVisibleWithoutMotion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.019
+    },
+    "BossPhysicalPresentationTests.testModelVisualLedgerRejectsRepeatedEventsWithoutSavingOrChangingGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.74
+    },
+    "BossPhysicalPresentationTests.testPhysicalControlCuesStayWithinTheirExistingAllocations": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.021
+    },
+    "BossPhysicalPresentationTests.testRestoredFinalDraftAndRoyaltyTargetsRenderActualValueWithoutReplayingTransformation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.011
+    },
+    "BossPhysicalPresentationTests.testWetInkImpactSpreadsThenKeepsOneSettledPose": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.017
+    },
+    "BossPhysicalPresentationTests.testWetInkRendersEveryOverlappingSavedFoulAndExpiresOnlyWithEngine": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.755
+    },
+    "BriefingBoundsTests.testBlankBossBandPreservesTheExactPreviousBoardHeightBudget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.624
+    },
+    "BriefingBoundsTests.testEveryBuffKeepsItsCanonicalSummaryOnTheCompactRewardSlip": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 73.364
+    },
+    "BriefingBoundsTests.testEveryKnownRouteAnnouncesCommittedBossNameAndFullPower": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "BriefingBoundsTests.testEveryViewportBudgetsTheWholeDecisionWithoutScrolling": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BriefingBoundsTests.testLongestBossRulesRemainCompleteOnShortPhoneWithoutScrolling": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 44.524
+    },
+    "BriefingBoundsTests.testPhoneAndTabletBriefingsShowBoardOfferAndActionsTogether": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 17.174
+    },
+    "BriefingBoundsTests.testSkippingKeepsRouteBoardAndActionAllocationStable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 10.492
+    },
+    "BriefingBoundsTests.testVerifiedPeekOCRCorrectionCannotAcceptAnotherNumberOrMissingOnyxRule": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BuffIdentityTests.testDelayedSaleRejectsAnIdenticalCopyInTheOriginalSlot": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "BuffIdentityTests.testDelayedUseFollowsTheSelectedCopyWhenAnotherItemIsRemoved": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "BuffIdentityTests.testSavedCopiesKeepDistinctActionIdentitiesAfterResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "BuffSlipPresentationTests.testConsumedBuffKeepsItsPrintedMetadataOnTheOutgoingSlip": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.795
+    },
+    "BuffSlipPresentationTests.testEveryBuffHasItsOwnIllustrationAndVisibleDecisions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 42.005
+    },
+    "BuffSlipPresentationTests.testMarkerPlacementSlipShowsItsCompleteGridAndFooterOnPhoneAndIPad": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.313
+    },
+    "BuffSlipPresentationTests.testNinePaperCraneChoicesWrapAndKeepBothActionsVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.002
+    },
+    "BuffSlipPresentationTests.testPaperSlipLongContentUsesAWorkingScrollContainer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.147
+    },
+    "BuffSlipPresentationTests.testSharedSlipsFitShortContentAndKeepLongArticleCloseVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.781
+    },
+    "BuffSlipPresentationTests.testShortBuffDecisionDoesNotExpandIntoAnEmptyPage": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.908
+    },
+    "BundledAudioTests.testAllFiveMusicCuesAreDistinctBundledStereoAACAndDecodeAcrossTheirDuration": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.065
+    },
+    "BundledAudioTests.testBundledThemeIsStereoAACThatAppleCanDecodeWithoutPlayback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.006
+    },
+    "BundledAudioTests.testEveryProceduralWaveCanOpenWithoutPlayback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.036
+    },
+    "CatalogueChoiceFlowTests.testDigitChoiceCancelResumeAndDuplicateCommitPreserveExactCopies": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.05
+    },
+    "CatalogueChoiceFlowTests.testFogConcealsPendingMarkerSourceAfterSaveResumeWithoutChangingChoices": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.064
+    },
+    "CatalogueChoiceFlowTests.testInformationBuffPresentsPaidResultsAndKeepsThemAfterDismissal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "CatalogueChoiceFlowTests.testThirdSlotSourceHighlightRequiresTheActualCapacity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "CatalogueReadingsTests.testFogHidesMarkerReadingsButKeepsIndependentlyPaidBuffInformation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "CatalogueReadingsTests.testNoUnpaidReadingsAndCanonicalNamesForAllPaidSources": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "CatalogueReadingsTests.testReadingsExpireAtTheirActualTurnOrSquareBoundary": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "CatalogueReadingsTests.testReadingsUpdateWithoutAdvancingDrawsOrUsingHiddenCandidates": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.028
+    },
+    "CloudRunConflictTests.testChangedSetMembershipOrFoulExpiryStillProducesAConflict": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.039
+    },
+    "CloudRunConflictTests.testComparisonDoesNotMutateInputsOrSilentlyResolveAnEncodingFailure": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.025
+    },
+    "CloudRunConflictTests.testEveryIndependentRandomStreamStillParticipatesInEquality": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.024
+    },
+    "CloudRunConflictTests.testEveryUnorderedCollectionCanSerializeInAnotherOrderWithoutAConflict": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.026
+    },
+    "CloudRunConflictTests.testOrderedHandBoardPoolAndInventoryPermutationsAreNotNormalizedAway": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.038
+    },
+    "CloudRunConflictTests.testRewardTurnBookScoreAndPurchaseFactsRemainGenuineConflicts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.036
+    },
+    "CloudRunConflictTests.testShopOfferOrderAndSaleStatusRemainGenuineConflicts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "CloudRunTransportTests.testExistingCloudEnvelopeReturnsOriginalGameJSONNotAnotherBase64Decode": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "CloudRunTransportTests.testUnknownSchemaAndMalformedEnvelopeFailClosedWithoutInventingARun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "CompletedBookSelectionTests.testEveryFinishedVolumeReturnsToItselfWithItsNextEarnedObstacle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "CompletedBookSelectionTests.testMissingProgressKeepsTheCompletedVolumeWithoutInventingAnUnlock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "CompletedBookSelectionTests.testProgressOnAnotherBookCannotUnlockThisBooksNextChallenge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "CompletionDurabilityTests.testFailedUnlockWriteKeepsCompletionReceiptUntilSuccessfulRetry": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.267
+    },
+    "CompletionDurabilityTests.testRelaunchOfReceiptRetriesUnlockWithoutAnotherPayout": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.268
+    },
+    "CoreGameplayTests.testBookRackDebugRouteUsesTheBookstoreEntrance": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "CoreGameplayTests.testNormalLaunchAlwaysStartsAtStudioIntro": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "DiscardedRunPersistenceTests.testAbandonSurvivesRelaunchAndRejectsLaterLegacyCloudSnapshotsOfTheSameAttempt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.124
+    },
+    "DiscardedRunPersistenceTests.testAlreadyDurableCompletionSucceedsWithoutAnotherWrite": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.007
+    },
+    "DiscardedRunPersistenceTests.testBackupFailureBlocksMutationWithoutHidingValidLocalContinue": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.021
+    },
+    "DiscardedRunPersistenceTests.testCloudSnapshotRetainsExactEnvelopeAndTimestampOnlyAsEvidence": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.0
+    },
+    "DiscardedRunPersistenceTests.testCompletedReceiptsRemainSavedButTerminalFailureDiscardsItsAttempt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.005
+    },
+    "DiscardedRunPersistenceTests.testCompletionWriteFailurePreservesPriorUnlocksAndCanBeRetried": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "DiscardedRunPersistenceTests.testDiscardingLocalBookArchivesAndRetiresAnUnrelatedRemoteBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "DiscardedRunPersistenceTests.testDiscardReceiptMustBeDurableBeforeRemovingTheRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "DiscardedRunPersistenceTests.testEvenFurtherAdvancedRemoteCheckpointNeverReplacesValidLocalState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.018
+    },
+    "DiscardedRunPersistenceTests.testFailedAndCompletedAuthorityRetirementDoNotRevealArchivedRemoteAttempts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.008
+    },
+    "DiscardedRunPersistenceTests.testFailedRemoteAdoptionDoesNotPretendTheBookWasSavedLocally": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "DiscardedRunPersistenceTests.testFailedRemoveAndFailedReceiptRollbackDoNotDiscardTheStillExistingRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.003
+    },
+    "DiscardedRunPersistenceTests.testFailedRetirementRollbackRemembersTheArchivedAlternative": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.008
+    },
+    "DiscardedRunPersistenceTests.testIdentityIncludesBookAndObstacleAndAllowsAnExplicitLocalSameSeedRestart": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "DiscardedRunPersistenceTests.testImplicitStartCannotReplaceLocalOrLateArrivingRemoteAuthority": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.003
+    },
+    "DiscardedRunPersistenceTests.testLegacyRemoteChoiceCannotSwitchTheLocalAuthority": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.003
+    },
+    "DiscardedRunPersistenceTests.testLocalCheckpointArchivesUnreadableCloudEnvelopeBeforePublication": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.022
+    },
+    "DiscardedRunPersistenceTests.testLocalOnlyCheckpointCannotPublishOrForgetDiscardedIdentities": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "DiscardedRunPersistenceTests.testOlderCheckpointOfSameAttemptIsArchivedWithoutCreatingAnotherPlayableBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.025
+    },
+    "DiscardedRunPersistenceTests.testPendingReceiptProtectsDeletionWhenFinalizationWriteFailsAndSurvivesSameSeedRestart": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "DiscardedRunPersistenceTests.testPreviouslyObservedAlternativeCannotReappearAfterAuthorityIsAbandoned": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "DiscardedRunPersistenceTests.testRemoteDeletionMetadataIsRememberedBeforeAnOlderEnvelopeArrives": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "DiscardedRunPersistenceTests.testRemoteOnlyAbandonAndRepeatedMissingFileClearAreSuccessful": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "DiscardedRunPersistenceTests.testRemoteOnlyResumeRejectsAChangedSnapshotBetweenReadAndDurableAdoption": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "DiscardedRunPersistenceTests.testRemoveFailureKeepsTheLocalRunAndDoesNotPublishDeletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.003
+    },
+    "DiscardedRunPersistenceTests.testReplacementAtomicallySavesTheNewBookAndRejectsStaleOldCloudState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.005
+    },
+    "DiscardedRunPersistenceTests.testReplacementRequiresDurableReceiptBeforeChangingTheOldRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "DiscardedRunPersistenceTests.testReplacementSurvivesReceiptFinalizationFailureAfterAtomicRunWrite": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.008
+    },
+    "DiscardedRunPersistenceTests.testReplacementUsesExactLocalAuthorityAndRejectsChangedRemoteOnlyState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.005
+    },
+    "DiscardedRunPersistenceTests.testReplacementWriteAndRollbackFailuresPreserveLocalAndRemoteOnlyOldBooks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.006
+    },
+    "DiscardedRunPersistenceTests.testResumeKeepsLocalAuthorityEvenWhenBackingUpAnAlternativeTemporarilyFails": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.003
+    },
+    "DiscardedRunPersistenceTests.testUnreadableCloudEnvelopeIsNotAnEmptySlotForAFirstStart": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "DiscardedRunPersistenceTests.testUnreadableCompletionProgressCannotBeReplacedWithEmptyProgress": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "DiscardedRunPersistenceTests.testUnreadableOrCorruptLocalBytesNeverBecomeAnEmptySlotForRemoteAdoption": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "DiscardedRunPersistenceTests.testUnreadableRunIsNotTreatedAsAnAlreadyMissingFile": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.002
+    },
+    "DiscardedRunPersistenceTests.testValidLegacyFailedLocalSaveAllowsANewAttemptWithoutPromotingAnotherRemoteBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.005
+    },
+    "DiscardedRunPersistenceTests.testWriteFailureDoesNotPublishOrReplaceThePreviousLocalRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.017
+    },
+    "DistributionMetadataTests.testAppBundleDeclaresPortraitCompatibilityAndExportMetadata": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "DistributionMetadataTests.testAppBundleIncludesItsUserDefaultsPrivacyDeclarationWithoutTracking": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "EnlargedDisplayTests.test320By568ZoomEquivalentAcrossEveryLargerTextSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 56.157
+    },
+    "EnlargedDisplayTests.test375By667AcrossEveryLargerTextSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 60.8
+    },
+    "EnlargedDisplayTests.test393By852ZoomEquivalentAcrossEveryLargerTextSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 63.316
+    },
+    "EnlargedDisplayTests.test402By874AcrossEveryLargerTextSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 64.322
+    },
+    "EnlargedDisplayTests.testAnchoredHandMenuKeepsEveryChoiceReadableInZoomEquivalentSizes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 5.431
+    },
+    "EnlargedDisplayTests.testBriefingRewardAndPrimaryActionActuallyEnlargeForAccessibilityText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.35
+    },
+    "EnlargedDisplayTests.testCustomPaperPanelsKeepDismissalAndDecisionsReachableAtZoomEquivalentAX5": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 88.397
+    },
+    "EnlargedDisplayTests.testEveryBuffEffectAndLongestBossDecisionsFitAtMaximumTextSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 142.009
+    },
+    "EnlargedDisplayTests.testMarkerInspectionAtBoardEdgesFitsZoomEquivalentSizesWithoutMovingGameplay": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 22.143
+    },
+    "EnlargedDisplayTests.testReplacementDecisionNamesGrowWithoutChangingEitherOwnedCopy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 12.682
+    },
+    "ExpandedBossCaptureTests.testCaptureScoringBossTriggersFromRealConservedActionsAtThreePhoneSizes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-captures-4.log",
+      "seconds": 36.205
+    },
+    "ExpandedBossHandCaptureTests.testCaptureHandBossTriggersFromConservedActionsAt390By844": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-captures-4.log",
+      "seconds": 10.626
+    },
+    "ExpandedBossModelTests.testKeepFillingFullClearShowsSavedSerialCarryWithoutInventingATurnBank": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.255
+    },
+    "ExpandedBossModelTests.testLastTossPresentsActualAutomaticBankReceipt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.623
+    },
+    "ExpandedBossModelTests.testLiveSettlementShowsTheArithmeticActuallyPaid": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "ExpandedBossModelTests.testPageCutterChoicePublishesOneBankAndStaleDecisionCannotReplayIt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.64
+    },
+    "ExpandedBossModelTests.testPageCutterDirectCluePresentsTheEarnedBank": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.623
+    },
+    "ExpandedBossModelTests.testRebinderReturnFlightUsesTheExactOutgoingCardsAndNeverReplaysOnResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.626
+    },
+    "ExpandedBossModelTests.testReleaseNoteAllowsClueHighlightAndPreservesTheOtherDuplicate": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.639
+    },
+    "ExpandedBossModelTests.testWrongLastCardKeepsReturnFeedbackAndPresentsNetBank": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.623
+    },
+    "ExpandedCataloguePresentationTests.testDefaultAndPocketInsertInventoryRowsFitEveryPhoneWidth": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.115
+    },
+    "ExpandedCataloguePresentationTests.testEveryCatalogueItemHasBothSuppliedArtworkCrops": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.169
+    },
+    "ExpandedCataloguePresentationTests.testSavedDigitSquareAndLongChoicesRemainReadableOnPhonesAndLargeText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 35.187
+    },
+    "FailurePageRenderingTests.testAccessibilityFiveContentGrowsWithoutDiscardingEitherDecision": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.237
+    },
+    "FailurePageRenderingTests.testAccessibilityFivePinsDecisionsWhileRealBoardScrollsInRunPageSurface": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.123
+    },
+    "FailurePageRenderingTests.testInFlightPageRetainsRescueCopyUntilTheAdDismisses": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.154
+    },
+    "FailurePageRenderingTests.testLargeScoreAndTargetRemainReadableInTheirCompactColumns": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.093
+    },
+    "FailurePageRenderingTests.testLoadingAndUnavailablePagesKeepTheSeparateEndBookDecisionVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.982
+    },
+    "FailurePageRenderingTests.testReadyPageNaturalSizesAtPhoneWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.024
+    },
+    "FailurePageRenderingTests.testTerminalEndBookUsesTheCapturedMenuReturnOwner": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "FailurePageRenderingTests.testTerminalFailureHasNoAdOfferEvenIfAnAdWasReady": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.981
+    },
+    "FinalBookRoutingTests.testEarlierFinalLevelWinStillRoutesToItsNormalShop": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.038
+    },
+    "FinalBookRoutingTests.testEnteringFinalResultsAutomaticallyPaysAndCompletesExactlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.419
+    },
+    "FinalBookRoutingTests.testEnteringOrdinaryOrPenultimateResultsKeepsThePayoutChoice": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.395
+    },
+    "FinalBookRoutingTests.testFinalCashOutCannotRouteCompletedBookToAnEmptyShop": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.811
+    },
+    "FinalBookRoutingTests.testFrozenFinalSnapshotConstructionDoesNotSettleOrRewriteTheCapturedPage": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.424
+    },
+    "FinalBookRoutingTests.testResumingEarlierWinOrExistingFinalKeepFillingDoesNotAutoPay": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.438
+    },
+    "FinalBookRoutingTests.testResumingLegacyPaidFinalBoardOrShopShowsCompletionWithoutAnotherPayout": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.41
+    },
+    "FinalBookRoutingTests.testResumingUnpaidFinalWinSettlesOnceAndPaidRelaunchNeverPaysAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 2.407
+    },
+    "GameAudioTests.testAdCancellationDropsStaleCueActivationAndUsesLatestCueOnDismissal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "GameAudioTests.testAdPauseWinsOverForegroundAndDismissalDoesNotResumeInBackground": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testAudioIsDormantUntilForegroundAndStopsWhenInactive": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.009
+    },
+    "GameAudioTests.testAudioSystemEventsBridgeHandlesSyntheticLifecycleNotifications": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "GameAudioTests.testCueChangesUnderAnAdNeverStartMusicAndDismissalUsesTheLatestCue": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testCueFailureCanRetryWithoutLosingSelectionOrBlockingEffects": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "GameAudioTests.testCueSelectedInBackgroundPlaysOnlyTheLatestChoiceWhenReturning": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "GameAudioTests.testDeferredActivationDoesNotResumeAfterBackgroundTransition": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testDeferredActivationPublishesTheLatestCueAfterSelectionChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testDeferredEffectCompletionReconcilesCurrentMusicMix": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testDeferredEffectIsDroppedWhenAdAppearsBeforeActivationCompletes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testDisconnectedHeadphonesAndInterruptedScenesKeepNewCueDormantUntilExplicitResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testDuplicateCuesAreCoalescedWithoutSuppressingDistinctFeedback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testInterruptionAndDisconnectedHeadphonesRequireTheCorrectResumePolicy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testMasterAndChannelZeroVolumesMuteImmediatelyAndIndependently": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testMediaResetInvalidatesStaleActivationCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "GameAudioTests.testMediaResetRebuildsPlaybackButNeverResumesOverAnAd": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testMusicMuteRecordsCueChangesWithoutSilencingEffectsOrRestartingMusic": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "GameAudioTests.testMutedLaunchAndBackgroundVolumeChangesNeverActivatePlayback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testPlaybackFailureNeverChangesGameStateOrPreventsLaterRetry": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testRapidCueChangesReuseTheAudioSessionAndDuplicateSelectionDoesNothing": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameAudioTests.testRepeatedLifecycleAndAdSignalsAreIdempotent": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterIDMigrationTests.testAchievementAliasesUnionKnownAwardsWithoutChangingUnknownOrLocalIDs": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "GameCenterIDMigrationTests.testEmptyInstallationDoesNotInventPendingScoresOrAwards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterIDMigrationTests.testExternalIdentifiersUseTheExactASCCompatibleNamespace": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterIDMigrationTests.testInitializationPersistsMigrationInExistingQueueKeysWithoutStartingGameKit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "GameCenterIDMigrationTests.testMigrationIsIdempotentAcrossADowngradeAndReupgrade": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterIDMigrationTests.testPartiallyMigratedQueuesCanFinishIndependentlyOnRetry": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "GameCenterIDMigrationTests.testSavedLocalAwardsRoundTripWithoutChangingTheirIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.007
+    },
+    "GameCenterIDMigrationTests.testScoreAliasesMergeByMaximumAndLeaveUnknownIdentifiersUntouched": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterServiceTests.testAchievementEarnedDuringDeliveryIsNotLost": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "GameCenterServiceTests.testAuthenticationFailureRetainsOnlyNonIdentifyingDiagnosticAndCanRecover": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterServiceTests.testDashboardRoutesBothDestinationsAndRejectsUnavailableOrInactivePresentation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "GameCenterServiceTests.testFailedDeliveriesRetryOnceOnForegroundWithoutNewGameplayOrHotLoop": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "GameCenterServiceTests.testHistoricalBackfillMergesLegacyQueuesByMaximumAndAchievementUnion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.006
+    },
+    "GameCenterServiceTests.testHistoricalBackfillReplaysEmptyQueuesOnlyAfterStartWithInjectedFacts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.007
+    },
+    "GameCenterServiceTests.testHistoricalFailuresRemainQueuedForLaterRetryAndDoNotLoop": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "GameCenterServiceTests.testHistoricalForegroundSnapshotsOnlyEnqueueNewFactsAfterCloudOrLocalProgressChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "GameCenterServiceTests.testHistoricalProjectionDoesNotInventFreshLevelOrAnUnfinishedPuzzleScore": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.024
+    },
+    "GameCenterServiceTests.testHistoricalProjectionUsesExactSavedFactsAndKnownIdentitiesOnly": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterServiceTests.testInFlightOldScoreCannotRemoveANewerMaximumOrCauseDuplicateFlushes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "GameCenterServiceTests.testInitializationDoesNotStartGameKitAndEveryLifecycleKeepsBadgeHidden": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterServiceTests.testOfferedAuthenticationRespectsInactiveAndUnavailablePresentation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterServiceTests.testOfferedAuthenticationWaitsForExplicitTapAndNeverAutoOpensDashboard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "GameCenterServiceTests.testPartialFailureClearsOnlyAcceptedScores": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "GameCenterServiceTests.testSignedOutDashboardIsExplicitAndDoesNotPromptOrSubmit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameCenterServiceTests.testSignedOutScoresKeepMaximumAndAchievementsKeepMembershipUntilAuthentication": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "GameMotionPreferencesTests.testFreshAndExistingPlayersGetFullMotionRegardlessOfInheritedMotionOrBackgroundPreference": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.115
+    },
+    "GameMotionPreferencesTests.testLiveChangesReachOpenNestedPanelsWithoutResettingGameOrPresentationIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.357
+    },
+    "GameMotionPreferencesTests.testSavedReducedMotionChoiceWinsOverInheritedMotionAndSurvivesRemounting": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.218
+    },
+    "GameplayGeometryTests.testActualArrangedOverflowCardsRetainSeparateMeasuredTargets": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.089
+    },
+    "GameplayGeometryTests.testFogAccessibilityNeverNamesHiddenMarkerOrItsEffect": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameplayGeometryTests.testLitmusVerdictsUseDifferentVisibleShapesWithTheSameInkColor": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.007
+    },
+    "GameplayGeometryTests.testLiveGridReportsEverySquareInsideItsPhysicalFrame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.364
+    },
+    "GameplayGeometryTests.testMissingGeometryNeverInventsEvenlySpacedCardOrOuterGridTargets": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "GameplayScorePanelRenderingTests.testCompactBossHUDKeepsBoundedFactorsFractionalMultAndActualTotalReadable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.45
+    },
+    "GameplayScorePanelRenderingTests.testCompactBossHUDKeepsCombinedExtremeNumbersAndActiveReceiptInsideItsBand": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.657
+    },
+    "GameplayScorePanelRenderingTests.testCompactBossHUDKeepsLargeScoreAndTargetReadable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.173
+    },
+    "GameplayScorePanelRenderingTests.testEmptyTurnHidesZeroCalculationWhileKeepingScoreAndBoss": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.078
+    },
+    "GameplayScorePanelRenderingTests.testKeepFillingShowsScoreFrozenInsteadOfPromisingAnotherScoreAward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.04
+    },
+    "GameplayScorePanelRenderingTests.testLiveFormulaShowsTheActualPointsMultiplierAndBankableTotal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.023
+    },
+    "GameplayScorePanelRenderingTests.testLongAccessibilityReceiptFitsAboveTheScoreInItsFixedBand": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.557
+    },
+    "GameplayScorePanelRenderingTests.testSourceReceiptAppearingAndDisappearingDoesNotMoveTheScore": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.944
+    },
+    "HandArrangementTests.testAllArrangementsLeaveCanonicalHandGameAndEveryRandomStreamUntouched": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.026
+    },
+    "HandArrangementTests.testAnchoredMenuPreservesArmedPeekAndThenItsSelectedDuplicateHint": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.038
+    },
+    "HandArrangementTests.testAscendingAndDescendingPreserveDuplicateSelectionAndArrivalIdentities": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testFinalCardAutomaticTurnRefillReconcilesOnceWithSortedPresentation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.024
+    },
+    "HandArrangementTests.testHandyDandyBlocksOneDuplicateThroughSortingAndSurvivorIndexChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.024
+    },
+    "HandArrangementTests.testMenuDismissalAndSameButtonToggleLeaveSelectedDuplicateAndRunUntouched": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testMenuRejectsUnlaidOutAnchorsAndAChoiceFromThePreviousTurn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testObstacleBlocksBothDuplicateDigitsButStillAllowsTheSelectedCopyToBeTossed": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testPresentationResumeRestoresRandomPermutationAndRejectsStaleOrDifferentRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.044
+    },
+    "HandArrangementTests.testRandomOrderIsStableAcrossRefreshAndAppendsBonusDrawsWithoutReshuffling": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testSortedClueTargetsTheSelectedCardWithoutConsumingEitherDuplicate": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testSortedJadeReturnKeepsTheExactCardAndItsMotionTarget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testSortedMarkerDrawAndRedrawReconcileWithTheCanonicalHand": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testSortedPlaceConsumesTheSelectedCopyAtItsCanonicalIndex": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandArrangementTests.testSortedTossConsumesTheSelectedCopyAndPublishesItsMotionIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.022
+    },
+    "HandArrangementTests.testSortedWrongPlacementRemovesOnlyTheReturnedCopy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.023
+    },
+    "HandCardIdentityTests.testCorrectPlacementRemovesTheSelectedDuplicateNotTheLaterCopy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testExplicitEndTurnPreservesAllCarriedCardIDs": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testFinalCardAutoRefillGivesSameDigitANewIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testFullRedrawStillReplacesEveryIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testJadeReturnsTheSameCardAtTheEndWithoutStealingAnotherIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "HandCardIdentityTests.testLegacyClueFromPoolLeavesAllHeldIdentitiesAlone": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testLegacyClueRemovesFirstMatchingCardOnlyWhenPoolHasNone": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testLuckyDipAppendsCardsWithoutRearrangingHeldDuplicates": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "HandCardIdentityTests.testMarkerDrawAppendsNewIdentityAfterTheCorrectSurvivors": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testRejectedPlacementAndTossDoNotChangeAnyIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testTossRemovesTheSelectedDuplicateNotTheLaterCopy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCardIdentityTests.testWrongPlacementReturningToPoolRemovesTheExactCard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "HandCluePresentationTests.testAccountantPublishesImmediateChargeAndRejectedTapHasNoNewCharge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "HandCluePresentationTests.testAlreadyPaidDestinationKeepsTheNewPeek": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "HandCluePresentationTests.testBlockedCardKeepsPeekAndTargetingThenAnAllowedDuplicateCanReveal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "HandCluePresentationTests.testBookBookmarkAndSavedChargesRemainUsableWithFullBuffInventory": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.058
+    },
+    "HandCluePresentationTests.testCancellingBeforeChoosingNeverSpendsClue": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "HandCluePresentationTests.testClueActivationRequiresANewCardChoiceRatherThanUsingTheOldSelection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "HandCluePresentationTests.testClueThenHandRevealsWithoutMovingTheCard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "HandCluePresentationTests.testCoinChargeExpiresAndAnOlderCompletionCannotClearTheNextReceipt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.305
+    },
+    "HandCluePresentationTests.testFogNeverPublishesMarkerLocationReceipt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "HandCluePresentationTests.testMissingDestinationKeepsPeekAndCharge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "HandCluePresentationTests.testPeekCancellationAndResumeBeforeRevealKeepTheExactInventoryCopy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "HandCluePresentationTests.testPeekCannotArmUnderPaywallOrBuffborger": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.033
+    },
+    "HandCluePresentationTests.testPeekCommitsExactlyOneSelectedDuplicateAndHintInTheSameSnapshot": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "HandCluePresentationTests.testPeekOpensHandTargetingAndFailedBuffKeepsItsInventory": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "HandCluePresentationTests.testPendingPeekFollowsItsIdentityWhenAnEarlierInventorySlotIsSold": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.012
+    },
+    "HandCluePresentationTests.testRemountingCoinReceiptUsesTheOriginalDeadlineAndNeverReplaysExpiredCharge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.01
+    },
+    "HandCluePresentationTests.testRemovedPendingPeekNeverUsesTheIdenticalSpare": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.013
+    },
+    "HandCluePresentationTests.testReSelectingCardRestoresItsPaidHintWithoutAnotherCharge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "HighScoreRenderingTests.testHighScoreBandsKeepTheSameHeightWithAndWithoutRewards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.817
+    },
+    "HighScoreRenderingTests.testPhotographedScoreAndBonusesRemainReadableOnPhoneWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.537
+    },
+    "HowToPlayGuideTests.testAllCropsStayInsideTheirCaptureAndOutsideUnrelatedTopHUD": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "HowToPlayGuideTests.testBundledTurnRecordingIsPlayableAndShort": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "HowToPlayGuideTests.testEveryTopicHasAnActualGameFigureAndThreeOrderedInstructions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "HowToPlayGuideTests.testGuidePagesRenderAtPhoneTabletAndAccessibilityWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.219
+    },
+    "HowToPlayGuideTests.testProgressAndRewardCopyMatchesTheGameInsteadOfPaidSubscriptions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "HowToPlayGuideTests.testRealScreenAssetsArePresentAtTheirOriginalResolution": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "HowToPlayGuideTests.testTopicsHaveStableIdentityAndBoundedPreviousNextNavigation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "InventoryDragTests.testBookmarkReorderTargetsVisibleOccupiedSlotsAndTracksIdentityAfterward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "InventoryDragTests.testBuybackQuoteMatchesTheExactSaleAndExpiresAfterOneRefund": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "InventoryDragTests.testCancelNavigationBackgroundAndResizingInvalidateDelayedEnds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "InventoryDragTests.testCollateralDimsOnlyCommittedOwnedBookmarkAndAnnouncesPuzzleDuration": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.069
+    },
+    "InventoryDragTests.testCurvedMotionPreservesBothCoordinatesAndFingerOffsetBeyondTheInventoryRow": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.009
+    },
+    "InventoryDragTests.testDepartingRouteCannotEraseTheNewRoutesSaleTarget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "InventoryDragTests.testOnlyOwningRowCanMoveOrCommitItsGesture": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "InventoryDragTests.testOnlyReleaseInsideTheVisibleTrashCommitsAndItCanCommitOnlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "InventoryDragTests.testSameDefinitionSamePriceReplacementsNeverMatchOldBookmarkSale": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "InventoryDragTests.testStripGeometryMatchesAllSevenVisibleCardsWithoutUsingTheGapAsATarget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "InventoryDragTests.testVisibleActionRowIsTheSaleTargetAndOutsideReleaseRestoresTheControls": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.483
+    },
+    "ItemDetailCardTests.testSyndicationAccessibilityTextCanScrollThroughTheCompleteDescription": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.505
+    },
+    "ItemDetailCardTests.testSyndicationPaperPanelShowsItsFullTitleAndDescriptionOnPhoneWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.651
+    },
+    "KeepFillingResultsTests.testBankedReceiptSurvivesResumeWithoutRecomputingOrRecharging": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "KeepFillingResultsTests.testEnlargedResultsGrowsEarnedCoinsAndDecisionsWithoutChangingTheGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 9.946
+    },
+    "KeepFillingResultsTests.testEnlargedResultsShowsEveryEarnedPayoutComponentAndTheWholeBoard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 9.404
+    },
+    "KeepFillingResultsTests.testFullClearCannotNavigateBackToAnUnplayableBoardOrDuplicateItsPayout": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "KeepFillingResultsTests.testLegacyBankedSaveDoesNotInventReceiptAndUnpaidWinStillPreviews": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.033
+    },
+    "KeepFillingResultsTests.testLegacyFullKeepFillingRestoresToResultsWithItsEarnedBankIntact": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "KeepFillingResultsTests.testPartialWonBoardStillContinuesWithTheSameScoreAndBoard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "KeepFillingResultsTests.testResultsPrintsKeepFillingOnlyWhenThereArePlayableBlanks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 10.215
+    },
+    "KeepFillingResultsTests.testSuccessfulResultsPrintsItsPlayedBoardAndKeepsActionsReachable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 28.91
+    },
+    "LargeNumberSurfaceTests.testBookCompletionRetainsLongBestScoreOnSmallPhone": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.899
+    },
+    "LargeNumberSurfaceTests.testFailureRetainsLargeScoreAndTargetAtAccessibilityFive": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 5.14
+    },
+    "LargeNumberSurfaceTests.testIslandBarRetainsSixDigitBalanceBesideThreeControls": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.084
+    },
+    "LargeNumberSurfaceTests.testResultsRetainScoreAndTargetAtNarrowPageWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.686
+    },
+    "LargeNumberSurfaceTests.testRunInformationScoreRowRetainsBothLongValues": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.719
+    },
+    "MarkerInspectionContentTests.testEveryMarkerUsesTheCatalogueExplanationWithoutChangingTheRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.037
+    },
+    "MarkerInspectionContentTests.testFogConcealsInspectionForAllMarkerTypesAndAllBoardPositions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "MarkerInspectionContentTests.testGivenCoveredAndFilledMarkersHaveDifferentAvailability": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.013
+    },
+    "MarkerInspectionContentTests.testJadeExplainsHandReturnAndDoesNotPromisePenaltyProtection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.013
+    },
+    "MarkerInspectionContentTests.testPopupClampsEvenAStaleAnchorDuringViewportChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "MarkerInspectionContentTests.testPresenterDoesNotMutateSelectionAndOnlyItsOwningTouchCanDismiss": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "MarkerInspectionContentTests.testTemporarilyBarredMessageDoesNotOverridePermanentOccupancy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.012
+    },
+    "MarkerInspectionContentTests.testUnmarkedSquaresNeverProduceInspectionAndBetweenPuzzleMapKeepsOwnership": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "MarkerInspectionGestureTests.testEligibilityIsRecheckedAtRecognitionAndCancellationIsIdempotent": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "MarkerInspectionGestureTests.testFogRejectsInspectionWithoutPublishingBeginOrEndFeedback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "MarkerInspectionGestureTests.testFreshTouchAfterHoldCanTapButAnotherFingerCannotClearTheActiveHoldLatch": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "MarkerInspectionGestureTests.testHoldingGivenMarkerPreservesSelectedHandInsteadOfSelectingItsDigit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "MarkerInspectionGestureTests.testInspectionPreservesArmedPeekPaidClueAndLitmusThroughReleaseOrCancellation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.135
+    },
+    "MarkerInspectionGestureTests.testLeavingEligibilityDuringHoldClosesOnceAndNeverFallsBackToTap": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "MarkerInspectionGestureTests.testMovingOutsideTheHeldCellDismissesAndConsumesTheRelease": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "MarkerInspectionGestureTests.testRecognizedHoldConsumesReleaseAndRepeatedCallbacksWithoutPlacingSelectedCard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "MarkerInspectionGestureTests.testRecognizersUseFourHundredMillisecondHoldAndDoNotDelayOrdinaryTouches": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "MarkerInspectionGestureTests.testShortTapStillPlacesTheSelectedCardThroughTheOrdinaryAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "MarkerInspectionLayoutTests.testJadeAtAllFourBoardCornersFitsBothPhoneSizesWithoutMovingGameplay": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 8.859
+    },
+    "MarkerInspectionLayoutTests.testLongGivenAndFilledExplanationsStayReadableAtAccessibilitySize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 12.014
+    },
+    "MemoryHostLifecycleTests.testCompletedAndCancelledReturnSnapshotsDoNotAccumulateImages": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.011
+    },
+    "MemoryHostLifecycleTests.testDismantledStandReleasesCoordinatorSceneAndFrameCallbacks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.765
+    },
+    "MemoryHostLifecycleTests.testNestedPaperHostRemovalReleasesPanelEnvironmentAndGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.47
+    },
+    "MemoryHostLifecycleTests.testPreparedAndTimedGamesReleaseAfterTheirOwnerIsRetired": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.419
+    },
+    "MemoryHostLifecycleTests.testRepeatedPuzzleHostsReleaseModelCaptureAnchorAndMetalRenderer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.298
+    },
+    "MemoryLifecycleTests.testAbandonedLineClearDoesNotWaitForBoardFlashToReleaseGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "MemoryLifecycleTests.testAbandonedMarkerPlacementDoesNotWaitForReceiptToReleaseGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "MemoryLifecycleTests.testAbandonedWrongPlacementDoesNotWaitForReturnAnimationToReleaseGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "MemoryLifecycleTests.testPresentationCleanupsStillExpireForLiveModelsWithoutChangingTheirGames": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.119
+    },
+    "MenuReturnTransitionTests.testBeginKeepsTheOutgoingSnapshotOpaqueUntilTheDestinationActuallyRenders": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "MenuReturnTransitionTests.testBeginningDuringADissolveResetsReadinessAndRejectsTheOldAnimationCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "MenuReturnTransitionTests.testCancellationInvalidatesCallbacksBothBeforeAndDuringTheDissolve": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "MenuReturnTransitionTests.testFinishBeforeTheFirstDestinationFrameCannotDropTheOpaqueCover": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "MenuReturnTransitionTests.testFirstMatchingFrameStartsOneDissolveAndRetainsPixelsUntilCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "MenuReturnTransitionTests.testMissingCaptureLeavesNoBarrierAndInvalidatesAnyEarlierReturn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "MenuReturnTransitionTests.testOldFrameAndCompletionCannotRevealOrClearANewerReturn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "MenuReturnTransitionTests.testOnlyTheMatchingCompletionCanReleaseTheRenderedSnapshot": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "MusicCueTests.testAllTwelveBooksHaveAnIntentionalNonBossMusicCue": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "MusicCueTests.testContactSoundsHaveAnImmediateDryOnsetRatherThanALongSineFade": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "MusicCueTests.testEveryBossUsesTheCorrectRegularOrFinalSuiteInEveryBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "MusicCueTests.testFiveCueResourcesHaveUniqueStableNames": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "MusicCueTests.testProceduralEffectsHaveHeadroomNoDCAndSilenceSafeEnds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.055
+    },
+    "OnboardingEligibilityTests.testExistingProgressAndSavedRunsNeverGetForcedIntoPractice": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "OnboardingEligibilityTests.testFreshPlayerGetsTheQuestion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "OnboardingEligibilityTests.testRecordedDecisionAndExplicitPreviewBypassWithoutChangingProfile": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "OnboardingStoreTests.testEveryExplicitExitPersistsOnlyItsLocalVersionedDecision": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.008
+    },
+    "OnboardingStoreTests.testOpeningTheQuestionDoesNotWriteACompletionFlag": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "OnboardingStoreTests.testRepeatedCallbacksDoNotReplaceTheOriginalDecision": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "OnboardingStoreTests.testUnknownStoredValueDoesNotSilentlyMarkTheLessonComplete": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "PageCaptureTests.testChangingChromeAfterFirstFrameKeepsHostCaptureAndTurnAlive": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.183
+    },
+    "PageCaptureTests.testFullscreenCaptureAndLiveContentUseEveryPointOfTheHost": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.268
+    },
+    "PageCaptureTests.testResizingHostCancelsTurnAndKeepsAlreadyCommittedDestination": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.167
+    },
+    "PageCaptureTests.testSnapshotCapturesCurrentLiveStateBeforeDestinationChanges": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.279
+    },
+    "PageFlipTests.testAlreadyCancelledTaskDoesNotCaptureOrChangePage": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testCancellationBeforeFirstFrameKeepsOriginAndRejectsStaleCallbacks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "PageFlipTests.testCancellationDuringCaptureDoesNotPrepareOrCommitPage": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testCancellationDuringStartCannotCommitAnImmediateFirstFrame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testCancellationDuringTexturePreparationReleasesItWithoutStarting": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "PageFlipTests.testCompletionBeforeFirstFrameKeepsOriginAndReleasesTurn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testDestinationChangesOnlyAfterPrintedFirstFrameAndUnlocksOnCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testDuplicateFirstFrameCallbackCommitsDestinationOnlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testMissingSnapshotDoesNotBlockNavigation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testReduceMotionChangesPageWithoutCapturingOrStartingRenderer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testRendererPreparationFailureDoesNotBlockNavigation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testRepeatedTapCannotStartAnotherTurnOrChangeDestination": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testTaskCancellationAfterFirstFrameKeepsCommittedDestinationAndReleasesTurn": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testTaskCancellationGatesAnAlreadyQueuedFirstFrameBeforeCleanupRuns": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PageFlipTests.testTurnExhaustionKeepsBoardUntilTheResultLeafIsPresented": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PaperDesignSystemTests.testPaperActionsGrowForLargeTypeInsteadOfClipping": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.688
+    },
+    "PaperDesignSystemTests.testPrintedIllustrationUsesItsDeclaredOuterSize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "PaperDesignSystemTests.testReplacementSlipFitsTheDecisionAndKeepsConsequencesVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.553
+    },
+    "PaperPanelPresentationTests.testDismissalCallbackCanOpenTheNextPanelAfterThePreviousOneIsRemoved": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PaperPanelPresentationTests.testLiveSourceEnvironmentRefreshPreservesMountedPracticeAndSelection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.127
+    },
+    "PaperPanelPresentationTests.testNestedPanelsOwnInputUntilTheTopPanelHasFinishedDismissing": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "PaperPanelPresentationTests.testNestedSettingsPracticeSurvivesChangingTextSizeWhileOpen": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.364
+    },
+    "PaperPanelPresentationTests.testOwnerNavigationCancelsEveryDescendantAndItsPendingHandoff": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "PaperPanelPresentationTests.testReopenedOwnerIsNotRemovedByAnEarlierDismissalCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.311
+    },
+    "PaperPanelPresentationTests.testSettingsHelpAndNestedTopicsShareTheVisibleRootWithoutUIKitPresentation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.269
+    },
+    "PaperVolumeSliderTests.testCustomTrackAndThumbRemainVisibleAtMuteAndEnlargedText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.411
+    },
+    "PaperVolumeSliderTests.testHorizontalDragUpdatesContinuouslyAndVerticalStartNeverChangesVolume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "PaperVolumeSliderTests.testMountedControlReadsExternalChangesAndWritesOnlyItsCurrentPersistedBinding": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.815
+    },
+    "PaperVolumeSliderTests.testSeekingAtDisplayedThumbCenterNeverJumpsInEitherLayoutDirection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PaperVolumeSliderTests.testTapSeeksAndVoiceOverChangesFivePercentWithoutDuplicateEndpointEvents": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "PaperVolumeSliderTests.testTrackEndpointsClampingSteppingAndRightToLeftMapping": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "PendingDecisionCallbackTests.testDelayedPlayCallbackCannotInterruptPaidBriefingChoice": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.06
+    },
+    "PendingDecisionCallbackTests.testOldShopCallbacksLeaveSavedChoicePageAndMessageUntouched": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "PreparedPuzzleTests.testAcceptedSkipInvalidatesAReadyDealWithoutLosingItsReward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.053
+    },
+    "PreparedPuzzleTests.testAcceptedSkipWhilePreparingCannotPublishTheSkippedPuzzle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "PreparedPuzzleTests.testCancellationDiscardsReadyResultWithoutChangingLiveRNG": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.014
+    },
+    "PreparedPuzzleTests.testCancelledFlipNeverCommitsPreparedPuzzle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "PreparedPuzzleTests.testCancelledInFlightPreparationCannotPublishItsResult": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.014
+    },
+    "PreparedPuzzleTests.testCancelledPlayWaiterDoesNotCancelTheBriefingPrewarm": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.018
+    },
+    "PreparedPuzzleTests.testChangingSlotRejectsOldPreparedBoardAndRNG": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.014
+    },
+    "PreparedPuzzleTests.testConcurrentPrewarmAndPlayShareTheSameWorker": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "PreparedPuzzleTests.testFailedPreparationDoesNotMutateAndReportsOnlyForPlayRequest": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.007
+    },
+    "PreparedPuzzleTests.testFrozenPageNeverPreparesOrChangesRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.001
+    },
+    "PreparedPuzzleTests.testInventoryAndCoinMutationRejectsAnOldPreparedDeal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.04
+    },
+    "PreparedPuzzleTests.testMutationWhilePreparingCannotPublishStaleInventoryOrRNG": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.027
+    },
+    "PreparedPuzzleTests.testPersistenceEncodingWarmsOffMainWithoutCommittingASaveState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "PreparedPuzzleTests.testPreparationMatchesSynchronousDealWithoutAdvancingLiveState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.78
+    },
+    "PreparedPuzzleTests.testPreparationRunsOffMainAndMainActorRemainsAvailable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "PreparedPuzzleTests.testWarmLookupReusesOneGeneration": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "ProceduralSoundTests.testEveryOriginalCueIsDeterministicShortAndBelowFullScale": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.036
+    },
+    "ProceduralSoundTests.testPageTurnHasSoftEdgesFlexibleBodyAndASeparateQuietLanding": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.007
+    },
+    "ProceduralSoundTests.testPageTurnKeepsItsEnergyInWarmPaperRatherThanHighFrequencyHash": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.098
+    },
+    "ProceduralSoundTests.testWaveDataHasPCMHeaderAndDistinctPerCuePayloads": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.035
+    },
+    "ProgressionNavigationTests.testCashOutAndShopOpeningAreIdempotentWithoutRerollingOrRepaying": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.018
+    },
+    "ProgressionNavigationTests.testDuplicateDealKeepsTheBoardInventoryAndAllRandomStreams": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.015
+    },
+    "ProgressionNavigationTests.testFailedAbandonRetainsLiveClockAndAllowsRetryWithoutWritingRealStorage": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.095
+    },
+    "ProgressionNavigationTests.testFailedInitialSaveDoesNotExposeAnUnsavedBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.004
+    },
+    "ProgressionNavigationTests.testKeepFillingResumesTheSamePuzzleAndFreezesScoreUntilOnePayout": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.014
+    },
+    "ProgressionNavigationTests.testPlayingUnpaidAndRescuePuzzlesCannotBeDiscardedByNavigation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.064
+    },
+    "ProgressionNavigationTests.testRepeatedReduceMotionContinueAdvancesExactlyOnePuzzleAndKeepsItsOfferOnResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.018
+    },
+    "ProgressionNavigationTests.testTerminalAndAbandonedModelsRejectDelayedActions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.426
+    },
+    "PuzzleActionEnlargementTests.testRealPuzzleActionsAndTossAllowanceEnlargeWithoutClippingOrShrinkingBoardBelowMinimum": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 10.587
+    },
+    "PuzzleAnnotationRenderingTests.testChangingTurnReplacesHandwritingWithoutSuperimposingThePreviousSentence": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.841
+    },
+    "PuzzleAnnotationRenderingTests.testEveryBossNameAndCompleteRuleFitTheTwoLineAnnotation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 80.669
+    },
+    "PuzzleAnnotationRenderingTests.testRealUnderlinedMarginNotesRemainFullyReadableAndInsideTheirBandsAtAccessibilitySize": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 24.733
+    },
+    "PuzzlePageLayoutTests.testAccessibilitySizeKeepsTheSameBoardSideAcrossStages": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.462
+    },
+    "PuzzlePageLayoutTests.testBoardSideIsStableAcrossLevelsAndBossStagesOnEachPhone": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 55.662
+    },
+    "PuzzlePageLayoutTests.testHandCapacityEmptySlotsAndCluePromptDoNotResizeTheBoard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 14.442
+    },
+    "PuzzlePageLayoutTests.testHighScoresQueuedMultipliersAndCoinReceiptDoNotMoveTheBoard": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 25.322
+    },
+    "PuzzlePageLayoutTests.testLargeIPadUsesItsAvailableSpaceWithoutMovingTimedBossBoardOrClippingFooter": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.921
+    },
+    "PuzzlePageLayoutTests.testLitmusQueuedScoreAndSilentMarginKeepTheSameBoardSide": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 9.628
+    },
+    "PuzzleSelectionTests.testAutomaticFinalCardPresentationUsesPostBankingScore": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.015
+    },
+    "PuzzleSelectionTests.testBarredBlankDoesNotReplaceHandSelectionOrAttemptPlacement": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testBarredOccupiedSquareDoesNotDropTheCurrentHandSelection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.013
+    },
+    "PuzzleSelectionTests.testChangingHandCardsSelectsTheNewIndexInsteadOfTogglingItOff": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testDismissSelectionClearsBothSourcesWithoutChangingThePuzzle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.031
+    },
+    "PuzzleSelectionTests.testHandTapClearsASelectedBlankWithoutPlacingAnything": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testHandTapClearsPreviouslyHighlightedBoardSquare": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testInvalidHandIndexDoesNotClearExistingBoardSelection": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testLateClueActivationCannotChangeATerminalPuzzleOrShowAnError": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.04
+    },
+    "PuzzleSelectionTests.testLateSquareTapAndDragAreNoOpsAfterPuzzleTerminalPhase": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.04
+    },
+    "PuzzleSelectionTests.testOccupiedBoardTapDropsHandAndHighlightsTheBoardDigit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testOutgoingHandTossAndEndTurnCannotChangeATerminalPuzzleOrShowAnError": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.04
+    },
+    "PuzzleSelectionTests.testPlayingAndKeepFillingRetainNormalTurnAndTossControls": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "PuzzleSelectionTests.testPlayingAndKeepFillingStillAcceptDirectPlacement": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.026
+    },
+    "PuzzleSelectionTests.testRepeatedHandTapClearsEverySelectionAndDoesNotRestoreOldBoardHighlight": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "QAScoringFixtureTests.testClearFixtureProvidesTwoUnitsAndCardsForRealDrawHooks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.015
+    },
+    "QAScoringFixtureTests.testDuplicateInventoryFixtureKeepsExactCopiesSeparateAcrossSaveAndDoesNotSpendThem": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "QAScoringFixtureTests.testEveryFixtureArrangesAConservedUnscoredPlayableState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.12
+    },
+    "QAScoringFixtureTests.testModifierPreviewUsesRealPlacementBuffAndBankingActions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "RewardedAdFailureTests.testAdLoadBoundaryAlsoRecognizesURLConnectivityFailure": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.004
+    },
+    "RewardedAdFailureTests.testClassifiedFailureKeepsItsMeaningAndOriginalErrorAcrossServiceBoundary": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdFailureTests.testForeignDomainWithConnectivityCodeKeepsStageFallback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdFailureTests.testGoogleLoadErrorsUseDomainAndOfficialCodeToDistinguishFailureCauses": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdFailureTests.testNonGoogleDomainWithGoogleCodeIsNeverClassifiedAsNoFill": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdFailureTests.testUnclassifiedURLErrorKeepsStageFallback": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdFailureTests.testURLConnectivityFailuresHaveActionableTextWithoutExposingRawDetails": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdFailureTests.testURLTimeoutIsNotReportedAsNoInventory": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdServiceTests.testAudioPausesSynchronouslyBeforeAdAndResumesExactlyOnceAfterEveryExit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.027
+    },
+    "RewardedAdServiceTests.testBackgroundAndExpiredAdsCannotPresent": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testCancelledConsentStillOwnsAudioUntilItsLastOverlappingFormFinishes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testCancelledLoadCannotReplaceANewerAd": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testConcurrentPreparationDoesNotReplaceAnUncancelledLoad": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testConfigurationFailureInvalidatesAnAlreadyPreparedAd": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "RewardedAdServiceTests.testConsentConfigurationFailureIsNotReportedAsNoFill": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testConsentFailureFailsClosedUnlessUMPStillAllowsAds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testConsentNetworkStagesTimeOutWithoutLateFormsOrAds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.044
+    },
+    "RewardedAdServiceTests.testConsentRunsBeforeLoadAndReadyPreparationDoesNotLoadAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testDemoIdentifiersStayAvailableForRoutineBuilds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdServiceTests.testDisabledConfigurationNeverConstructsTheGoogleAdapter": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testDisabledServiceNeverReadsConsentOrRequestsFormsOrAds": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testEnabledConfigurationsStillUseTheInjectedSDKFactory": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdServiceTests.testEveryRewardedRequestIsNonPersonalizedAndContainsNoGameplayTargeting": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testImmediatePrivacyRefreshRetryRemainsPrivacyOnly": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testImmediateRetrySurvivesQueuedCancellationCleanup": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "RewardedAdServiceTests.testInvalidConfigurationStopsBeforeReadingConsentOrLoading": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "RewardedAdServiceTests.testLoadFailuresNeverRetryAutomatically": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "RewardedAdServiceTests.testLoadTimeoutReturnsWithoutWaitingForUncooperativeSDK": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "RewardedAdServiceTests.testNoFillLeavesRetryAvailable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testOfflineLoadShowsConnectionReasonAndCanRecover": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testOnlyEarnedCallbackRewardsAndBothCallbacksAreIdempotent": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testPrivacyChangeInvalidatesReadyAdWithoutRequestingAnother": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testPrivacyOptionsKeepsAudioPausedUntilFormReturnsOrThrows": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testQueuedConsentCompletionCannotAdvanceAfterCallerCancellation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testQueuedLoadCompletionCannotBecomeReadyAfterCallerCancellation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "RewardedAdServiceTests.testRejectedAdAndPrivacyRefreshDoNotChangeAudioPresentationState": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testRequestPrivacyDisablesPersonalizationAndPublisherIDWithoutStartingSDK": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RewardedAdServiceTests.testRequiredConsentKeepsAudioPausedUntilFormReturnsOrThrows": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testSettingsRefreshExposesCachedRequirementAndNeverLoadsOrPresents": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testSkippingOrPresentationFailureNeverRewards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "RewardedAdServiceTests.testSynchronousPresentationRejectionOwesNoCallbacks": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedAdServiceTests.testUnavailableConsentCannotLoadAnAd": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RewardedRescuePersistenceTests.testAbandonedTimedBookCannotRemainRunningOrReceiveLateReward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.052
+    },
+    "RewardedRescuePersistenceTests.testAdDismissalAndDuplicateDismissalKeepRewardedStateIdentical": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "RewardedRescuePersistenceTests.testClosingBeforeEarnedCallbackPreservesOfferWithoutGivingFreeTurns": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "RewardedRescuePersistenceTests.testEveryBookResumesItsEarnedRewardBeforeAdDismissal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.19
+    },
+    "RewardedRescueSessionTests.testAbandonInvalidationRejectsLateRewardEvenForSameSeed": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.038
+    },
+    "RewardedRescueSessionTests.testCallbackCannotRewardAnotherBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.037
+    },
+    "RewardedRescueSessionTests.testDismissalWithoutRewardKeepsTheSavedPuzzleAndOffer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "RewardedRescueSessionTests.testFrozenResultCannotRequestOrAcceptReward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "RewardedRescueSessionTests.testOnlyMatchingEarnedCallbackGrantsExactlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "RewardedRescueSessionTests.testPendingAndEarnedSavesResumeWithoutLosingOrRepeatingReward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "RewardedRescueSessionTests.testPlayingPuzzleCannotStartARewardPresentation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.023
+    },
+    "RollingNumberTests.testGroupedHighScoresAndNegativeSignFitAsOneCompleteNumber": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.058
+    },
+    "RollingNumberTests.testRenderedHeightStaysFixedThroughCarriesAndShrinkingValues": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.064
+    },
+    "RollingNumberTests.testUngroupedReadoutsPreserveEveryDigitAndSignWithoutAddingSeparators": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.293
+    },
+    "RoutePresentationTests.testBossNeverOffersASkip": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RoutePresentationTests.testCouponHangsBeforeGravityAndDisappearsAtCompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RoutePresentationTests.testEveryBookPreviewUsesLegalDigitsAndItsActualClueDensity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "RoutePresentationTests.testRouteKeepsThreeOrderedNamesAndACompactNumberedFootprint": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "RoutePresentationTests.testSkipCannotBeRedeemedByAnotherBookSession": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RoutePresentationTests.testSkipClaimPaysOnceAndCannotConsumeTheNextOffer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "RoutePresentationTests.testSkipDoesNotCommitMerelyBecauseItWasPickedUp": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "RunPageConsistencyTests.testBriefingResultsAndShopShareFullscreenInventoryAndPinnedDecisions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 8.689
+    },
+    "RunPageConsistencyTests.testFogSnapshotCannotLeakMarkersEvenIfCallerSuppliesTheirDictionary": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.052
+    },
+    "RunPageConsistencyTests.testPlayedBoardRendersActualBlanksPlacedDigitsAndMarkersWithoutMutation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.047
+    },
+    "RunPersistenceLifecycleTests.testAbandonedBookRejectsAReadyPreparedPuzzleAndItsOldSkipClaim": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "RunPersistenceLifecycleTests.testFinishingDetachedPreparationAfterAbandonCannotReviveTheBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.015
+    },
+    "RunPersistenceLifecycleTests.testRepeatedAbandonAndClockExitCallbacksKeepTheRetiredSnapshotStable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.217
+    },
+    "RunStoreCompletionCompatibilityTests.testCompletedReceiptSurvivesRepeatedStorageRoundTripsWithoutAnotherPayoutOrPuzzle": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.204
+    },
+    "RunStoreCompletionCompatibilityTests.testConflictLabelDistinguishesCompletionReceiptFromAnUnfinishedBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.198
+    },
+    "RunStoreCompletionCompatibilityTests.testFailedAndDeclinedRescueSavesStayExcludedAndMalformedBytesAreIgnored": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.246
+    },
+    "RunStoreCompletionCompatibilityTests.testLegacyPaidFinalBoardAndDiscardedBoardShopReachTheCompletedReceiptLoader": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.203
+    },
+    "RunStoreCompletionCompatibilityTests.testPendingAndAlreadyClaimedRescueRemainResumableAndNeverBecomeCompletionReceipts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.019
+    },
+    "RunStoreCompletionCompatibilityTests.testUnpaidWinIsPreservedWithoutStorageInventingACompletion": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.2
+    },
+    "SavedBookSummaryTests.testFinalReceiptIsNotPresentedAsAnUnfinishedBook": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "SavedBookSummaryTests.testHomeActionsKeepRunDetailsReadableAtPhoneWidthsAndLargestText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.444
+    },
+    "SavedBookSummaryTests.testMissingAndFailedRunsNeverOfferContinue": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "SavedBookSummaryTests.testResumeSummaryReflectsActualSavedLocationAndDoesNotChangeGame": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "ScoreLedgerEnlargementTests.testActualLedgerCopyAndFactorsEnlargeWhileEverySourceAndCloseRemainReachable": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 21.362
+    },
+    "ScorePerformanceTests.testBuffAndWrongPlacementImmediatelyReplaceAnOlderLiveCalculation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "ScorePerformanceTests.testCappedBankPresentationShowsOnlyAwardedPointsAndNoPhantomMorningBonus": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "ScorePerformanceTests.testCrimsonFourAndFreshInkShowExact960Then1920WithNamedOperations": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "ScorePerformanceTests.testEmptyTurnDoesNotInventMorningEditionAwardOrPresentation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "ScorePerformanceTests.testFogHidesMarkerFeedbackAndAccessibilityWithoutChangingActualScore": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "ScorePerformanceTests.testFractionalCatalogueMultStaysExactThroughPreviewBankAndReceipt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "ScorePerformanceTests.testFrozenPageNeverPlaysScoringAndResumeDoesNotReplayAwards": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "ScorePerformanceTests.testKeepFillingDoesNotAdvertiseAnotherScoreAward": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "ScorePerformanceTests.testLiveCalculationUpdatesBeforePlacementReceiptAndNeverMixesAnimationValues": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "ScorePerformanceTests.testMixedEligibleAndOnyxClueProductsStayExactThroughResumeAndBank": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.024
+    },
+    "ScorePerformanceTests.testOrderedLedgerExplanationUsesEngineRunningTotalsAndExactItemIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.013
+    },
+    "ScorePerformanceTests.testPresentationCannotChangeSavedRulesAndOldTaskCannotClearNewReceipt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.02
+    },
+    "ScorePerformanceTests.testRapidPlacementsReplaceReceiptButKeepLatestEngineSubtotal": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.019
+    },
+    "ScorePerformanceTests.testReceiptHasPlacementThenNamedBonusThenQueue": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.018
+    },
+    "ScorePerformanceTests.testReversedBookmarkOrderAndDuplicateBuffCopiesKeepTheirExactSources": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.014
+    },
+    "ScorePlaybackLifecycleTests.testBuffReceiptWaitsForVisibleBoardAndCoveringPlaybackCancelsWithoutChangingScore": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 3.134
+    },
+    "ScoreSourceRenderingTests.testPlainAttributionFitsTheExistingFourteenPointQueueBand": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.357
+    },
+    "ScoreSourceRenderingTests.testStagedSourcesStayAtTheScoreWithoutChangingItsHeight": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 14.616
+    },
+    "ScoringSourceHighlightTests.testConsumedBuffHighlightsOnlyItsRecordedFormerSlotWithoutInventingAnItem": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ScoringSourceHighlightTests.testExpandedClaimIdentityNeverHighlightsAnotherClaimOrFollowupSquare": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.024
+    },
+    "ScoringSourceHighlightTests.testGivenCoveredMarkerCannotBePresentedAsTriggered": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.017
+    },
+    "ScoringSourceHighlightTests.testMarkerOutlineRequiresTheActualVisiblePositionAndSource": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "ScoringSourceHighlightTests.testOnlyTheExactBookmarkCopyPulsesAndEachReceiptKeepsItsOwnIdentity": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ScoringSourceHighlightTests.testOutlineLeavesTheSquareInteriorAndLayoutUntouched": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.005
+    },
+    "SettingsPresentationTests.testAchievementDestinationHasSettingsReturnAndDoesNotNeedAuthentication": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.831
+    },
+    "SettingsPresentationTests.testActiveBookSettingsHasNativeScrollRangeAndReachesAbandon": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 6.438
+    },
+    "SettingsPresentationTests.testBookstoreSettingsHasNativeScrollRangeAndReachesPrivacy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 6.474
+    },
+    "SettingsPresentationTests.testEnlargedAbandonDecisionUsesWholeWordsAndReadableConsequences": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.694
+    },
+    "SettingsPresentationTests.testEverySettingsNavigationTargetMeetsTouchSizeAndWrapsLargeText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.72
+    },
+    "SettingsPresentationTests.testGameMotionPreferenceHasAccurateCopyAndReadableEnlargedText": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.054
+    },
+    "SettingsPresentationTests.testSettingsContentHasThreeAudioSlidersAndCompactNavigation": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.962
+    },
+    "SettingsPresentationTests.testSettingsIndexHasOneLocalAchievementDestinationAndPreservesLearningEntries": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopBookmarkPresentationTests.testLongOfferCopyHasAVisibleDetailsAffordanceAtPhoneCardWidths": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.307
+    },
+    "ShopBookmarkPresentationTests.testOfferDetailsUseTheSharedPaperHeadingAndCloseEvenWhenTheGameIsDark": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.382
+    },
+    "ShopBookmarkPresentationTests.testOwnedBookmarkDetailsShowTheCompleteCopyAndSaleRefund": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.653
+    },
+    "ShopBookmarkPresentationTests.testRedrawOfferUsesCustomPaperPanelAndShowsCompleteCopy": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.419
+    },
+    "ShopBookmarkPresentationTests.testSellControlUsesPaidPriceAndRejectsAReplacementInItsSlot": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "ShopBookmarkPresentationTests.testShiftedBuffSlotCannotSellItsNeighborAndMinimumRefundIsVisible": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "ShopBookmarkPresentationTests.testShortOfferCopyStaysCompleteWithoutAnUnnecessaryDetailsLabel": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.376
+    },
+    "ShopMarkerHandoffTests.testClosingAnUnpurchasedOfferDoesNotRequestMarkerPlacement": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "ShopMarkerHandoffTests.testDuplicatePurchaseCallbackCannotReplaceTheWaitingMarker": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "ShopMarkerHandoffTests.testPurchaseWaitsForOfferDismissalAndIsHandedOffExactlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "ShopOfferCardRenderingTests.testEveryOfferAndContinueFitTheInitialScreenWithoutACatalogueScrollView": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 9.564
+    },
+    "ShopOfferCardRenderingTests.testFullPaperInspectionButtonsPreserveColumnAndWideCardFootprints": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 1.828
+    },
+    "ShopOfferCardRenderingTests.testNarrowFittedCardsKeepLongNamesAndCompleteConciseEffects": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 56.13
+    },
+    "ShopSaleAchievementTests.testAlreadyEarnedLegacyAwardSurvivesDecodeNormalizationAndCloudMerge": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopSaleAchievementTests.testAnotherShopInTheSameLevelDoesNotRequestTheAchievement": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.056
+    },
+    "ShopSaleAchievementTests.testBookmarkAndBuffSalesInTheirPurchaseShopBothRequestBuyersRemorse": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopSaleAchievementTests.testCapacitySaleCancellationInvalidChoiceAndReplayProduceNoReceipts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.006
+    },
+    "ShopSaleAchievementTests.testCapacitySaleOutsideShopKeepsSelectedHandCopyAndCannotAwardSameShopSale": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.029
+    },
+    "ShopSaleAchievementTests.testCapacitySaleReportsBothExactOriginalPurchaseReceipts": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopSaleAchievementTests.testEligibilityKeepsTheExistingLocalAndServerAchievementIdentityAndWording": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopSaleAchievementTests.testLeavingTheShopDisqualifiesTheSaleWithoutDisablingItsRefund": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopSaleAchievementTests.testRerollKeepsTheAchievementEligibleAcrossSaveAndResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "ShopSaleAchievementTests.testUnknownLegacyOriginsAndMissingOrInvalidCurrentVisitsFailClosed": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "SkipRewardSessionTests.testEveryChapterStillOffersOrdinarySkipsAfterPriorSkips": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 42.581
+    },
+    "SkipRewardSessionTests.testFrozenOutgoingPageCannotClaimTheLiveOffer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "SkipRewardSessionTests.testFullInventoryRequiresAnExplicitChoiceAndCancellationKeepsEverything": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.002
+    },
+    "SkipRewardSessionTests.testNormalBookStartSavesTheFirstUndealtOfferBeforeAnyAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "SkipRewardSessionTests.testOfferSurvivesRedrawsNavigationAndResumeButOldClaimsDoNot": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "SkipRewardSessionTests.testShopExitAndShopResumeExposeTheSameNextOffer": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "SkipRewardSessionTests.testSkipRewardInventoryAndProgressionRoundTripAsOneSavedAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.003
+    },
+    "StudioIntroRenderingTests.testCoveredSceneWarmsOncePausesThenResumesWithoutRepeatingReadiness": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.128
+    },
+    "StudioIntroRenderingTests.testCoverHandoffWaitsForNewGPUFramesWithoutReplayingStudioReadiness": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.081
+    },
+    "StudioIntroRenderingTests.testStoppingReportingInvalidatesStaleFrameCallbacksAndAllowsFreshWarmup": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.085
+    },
+    "StudioLogoTests.testCameraZoomNeverStopsOrReversesDuringMove": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "StudioLogoTests.testFinalDotCoversWholeScreenAtGameHandoff": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "StudioLogoTests.testHandoffOccursAtFirstFullDotFrameWithoutWhiteHold": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "StudioLogoTests.testLettersShareCapHeightAndBaseline": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "StudioLogoTests.testReduceMotionCameraStaysStill": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.0
+    },
+    "TikTakClockTests.testAchievementsDoNotSpendTimeAndReturnResumesSameClock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.18
+    },
+    "TikTakClockTests.testDelayedTickChargesActualMonotonicTimeInsteadOfOneSecond": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.178
+    },
+    "TikTakClockTests.testExpiryFailsNormalPlayAndKeepFillingThroughEngineFailure": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.352
+    },
+    "TikTakClockTests.testFreshClockWaitsForVisibleActivePuzzleBeforeCounting": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.178
+    },
+    "TikTakClockTests.testFrozenPageCannotStartTickStopOrSaveItsClock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.178
+    },
+    "TikTakClockTests.testKeepFillingAfterRelaunchOnWonResultsRetainsClock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.177
+    },
+    "TikTakClockTests.testLegacySaveWithoutClockFieldStartsOneCompatibleBudget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.176
+    },
+    "TikTakClockTests.testNegativeOrRepeatedInstantCannotAddTime": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.176
+    },
+    "TikTakClockTests.testPauseSavesPartialSecondAndResumeDoesNotChargeTimeAway": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.177
+    },
+    "TikTakClockTests.testRepeatedResumeDoesNotResetTheSamplingOriginOrBudget": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.176
+    },
+    "TikTakClockTests.testSaveAndRelaunchPreserveFractionalBudgetAndBoardExactly": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.178
+    },
+    "TikTakClockTests.testSavedThreeMinuteEncounterIsNotResetOrExtendedByNewFourMinuteLimit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.352
+    },
+    "TikTakClockTests.testTimerTicksDoNotInvalidateGameOrUrgencyUntilItsThreshold": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.179
+    },
+    "TikTakClockTests.testUntimedPuzzleNeverStartsOrAcquiresASavedClock": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.016
+    },
+    "TikTakClockTests.testZeroRemainingSaveExpiresOnActivationNotDuringBackgroundResume": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.176
+    },
+    "TutorialPresentationTests.testCompactPhoneAndIPadKeepTheOutlinedHandCardAboveTheFooter": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 4.107
+    },
+    "TutorialPresentationTests.testFirstWelcomeKeepsBothChoicesReachableAtNormalAndLargestTextSizes": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 14.387
+    },
+    "TutorialPresentationTests.testItemActionsAndMultiplierAreReadableOnCompactPhone": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 19.627
+    },
+    "TutorialPresentationTests.testLargestDynamicTypeCanScrollToRealBuyUseAndSellButtons": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 49.84
+    },
+    "TutorialPresentationTests.testRealHandRemainsVisibleBelowBoardAfterPlacingAndBanking": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 2.837
+    },
+    "TutorialReplayTests.testCompletingAndExitingRepeatedPracticeStartsFreshWithoutResolvingOnboarding": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.082
+    },
+    "TutorialReplayTests.testPracticeNeverTouchesExistingBookOrItsEncodedSave": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.071
+    },
+    "TutorialReplayTests.testReplayCopyReturnsToSettingsWithoutChangingFirstRunDestination": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.001
+    },
+    "TutorialSessionTests.testBankReachesTargetAndCashOutPaysExactlyOnceWithReceipt": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.056
+    },
+    "TutorialSessionTests.testChapterProgressCountsOnlyAcceptedLearnerActions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.06
+    },
+    "TutorialSessionTests.testCombinationUsesRealBookmarkMarkerLineClearAndMultiplierRules": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.056
+    },
+    "TutorialSessionTests.testCuratedRowAndMarkerAreDeterministicAndClaimDoesNotSpendCoinsOrNumber": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.109
+    },
+    "TutorialSessionTests.testExitAtEveryStepFreezesLateActionsAndCannotCompleteAgain": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.977
+    },
+    "TutorialSessionTests.testFreshInkConsumesOnlyItsCopyAndIncreasesAlreadyQueuedMultiplier": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.055
+    },
+    "TutorialSessionTests.testIdleAndContinueNeverPerformLearnerActions": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.064
+    },
+    "TutorialSessionTests.testPlayerSelectionPlacementAndEndTurnUseRealQueueAndBankRules": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.022
+    },
+    "TutorialSessionTests.testPracticeDoesNotResolveOnboardingUntilOwnerRecordsExplicitExit": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.059
+    },
+    "TutorialSessionTests.testPracticeIsDeterministicFreshEngineGameWithNormalFirstPuzzleRules": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.041
+    },
+    "TutorialSessionTests.testPracticeReceiptsUseActualBuffBankSaleAndPayoutResults": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.055
+    },
+    "TutorialSessionTests.testPracticeShopPurchasesSpendSuppliedCoinsAndRejectWrongOrDuplicateOffers": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.054
+    },
+    "TutorialSessionTests.testSellingBookmarkAndUnusedBuffRefundsCoinsAndPreservesEarnedQueueAndMarker": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.055
+    },
+    "TutorialSessionTests.testStoppedPreparationNeverInstallsAndDisappearDoesNotResolve": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "TutorialSessionTests.testWrongDuplicateAndStoppedActionsCannotEarnProgressOrReplaceSuccess": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "TutorialSessionTests.testWrongPracticeTapsPreserveBoardHandTurnScoreAndCoins": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-full-2.log",
+      "seconds": 0.021
+    },
+    "BossPhysicalPresentationTests.testHandBossTreatmentsLeaveThePrintedNumeralAreaUnobstructed": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.035
+    },
+    "BossPhysicalPresentationTests.testSelectedBarredHandCardCannotAdvertiseAPlacementAccessibilityAction": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 1.744
+    },
+    "PreparedPuzzleTests.testCancelledShopPreparationCannotAdvanceOrReplaceANewerRun": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.556
+    },
+    "PreparedPuzzleTests.testShopBossPreparationRunsOffMainAndCommitsExactlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.554
+    },
+    "PreparedPuzzleTests.testShopMutationInvalidatesPreparedBossAndPreservesPurchase": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.545
+    },
+    "PreparedShopExitTests.testBackgroundingShopBeforeFirstFrameCancelsWithoutAdvancingOrSaving": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.115
+    },
+    "PreparedShopExitTests.testCommittedShopDisappearanceLetsItsPageTurnFinishExactlyOnce": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.054
+    },
+    "PreparedShopExitTests.testCoveringShopBeforeFirstFrameCancelsWithoutAdvancingOrSaving": {
+      "result": "passed",
+      "log": "/tmp/nc-boss-ios-fixes-4.log",
+      "seconds": 0.068
+    }
+  }
+}

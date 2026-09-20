@@ -73,7 +73,7 @@ struct StartBookView: View {
         #endif
         return .none
     }
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(PlayerProfileStore.self) private var profile
     @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true
@@ -120,7 +120,9 @@ struct StartBookView: View {
                 ObstacleInfoPopup(obstacle: obstacleInfo,
                                   isLocked: ObstacleInfoPopup.lockedState(
                                       obstacle: obstacleInfo, unlockedThrough: unlockedThrough)) {
-                    withAnimation(.snappy(duration: 0.2)) { self.obstacleInfo = nil }
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.08) : .snappy(duration: 0.2)) {
+                        self.obstacleInfo = nil
+                    }
                 }
                 .zIndex(2)
             }
@@ -246,6 +248,12 @@ enum BookShelfIdleTiming {
 /// A locked ribbon gets a small desk card — enough to explain the rule without
 /// covering the Book the player was looking at.
 struct ObstacleInfoPopup: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.gameReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .title2) private var headingSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .caption) private var statusSize: CGFloat = 11
+    @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 16
+    @ScaledMetric(relativeTo: .footnote) private var footerSize: CGFloat = 12.5
     var obstacle: Obstacle
     var isLocked: Bool
     var onClose: () -> Void
@@ -268,6 +276,7 @@ struct ObstacleInfoPopup: View {
     }
 
     var body: some View {
+      GeometryReader { geometry in
         ZStack {
             Button(action: onClose) {
                 Color.black.opacity(0.28).ignoresSafeArea()
@@ -279,48 +288,57 @@ struct ObstacleInfoPopup: View {
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 0) {
+              if dynamicTypeSize.isAccessibilitySize {
+                HStack(alignment: .center) {
+                    status
+                    Spacer(minLength: 8)
+                    closeButton
+                }
+                Rectangle().fill(Paper.rule).frame(height: 1).padding(.vertical, 12)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Give the enlarged name the article's full width;
+                        // Close must never force OBSTACLE to split mid-word.
+                        Text(obstacle.name.replacingOccurrences(of: " ", with: "\n"))
+                            .font(Print.heading(headingSize))
+                            .foregroundStyle(Paper.ink)
+                            .textCase(.uppercase)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityLabel(obstacle.name)
+                            .accessibilityAddTraits(.isHeader)
+                        explanation
+                    }
+                }
+                .scrollBounceBehavior(.basedOnSize)
+              } else {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(obstacle.name)
-                            .font(Print.heading(20))
+                            .font(Print.heading(headingSize))
                             .tracking(-0.5)
                             .foregroundStyle(Paper.ink)
                             .textCase(.uppercase)
-                        Text(statusText)
-                            .font(Print.caption(9)).tracking(1.4)
-                            .foregroundStyle(Paper.inkFaint)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        status
                     }
                     Spacer()
-                    Button(action: onClose) {
-                        ZStack {
-                            Color.clear
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Paper.inkSoft)
-                                .frame(width: Self.closeIconSize, height: Self.closeIconSize)
-                                .background(Circle().fill(Paper.rule.opacity(0.35)))
-                        }
-                        .frame(width: Self.closeHitTarget, height: Self.closeHitTarget)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Close obstacle details")
+                    closeButton
                 }
 
                 Rectangle().fill(Paper.rule).frame(height: 1).padding(.vertical, 12)
 
-                Text(obstacle.text)
-                    .font(Print.body(16))
-                    .foregroundStyle(Paper.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailFooter)
-                    .font(Print.body(12.5))
-                    .foregroundStyle(Paper.inkSoft)
-                    .padding(.top, 8)
+                ViewThatFits(in: .vertical) {
+                    explanation.fixedSize(horizontal: false, vertical: true)
+                    ScrollView { explanation }
+                        .scrollBounceBehavior(.basedOnSize)
+                }
+              }
             }
             .padding(18)
-            .frame(maxWidth: 280, alignment: .leading)
+            .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? 440 : 280, alignment: .leading)
             .background {
                 RoundedRectangle(cornerRadius: 15)
                     .fill(Paper.page)
@@ -331,10 +349,56 @@ struct ObstacleInfoPopup: View {
                     }
                     .shadow(color: .black.opacity(0.42), radius: 18, x: 2, y: 10)
             }
-            .padding(.horizontal, 40)
+            // Constrain the proposal after painting the paper so short normal
+            // explanations keep their intrinsic card height, like PaperSlip.
+            .frame(maxHeight: max(100, geometry.size.height - 40))
+            .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 20 : 40)
         }
+        .frame(width: geometry.size.width, height: geometry.size.height)
+      }
         .accessibilityElement(children: .contain)
-        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+        .accessibilityAddTraits(.isModal)
+        .accessibilityAction(.escape, onClose)
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.94)))
+    }
+
+    private var status: some View {
+        Text(statusText)
+            .font(Print.caption(statusSize)).tracking(1.4)
+            .foregroundStyle(Paper.inkSoft)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var closeButton: some View {
+        Button(action: onClose) {
+            ZStack {
+                Color.clear
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Paper.inkSoft)
+                    .frame(width: Self.closeIconSize, height: Self.closeIconSize)
+                    .background(Circle().fill(Paper.rule.opacity(0.35)))
+            }
+            .frame(width: Self.closeHitTarget, height: Self.closeHitTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Close obstacle details")
+        .accessibilityIdentifier("obstacle-details.close")
+    }
+
+    private var explanation: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(obstacle.text)
+                .font(Print.body(bodySize))
+                .foregroundStyle(Paper.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detailFooter)
+                .font(Print.body(footerSize))
+                .foregroundStyle(Paper.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -353,7 +417,7 @@ private struct BookShelf: View {
     var onShowObstacleInfo: (Obstacle) -> Void
 
     @State private var drag: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
 
     var body: some View {
         // Full screen, not the safe area: the notch is deeper than the home

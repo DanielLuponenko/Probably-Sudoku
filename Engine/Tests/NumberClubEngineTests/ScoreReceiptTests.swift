@@ -59,6 +59,8 @@ final class ScoreReceiptTests: XCTestCase {
         var game = try game()
         game.run.puzzle?.turnNumber = 10
         game.run.puzzle?.pendingBase = 100
+        // This arithmetic fixture represents a qualifying played Turn.
+        game.run.puzzle?.bookmarkState.turn.eligiblePlacements = 1
         game.run.puzzle?.pendingMult = 3
         let turn = try game.endTurn()
         XCTAssertEqual(turn.contributions.map(\.directScore), [100, 300])

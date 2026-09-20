@@ -1,0 +1,44 @@
+{
+  "box-entrance.mp4": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1206,
+        "height": 2622
+      }
+    ],
+    "format": {
+      "duration": "4.333333"
+    }
+  },
+  "row-turn.mp4": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1206,
+        "height": 2622
+      }
+    ],
+    "format": {
+      "duration": "4.233333"
+    }
+  },
+  "box-next-turn-and-menu-build3.mov": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1206,
+        "height": 2622
+      }
+    ],
+    "format": {
+      "duration": "24.648333"
+    }
+  }
+}

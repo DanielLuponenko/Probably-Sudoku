@@ -6,7 +6,8 @@ import ProbablySudokuEngine
 /// place the game stops being an object.
 struct PaperSlip<Content: View>: View {
     @Environment(\.cosmeticTheme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var cardHasAppeared = false
     @ScaledMetric(relativeTo: .title2) private var headingSize: CGFloat = 22
     @ScaledMetric(relativeTo: .subheadline) private var subtitleSize: CGFloat = 13
@@ -17,7 +18,7 @@ struct PaperSlip<Content: View>: View {
     /// Tapping the desk behind the slip puts it down. Off for slips that are
     /// asking a question rather than showing something.
     var dismissesOnBackground: Bool = true
-    /// Native sheets already dim the underlying Book; never stack two veils.
+    /// Embedding a slip can opt out of its full-screen dimmer.
     var dimsBackground = true
     var closeAccessibilityID: String? = nil
     var revealsCardOnArrival = false
@@ -44,30 +45,26 @@ struct PaperSlip<Content: View>: View {
             }
 
             VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title).pageHeading(headingSize)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(Print.body(subtitleSize))
-                            .foregroundStyle(theme.paper.softInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Rectangle().fill(theme.paper.ruleInk).frame(height: 1).padding(.top, 3)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
-
-                if fitsContent {
-                    ViewThatFits(in: .vertical) {
-                        paddedContent.fixedSize(horizontal: false, vertical: true)
-                        ScrollView { paddedContent }
+                if dynamicTypeSize.isAccessibilitySize {
+                    // A long enlarged heading must not consume the article's
+                    // entire viewport. It scrolls with the explanation, while
+                    // dismissal and any decision footer stay reachable.
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            heading
+                            paddedContent
+                        }
                     }
                 } else {
-                    ScrollView { paddedContent }
+                    heading
+                    if fitsContent {
+                        ViewThatFits(in: .vertical) {
+                            paddedContent.fixedSize(horizontal: false, vertical: true)
+                            ScrollView { paddedContent }
+                        }
+                    } else {
+                        ScrollView { paddedContent }
+                    }
                 }
 
                 if let footer {
@@ -109,6 +106,25 @@ struct PaperSlip<Content: View>: View {
         // expose an undimmed border. Fade the slip in place on every device;
         // its presenter shortens this same non-spatial motion for Reduce Motion.
         .transition(.opacity)
+    }
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).pageHeading(headingSize)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            if let subtitle {
+                Text(subtitle)
+                    .font(Print.body(subtitleSize))
+                    .foregroundStyle(theme.paper.softInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Rectangle().fill(theme.paper.ruleInk).frame(height: 1).padding(.top, 3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18)
+        .padding(.top, 18)
+        .padding(.bottom, 12)
     }
 
     private var paddedContent: some View {
@@ -184,7 +200,8 @@ struct SlipSection<Content: View>: View {
 
 struct SettingsSlip: View {
     @Environment(\.cosmeticTheme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var settingsTextScale = 1.0
     @Bindable var model: GameModel
     var onAbandon: () -> Void
     var onClose: () -> Void
@@ -198,43 +215,33 @@ struct SettingsSlip: View {
     var body: some View {
         settings
         #if DEBUG && targetEnvironment(simulator)
-        .sheet(isPresented: $showingQA) { QAPanel(model: model) }
+        .paperPanel(isPresented: $showingQA) {
+            QAPanel(model: model).frame(maxWidth: 600, maxHeight: 760)
+        }
         #endif
     }
 
     private var settings: some View {
-        PaperSlip(title: "Settings", subtitle: nil,
+        SettingsNavigationHost { destination in
+            PaperSlip(title: "Settings", subtitle: nil,
                   revealsCardOnArrival: true, maximumWidth: 540, maximumHeight: 740,
                   onClose: onClose) {
             VStack(alignment: .leading, spacing: 0) {
-                SettingsCommonContent()
+                SettingsCommonContent(destination: destination)
                 bookDetails
 
-                SlipSection(
+                SettingsSection(
                     title: "Leave this Book",
                     note: confirmingAbandon
                         ? nil
                         : "Ends this attempt permanently. Your achievements stay saved."
                 ) {
                     if confirmingAbandon {
-                        VStack(alignment: .leading, spacing: 9) {
-                            Text("Abandon Level \(model.run.level), Puzzle "
-                                 + "\(model.run.slot.rawValue + 1)? The Book is thrown away "
-                                 + "and cannot be continued.")
-                                .font(Print.body(12.5))
-                                .foregroundStyle(Paper.redPencil)
-                                .fixedSize(horizontal: false, vertical: true)
-                            HStack(spacing: 10) {
-                                PaperButton(title: "Keep playing", kind: .quiet) {
-                                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
-                                        confirmingAbandon = false
-                                    }
-                                }
-                                PaperButton(title: "Abandon", kind: .danger) {
-                                    onAbandon()
-                                }
-                            }
-                        }
+                        AbandonBookDecision(level: model.run.level, puzzle: model.run.slot.rawValue + 1,
+                                            onKeepPlaying: {
+                            confirmingAbandon = false
+                            onClose()
+                        }, onAbandon: onAbandon)
                     } else {
                         PaperButton(title: "Abandon Book", kind: .danger) {
                             withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
@@ -246,29 +253,53 @@ struct SettingsSlip: View {
                 }
 
                 #if DEBUG && targetEnvironment(simulator)
-                SlipSection(title: "Development") {
+                SettingsSection(title: "Development") {
                     PaperButton(title: "QA tools", kind: .quiet) { showingQA = true }
                 }
                 #endif
             }
         }
-        // Learning and achievement destinations are owned by the settings
-        // content. This slip stays mounted beneath their full-screen cover,
-        // preserving its scroll position and the presenter's paused game.
+        }
+        // The stable Settings host owns child panels above the article's
+        // compact/enlarged layouts. Practice survives a text-size change,
+        // and the presenter's game remains paused underneath.
     }
 
     private var bookDetails: some View {
-        SlipSection(title: "This Book") {
-            DisclosureGroup(isExpanded: $showingBookDetails) {
+        SettingsSection(title: "This Book") {
+            Button {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                    showingBookDetails.toggle()
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Text("Progress & seed")
+                        .font(Print.caption(14 * settingsTextScale))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .rotationEffect(.degrees(showingBookDetails ? 90 : 0))
+                        .accessibilityHidden(true)
+                }
+                .foregroundStyle(theme.paper.ink)
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+            }
+            .buttonStyle(PressedPaperStyle())
+            .accessibilityValue(showingBookDetails ? "Expanded" : "Collapsed")
+            .accessibilityIdentifier("settings.bookDetails")
+
+            if showingBookDetails {
                 VStack(alignment: .leading, spacing: 10) {
-                    LeaderRow(label: "Level", value: "\(model.run.level) of 9")
-                    LeaderRow(label: "Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
-                    LeaderRow(label: "Coins", value: "\(model.coins)")
+                    bookDetail("Chapter", value: "\(model.run.level) of 9")
+                    bookDetail("Puzzle", value: "\(model.run.slot.rawValue + 1) of 3")
+                    bookDetail("Coins", value: "\(model.coins)")
                     HStack(alignment: .center, spacing: 8) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Seed").font(Print.caption(11)).foregroundStyle(theme.paper.softInk)
+                            Text("Seed").font(Print.caption(12 * settingsTextScale)).foregroundStyle(theme.paper.softInk)
                             Text(model.run.seed)
-                                .font(Print.numeral(15, weight: .semibold))
+                                .font(Print.numeral(15 * settingsTextScale, weight: .semibold))
                                 .foregroundStyle(theme.paper.ink)
                                 .textSelection(.enabled)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -279,7 +310,8 @@ struct SettingsSlip: View {
                             copied = true
                         } label: {
                             Text(copied ? "Copied" : "Copy")
-                                .font(Print.caption(12))
+                                .font(Print.caption(12 * settingsTextScale))
+                                .fixedSize(horizontal: false, vertical: true)
                                 .foregroundStyle(theme.paper.ink)
                                 .padding(.horizontal, 12)
                                 .frame(minWidth: 44, minHeight: 44)
@@ -289,18 +321,55 @@ struct SettingsSlip: View {
                         .accessibilityLabel(copied ? "Seed copied" : "Copy Book seed")
                     }
                     Text("The same seed and choices produce the same Book.")
-                        .font(Print.body(11.5)).foregroundStyle(theme.paper.softInk)
+                        .font(Print.body(11.5 * settingsTextScale)).foregroundStyle(theme.paper.softInk)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 8)
-            } label: {
-                Text("Progress & seed")
-                    .font(Print.body(14))
-                    .foregroundStyle(theme.paper.ink)
-                    .frame(minHeight: 44)
             }
-            .tint(theme.paper.ink)
-            .accessibilityIdentifier("settings.bookDetails")
+        }
+    }
+
+    private func bookDetail(_ label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label).foregroundStyle(theme.paper.softInk)
+            Spacer(minLength: 0)
+            Text(value).font(Print.numeral(14 * settingsTextScale, weight: .semibold))
+        }
+        .font(Print.body(14 * settingsTextScale))
+        .foregroundStyle(theme.paper.ink)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Destructive choices need whole words and a readable consequence. At large
+/// text sizes the article can scroll, so use its full width for each action.
+struct AbandonBookDecision: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var explanationSize: CGFloat = 12.5
+    let level: Int
+    let puzzle: Int
+    var onKeepPlaying: () -> Void
+    var onAbandon: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("Abandon Chapter \(level), Puzzle \(puzzle)? The Book is thrown away and cannot be continued.")
+                .font(Print.body(explanationSize))
+                .foregroundStyle(Paper.redPencil)
+                .fixedSize(horizontal: false, vertical: true)
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+            layout {
+                PaperButton(title: "Keep playing", kind: .quiet, action: onKeepPlaying)
+                    .accessibilityIdentifier("settings.keepPlaying")
+                PaperButton(title: "Abandon", kind: .danger, action: onAbandon)
+                    .accessibilityIdentifier("settings.confirmAbandon")
+            }
+            // Keep these short choices whole at the minimum 240pt article
+            // width. They still grow beyond twice the ordinary type size;
+            // the consequence above retains the full requested text size.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         }
     }
 }

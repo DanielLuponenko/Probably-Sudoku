@@ -1,0 +1,98 @@
+# Boss visual clarity audit — 20 September 2026
+
+This audit began from the earlier boss recordings and current engine rules. The baseline matrices below preserve that assessment. `boss-expansion/animation-inventory.json` now describes the implemented visual pass for 15 bosses; its other 24 entries retain their prior descriptions. Source implementation is listed separately from final recording and test results.
+
+The test for each boss is: **before acting, can a player see what is affected; after acting, can they see what changed?** A thin stroke on a receipt, a small corner mark, or a paragraph cannot carry both jobs. Keep the board stationary and numbers readable. Board color may communicate an actual scoring region; arbitrary decorative lines and doodles must stay absent.
+
+## Implemented in this pass
+
+| Boss | Implemented visible behavior | Presentation limit |
+|---|---|---|
+| Galley Queue | Sage PLAY trays, locked WAIT sleeves, and a separate selection ring. Eligibility changes replace the bands with a 0.38-second spring. | Eligibility follows exact arrivals, not current Hand display order. No arbitrary reordering animation was added. |
+| Bookends | Brass side posts and LOW/HIGH bands distinguish playable extremes from WAIT cards. Duplicate extremes remain available. | Equal extrema and a released middle copy show PLAY. |
+| Reprint Ban | Red USED bands appear on restricted repeats and reopen to PLAY when permitted. Header names currently waiting digits or says repeats are open. | Correct fills including Clues count; wrong attempts do not. No illustrative rule substitutes for engine permission. |
+| Chain Stitcher | A brass anchor and **gold** full-price wells show the actual row/column/box union, distinct from existing sage digit matching. Header shows Lit ×1 / Other ½. An accepted anchor move draws a transient 0.8-second stitch; a disconnected move shows a broken red stitch and half-points tag. | No persistent linking doodles, solution hints or blocked-square advice. Passage is respected. Wrong attempts and Clues do not move the anchor; frozen scoring removes the guidance. |
+| Censor | The censored digit has a black 0 pts Hand band before play; the existing actual zero receipt remains after play. | This is the public rule price, not correctness advice. Independent Hand bars take precedence. |
+| Back Page | Hand bands show each natural base Point price before play, such as 1 → 90 pts. The actual score receipt still flips. | Prices are before other modifiers; no whole-screen or board flip. |
+| Collator | Wider locked packet bands show two progress circles; available cards show PLAY. The band transitions when the packet opens. | No separate wrapper-tearing animation was added. |
+| Return Slip | Returned wrong cards receive a full-width red SEALED band, removed when their restriction ends. | Existing exact-copy return flight and normal wrong penalty remain. |
+| Serial Publisher | Separate BANK and layered HOLD paper slips preview the actual paid/carried split. HELD carry remains visible during Keep Filling with Full Clear pays. | Numerical changes animate for 0.3 seconds; the stack is a paper drawing, not a travelling score stack. |
+| Rival Column | Current bank and saved rival appear with a comparison meter, Now → Rival caption and beaten flag/state. | The actual fee remains in settlement feedback and accessibility; no physical trophy or rival character was added. |
+| Word Count | A visible 150-Point allowance meter drains with committed item-added placement Points. | Base Points, Clues and clear bonuses do not consume this visual budget. |
+| Page Cutter | Four numbered header tickets, scissors and 4 fills → bank show progress before the automatic boundary. | The existing short Turn-label cutter remains; no lever-pull scene was added. |
+| Orphan Line | A paper-stack symbol, leftover count and exact red debit preview the cost of ending now. | The debit is Points before Mult. No debt ticket was attached to every Hand card. |
+| Dry Press | A larger physical felt pad reads INKED or DRY with gloss/cracks and a drop symbol. State changes compress and settle the pad. | No ink-flight animation from board to pad was added. |
+| Review Board | Separate paper approval cards depict a row, column and box; earned approvals receive a check badge, compression and settled tilt. | Approval stays tied to actual completed unit types and the score target remains independent. |
+
+The new views honor in-game Reduced Motion and suspend their extra motion when the board is covered or the scene is inactive. Hand glyphs stay readable above their bands. None of this pass changes boss gameplay rules or creates another scoring action.
+
+## Remaining work after this pass
+
+These are **not implemented by the current pass**:
+
+- Stronger pre-action or consequence storytelling for Critic, Mirror, Collector and Budget Cut remains the highest outstanding group.
+- Editor, Deadline, Paywall, Erratum, Executive Editor, Fine Print, Accountant, Rebinder, Late Courier, Bindery, Embargo, Royalty Contract and Publicist retain their earlier presentations. The proposals below remain future work.
+- Handy Dandy inherits the shared larger SEALED Hand treatment, but was not part of the 15-boss recording/individual redesign pass.
+- Fog, Final Draft, Shredder, Tik Tak, Gray the Garry and Garry the Gray retain their existing physical effects; preserve these unless fresh playtesting finds a concrete clarity issue.
+- The implemented status diagrams improve information before a choice. More elaborate physical payoff animations—travelling held-score stacks, per-card debt tickets, a cutter lever or refill ink flights—remain proposals, not delivered features.
+
+## Original audit: four player-reported problems
+
+This table records the pre-pass problems and intended direction. The implementation table above is the current source status.
+
+| Boss | Baseline problem | Visual direction | Exact rule boundaries |
+|---|---|---|---|
+| Galley Queue | Brass underlines look like selection and do not explain which cards can play. | Put eligible copies in visible PLAY trays; sleeve waiting copies with WAIT. When a card leaves, visibly open the next oldest eligible copy. | Two oldest **available identities**, not the leftmost two cards or smallest digits. Sorting must not change the queue. Independent bars are skipped. Ordinary Toss remains legal for queue-waiting cards. Release Note can bypass a card restriction. |
+| Bookends | Same bracket as Galley makes a different rule visually indistinguishable. | Physical low/high bookends with LOW and HIGH on the eligible cards; middles visibly wait. Move the bookends when extrema change. | Compute extrema among independently available cards. Every duplicate of either extreme can play. If all available cards match, all are eligible. Sorting does not alter eligibility; Clue targeting obeys the same restriction. |
+| Reprint Ban | Repeat icon plus “alternate numbers” suggests merely avoiding consecutive repeats. Actual rule applies to all correctly filled digits this Turn. | Stamp USED onto newly restricted copies; show those copies waiting, then remove stamps when no fresh playable digit remains. | Correct fills, including Clues, add to the used set. Wrong attempts do not. Used digits wait only while an independently available unused digit remains. A new draw can close them again. Turn boundary resets used digits. Release Note bypass applies to one exact copy. Never consult a solution to decide release. |
+| Chain Stitcher | Coordinates and “outside the last fill’s row, column and box” require mental geometry and do not explain a choice before it is made. | Give the last relevant fill a brass anchor; softly tint the union of its row, column and box. Header key: lit squares ×1 placement Points, other squares ½. Move this actual region after an accepted fill; show a broken-link/half receipt for disconnected fills. | Anchor is the last correct **non-Clue** fill. First such fill each Turn is full. Wrong/rejected fills and Clues do not move it. A disconnected correct fill earns half and then becomes the anchor. Sharing **any one** of row/column/box is sufficient. Only placement Points are halved, not simultaneous clear bonuses. Reset at committed Turn boundary. Highlight geometry only; never infer correctness. |
+
+## Original audit: other visual priorities
+
+In this baseline, P1 means that an important decision depended on reading or remembering the rule. P2 means the core restriction was visible, but its presentation or causal motion could be stronger. “Preserve” means the physical representation was already legible. Rows for the 15 updated bosses are historical findings; use the implementation table above to distinguish delivered changes from remaining proposals.
+
+| Boss | Priority and existing evidence | Next useful visual improvement | Boundaries to preserve |
+|---|---|---|---|
+| Censor | P1 — zero appears only in a scoring receipt; header names the digit. | Print the censored digit with a prominent zero stamp before playing; match that stamp on relevant Hand copies, then strike its actual award to zero. | The saved censored digit is fixed for the Puzzle; showing it is public information. Zeroing applies to the events the engine actually reports, not an invented preview from the solution. |
+| Editor | P2 — folded missing-slot object. | Animate a visible capacity slot folding closed on entry; leave the current capacity readable. | This is one fewer Hand capacity, not a removed arbitrary card or a permanent Run penalty. |
+| Deadline | P2 — red cut margins beside Turn label. | Show a short stack of eight Turn tabs, with the used tab tearing away on an actual bank. | Eight Turns at creation; do not run a second timer or change turns during presentation. |
+| Fog | Preserve — moving mist with crisp digits. | Keep its distinctive two-layer atmosphere and stable Reduced Motion form. | Hidden Marker identities, locations, haptics and accessibility must remain concealed. Fog animation must not expose the map. |
+| Critic | P1 — shared wrong-tile return with doubled debit. | A red editor’s stamp lands on the actual wrong-placement debit; show original → doubled amount clearly. | Use the actual debit after protection/resource rules. Never show a predicted wrong answer before the player commits. |
+| Mirror | P1 — clear award becomes zero in a small receipt. | A mirrored clear receipt folds shut over its actual bonus and resolves to 0; make clear that the filled line remains completed. | Zero Line Clear bonuses; Full Clear remains unaffected. No reversal of placed numbers. |
+| Paywall | P2 — lock on owned Clue control only. | Give the sealed Clue an obvious closed clasp that reacts to a denied interaction, with one short reason. | All Clues, including Buff-granted, are disabled. No Clue control should appear merely to host decoration when no charges exist. |
+| Erratum | P2 — crossed Toss tab. | Make the physical crossing span the Toss label clearly and respond subtly to a blocked tap. | No Toss resource consumption; preserve other Hand interactions. |
+| Collector | P1 — interest only visibly removed at payout. | A sealed interest coin envelope at preview/payout opens empty; cross only the actual suppressed interest. | Base and other earnings remain. If there was no interest, do not invent a loss. |
+| Final Draft | Preserve — target expands ×4 on fresh encounter. | Keep the oversized target expansion, with a brief paper weight pressing down. | Saved target is authoritative; resume must not replay multiplication or mutate the target. |
+| Executive Editor | P2 — sleeping Bookmark dims/folds. | Stamp the exact sleeping copy CLOSED with a brief clamp action; visibly reopen the old copy when the new one sleeps. | Triggered effects only; passive upgrades stay. Duplicate copies keep independent identities. |
+| Fine Print | P2 — small Buff-slot lock seals. | A shared clasp visually closes both Buff slots while preserving the artwork. | Buff spending disabled, not ownership erased; sell/inspection rules stay as implemented. |
+| Budget Cut | P1 — small bank-only Mult receipt. | Visibly cut the actual final Mult into halves beside the live bank arithmetic; play the cut at settlement. | Apply at the engine’s final Mult stage, not separately to every source. Preview may explain but must not replay awards. |
+| Shredder | Preserve — ink droplets land and spread. | Maintain drop/contact/settled stain/expiry sequence; ensure the last free blank stays obviously usable. | Up to three actual fouls per Turn, two-Turn expiry, one blank free. No puddles on unaffected squares or remount impacts. |
+| Natural Born Accountant | P2 — fading −1 receipt under coins. | A coin visibly leaves the counter on each accepted placement attempt, then settles the balance. | Charge even in debt; rejected validation must not charge. Use actual committed cost. |
+| Tik Tak | Preserve — readable clock and threshold pulses. | Keep urgency localized to the clock; a brief second-hand tick can reinforce its identity. | Active-play timing, paused overlays, no duplicate clock or background depletion. |
+| Handy Dandy | P2 — small locks on barred copies. | Broader paper cuffs that leave the digit readable; old cuffs release as new exact copies are barred. | At most two, never whole Hand; identities, not every duplicate digit. Release Note can override one copy. |
+| Gray the Garry | Preserve — sequential row bricks/dust. | Keep dust brief and confined to actual impacts. | Barred blank cells only; never cover givens/filled cells; final-blank escape remains. Resume settled. |
+| Garry the Gray | Preserve — sequential box bricks/dust. | Keep the same tangible clay language as row version. | Same restrictions as row version, with actual chosen box. |
+| Rebinder | P2 — leftover cards fade toward an invisible Pool edge. | Gather exact leftovers into a small returning paper stack at the Hand edge, then visibly deal the new Hand. | Return before refill, conserve numbers, no hidden future digit previews. Returned cards must not silently become extra draws. |
+| Late Courier | P1 — small owed tickets on End Turn. | Distinct closed envelope with a clear owed-card count; delivery opens it at bank and real cards arrive. | Only deferred automatic draws, no future values revealed; delivery counts toward refill and occurs once. |
+| Collator | P1 — tiny band and two dots. | A broad second-packet wrapper labeled 0/2 → 1/2; tear the wrapper when it opens. | Open after two correct fills including Clue, or when first packet has no independently available card. Newly drawn cards are open. No solution-based escape. |
+| Page Cutter | P1 — four tiny marks and a thin sweep. | Four visible notches on an End Turn paper cutter; the fourth fill pulls the lever and cuts to the next Turn. | Correct fills including Clues count; four extra starting Turns. Visual must not trigger banking a second time or delay saved boundary state. |
+| Return Slip | P2 — shared return plus small lock. | Return wrong tile in a visible sealed paper sleeve bearing a next-Turn symbol, then open that exact sleeve at boundary. | Normal wrong penalties still apply; returned card identity and seal persist. Avoid implying Insurance/Jade behavior beyond the engine. |
+| Orphan Line | P1 — prospective loss exists only in text. | Give leftover Hand cards a small −20 claim ticket; aggregate capped loss at End Turn before commitment. | Debit queued Points before Mult, capped at 100 and current pending Points. Never subtract 20 from final banked score per card or charge twice. |
+| Serial Publisher | P1 — cap/carry represented by text and a banded receipt. | Physically split score into a paid slip and held paper stack; at the next bank show held score joining the new batch. | Limit is ceiling(starting target/3). Carry survives save, only actual bank settles. Full Clear releases all carry, including saved carry during Keep Filling. |
+| Bindery | P2 — stitched inventory row and moving needle. | A distinct pin closes on first accepted action; a readable left/right shuttle traverses Bookmark copies in actual scoring order. | Save exact pinned identities; odd/even Turn order, no mutation from drag animation or cosmetic reverse. First action is broader than first correct placement. |
+| Embargo | P2 — small preparation-Buff seals. | A preparation window visibly closes over only affected Buffs on first accepted placement attempt, reopens next Turn. | Exact preparation-Buff set only; failed validation does not spend, opening a detail slip does not close it. |
+| Dry Press | P1 — tiny ink pad mostly explained by text. | Larger wet/dry pad with a visible refill from an unmarked correct square, then contact with the next marked fill. | Suppresses positive immediate Marker placement bonuses, not every persistent/resource/contract effect. Unmarked fill re-inks; if no unmarked blank remains, bypass suppression. Clue behavior stays engine-owned. |
+| Review Board | P2 — three tiny approval stamps. | Three distinct row/column/box approval shapes with meaningful stamp impacts; show target still independently required. | Need all three unit kinds and target; Full Clear qualifies. Do not mark one type approved merely because another type cleared. |
+| Rival Column | P1 — benchmark text and fee receipt underline. | Show prior-bank marker against current live bank height/amount; visibly win or pay the fee at settlement. | Must beat previous positive **gross** bank; equality incurs fee. Fee 20% of gross, floor, max100. Zero bank does not reset benchmark. |
+| Royalty Contract | P2 — target increases with temporary signature. | Three visible signature boxes; consuming a Buff signs one and moves the exact fee into the target. | Ceiling(5% starting target), at most three; only actual Buff consumption, not opening/cancelling. Never compound from raised target. |
+| Publicist | P2 — static PAID stamp after source highlight. | Brief stamp impact on exact paid copy; stamp lifts next Turn. | Only flat placement/Line Clear bonuses once per copy per Turn. Multipliers, growth, coins and promised rewards survive; zeroed events do not spend entitlement. |
+| Word Count | P1 — numeric remaining budget and ruler receipt. | A 150-Point ink/ruler gauge visibly drains with actual item-added placement Points; clipping reaches a hard stop. | Shared extra natural-placement Points budget, not base Points, total score, Clues or clear bonuses. Reset each Turn and consume only committed receipts. |
+| Back Page | P1 — reversal only arrives in scoring receipt. | Put the reversed base Point price on Hand tiles (1→90 … 9→10); briefly flip the price when the boss begins. | Natural base only; Marker overrides such as Violet still apply separately. Never change digit identities or board contents. |
+
+## Verification focus
+
+- Capture normal and compact iPhone views: resting, a committed trigger, and the resulting state. Test Reduced Motion as a readable static form, not invisible feedback.
+- Sort the Hand and test duplicate digits/copies for the three dynamic Hand bosses. Check temporary Release Note bypasses and independent obstacle bars.
+- Reprint: correct fill, correct Clue, wrong attempt, last unused card leaving, new unused draw, Turn reset, save/resume.
+- Chain: first fill, same row, same column, same box, disconnected fill, wrong attempt, Clue, Turn reset, save/resume. The board highlight must not select gameplay cells or alter placement controls.
+- Rendering and animation may consume presentation tokens only; never change encoded Run/engine state or replay rewards on remount.
