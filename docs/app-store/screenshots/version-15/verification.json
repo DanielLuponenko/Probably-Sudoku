@@ -1,0 +1,128 @@
+{
+  "capturedFromBinary": "/tmp/NumberClub-boss-verification2/Build/Products/Debug-iphonesimulator/ProbablySudoku.app",
+  "binaryBundleVersion": "15",
+  "binaryMarketingVersion": "1.1.0",
+  "dylibSHA256": "94c64c085f7d088bc5c513ab3ebc8d3e0f57ea5acfa7b7b32401df7142a4f5de",
+  "screenshots": [
+    {
+      "file": "ipad/01-gameplay.png",
+      "width": 2048,
+      "height": 2732,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 2106177,
+      "sha256": "7599524947258afc90ab47a1683ae7a45814d993a7f04f6b8c7995847b09a7a8"
+    },
+    {
+      "file": "ipad/02-boss-bricks.png",
+      "width": 2048,
+      "height": 2732,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 2236811,
+      "sha256": "4349ed304ef37439f73e3bf9e5c8145b4ccc6119a7b86484e5375d24491b1ab3"
+    },
+    {
+      "file": "ipad/03-shop.png",
+      "width": 2048,
+      "height": 2732,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 1741229,
+      "sha256": "1a207a879694e7425f1232109351464845509f4b391956f6e445f450d0d31b28"
+    },
+    {
+      "file": "ipad/04-next-puzzle.png",
+      "width": 2048,
+      "height": 2732,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 1427785,
+      "sha256": "243b248ea2468de640c8fc39bdfec8f0d4be4eb28aa8fd481a0af7792196dc0e"
+    },
+    {
+      "file": "ipad/05-choose-book.png",
+      "width": 2048,
+      "height": 2732,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 2827278,
+      "sha256": "6b14c05876682b447966ea4a71b17d9360ea83f07de9fbe8b0ca08d98f1e656b"
+    },
+    {
+      "file": "iphone/01-gameplay.png",
+      "width": 1284,
+      "height": 2778,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 1648306,
+      "sha256": "046c1ede5a32e1654d32eaae6ed000b74e47c797065aba0179a618a7765b9fa1"
+    },
+    {
+      "file": "iphone/02-boss-bricks.png",
+      "width": 1284,
+      "height": 2778,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 1778417,
+      "sha256": "a99cd540e1e3c3b2da8ae5f3741d0006a362497062106ed509cc0a5b79c15ebb"
+    },
+    {
+      "file": "iphone/03-shop.png",
+      "width": 1284,
+      "height": 2778,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 2520722,
+      "sha256": "e6e265a61c6c007f97bb7d39acbe5d1b67006824f53d40a1d5762b9d0548f9b8"
+    },
+    {
+      "file": "iphone/04-next-puzzle.png",
+      "width": 1284,
+      "height": 2778,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 1728063,
+      "sha256": "5afc63af4a9b98e028c75a15c17a5898edbec664a6b4a9dd9d78899bcd7ac1de"
+    },
+    {
+      "file": "iphone/05-choose-book.png",
+      "width": 1284,
+      "height": 2778,
+      "mode": "RGBA",
+      "alphaRange": [
+        255,
+        255
+      ],
+      "bytes": 1809492,
+      "sha256": "55681efbbea62c5d96863233f6c4e88fded7691179cc3758fa3477818458b0ee"
+    }
+  ]
+}
