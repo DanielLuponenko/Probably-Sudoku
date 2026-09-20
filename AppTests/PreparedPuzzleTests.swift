@@ -6,6 +6,8 @@ import ProbablySudokuEngine
 @MainActor
 final class PreparedPuzzleTests: XCTestCase {
     func testPreparationMatchesSynchronousDealWithoutAdvancingLiveState() async throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
         for slot in [PuzzleSlot.easy, .medium, .boss] {
             var run = RunState(seed: "prepared-puzzle-determinism")
             run.slot = slot
@@ -20,6 +22,9 @@ final class PreparedPuzzleTests: XCTestCase {
 
             XCTAssertEqual(try model.game.encoded(), originalBytes)
             XCTAssertEqual(model.page, .briefing)
+            let preview = try XCTUnwrap(model.preparedPuzzlePreview)
+            XCTAssertEqual(try encoder.encode(preview.board),
+                           try encoder.encode(XCTUnwrap(prepared.puzzle).board))
             let expected = try await Task.detached {
                 var game = original
                 try game.startPuzzle()
@@ -30,6 +35,9 @@ final class PreparedPuzzleTests: XCTestCase {
             XCTAssertTrue(model.beginPreparedPuzzle(prepared))
             let commitTime = commitStarted.duration(to: clock.now)
             XCTAssertEqual(try model.game.encoded(), try expected.encoded())
+            XCTAssertEqual(try encoder.encode(XCTUnwrap(model.puzzle).board), try encoder.encode(preview.board),
+                           "Play must deal the exact board shown in the briefing")
+            XCTAssertNil(model.preparedPuzzlePreview)
             XCTAssertEqual(model.page, .puzzle)
             XCTAssertFalse(model.beginPreparedPuzzle(prepared), "A prepared deal commits only once.")
             print("PUZZLE_PREPARATION slot=\(slot.rawValue) generate=\(preparationTime) commit=\(commitTime)")
@@ -102,6 +110,7 @@ final class PreparedPuzzleTests: XCTestCase {
         let revision = model.puzzlePreparationRevision
         model.qaAward(coins: 9)
         model.qaSetBookmark("bm_help_wanted")
+        XCTAssertNil(model.preparedPuzzlePreview, "A revised run cannot display the previous prepared board")
         XCTAssertGreaterThan(model.puzzlePreparationRevision, revision)
         let changed = try model.game.encoded()
         XCTAssertFalse(model.beginPreparedPuzzle(prepared))
@@ -117,7 +126,9 @@ final class PreparedPuzzleTests: XCTestCase {
     func testChangingSlotRejectsOldPreparedBoardAndRNG() async throws {
         let model = makeModel()
         let prepared = try await prepare(model)
-        model.continueToNextPuzzle()
+        // The next slot must be entered through an accepted transition, not
+        // a stale Shop callback while this Puzzle is still only a briefing.
+        XCTAssertTrue(model.takeSkip(ifCurrent: try XCTUnwrap(model.currentSkipClaim)))
         let changed = try model.game.encoded()
         XCTAssertEqual(model.run.slot, .medium)
         XCTAssertFalse(model.beginPreparedPuzzle(prepared))
@@ -168,6 +179,47 @@ final class PreparedPuzzleTests: XCTestCase {
         let current = try await prepare(model)
         XCTAssertTrue(model.beginPreparedPuzzle(current))
         XCTAssertEqual(model.coins, 18)
+    }
+
+    func testAcceptedSkipInvalidatesAReadyDealWithoutLosingItsReward() async throws {
+        let model = makeModel()
+        let prepared = try await prepare(model)
+        let claim = try XCTUnwrap(model.currentSkipClaim)
+        XCTAssertTrue(model.takeSkip(ifCurrent: claim))
+        let committed = try model.game.encoded()
+
+        XCTAssertFalse(model.beginPreparedPuzzle(prepared))
+        XCTAssertEqual(try model.game.encoded(), committed)
+        XCTAssertEqual(model.run.slot, .medium)
+        XCTAssertEqual(model.run.skipHistory.count, 1)
+        XCTAssertEqual(model.run.buffs.map(\.defID), [claim.offer.buffID])
+        let next = try await prepare(model)
+        XCTAssertTrue(model.beginPreparedPuzzle(next))
+        XCTAssertEqual(model.puzzle?.slot, .medium)
+        XCTAssertEqual(model.run.buffs.map(\.defID), [claim.offer.buffID])
+    }
+
+    func testAcceptedSkipWhilePreparingCannotPublishTheSkippedPuzzle() async throws {
+        let model = makeModel()
+        let probe = PreparationProbe()
+        let started = expectation(description: "Skipped puzzle is preparing")
+        probe.started = started
+        let waiting = Task { await model.prepareUpcomingPuzzle(using: { try probe.generate($0) }) }
+        await fulfillment(of: [started], timeout: 3)
+
+        let claim = try XCTUnwrap(model.currentSkipClaim)
+        XCTAssertTrue(model.takeSkip(ifCurrent: claim))
+        let committed = try model.game.encoded()
+        probe.release()
+        let stale = await waiting.value
+
+        XCTAssertNil(stale)
+        XCTAssertFalse(model.hasPreparedPuzzle)
+        XCTAssertEqual(try model.game.encoded(), committed)
+        XCTAssertEqual(model.run.slot, .medium)
+        XCTAssertEqual(model.run.skipHistory.count, 1)
+        XCTAssertEqual(model.run.buffs.map(\.defID), [claim.offer.buffID])
+        XCTAssertFalse(model.takeSkip(ifCurrent: claim))
     }
 
     func testConcurrentPrewarmAndPlayShareTheSameWorker() async throws {
@@ -252,6 +304,93 @@ final class PreparedPuzzleTests: XCTestCase {
         XCTAssertEqual(model.page, .briefing)
     }
 
+    func testShopBossPreparationRunsOffMainAndCommitsExactlyOnce() async throws {
+        let original = try shopFixture()
+        var saves: [Data] = []
+        let persistence = GameModel.Persistence(save: { game, _ in
+            saves.append(try! game.encoded()); return true
+        }, recordCompletion: { _, _ in true }, clear: { true }, recordsPlayerProfile: false)
+        let model = GameModel(resuming: original, savesProgress: true, persistence: persistence)
+        saves.removeAll()
+        let bytes = try original.encoded()
+        let probe = ShopPreparationProbe()
+        let started = expectation(description: "Boss preparation is off main")
+        probe.started = started
+        let task = Task { await model.prepareShopExit(using: { try probe.advance($0) }) }
+        await fulfillment(of: [started], timeout: 3)
+        XCTAssertFalse(probe.ranOnMain)
+        XCTAssertEqual(try model.game.encoded(), bytes)
+        XCTAssertTrue(saves.isEmpty)
+        XCTAssertEqual(model.page, .shop)
+        probe.release()
+        let result = await task.value
+        let ready = try XCTUnwrap(result)
+        let second = await model.prepareShopExit(using: { try probe.advance($0) })
+        XCTAssertNotNil(second)
+        XCTAssertEqual(probe.calls, 1)
+        var expected = original
+        XCTAssertTrue(expected.advance())
+        XCTAssertTrue(model.leavePreparedShop(ready))
+        XCTAssertEqual(try model.game.encoded(), try expected.encoded())
+        XCTAssertEqual(model.page, .briefing)
+        XCTAssertEqual(model.run.level, 2)
+        XCTAssertEqual(saves, [try expected.encoded()])
+        XCTAssertFalse(model.leavePreparedShop(ready))
+        XCTAssertFalse(model.leavePreparedShop(try XCTUnwrap(second)))
+        XCTAssertEqual(saves.count, 1)
+        let resumed = GameModel(resuming: try Game(decoding: saves[0]), savesProgress: false)
+        XCTAssertEqual(resumed.run.pendingBoss, expected.run.pendingBoss)
+        XCTAssertEqual(resumed.currentSkipClaim?.offer, model.currentSkipClaim?.offer)
+    }
+
+    func testShopMutationInvalidatesPreparedBossAndPreservesPurchase() async throws {
+        let model = GameModel(resuming: try shopFixture(), savesProgress: false)
+        let result = await model.prepareShopExit()
+        let ready = try XCTUnwrap(result)
+        model.qaAward(coins: 20)
+        model.reroll()
+        let updated = try model.game.encoded()
+        XCTAssertFalse(model.leavePreparedShop(ready))
+        XCTAssertEqual(try model.game.encoded(), updated)
+        var expected = model.game
+        XCTAssertTrue(expected.advance())
+        let replacement = await model.prepareShopExit()
+        XCTAssertTrue(model.leavePreparedShop(try XCTUnwrap(replacement)))
+        XCTAssertEqual(try model.game.encoded(), try expected.encoded())
+    }
+
+    func testCancelledShopPreparationCannotAdvanceOrReplaceANewerRun() async throws {
+        let model = GameModel(resuming: try shopFixture(), savesProgress: false)
+        let before = try model.game.encoded()
+        let probe = ShopPreparationProbe()
+        let started = expectation(description: "Shop worker began")
+        probe.started = started
+        let task = Task { await model.prepareShopExit(using: { try probe.advance($0) }) }
+        await fulfillment(of: [started], timeout: 3)
+        model.cancelPuzzlePreparation() // Background/departure uses this shared cancellation boundary.
+        probe.release()
+        let cancelled = await task.value
+        XCTAssertNil(cancelled)
+        XCTAssertEqual(try model.game.encoded(), before)
+        let ready = await model.prepareShopExit()
+        XCTAssertTrue(model.abandonRun())
+        XCTAssertFalse(model.leavePreparedShop(try XCTUnwrap(ready)))
+        XCTAssertEqual(try model.game.encoded(), before)
+    }
+
+    private func shopFixture() throws -> Game {
+        var run = RunState(seed: "prepared-chapter-exit")
+        run.slot = .boss
+        run.pendingBoss = .editor
+        var game = Game(run: run)
+        try game.startPuzzle()
+        game.qaMeetTarget()
+        _ = try game.cashOut()
+        game.openShop()
+        XCTAssertNotNil(game.shop)
+        return game
+    }
+
     private func makeModel() -> GameModel {
         GameModel(resuming: Game(seed: "prepared-puzzle-tests"), savesProgress: false)
     }
@@ -274,6 +413,25 @@ final class PreparedPuzzleTests: XCTestCase {
 }
 
 private enum PreparationFailure: Error { case expected }
+
+private final class ShopPreparationProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private let gate = DispatchSemaphore(value: 0)
+    private var main = false
+    private var count = 0
+    var started: XCTestExpectation?
+    var ranOnMain: Bool { lock.withLock { main } }
+    var calls: Int { lock.withLock { count } }
+    func release() { gate.signal() }
+    func advance(_ source: Game) throws -> Game {
+        lock.withLock { main = Thread.isMainThread; count += 1 }
+        started?.fulfill()
+        _ = gate.wait(timeout: .now() + 3)
+        var next = source
+        _ = next.advance()
+        return next
+    }
+}
 
 private final class PersistenceWarmupProbe: @unchecked Sendable {
     private let lock = NSLock()

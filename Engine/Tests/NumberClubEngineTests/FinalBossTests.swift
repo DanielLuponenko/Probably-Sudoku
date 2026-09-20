@@ -4,7 +4,8 @@ import XCTest
 
 final class FinalBossTests: XCTestCase {
     private let finalBosses: Set<BossModifier> = [
-        .heavyLifter, .unluckyLucky, .buffborger, .sashimi, .overPusher
+        .heavyLifter, .unluckyLucky, .buffborger, .sashimi, .overPusher,
+        .lateCourier, .pageCutter, .serialPublisher, .bindery, .reviewBoard
     ]
 
     func testFiveNamedFinalBossesKeepTheirDistinctExistingPowersAndSaveIDs() throws {
@@ -31,11 +32,14 @@ final class FinalBossTests: XCTestCase {
         XCTAssertFalse(finalBosses.contains(.collector))
     }
 
-    func testEntireBookRouteReservesExactlyFiveBossesForLevelNine() throws {
+    func testEntireBookRouteReservesFinalPoolAndExcludesUnqualifiedLoadouts() throws {
         var seenFinals: Set<BossModifier> = []
         var seenNormal: Set<BossModifier> = []
         for seed in 0..<128 {
             var run = RunState(seed: "final-route-\(seed)")
+            run.bossRosterVersion = 1
+            run.pendingBoss = nil
+            run.ensurePendingBoss()
             repeat {
                 let announced = try XCTUnwrap(run.pendingBoss)
                 XCTAssertEqual(finalBosses.contains(announced), run.level == 9,
@@ -44,8 +48,9 @@ final class FinalBossTests: XCTestCase {
                 else { seenNormal.insert(announced) }
             } while run.advance()
         }
-        XCTAssertEqual(seenFinals, finalBosses)
-        XCTAssertEqual(seenNormal, Set(BossModifier.allCases).subtracting(finalBosses))
+        XCTAssertEqual(seenFinals, finalBosses.subtracting([.lateCourier, .bindery]))
+        XCTAssertEqual(seenNormal, Set(BossModifier.legacyRegularBosses)
+            .subtracting([.embargo, .dryPress, .royaltyContract, .publicist, .wordCount]))
     }
 
     func testFinalBossOnlyAppearsInLastPuzzleAndMatchesItsAnnouncement() throws {
@@ -74,7 +79,7 @@ final class FinalBossTests: XCTestCase {
         }
     }
 
-    func testLegacyUndealtBriefingRepairsWrongPoolOnceAndPersistsAnnouncement() throws {
+    func testLegacyUndealtBriefingPreservesAnnouncedEncounterAndStream() throws {
         for (level, oldBoss) in [(1, BossModifier.heavyLifter), (9, .collector)] {
             var legacy = RunState(seed: "legacy-final-pool-\(level)")
             legacy.level = level
@@ -84,8 +89,8 @@ final class FinalBossTests: XCTestCase {
             let restored = try JSONDecoder().decode(RunState.self,
                                                     from: JSONEncoder().encode(legacy))
             let announced = try XCTUnwrap(restored.pendingBoss)
-            XCTAssertEqual(finalBosses.contains(announced), level == 9)
-            XCTAssertNotEqual(restored.streams.boss.state, oldStream)
+            XCTAssertEqual(announced, oldBoss)
+            XCTAssertEqual(restored.streams.boss.state, oldStream)
             let roundTrip = try JSONDecoder().decode(RunState.self,
                                                      from: JSONEncoder().encode(restored))
             XCTAssertEqual(roundTrip.pendingBoss, announced)
@@ -114,7 +119,7 @@ final class FinalBossTests: XCTestCase {
         }
     }
 
-    func testLegacyPendingBossRepairsWhenLeavingShopForBossBriefing() throws {
+    func testLegacyPendingBossRemainsAnnouncedWhenLeavingShopForBossBriefing() throws {
         var game = Game(seed: "legacy-pending-final")
         game.run.level = 9
         game.run.slot = .medium
@@ -129,19 +134,19 @@ final class FinalBossTests: XCTestCase {
                        "A post-Puzzle Shop must not silently consume a boss roll")
         XCTAssertTrue(restored.advance())
         let announced = try XCTUnwrap(restored.run.pendingBoss)
-        XCTAssertTrue(finalBosses.contains(announced))
+        XCTAssertEqual(announced, .collector)
         try restored.startPuzzle()
         XCTAssertEqual(restored.puzzle?.boss, announced)
     }
 
-    func testDirectDealCannotUseWrongPendingPool() throws {
+    func testDirectDealPreservesPreviouslyAnnouncedLegacyBoss() throws {
         for (level, oldBoss) in [(1, BossModifier.heavyLifter), (9, .collector)] {
             var run = RunState(seed: "direct-final-pool-\(level)")
             run.level = level
             run.slot = .boss
             run.pendingBoss = oldBoss
             let puzzle = try PuzzleState.create(run: &run)
-            XCTAssertEqual(finalBosses.contains(try XCTUnwrap(puzzle.boss)), level == 9)
+            XCTAssertEqual(puzzle.boss, oldBoss)
         }
     }
 }

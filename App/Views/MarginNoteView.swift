@@ -62,7 +62,7 @@ struct MarginNote: Equatable {
 /// a new identity cross-faded two complete paragraphs on top of each other.
 /// The ink changes in place; only its position and appearance animate.
 struct PuzzleMarginBand: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     var note: MarginNote?
     var compact: Bool
 

@@ -8,11 +8,20 @@ struct RunMarkerBoard: View {
     @State private var selected: Square?
     @State private var inspecting = false
 
-    private var marked: [Square: OwnedMarker] { run.markedSquares }
+    private var marked: [Square: OwnedMarker] { MarkerInspectionInfo.visibleMarkers(in: run) }
+    private var markersAreHidden: Bool { run.puzzle?.boss?.hidesMarkedSquares == true }
+    private var selectedInfo: MarkerInspectionInfo? {
+        selected.flatMap { MarkerInspectionInfo.make(square: $0, run: run) }
+    }
+    private var visibleDefinitions: [ItemDef] {
+        markersAreHidden ? [] : Markers.all.filter { def in run.markers.contains { $0.defID == def.id } }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tap a marked square to inspect it. Positions stay with this Book.")
+            Text(markersAreHidden
+                 ? "The Fog hides marked squares in this puzzle. They will be visible again in the next puzzle."
+                 : "Tap a marked square to inspect it. Positions stay with this Book.")
                 .font(Print.body(12))
                 .foregroundStyle(Paper.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
@@ -24,20 +33,18 @@ struct RunMarkerBoard: View {
                 .shadow(color: .black.opacity(0.18), radius: 3, x: 1, y: 3)
                 .frame(maxWidth: 440)
                 .frame(maxWidth: .infinity)
-                .popover(isPresented: $inspecting) {
-                    if let selected, let marker = marked[selected] {
-                        ScrollView {
-                            RunMarkerDetail(marker: marker, square: selected, board: run.puzzle?.board)
+                .paperPanel(isPresented: $inspecting) {
+                    if let info = selectedInfo {
+                        PaperSlip(title: info.title, subtitle: nil,
+                                  maximumWidth: 400, onClose: { inspecting = false }) {
+                            RunMarkerDetail(info: info)
                         }
-                        .frame(idealWidth: 300, idealHeight: 220)
-                        .presentationCompactAdaptation(.popover)
-                        .presentationBackground(Paper.pageWarm)
                     }
                 }
 
-            if let selected, let marker = marked[selected] {
-                RunMarkerDetail(marker: marker, square: selected, board: run.puzzle?.board)
-            } else {
+            if let info = selectedInfo {
+                RunMarkerDetail(info: info)
+            } else if !markersAreHidden {
                 Text(marked.isEmpty ? "No Markers placed yet. Choose a square when you buy a Marker."
                      : "\(marked.count) marked squares. Tap a color or choose a Marker below.")
                     .font(Print.body(12))
@@ -47,7 +54,7 @@ struct RunMarkerBoard: View {
 
             // Full-width targets are an alternative to the compact grid cells.
             // They also expose the symbol/color pairing before a square is tapped.
-            ForEach(Markers.all.filter { def in run.markers.contains { $0.defID == def.id } }, id: \.id) { def in
+            ForEach(visibleDefinitions, id: \.id) { def in
                 let squares = Square.all.filter { marked[$0]?.defID == def.id }
                 Button {
                     selected = squares.first
@@ -70,6 +77,12 @@ struct RunMarkerBoard: View {
                 .accessibilityHint("Inspect the first square carrying this Marker")
             }
         }
+        .onChange(of: markersAreHidden) { _, hidden in
+            if hidden {
+                selected = nil
+                inspecting = false
+            }
+        }
     }
 
     private var board: some View {
@@ -79,6 +92,7 @@ struct RunMarkerBoard: View {
                 Paper.pageWarm
                 ForEach(Square.all, id: \.index) { square in
                     let marker = marked[square]
+                    let isSelected = marker != nil && selected == square
                     Button {
                         selected = square
                         inspecting = true
@@ -93,7 +107,7 @@ struct RunMarkerBoard: View {
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
                             if let marker {
-                                Image(systemName: MarkerAppearance.forID(marker.defID).symbol)
+                                ItemArtwork(id: marker.defID, size: max(9, cell * 0.30), style: .glyph)
                                     .font(.system(size: max(7, cell * 0.24), weight: .bold))
                                     .foregroundStyle(Paper.markerColor(marker.defID))
                                     .padding(2)
@@ -101,8 +115,8 @@ struct RunMarkerBoard: View {
                         }
                         .frame(width: cell, height: cell)
                         .overlay {
-                            Rectangle().strokeBorder(selected == square ? Paper.ink : Paper.gridHair,
-                                                     lineWidth: selected == square ? 2.5 : 0.5)
+                            Rectangle().strokeBorder(isSelected ? Paper.ink : Paper.gridHair,
+                                                     lineWidth: isSelected ? 2.5 : 0.5)
                         }
                         .contentShape(Rectangle())
                     }
@@ -110,9 +124,9 @@ struct RunMarkerBoard: View {
                     .disabled(marker == nil)
                     .position(x: (CGFloat(square.col) + 0.5) * cell,
                               y: (CGFloat(square.row) + 0.5) * cell)
-                    .accessibilityLabel("Row \(square.row + 1), column \(square.col + 1), \(marker?.def.name ?? "no Marker")")
+                    .accessibilityLabel("Row \(square.row + 1), column \(square.col + 1)\(markersAreHidden ? "" : ", \(marker?.def.name ?? "no Marker")")")
                     .accessibilityHint(marker == nil ? "" : "Shows this Marker’s effect. Does not change the board.")
-                    .accessibilityAddTraits(selected == square ? .isSelected : [])
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                     .accessibilityIdentifier("run-marker-\(square.index)")
                 }
                 Canvas { context, size in
@@ -137,7 +151,7 @@ struct RunMarkerBoard: View {
 struct MarkerKey: View {
     let defID: String
     var body: some View {
-        Image(systemName: MarkerAppearance.forID(defID).symbol)
+        ItemArtwork(id: defID, size: 25)
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(Paper.ink)
             .frame(width: 25, height: 25)
@@ -148,32 +162,29 @@ struct MarkerKey: View {
 }
 
 struct RunMarkerDetail: View {
-    let marker: OwnedMarker
-    let square: Square
-    let board: Board?
+    let info: MarkerInspectionInfo
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                MarkerKey(defID: marker.defID)
-                Text(marker.def.name).font(Print.subheading(16))
+                MarkerKey(defID: info.marker.defID)
+                Text(info.title).font(Print.subheading(18 * textScale))
             }
-            Text("Row \(square.row + 1), column \(square.col + 1)")
-                .font(Print.caption(12))
-            Text(marker.def.text)
-                .font(Print.body(13))
+            Text("Row \(info.square.row + 1), column \(info.square.col + 1)")
+                .font(Print.caption(12 * textScale))
+            Text(info.explanation)
+                .font(Print.body(16 * textScale))
                 .fixedSize(horizontal: false, vertical: true)
-            if board?.filledBy[square.index] == .given {
-                Text("A printed number occupies this square in this Puzzle, so its Marker cannot trigger here. It remains yours for later Puzzles.")
-                    .font(Print.body(12)).foregroundStyle(Paper.inkSoft)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text(info.availabilityText)
+                .font(Print.body(15 * textScale)).foregroundStyle(Paper.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Paper.ink)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Paper.pageWarm)
-        .overlay(alignment: .leading) { Rectangle().fill(Paper.markerColor(marker.defID)).frame(width: 3) }
+        .overlay(alignment: .leading) { Rectangle().fill(Paper.markerColor(info.marker.defID)).frame(width: 3) }
         .accessibilityElement(children: .combine)
     }
 }

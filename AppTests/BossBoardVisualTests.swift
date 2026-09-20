@@ -156,7 +156,7 @@ final class BossBoardVisualTests: XCTestCase {
         XCTAssertEqual(BossInkSignature(boss: .garryTheGray), .boxBrackets)
     }
 
-    func testAmbientInkAnimatesOnlyThePerimeterAndNeverThePlayableDigits() throws {
+    func testRouteAndHeaderInkAnimationKeepsItsIllustratedDigitCentersStill() throws {
         for boss in BossModifier.allCases {
             let first = try renderPerimeter(boss: boss, phase: 0)
             let second = try renderPerimeter(boss: boss, phase: 0.25)
@@ -164,8 +164,8 @@ final class BossBoardVisualTests: XCTestCase {
                               "\(boss.name) must have its own living ink treatment")
             let a = try pixels(first)
             let b = try pixels(second)
-            // All glyph centers, not only the large central rectangle. Even
-            // the outside row/column retain a motion-free number/tap region.
+            // This decorative renderer is retained for route/header artwork,
+            // not mounted on the playable board. Its illustrated digits stay still.
             let cell = a.width / 9
             var changedGlyphChannels = 0
             for square in Square.all {
@@ -221,31 +221,37 @@ final class BossBoardVisualTests: XCTestCase {
         }
     }
 
-    func testAllNineteenBossesHaveDistinctRenderableBoardTreatments() throws {
+    func testEveryBossRendersAndPassiveBossesLeaveThePlayableBoardUndecorated() async throws {
         var symbols = Set<String>()
-        var renderedBoards = Set<Data>()
         for boss in BossModifier.allCases {
             let design = BossBoardDesign(boss: boss)
-            XCTAssertNotNil(UIImage(systemName: design.symbol), "Missing Boss symbol: \(boss.name)")
+            XCTAssertNotNil(UIImage(systemName: design.symbol), "Missing Boss header symbol: \(boss.name)")
             symbols.insert(design.symbol)
             let game = try makeGame(boss: boss)
-            let image = try render(game)
-            renderedBoards.insert(try XCTUnwrap(image.pngData()))
+            let before = try game.encoded()
+            let image = try await render(game)
             XCTAssertEqual(image.size, CGSize(width: 360, height: 360))
-            attach(image, name: "boss-board-\(boss.rawValue)")
+            if boss != .fog && !boss.foulsSquaresEachTurn && !boss.greysARowEachTurn && !boss.greysABoxEachTurn {
+                var clearRun = game.run
+                clearRun.puzzle?.boss = nil
+                let clear = try await render(Game(run: clearRun))
+                XCTAssertEqual(image.pngData(), clear.pngData(),
+                               "\(boss.name) must not add lines, stamps, fog bands or perimeter doodles inside the board")
+            }
+            XCTAssertEqual(try game.encoded(), before)
+            attach(image, name: "clean-boss-board-\(boss.rawValue)")
         }
+        // Boss identity remains in its existing header, not across the cells.
         XCTAssertEqual(symbols.count, BossModifier.allCases.count)
-        XCTAssertEqual(renderedBoards.count, BossModifier.allCases.count,
-                       "Standing modifiers must not silently reuse an identical board treatment")
     }
 
-    func testFogHidesMarkerDecorationsWithoutRevealingTheirLocations() throws {
+    func testFogHidesMarkerDecorationsWithoutRevealingTheirLocations() async throws {
         let original = try makeGame(boss: .fog)
         let blanks = try XCTUnwrap(original.puzzle?.board.blanks)
         let first = try XCTUnwrap(blanks.first)
         let last = try XCTUnwrap(blanks.last)
         XCTAssertNotEqual(first, last)
-        let withoutMarkers = try render(original)
+        let withoutMarkers = try await render(original)
 
         for square in [first, last] {
             var run = original.run
@@ -255,55 +261,46 @@ final class BossBoardVisualTests: XCTestCase {
             let model = GameModel(frozen: game, page: .puzzle)
             XCTAssertTrue(model.markersAreHidden)
             XCTAssertTrue(model.visibleMarkers.isEmpty)
-            XCTAssertEqual(try render(game).pngData(), withoutMarkers.pngData(),
-                           "Fog's pattern must not trace hidden Marker positions")
+            let markedImage = try await render(game)
+            XCTAssertEqual(markedImage.pngData(), withoutMarkers.pngData(),
+                           "Fog must not disclose hidden Marker positions")
         }
         attach(withoutMarkers, name: "fog-marker-locations-remain-hidden")
     }
 
-    func testFogIsVisibleOverGivenCellBackgroundsAndLeavesNumberContrast() throws {
+    func testFogConcealmentDoesNotWashOutBoardPaperOrDigits() async throws {
         let fog = try makeGame(boss: .fog)
         var clearRun = fog.run
         clearRun.puzzle?.boss = nil
-        let clearImage = try render(Game(run: clearRun))
-        let fogImage = try render(fog)
+        let clearImage = try await render(Game(run: clearRun))
+        let fogImage = try await render(fog)
+        XCTAssertNotEqual(fogImage.pngData(), clearImage.pngData(),
+                          "Fog is now visible above the paper and below the readable digits")
         let clear = try pixels(clearImage)
         let mist = try pixels(fogImage)
-        let board = try XCTUnwrap(fog.puzzle?.board)
-        let givens = Square.all.filter { board.isGiven[$0.index] }
-        let cell = mist.width / 9
-        var visiblyChanged = 0
-        for square in givens {
-            // Sample paper, away from the central glyph, selection or rule.
-            let x = square.col * cell + cell / 5
-            let y = square.row * cell + cell / 5
-            let delta = (0..<3).reduce(0) {
-                $0 + abs(Int(mist.channel(x: x, y: y, channel: $1))
-                         - Int(clear.channel(x: x, y: y, channel: $1)))
+        var crispInk = 0
+        for y in 12..<(clear.width - 12) {
+            for x in 12..<(clear.width - 12) {
+                // Erode the dark glyph mask by one pixel: antialiased edges
+                // legitimately blend with their changed paper background.
+                let isOpaqueInk = (-1...1).allSatisfy { dy in
+                    (-1...1).allSatisfy { dx in
+                        clear.channel(x: x + dx, y: y + dy, channel: 3) == 255
+                            && (0..<3).allSatisfy { clear.channel(x: x + dx, y: y + dy, channel: $0) < 40 }
+                    }
+                }
+                if isOpaqueInk {
+                    crispInk += 1
+                    for channel in 0..<3 {
+                        XCTAssertEqual(clear.channel(x: x, y: y, channel: channel),
+                                       mist.channel(x: x, y: y, channel: channel),
+                                       "Mist must remain below opaque numeral ink")
+                    }
+                }
             }
-            if delta >= 8 { visiblyChanged += 1 }
         }
-        XCTAssertGreaterThan(visiblyChanged, givens.count / 3,
-                             "Fog must remain visible above opaque Given-cell backgrounds")
-
-        // Dark printed pixels stay dark; the mist must not wash the numbers
-        // into a low-contrast gray even in its lightest band.
-        var darkCount = 0
-        var retainedCount = 0
-        for offset in stride(from: 0, to: clear.bytes.count, by: 4) {
-            let clearRed = Int(clear.bytes[offset])
-            let clearGreen = Int(clear.bytes[offset + 1])
-            let clearBlue = Int(clear.bytes[offset + 2])
-            guard clearRed + clearGreen + clearBlue < 180 else { continue }
-            darkCount += 1
-            let mistRed = Int(mist.bytes[offset])
-            let mistGreen = Int(mist.bytes[offset + 1])
-            let mistBlue = Int(mist.bytes[offset + 2])
-            if mistRed + mistGreen + mistBlue < 330 { retainedCount += 1 }
-        }
-        XCTAssertGreaterThan(darkCount, 0)
-        XCTAssertGreaterThan(Double(retainedCount) / Double(max(1, darkCount)), 0.90)
-        attach(fogImage, name: "fog-readable-givens-and-digits")
+        XCTAssertGreaterThan(crispInk, 100, "The exact opaque-ink comparison must sample numeral pixels")
+        attach(fogImage, name: "fog-mist-below-crisp-digits")
     }
 
     func testReduceMotionKeepsEveryBossOverlayTreatmentVisible() throws {
@@ -315,39 +312,48 @@ final class BossBoardVisualTests: XCTestCase {
         }
     }
 
-    func testCensorUnderlinesOnlyNumbersAlreadyVisibleOnTheBoard() throws {
-        let game = try makeGame(boss: .censor)
-        let puzzle = try XCTUnwrap(game.puzzle)
-        let censored = try XCTUnwrap(puzzle.censoredDigit)
-        let feedback = BossBoardFeedback(puzzle: puzzle)
-        XCTAssertEqual(feedback.censoredSquares,
-                       Set(Square.all.filter { puzzle.board[$0] == censored }))
-        XCTAssertTrue(feedback.censoredSquares.isDisjoint(with: Set(puzzle.board.blanks)))
-        XCTAssertFalse(feedback.censoredSquares.isEmpty)
+    func testPassiveBossOverlayIsEmptyAtEveryMotionAndClockPhase() throws {
+        let passive = BossModifier.allCases.filter {
+            !$0.foulsSquaresEachTurn && !$0.greysARowEachTurn && !$0.greysABoxEachTurn
+        }
+        let emptyRenderer = ImageRenderer(content: Color.white.frame(width: 180, height: 180))
+        emptyRenderer.scale = 2
+        let empty = try XCTUnwrap(emptyRenderer.uiImage?.pngData())
+        for boss in passive {
+            let puzzle = try XCTUnwrap(makeGame(boss: boss).puzzle)
+            for phase in [0.0, 0.25, 0.75] {
+                let renderer = ImageRenderer(content:
+                    BossBoardOverlay(puzzle: puzzle, secondsLeft: phase == 0 ? 180 : 1,
+                                     phaseOverride: phase)
+                        .frame(width: 180, height: 180)
+                        .background(Color.white)
+                )
+                renderer.scale = 2
+                XCTAssertEqual(try XCTUnwrap(renderer.uiImage?.pngData()), empty,
+                               "\(boss.name) must not paint decorative board ink at phase \(phase)")
+            }
+        }
     }
 
-    func testHandAndDigitRestrictionsDoNotPaintFalseBlockedSquaresUnderTheGrid() throws {
-        for boss in [BossModifier.handyDandy, .censor] {
-            let renderer = ImageRenderer(content:
-                BossBoardUnderprint(boss: boss, fouled: [], greyed: [])
-                    .frame(width: 180, height: 180)
-                    .background(Paper.page)
-            )
-            renderer.scale = 2
-            let image = try XCTUnwrap(renderer.uiImage)
-            let bitmap = try pixels(image)
-            let paper = (0..<3).map { bitmap.channel(x: 1, y: 1, channel: $0) }
-            var markedPixels = 0
-            for y in 1..<(bitmap.width - 1) {
-                for x in 1..<(bitmap.width - 1) {
-                    if (0..<3).contains(where: {
-                        abs(Int(bitmap.channel(x: x, y: y, channel: $0)) - Int(paper[$0])) > 2
-                    }) { markedPixels += 1 }
-                }
+    func testReadOnlyBoardSnapshotsKeepPassiveBossesUndecorated() throws {
+        for boss in BossModifier.allCases where !boss.foulsSquaresEachTurn
+            && !boss.greysARowEachTurn && !boss.greysABoxEachTurn {
+            let game = try makeGame(boss: boss)
+            let puzzle = try XCTUnwrap(game.puzzle)
+            var clear = puzzle
+            clear.boss = nil
+            func snapshot(_ state: PuzzleState) throws -> Data {
+                let renderer = ImageRenderer(content:
+                    GameplayBoardSnapshot(board: state.board, puzzle: state)
+                        .frame(width: 320, height: 320)
+                        .environment(\.cosmeticTheme, .standard)
+                        .environment(\.colorScheme, .light)
+                )
+                renderer.scale = 2
+                return try XCTUnwrap(renderer.uiImage?.pngData())
             }
-            XCTAssertEqual(markedPixels, 0,
-                           "\(boss.name) may tint paper, but only real rule state may mark board squares")
-            attach(image, name: "no-false-board-restriction-\(boss.rawValue)")
+            XCTAssertEqual(try snapshot(puzzle), try snapshot(clear),
+                           "Retained Results/briefing boards must not restore \(boss.name)'s removed doodles")
         }
     }
 
@@ -370,15 +376,6 @@ final class BossBoardVisualTests: XCTestCase {
         let feedback = BossBoardFeedback(puzzle: unrelated)
         XCTAssertTrue(feedback.greyed.isEmpty, "Stale QA state must not invent an Editor board lock")
         XCTAssertTrue(feedback.fouled.isEmpty)
-    }
-
-    func testRestrictionOutlinesFollowMovedRowsAndBoxesNotTheCenter() {
-        let rect = CGRect(x: 0, y: 0, width: 360, height: 360)
-        let row = BossRestrictionOutline(squares: Set(Geometry.rows[7])).path(in: rect)
-        let box = BossRestrictionOutline(squares: Set(Geometry.boxes[8])).path(in: rect)
-        XCTAssertEqual(row.boundingRect, CGRect(x: 0, y: 280, width: 360, height: 40))
-        XCTAssertEqual(box.boundingRect, CGRect(x: 240, y: 240, width: 120, height: 120))
-        XCTAssertTrue(BossRestrictionOutline(squares: []).path(in: rect).isEmpty)
     }
 
     func testGarryGameplayDoesNotDrawDecorativeBracketsAroundUnbarredUnits() throws {
@@ -458,6 +455,239 @@ final class BossBoardVisualTests: XCTestCase {
         }
     }
 
+    func testRepeatedGarryRestrictionStillIdentifiesANewLandingEachTurn() throws {
+        var puzzle = try XCTUnwrap(makeGame(boss: .grayTheGarry).puzzle)
+        func landing(_ puzzle: PuzzleState) -> BossBrickLandingEvent {
+            let feedback = BossBoardFeedback(puzzle: puzzle)
+            return BossBrickLandingEvent(boss: feedback.boss, turn: feedback.turnNumber, squares: feedback.greyed)
+        }
+        let first = landing(puzzle)
+        puzzle.turnNumber += 1
+        let next = landing(puzzle)
+        XCTAssertEqual(first.squares, next.squares)
+        XCTAssertNotEqual(first, next, "An unchanged row still needs a new drop on the next turn.")
+        XCTAssertEqual(next, landing(puzzle), "An unrelated view refresh must not replay the drop.")
+    }
+
+    func testBrickLifecycleHandlesReducedAndHiddenTurnsWithoutReplayingThem() {
+        let squares = Set([Square(0), Square(1)])
+        let first = BossBrickLandingEvent(boss: .grayTheGarry, turn: 1, squares: squares)
+        let second = BossBrickLandingEvent(boss: .grayTheGarry, turn: 2, squares: squares)
+        var lifecycle = BossBrickLandingLifecycle()
+        XCTAssertFalse(lifecycle.prepare(first, canAnimate: false))
+        XCTAssertTrue(lifecycle.isSettled)
+        XCTAssertFalse(lifecycle.prepare(first, canAnimate: true), "Turning Reduce Motion off must not replay")
+        XCTAssertTrue(lifecycle.prepare(second, canAnimate: true), "The same row on a new turn still lands")
+        XCTAssertTrue(lifecycle.isPending)
+        XCTAssertTrue(lifecycle.start(second))
+        XCTAssertFalse(lifecycle.prepare(second, canAnimate: true), "View redraw does not restart")
+        XCTAssertFalse(lifecycle.prepare(second, canAnimate: false))
+        XCTAssertTrue(lifecycle.isSettled)
+        XCTAssertFalse(lifecycle.prepare(second, canAnimate: true), "Resuming or closing an overlay does not replay")
+    }
+
+    func testBrickLifecycleCancelsPendingLandingWhenCoveredAndRejectsStaleStart() {
+        let first = BossBrickLandingEvent(boss: .grayTheGarry, turn: 1, squares: [Square(0)])
+        let changed = BossBrickLandingEvent(boss: .garryTheGray, turn: 1, squares: [Square(0)])
+        var lifecycle = BossBrickLandingLifecycle()
+        XCTAssertTrue(lifecycle.prepare(first, canAnimate: true))
+        XCTAssertFalse(lifecycle.prepare(first, canAnimate: false))
+        XCTAssertFalse(lifecycle.start(first), "A delayed start cannot revive a covered landing")
+        XCTAssertTrue(lifecycle.prepare(changed, canAnimate: true))
+        XCTAssertFalse(lifecycle.start(first), "A stale task cannot start another boss's landing")
+        XCTAssertTrue(lifecycle.start(changed))
+    }
+
+    func testFirstBrickEntranceWaitsForPageCurlThenStartsExactlyOnce() {
+        let event = BossBrickLandingEvent(boss: .garryTheGray, turn: 1, squares: [Square(40)])
+        var lifecycle = BossBrickLandingLifecycle()
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: false, deferUntilVisible: true))
+        XCTAssertTrue(lifecycle.isPending, "A newly mounted destination has not been seen yet")
+        XCTAssertFalse(lifecycle.isSettled)
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: false, deferUntilVisible: true))
+        XCTAssertTrue(lifecycle.prepare(event, canAnimate: true), "Reveal must trigger the missed first landing")
+        XCTAssertTrue(lifecycle.start(event))
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: true))
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: false, deferUntilVisible: true))
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: true), "An outgoing page must not replay")
+    }
+
+    func testDeferredBrickEntranceIsCancelledByBackgroundOrReducedMotion() {
+        let event = BossBrickLandingEvent(boss: .grayTheGarry, turn: 1, squares: [Square(9)])
+        var lifecycle = BossBrickLandingLifecycle()
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: false, deferUntilVisible: true))
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: false))
+        XCTAssertFalse(lifecycle.start(event))
+        XCTAssertTrue(lifecycle.isSettled)
+        XCTAssertFalse(lifecycle.prepare(event, canAnimate: true))
+    }
+
+    func testBrickImpactsAreSeparatedAndLastDustFullyClears() {
+        for count in 1...9 {
+            let finish = BossBrickSequence.duration(count: count)
+            for rank in 0..<count {
+                let impact = Double(rank) * BossBrickSequence.interval + BossBrickMotion.impactTime + 0.00000001
+                let current = BossBrickMotion(elapsed: BossBrickSequence.localElapsed(impact, rank: rank))
+                XCTAssertEqual(current.height, 0, accuracy: 0.000001)
+                XCTAssertGreaterThan(current.dust, 0.99)
+                if rank + 1 < count {
+                    let next = BossBrickMotion(elapsed: BossBrickSequence.localElapsed(impact, rank: rank + 1))
+                    XCTAssertGreaterThan(next.height, 0.5, "The next brick must still be visibly airborne")
+                    XCTAssertEqual(next.dust, 0)
+                }
+                let settled = BossBrickMotion(elapsed: BossBrickSequence.localElapsed(finish, rank: rank))
+                XCTAssertEqual(settled.height, 0)
+                XCTAssertEqual(settled.dust, 0, accuracy: 0.000001)
+            }
+            XCTAssertLessThan(finish, 2.5, "Even a complete empty row must settle promptly")
+        }
+    }
+
+    func testGarryBrickFeedbackContainsOnlyEligibleBlankCellsAndLeavesAnExit() throws {
+        for boss in [BossModifier.grayTheGarry, .garryTheGray] {
+            let puzzle = try XCTUnwrap(makeGame(boss: boss).puzzle)
+            let restricted = BossBoardFeedback(puzzle: puzzle).greyed
+            XCTAssertFalse(restricted.isEmpty)
+            XCTAssertTrue(restricted.isSubset(of: Set(puzzle.board.blanks)))
+            XCTAssertFalse(Set(puzzle.board.blanks).subtracting(restricted).isEmpty)
+            XCTAssertTrue(restricted.allSatisfy { puzzle.board[$0] == nil })
+        }
+    }
+
+    func testBrickHasDistinctAirborneImpactAndSettledFrames() throws {
+        XCTAssertNotNil(UIImage(named: "BossBrick"), "The physical brick asset must be bundled.")
+        var frames = Set<Data>()
+        for (name, elapsed) in [("airborne", 0.18), ("impact", 0.40), ("rebound", 0.47),
+                                ("dust-spread", 0.60), ("settled", 2.0)] {
+            let renderer = ImageRenderer(content:
+                BossBrickDrawing(size: 72, motion: BossBrickMotion(elapsed: elapsed))
+                    .padding(.top, 180)
+                    .padding(40)
+                    .background(Paper.page)
+            )
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.uiImage)
+            frames.insert(try XCTUnwrap(image.pngData()))
+            attach(image, name: "physical-brick-\(name)")
+        }
+        XCTAssertEqual(frames.count, 5, "A landing must visibly fall, impact, rebound, shed dust and settle.")
+        XCTAssertGreaterThan(BossBrickMotion(elapsed: 0.18).height, 1, "The fall must be visible at phone size.")
+        XCTAssertEqual(BossBrickMotion(elapsed: 2).height, 0)
+        XCTAssertEqual(BossBrickMotion(elapsed: 2).dust, 0)
+    }
+
+    func testFallingBrickLayerCannotEscapeTheBoardIntoTheHUD() throws {
+        for boss in [BossModifier.grayTheGarry, .garryTheGray] {
+            let game = try makeGame(boss: boss)
+            let before = try game.encoded()
+            for elapsed in [0.18, 0.40, 0.70, 2.0] {
+                let renderer = ImageRenderer(content:
+                    BossBrickLandingOverlay(feedback: BossBoardFeedback(puzzle: game.puzzle),
+                                            reduceMotion: false, elapsedOverride: elapsed)
+                        .frame(width: 270, height: 270)
+                        .padding(30)
+                        .background(Color.white)
+                )
+                renderer.scale = 1
+                let raster = try pixels(XCTUnwrap(renderer.uiImage))
+                let background = (0..<3).map { raster.channel(x: 0, y: 0, channel: $0) }
+                var escaped = 0
+                for y in 0..<330 {
+                    for x in 0..<330 where !(30..<300).contains(x) || !(30..<300).contains(y) {
+                        if (0..<3).contains(where: { raster.channel(x: x, y: y, channel: $0) != background[$0] }) {
+                            escaped += 1
+                        }
+                    }
+                }
+                XCTAssertEqual(escaped, 0, "\(boss.name) at \(elapsed)s escaped the board")
+            }
+            XCTAssertEqual(try game.encoded(), before)
+        }
+    }
+
+    func testBrickFallsStraightAndSettlesInsideItsSquareAtPhoneAndTabletSizes() throws {
+        let phases = [0.0, 0.035, 0.14, 0.28, 0.39, 0.40, 0.47, 0.54, 0.70, 0.86, 2.0]
+        for size: CGFloat in [28, 40, 64] {
+            for scale: CGFloat in [2, 3] {
+                for elapsed in phases {
+                    // A full empty cell surrounds the brick on every side. This
+                    // permits the intentional vertical airborne corridor, but
+                    // rejects lateral drift and any spill after contact.
+                    let renderer = ImageRenderer(content:
+                        BossBrickDrawing(size: size, motion: BossBrickMotion(elapsed: elapsed))
+                            .padding(size)
+                            .background(Color.white)
+                    )
+                    renderer.scale = scale
+                    let image = try XCTUnwrap(renderer.uiImage)
+                    let raster = try pixels(image)
+                    let cell = Int(size * scale)
+                    XCTAssertEqual(raster.width, cell * 3)
+                    XCTAssertEqual(image.cgImage?.height, cell * 3)
+                    let background = (0..<3).map { raster.channel(x: 0, y: 0, channel: $0) }
+                    var changedOutside = 0
+                    var changedOutsideCorridor = 0
+                    var paintedInside = 0
+                    for y in 0..<(cell * 3) {
+                        for x in 0..<(cell * 3) {
+                            let changed = (0..<3).contains {
+                                raster.channel(x: x, y: y, channel: $0) != background[$0]
+                            }
+                            guard changed else { continue }
+                            if !(cell..<(cell * 2)).contains(x) || y >= cell * 2 {
+                                changedOutsideCorridor += 1
+                            }
+                            if (cell..<(cell * 2)).contains(x) && (cell..<(cell * 2)).contains(y) {
+                                paintedInside += 1
+                            } else {
+                                changedOutside += 1
+                            }
+                        }
+                    }
+                    let sample = "\(size)pt at \(scale)×, \(elapsed)s"
+                    XCTAssertEqual(changedOutsideCorridor, 0, "Airborne bricks cannot drift into another column: \(sample)")
+                    if elapsed >= BossBrickMotion.impactTime {
+                        XCTAssertEqual(changedOutside, 0,
+                                       "After contact, clay, rebound, shadow and dust stay in the blocked square: \(sample)")
+                        XCTAssertGreaterThan(paintedInside, cell * cell / 5,
+                                             "Containment must retain a visible brick: \(sample)")
+                    }
+                    if changedOutsideCorridor != 0 || (elapsed >= BossBrickMotion.impactTime && changedOutside != 0) {
+                        attach(image, name: "brick-cell-spill-\(size)-\(scale)-\(elapsed)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testGarryBrickBlocksItsBlankAndLeavesAdjacentBlankSelectable() throws {
+        for boss in [BossModifier.grayTheGarry, .garryTheGray] {
+            let game = try makeGame(boss: boss)
+            let puzzle = try XCTUnwrap(game.puzzle)
+            let blocked = try XCTUnwrap(puzzle.bossTurn?.greyed)
+            let pair = try XCTUnwrap(blocked.sorted { $0.index < $1.index }.compactMap { square in
+                puzzle.board.blanks.first { neighbor in
+                    !blocked.contains(neighbor)
+                        && abs(neighbor.row - square.row) + abs(neighbor.col - square.col) == 1
+                }.map { (square, $0) }
+            }.first, "The \(boss.name) fixture needs a blocked blank beside an available blank")
+            let model = GameModel(frozen: game, page: .puzzle)
+            let before = try model.game.encoded()
+            XCTAssertTrue(puzzle.board.isBlank(pair.0))
+            XCTAssertTrue(model.isBarred(pair.0))
+            XCTAssertFalse(model.isBarred(pair.1))
+
+            model.tapSquare(pair.0)
+            XCTAssertNil(model.selectedSquare, "The brick-covered blank must reject selection")
+
+            model.tapSquare(pair.1)
+            XCTAssertEqual(model.selectedSquare, pair.1,
+                           "The adjacent blank must remain selectable for \(boss.name)")
+            XCTAssertEqual(try model.game.encoded(), before,
+                           "Inspecting either square must not change puzzle or saved-run state")
+        }
+    }
+
     private func makeGame(boss: BossModifier) throws -> Game {
         var run = RunState(seed: "boss-visual-regression")
         run.level = boss.isFinalBoss ? 9 : 1
@@ -470,17 +700,8 @@ final class BossBoardVisualTests: XCTestCase {
         return game
     }
 
-    private func render(_ game: Game) throws -> UIImage {
-        let puzzle = try XCTUnwrap(game.puzzle)
-        let model = GameModel(frozen: game, page: .puzzle)
-        let renderer = ImageRenderer(content:
-            GridView(model: model, board: puzzle.board)
-                .frame(width: 360, height: 360)
-                .environment(\.cosmeticTheme, .standard)
-                .environment(\.colorScheme, .light)
-        )
-        renderer.scale = 2
-        return try XCTUnwrap(renderer.uiImage)
+    private func render(_ game: Game) async throws -> UIImage {
+        try await BossHostedGridCapture.image(game)
     }
 
     private func renderOverlay(_ puzzle: PuzzleState, reduceMotion: Bool) throws -> UIImage {
@@ -612,6 +833,40 @@ private struct PublicBossProofBoard: View {
                 context.stroke(rule, with: .color(Paper.ink.opacity(index.isMultiple(of: 3) ? 0.85 : 0.32)),
                                lineWidth: index.isMultiple(of: 3) ? 1.3 : 0.5)
             }
+        }
+    }
+}
+
+@MainActor
+enum BossHostedGridCapture {
+    static func image(_ game: Game, phase: Double? = nil) async throws -> UIImage {
+        let puzzle = try XCTUnwrap(game.puzzle)
+        let model = GameModel(frozen: game, page: .puzzle)
+        let size = CGSize(width: 360, height: 360)
+        // Cells host a UIKit touch recognizer. ImageRenderer substitutes its
+        // unsupported-view glyph, so it cannot prove numeral legibility.
+        let root = GridView(model: model, board: puzzle.board, fogPhaseOverride: phase)
+            .frame(width: size.width, height: size.height)
+            .environment(\.cosmeticTheme, .standard)
+            .environment(\.colorScheme, .light)
+            .environment(\.gameReduceMotion, true)
+        let host = UIHostingController(rootView: root)
+        host.safeAreaRegions = []
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let oldKey = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        window.backgroundColor = .white
+        window.rootViewController = host
+        defer { window.isHidden = true; window.rootViewController = nil; oldKey?.makeKey() }
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(80))
+        window.layoutIfNeeded()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
     }
 }

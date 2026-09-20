@@ -1,0 +1,1598 @@
+[
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "bindery",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 28740,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "bindery",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 12,
+    "score" : 1139270,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "bindery",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 18,
+    "score" : 548930,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "bindery",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 0,
+    "score" : 1248675,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "bindery",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 28720,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "bindery",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 12,
+    "score" : 962790,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "bindery",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 18,
+    "score" : 523740,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "bindery",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 0,
+    "score" : 1088640,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "bindery",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 29860,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "bindery",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 12,
+    "score" : 644660,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "bindery",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 18,
+    "score" : 854480,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "bindery",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 0,
+    "score" : 770730,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "heavyLifter",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 34710,
+    "seed" : "finite-final-roster-0",
+    "target" : 2048000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 12,
+    "score" : 2145840,
+    "seed" : "finite-final-roster-0",
+    "target" : 2048000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 18,
+    "score" : 3128730,
+    "seed" : "finite-final-roster-0",
+    "target" : 2048000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 0,
+    "score" : 2607795,
+    "seed" : "finite-final-roster-0",
+    "target" : 2048000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "heavyLifter",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 35250,
+    "seed" : "finite-final-roster-1",
+    "target" : 2048000
+  },
+  {
+    "banks" : 7,
+    "blanksRemaining" : 1,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 51,
+    "priorSyndicationWins" : 12,
+    "score" : 2980800,
+    "seed" : "finite-final-roster-1",
+    "target" : 2048000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 18,
+    "score" : 2616240,
+    "seed" : "finite-final-roster-1",
+    "target" : 2048000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 0,
+    "score" : 2073600,
+    "seed" : "finite-final-roster-1",
+    "target" : 2048000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "heavyLifter",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 35670,
+    "seed" : "finite-final-roster-2",
+    "target" : 2048000
+  },
+  {
+    "banks" : 7,
+    "blanksRemaining" : 1,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 51,
+    "priorSyndicationWins" : 12,
+    "score" : 3257760,
+    "seed" : "finite-final-roster-2",
+    "target" : 2048000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 18,
+    "score" : 2232120,
+    "seed" : "finite-final-roster-2",
+    "target" : 2048000
+  },
+  {
+    "banks" : 7,
+    "blanksRemaining" : 1,
+    "boss" : "heavyLifter",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 51,
+    "priorSyndicationWins" : 0,
+    "score" : 4141530,
+    "seed" : "finite-final-roster-2",
+    "target" : 2048000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 41,
+    "boss" : "lastEdition",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "failed",
+    "placements" : 11,
+    "priorSyndicationWins" : 0,
+    "score" : 6000,
+    "seed" : "finite-final-roster-0",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 12,
+    "score" : 362880,
+    "seed" : "finite-final-roster-0",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 18,
+    "score" : 419760,
+    "seed" : "finite-final-roster-0",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 0,
+    "score" : 456840,
+    "seed" : "finite-final-roster-0",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 41,
+    "boss" : "lastEdition",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "failed",
+    "placements" : 11,
+    "priorSyndicationWins" : 0,
+    "score" : 4920,
+    "seed" : "finite-final-roster-1",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 12,
+    "score" : 149760,
+    "seed" : "finite-final-roster-1",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 18,
+    "score" : 130680,
+    "seed" : "finite-final-roster-1",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 0,
+    "score" : 160380,
+    "seed" : "finite-final-roster-1",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 41,
+    "boss" : "lastEdition",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "failed",
+    "placements" : 11,
+    "priorSyndicationWins" : 0,
+    "score" : 6030,
+    "seed" : "finite-final-roster-2",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 12,
+    "score" : 264240,
+    "seed" : "finite-final-roster-2",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 18,
+    "score" : 268290,
+    "seed" : "finite-final-roster-2",
+    "target" : 128000
+  },
+  {
+    "banks" : 1,
+    "blanksRemaining" : 39,
+    "boss" : "lastEdition",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 11,
+    "phase" : "won",
+    "placements" : 13,
+    "priorSyndicationWins" : 0,
+    "score" : 307395,
+    "seed" : "finite-final-roster-2",
+    "target" : 128000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "reviewBoard",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 34710,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 12,
+    "score" : 752640,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 18,
+    "score" : 916080,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 0,
+    "score" : 861840,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "reviewBoard",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 35250,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 12,
+    "score" : 520320,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 18,
+    "score" : 612480,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 0,
+    "score" : 605880,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "reviewBoard",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 35670,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 12,
+    "score" : 920880,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 18,
+    "score" : 1159290,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "reviewBoard",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 0,
+    "score" : 1065555,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "splitEdition",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      16800,
+      17910
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 34710,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "splitEdition",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      264960,
+      487680
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 12,
+    "score" : 752640,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 23,
+    "boss" : "splitEdition",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      285120,
+      507870
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 29,
+    "priorSyndicationWins" : 18,
+    "score" : 792990,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 23,
+    "boss" : "splitEdition",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      262440,
+      513945
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 29,
+    "priorSyndicationWins" : 0,
+    "score" : 776385,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "splitEdition",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      15660,
+      19590
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 35250,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 25,
+    "boss" : "splitEdition",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      278400,
+      325440
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 27,
+    "priorSyndicationWins" : 12,
+    "score" : 603840,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 26,
+    "boss" : "splitEdition",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      279840,
+      388080
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 26,
+    "priorSyndicationWins" : 18,
+    "score" : 667920,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 25,
+    "boss" : "splitEdition",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      338580,
+      349920
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 27,
+    "priorSyndicationWins" : 0,
+    "score" : 688500,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "splitEdition",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      17370,
+      18300
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 35670,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 28,
+    "boss" : "splitEdition",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      419520,
+      264000
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 24,
+    "priorSyndicationWins" : 12,
+    "score" : 683520,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 28,
+    "boss" : "splitEdition",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      376200,
+      504240
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 24,
+    "priorSyndicationWins" : 18,
+    "score" : 880440,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 28,
+    "boss" : "splitEdition",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      498960,
+      319140
+    ],
+    "editionTargets" : [
+      256000,
+      256000
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 24,
+    "priorSyndicationWins" : 0,
+    "score" : 818100,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "unluckyLucky",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 19575,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 12,
+    "score" : 598740,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 4,
+    "blanksRemaining" : 22,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 30,
+    "priorSyndicationWins" : 18,
+    "score" : 571110,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 0,
+    "score" : 630585,
+    "seed" : "finite-final-roster-0",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "unluckyLucky",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 16705,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 12,
+    "score" : 655800,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 18,
+    "score" : 607620,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 6,
+    "blanksRemaining" : 8,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 44,
+    "priorSyndicationWins" : 0,
+    "score" : 555120,
+    "seed" : "finite-final-roster-1",
+    "target" : 512000
+  },
+  {
+    "banks" : 8,
+    "blanksRemaining" : 0,
+    "boss" : "unluckyLucky",
+    "build" : "Three-slot basic",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 23,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "failed",
+    "placements" : 52,
+    "priorSyndicationWins" : 0,
+    "score" : 19630,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot developed",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 82,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 12,
+    "score" : 526560,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 3,
+    "blanksRemaining" : 29,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot clear engine",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 0,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 23,
+    "priorSyndicationWins" : 18,
+    "score" : 661650,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  },
+  {
+    "banks" : 5,
+    "blanksRemaining" : 15,
+    "boss" : "unluckyLucky",
+    "build" : "Five-slot number collection",
+    "editionScores" : [
+      0,
+      0
+    ],
+    "editionTargets" : [
+
+    ],
+    "listedLoadoutCost" : 89,
+    "numberIndexMult" : 10,
+    "openingHand" : 7,
+    "phase" : "won",
+    "placements" : 37,
+    "priorSyndicationWins" : 0,
+    "score" : 798030,
+    "seed" : "finite-final-roster-2",
+    "target" : 512000
+  }
+]

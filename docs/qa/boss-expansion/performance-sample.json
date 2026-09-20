@@ -1,0 +1,36 @@
+{
+  "trace": "/tmp/NumberClub-boss-fog-time-20260920.trace",
+  "candidate": "compile8",
+  "device": "D04D3836-357E-4E92-811D-6D14E3BA1E01",
+  "recordedSeconds": 20.614659,
+  "samples": 1578,
+  "sampledThreads": [
+    {
+      "thread": "Main Thread 0x57e7ce (ProbablySudoku, pid: 64250)",
+      "samples": 1353,
+      "weightedSeconds": 1.353
+    },
+    {
+      "thread": "ProbablySudoku 0x58943f (ProbablySudoku, pid: 64250)",
+      "samples": 79,
+      "weightedSeconds": 0.079
+    },
+    {
+      "thread": "ProbablySudoku 0x587fca (ProbablySudoku, pid: 64250)",
+      "samples": 62,
+      "weightedSeconds": 0.062
+    },
+    {
+      "thread": "ProbablySudoku 0x5886d8 (ProbablySudoku, pid: 64250)",
+      "samples": 59,
+      "weightedSeconds": 0.059
+    },
+    {
+      "thread": "ProbablySudoku 0x58556a (ProbablySudoku, pid: 64250)",
+      "samples": 25,
+      "weightedSeconds": 0.025
+    }
+  ],
+  "potentialHangRecords": 0,
+  "animationHitchesSupported": false
+}

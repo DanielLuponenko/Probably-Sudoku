@@ -28,11 +28,19 @@ final class CatalogEffectCoverageTests: XCTestCase {
     private func bookmarkResult(_ id: String, event: GameEvent,
                                 slot: PuzzleSlot = .easy,
                                 puzzleState: [String: Double] = [:],
-                                runState: [String: Double] = [:]) throws -> EffectResult {
+                                runState: [String: Double] = [:],
+                                eligible: Int = 1, boxes: Int = 0b111, priorPaidPenalty: Bool = true) throws -> EffectResult {
         var (run, puzzle) = try self.puzzle(slot: slot)
         run.bookmarks = [OwnedBookmark(defID: id, boughtAtLevel: 1, pricePaid: 0)]
         run.runItemState = runState
         puzzle.itemState = puzzleState
+        puzzle.bookmarkState.turn.eligiblePlacements = eligible
+        puzzle.bookmarkState.turn.boxes = boxes
+        puzzle.bookmarkState.previousPaidPenalty = priorPaidPenalty
+        if id == Bookmarks.eveningEdition { puzzle.turnNumber = 10 }
+        if [Bookmarks.morningEdition, Bookmarks.eveningEdition].contains(id) {
+            return BookmarkMechanics.turnEnd(run: run, puzzle: &puzzle)
+        }
         let context = Resolver.context(event, run: run, puzzle: puzzle, digit: .five)
         return Resolver.dispatch(context, run: run, puzzle: puzzle)
     }
@@ -45,7 +53,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
         return result
     }
 
-    func testEveryMarkerEffectDispatchesItsAdvertisedResult() throws {
+    func testHistoricalMarkerHooksRetainTheirAdvertisedResults() throws {
         let placeExpectations: [(String, (EffectResult) -> Void)] = [
             ("mk_crimson", { XCTAssertEqual($0.multX, 4, "mk_crimson") }),
             ("mk_golden", { XCTAssertEqual($0.flat, 100, "mk_golden") }),
@@ -62,10 +70,10 @@ final class CatalogEffectCoverageTests: XCTestCase {
         XCTAssertEqual(try markerResult("mk_emerald", event: .lineClear).multX, 2, "mk_emerald")
         XCTAssertEqual(try markerResult("mk_silver", event: .place, boardCount: 4).flat, 80, "mk_silver")
         XCTAssertEqual(try markerResult("mk_copper", event: .place, completedUnits: 2).coins, 6, "mk_copper")
-        XCTAssertEqual(Catalog.items(of: .marker).count, 12)
+        XCTAssertEqual(Catalog.items(of: .marker).count, 50)
     }
 
-    func testEveryBookmarkEffectDispatchesOrChangesItsStandingRule() throws {
+    func testOriginalBookmarkEffectsAndReworkedEligibilityDispatchCorrectly() throws {
         let directScore: [(String, GameEvent, Int)] = [
             ("bm_morning_edition", .turnEnd, 100),
             ("bm_evening_edition", .puzzleEnd, 300),
@@ -84,7 +92,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
         }
 
         let additive: [(String, Double)] = [
-            ("bm_op_ed", 1), ("bm_editorial_board", 2), ("bm_front_page_splash", 1),
+            ("bm_op_ed", 1), ("bm_editorial_board", 3), ("bm_front_page_splash", 1),
         ]
         for (id, expected) in additive {
             XCTAssertEqual(try bookmarkResult(id, event: .place).multAdd, expected, id)
@@ -92,7 +100,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
         XCTAssertEqual(try bookmarkResult("bm_letters_to_the_editor", event: .place).multAdd, 0,
                        "Letters is inactive outside Boss Puzzles")
         XCTAssertEqual(try bookmarkResult("bm_letters_to_the_editor", event: .place, slot: .boss).multAdd, 3,
-                       "Letters is active in Boss Puzzles")
+                       "Letters needs a Boss, an eligible placement and a previously paid penalty")
 
         XCTAssertEqual(try bookmarkResult(Bookmarks.rollingPresses, event: .place,
                                           puzzleState: [Bookmarks.rollingPresses: 2]).multX, 2,
@@ -133,7 +141,7 @@ final class CatalogEffectCoverageTests: XCTestCase {
         XCTAssertEqual(run.payout(for: payoutPuzzle).paperRoute, 2, "\(Bookmarks.paperRoute)")
         Shop.open(&run)
         XCTAssertEqual(run.shop?.rerollCost, 0, "\(Bookmarks.auctionNotices)")
-        XCTAssertEqual(Catalog.items(of: .bookmark).count, 23)
+        XCTAssertEqual(Catalog.items(of: .bookmark).count, 50)
     }
 
     func testEveningEditionAwardsItsPointsOnTurnTen() throws {
@@ -142,16 +150,19 @@ final class CatalogEffectCoverageTests: XCTestCase {
         game.give(ad: "bm_evening_edition")
         game.run.puzzle?.turnNumber = Baseline.turns
         game.run.puzzle?.pendingMult = 2
+        let digit = try XCTUnwrap(game.puzzle?.hand.first)
+        _ = try game.place(handIndex: 0, at: XCTUnwrap(game.blank(wanting: digit)))
 
         let scoreBefore = try XCTUnwrap(game.puzzle?.score)
         _ = try game.endTurn()
-        XCTAssertEqual(game.puzzle?.score, scoreBefore + 300)
+        XCTAssertEqual(game.puzzle?.score, scoreBefore + digit.rawValue * 20 + 300)
 
         var beforeTurnTen = Game(seed: "evening-turn-nine")
         try beforeTurnTen.startPuzzle()
         beforeTurnTen.give(ad: "bm_evening_edition")
         beforeTurnTen.run.puzzle?.turnNumber = Baseline.turns - 1
         let earlierScore = try XCTUnwrap(beforeTurnTen.puzzle?.score)
+        beforeTurnTen.run.puzzle?.bookmarkState.turn.eligiblePlacements = 1
         _ = try beforeTurnTen.endTurn()
         XCTAssertEqual(beforeTurnTen.puzzle?.score, earlierScore)
     }
@@ -176,6 +187,6 @@ final class CatalogEffectCoverageTests: XCTestCase {
         let context = Resolver.context(.lineClear, run: run, puzzle: puzzle, digit: .five)
         XCTAssertEqual(Resolver.dispatch(context, run: run, puzzle: puzzle).coins, 1,
                        "Bird Seed stays active for the Level")
-        XCTAssertEqual(Catalog.items(of: .buff).count, 11)
+        XCTAssertEqual(Catalog.items(of: .buff).count, 40)
     }
 }

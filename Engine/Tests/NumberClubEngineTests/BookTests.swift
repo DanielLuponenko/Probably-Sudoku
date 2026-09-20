@@ -7,6 +7,7 @@ final class BookTests: XCTestCase {
         for slot in PuzzleSlot.allCases {
             var run = RunState(seed: "book-two-\(slot.rawValue)", book: .slightlyHarder)
             run.slot = slot
+            if slot == .boss { run.pendingBoss = .bookends } // Isolate Book target, not boss scaling.
             let puzzle = try PuzzleState.create(run: &run)
             let givenCount = puzzle.board.isGiven.filter { $0 }.count
             XCTAssertEqual(givenCount, Book.slightlyHarder.givens(for: slot.difficulty))
@@ -19,6 +20,7 @@ final class BookTests: XCTestCase {
         for slot in PuzzleSlot.allCases {
             var run = RunState(seed: "book-three-\(slot.rawValue)", book: .noPressure)
             run.slot = slot
+            if slot == .boss { run.pendingBoss = .bookends } // Isolate Book target, not boss scaling.
             let puzzle = try PuzzleState.create(run: &run)
             XCTAssertEqual(puzzle.board.isGiven.filter { $0 }.count, slot.difficulty.givens - 3)
             XCTAssertEqual(puzzle.target, Int(Double(Targets.target(level: 1, slot: slot)) * 1.25))
@@ -29,6 +31,7 @@ final class BookTests: XCTestCase {
         for slot in PuzzleSlot.allCases {
             var run = RunState(seed: "book-four-\(slot.rawValue)", book: .bites)
             run.slot = slot
+            if slot == .boss { run.pendingBoss = .bookends } // Isolate Book target, not boss scaling.
             let puzzle = try PuzzleState.create(run: &run)
             XCTAssertEqual(puzzle.board.isGiven.filter { $0 }.count, slot.difficulty.givens - 6)
             XCTAssertEqual(puzzle.target, Int(Double(Targets.target(level: 1, slot: slot)) * 1.5))

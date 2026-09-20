@@ -9,25 +9,24 @@ struct FirstTimeWelcomeView: View {
         TutorialPaper {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Image(systemName: "book.closed")
-                        .font(.system(size: 64, weight: .light))
-                        .foregroundStyle(Paper.sageDeep)
+                    Image(systemName: "book.closed.fill")
+                        .font(.system(size: 42, weight: .light))
+                        .foregroundStyle(GameplaySurface.sage)
                         .accessibilityHidden(true)
-                        .padding(.top, 36)
-                    Text("Have you played Probably Sudoku before?")
+                        .padding(22)
+                        .background(Paper.pageWarm, in: .rect(cornerRadius: 14))
+                        .padding(.top, 24)
+                    Text("A little practice.\nA better first Book.")
                         .font(.system(.largeTitle, design: .serif).weight(.bold))
                         .accessibilityAddTraits(.isHeader)
-                    Text("A familiar grid. A slightly different game.")
-                        .font(.title3)
-                    Text("Learn by playing: place numbers, build a multiplier, buy useful items and try selling one. Everything happens in a separate practice Book.")
+                    Text("Place a number. Build a combination. Beat the target.")
+                        .font(.title3.weight(.medium))
+                    Text("Six short chapters, using the real game. Your practice Book is separate from your saves, coins and achievements.")
                         .font(.body)
                         .foregroundStyle(Paper.inkSoft)
-                    Text("no pressure. this page doesn't count.")
-                        .font(.custom("Bradley Hand", size: 22, relativeTo: .title3))
-                        .foregroundStyle(Paper.pencil)
                     VStack(spacing: 12) {
-                        TutorialButton(title: "Yes, I've played", action: onExperienced)
-                        TutorialButton(title: "No, show me how", prominent: true, action: onLearn)
+                        TutorialButton(title: "Learn by playing", prominent: true, action: onLearn)
+                        TutorialButton(title: "I've played before", action: onExperienced)
                     }
                     .padding(.top, 12)
                     Text("At your pace · Skip whenever you like")
@@ -80,6 +79,7 @@ struct TutorialLessonPage: View {
     let presentation: TutorialPresentation
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Environment(\.dynamicTypeSize) private var dynamicType
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @AccessibilityFocusState private var focusedStep: TutorialSession.Step?
 
     var body: some View {
@@ -89,28 +89,25 @@ struct TutorialLessonPage: View {
                     header
                     ScrollViewReader { proxy in
                         ScrollView {
-                            VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
                                 lessonHeading.id("lesson-top")
                                 if let snapshot = session.snapshot {
                                     lesson(snapshot, boardSize: boardSize(in: geometry.size))
                                 } else {
                                     preparation
                                 }
-                                if let feedback = session.feedback {
-                                    Label(feedback, systemImage: "pencil.tip")
-                                        .font(.callout)
-                                        .foregroundStyle(Paper.ink)
-                                        .accessibilityIdentifier("tutorial-feedback")
-                                }
                             }
                             .frame(maxWidth: 480, alignment: .leading)
                             .padding(.horizontal, 20)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
                         }
                         .onChange(of: session.step) { _, newStep in
                             proxy.scrollTo("lesson-top", anchor: .top)
                             if voiceOver { focusedStep = newStep }
+                        }
+                        .onChange(of: session.completedActions.count) { old, new in
+                            if new > old { Haptics.menuOpen() }
                         }
                     }
                     if !dynamicType.isAccessibilitySize || hasPinnedAction {
@@ -122,20 +119,25 @@ struct TutorialLessonPage: View {
     }
 
     private func boardSize(in size: CGSize) -> CGFloat {
-        min(300, max(190, size.height * 0.36), max(190, size.width - 40))
+        // Keep the real Hand below the board and above the task footer on a
+        // compact phone. Enlarged reading content keeps its normal scroll path.
+        let reserve: CGFloat = hasPinnedAction ? 470 : (session.successMessage == nil ? 430 : 460)
+        return min(360, max(190, size.height - reserve), max(190, size.width - 40))
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
+        VStack(spacing: 2) {
+          HStack(alignment: .center, spacing: 12) {
             if dynamicType.isAccessibilitySize {
-                Text("\(session.step.rawValue + 1)/\(TutorialSession.Step.allCases.count)")
+                Text("\(session.step.chapter.rawValue + 1)/\(TutorialSession.Chapter.allCases.count)")
                     .font(.caption2)
-                    .accessibilityLabel("\(chapter), practice \(session.step.rawValue + 1) of \(TutorialSession.Step.allCases.count)")
+                    .accessibilityLabel("Chapter \(session.step.chapter.rawValue + 1) of 6. \(session.step.chapter.title). \(session.completedActions.count) of \(TutorialSession.actionCount) practice actions completed.")
             } else {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(chapter).font(.caption.weight(.semibold))
-                    Text("Practice \(session.step.rawValue + 1) of \(TutorialSession.Step.allCases.count)")
+                    Text("\(session.completedActions.count) of \(TutorialSession.actionCount) actions tried")
                         .font(.caption2).foregroundStyle(Paper.inkSoft)
+                        .accessibilityIdentifier("tutorial-action-progress")
                 }
             }
             Spacer(minLength: 0)
@@ -145,6 +147,19 @@ struct TutorialLessonPage: View {
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel(presentation.exitTitle)
                 .accessibilityIdentifier("tutorial-skip")
+          }
+          if !dynamicType.isAccessibilitySize {
+              HStack(spacing: 5) {
+                  ForEach(TutorialSession.Chapter.allCases, id: \.rawValue) { chapter in
+                      Capsule().fill(chapter.rawValue <= session.step.chapter.rawValue
+                          ? GameplaySurface.sage : Paper.rule.opacity(0.35))
+                          .frame(height: 3)
+                  }
+              }
+              .padding(.bottom, 5)
+              .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: session.step.chapter)
+              .accessibilityHidden(true)
+          }
         }
         .padding(.horizontal, 20).padding(.vertical, 4)
         .overlay(alignment: .bottom) { Rectangle().fill(Paper.rule).frame(height: 1) }
@@ -161,6 +176,19 @@ struct TutorialLessonPage: View {
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Paper.inkSoft)
+            if let feedback = session.feedback {
+                Label(feedback, systemImage: "arrow.turn.up.left")
+                    .font(.callout)
+                    .foregroundStyle(Paper.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("tutorial-feedback")
+            } else if let message = session.successMessage {
+                Label(message, systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(GameplaySurface.sage)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("tutorial-success")
+            }
         }
     }
 
@@ -169,24 +197,20 @@ struct TutorialLessonPage: View {
         switch session.step {
         case .goal, .select, .place, .bank, .banked,
              .markerPlacement, .comboSelect, .comboPlace, .comboScore,
-             .buffed, .comboBank, .won:
-            if showsHand {
-                TutorialHand(cards: snapshot.hand, targetID: session.targetCardID,
-                             selectedID: session.selectedCardID,
-                             isInteractive: session.step == .select || session.step == .comboSelect,
-                             select: session.selectCard)
-            }
+            .buffed, .comboBank, .won:
             TutorialScore(snapshot: snapshot)
-            if session.step == .comboScore || session.step == .buffed || session.step == .comboBank {
-                TutorialNote(title: snapshot.completedUnits > 0 ? "Line clear + your items" : "Your scoring combination",
-                    detail: "\(snapshot.queuedBase.formatted()) queued base × \(snapshot.multiplier.formatted(.number.precision(.fractionLength(0...2)))) mult = \(snapshot.queued.formatted()) points to bank.")
-            }
             TutorialPracticeBoard(cells: snapshot.cells, target: session.targetSquare,
                 highlightsTarget: boardIsInteractive, isInteractive: boardIsInteractive,
                 markedSquares: snapshot.markedSquares, place: boardAction)
                 .frame(width: boardSize, height: boardSize)
                 .frame(maxWidth: .infinity)
                 .accessibilityHidden(voiceOver)
+            if !snapshot.hand.isEmpty {
+                TutorialHand(cards: snapshot.hand, targetID: showsHand ? session.targetCardID : nil,
+                             selectedID: session.selectedCardID,
+                             isInteractive: session.step == .select || session.step == .comboSelect,
+                             select: session.selectCard)
+            }
             if voiceOver && boardIsInteractive, let square = session.targetSquare {
                 TutorialButton(title: session.step == .markerPlacement
                     ? "Mark row \(square.row + 1), column \(square.col + 1)"
@@ -196,13 +220,13 @@ struct TutorialLessonPage: View {
             }
             if session.step == .markerPlacement {
                 TutorialNote(title: "Golden Marker · +100 points",
-                    detail: "Choose the outlined square. In a real Book you choose its position. It stays there for the Book; a printed starting number makes it dormant for that puzzle.")
+                    detail: "It stays on this square for the Book. A printed starting number makes it dormant for that puzzle.")
             }
             if !snapshot.bookmarks.isEmpty { inventorySummary(snapshot) }
         case .shop:
             coinBalance(snapshot)
             TutorialNote(title: "A practice budget",
-                detail: "We supplied 30 practice coins and one spare Overtime Buff. Real Shop coins come from puzzle payouts. Prices and refunds are shown before you act.")
+                detail: "30 supplied coins and a spare Overtime Buff. In a real Book, your puzzle payout funds the Shop.")
             ForEach(snapshot.offers) { offer in
                 HStack {
                     Image(systemName: ItemIcon.symbol(for: offer.defID)).accessibilityHidden(true)
@@ -243,19 +267,19 @@ struct TutorialLessonPage: View {
         case .payout:
             coinBalance(snapshot)
             TutorialNote(title: "Coins for your next Shop",
-                detail: "Cash Out has paid this practice puzzle once. Your earned coins stay with the Book. Spend them on combinations, or save for interest.")
+                detail: "\(snapshot.payout?.total ?? 0) coins collected. Spend them in the next Shop, or save for interest.")
             inventorySummary(snapshot)
         case .books:
             TutorialNote(title: "Probably Sudoku", detail: Book.probably.benefit.detail)
-            TutorialNote(title: "One build, a whole Book",
-                detail: "Keep your Bookmarks and Markers between puzzles. Buffs are spent when used. Each Book has its own benefit and progress.")
+            TutorialNote(title: "Play or skip an ordinary puzzle",
+                detail: "The next-puzzle page shows your target and a specific skip Buff. Skip as often as you like. If your Buff slots are full, replace one or cancel first.")
         case .boss:
             TutorialNote(title: BossModifier.deadline.name, detail: BossModifier.deadline.text)
             TutorialNote(title: "Read before you play",
-                detail: "Every Level ends with a Boss. Its announced rule may change your plan. Beat the final Boss to complete the Book; there is no final Shop.")
+                detail: "Boss puzzles are mandatory. Read the rule, then play around it. Beat the final Boss to complete the Book; there is no final Shop.")
         case .ready:
             TutorialNote(title: "You tried it yourself",
-                detail: "Place → build a multiplier → use a Buff → bank points → Cash Out. Buy Bookmarks and Markers for the Book; sell Bookmarks or unused Buffs when you need coins or space.")
+                detail: "\(session.completedActions.count) real practice actions completed. Place, buy, mark, use, sell, bank and Cash Out—your next Book is yours to build.")
         }
     }
 
@@ -303,18 +327,14 @@ struct TutorialLessonPage: View {
                      .buyBookmark, .buyMultiplier, .buyMarker, .buyBuff, .useBuff,
                      .sellBookmark, .sellBuff:
                     Label(actionHint, systemImage: "hand.tap")
-                        .font(.callout.weight(.semibold))
+                        .font(.footnote.weight(.semibold))
+                        .frame(minHeight: 32)
                         .accessibilityIdentifier("tutorial-action-hint")
                 default:
                     TutorialButton(title: session.step == .ready ? presentation.completionTitle : "Continue", prominent: true,
                                    action: session.continueLesson)
                         .accessibilityIdentifier("tutorial-continue")
                 }
-            }
-            if !dynamicType.isAccessibilitySize {
-                Text("At your pace · Practice never changes your saved Book")
-                    .font(.caption).foregroundStyle(Paper.inkSoft)
-                    .multilineTextAlignment(.center)
             }
         }
         .frame(maxWidth: 480)
@@ -340,14 +360,7 @@ struct TutorialLessonPage: View {
         session.step == .markerPlacement ? session.claimMarker(at: square) : session.place(at: square)
     }
     private var chapter: String {
-        switch session.step {
-        case .goal, .select, .place, .bank, .banked: "1 · Play a Turn"
-        case .shop, .buyBookmark, .buyMultiplier, .buyMarker, .buyBuff: "2 · Build your Book"
-        case .markerPlacement, .comboSelect, .comboPlace, .comboScore, .useBuff, .buffed: "3 · Make a combination"
-        case .sellBookmark, .sellBuff: "4 · Sell and make room"
-        case .comboBank, .won, .payout: "5 · Reach the target"
-        case .books, .boss, .ready: "6 · Your next Book"
-        }
+        "\(session.step.chapter.rawValue + 1) of 6 · \(session.step.chapter.title)"
     }
     private var actionHint: String {
         switch session.step {
@@ -362,29 +375,29 @@ struct TutorialLessonPage: View {
     private var copy: (title: String, body: String) {
         let digit = session.targetDigit?.rawValue ?? 1
         switch session.step {
-        case .goal: return ("Score points. Leave blanks.", "Reach the target before your Turns run out. You do not need to finish the Sudoku. Let's play one Turn together.")
-        case .select: return ("Start with a number.", "Tap the outlined \(digit) in your Hand. Each row, column and 3-by-3 box uses 1 to 9 without repeats.")
-        case .place: return ("Give it a square.", "Now tap the outlined empty square. The \(digit) fits its row, column and box. Wrong practice taps cost nothing.")
-        case .bank: return ("Your points are queued.", "In a real Turn, play as many numbers from your Hand as fit before banking. We'll end this practice Turn now: End Turn banks your points, refills your Hand and spends one Turn.")
-        case .banked: return ("Points in the bank.", "The queued score moved into your total. The Hand refilled and the Turn counter advanced. Next, try the items that make your points grow.")
-        case .shop: return ("Try a practice Shop.", "In a real Book, the Shop opens after you Cash Out a puzzle. We'll jump to a stocked practice shelf so you can try each kind of item.")
-        case .buyBookmark: return ("Buy a Bookmark.", "Local Gossip adds points to every correct placement. Bookmarks work automatically while you own them; you do not need a Use button.")
-        case .buyMultiplier: return ("Give your score a multiplier.", "Local Gossip is yours. Now buy Op-Ed Column: its +1 mult adds to the starting ×1, making ×2. Additive bonuses add together: two +1 bonuses would make ×3.")
-        case .buyMarker: return ("A bonus on one square.", "Golden Marker adds 100 placement points at its marked square. Buy it, then you'll choose a position on the practice board.")
-        case .buyBuff: return ("Keep a trick for later.", "Fresh Ink adds +2 mult for the rest of this puzzle when used. Buy it now; unlike a Bookmark, each Buff copy is spent once.")
-        case .markerPlacement: return ("Put your Marker to work.", "This next practice board has a nearly finished row. Tap the outlined square to attach Golden Marker there. Markers stay for the Book and cannot be sold.")
-        case .comboSelect: return ("Set up a Line Clear.", "Tap the outlined \(digit). It is the missing number in the prepared row. Your passive Bookmarks are already equipped.")
-        case .comboPlace: return ("Make the pieces work together.", "Place \(digit) on the Golden square. You'll earn placement points, a Line Clear, Local Gossip's bonus and Op-Ed's multiplier through the real scoring rules.")
-        case .comboScore: return ("See your combination.", "The Marker boosted this placement, the completed row added a Line Clear, and Op-Ed raised your mult. These points are still queued until End Turn.")
-        case .useBuff: return ("Use Fresh Ink.", "Tap Use to spend this copy. Its +2 mult lasts for this puzzle and also boosts the points already queued this Turn.")
-        case .buffed: return ("More mult. Same queued base.", "Fresh Ink left your Buff slots and the multiplier rose. Op-Ed's +1 and Fresh Ink's +2 add to the starting ×1, giving ×4. Try selling an item next.")
-        case .sellBookmark: return ("Sell a Bookmark.", "Open an owned item's details in the game to find Sell. Try Local Gossip here: selling removes it and returns coins. Points already earned stay queued.")
-        case .sellBuff: return ("Unused Buffs can be sold too.", "Local Gossip has left your inventory and its refund is in your balance. Sell the spare Overtime Buff next. Refunds are half the price paid, rounded down, with a minimum of one coin.")
-        case .comboBank: return ("Bank the combination.", "The spare Buff is sold, leaving room for a new one. Now tap End Turn to bank your multiplied points and reach this prepared practice target.")
-        case .won: return ("Target reached.", "In the game, Keep Filling lets you continue for extra coins when Turns and empty squares remain. For this lesson, tap Cash Out to collect your payout.")
-        case .payout: return ("Your next Shop is funded.", "The payout increased your practice coins. A real Book carries those coins and your remaining items into the next puzzle.")
-        case .books: return ("Choose your Book's benefit.", "Each Book changes how you play. Probably Sudoku starts with one extra number in your Hand. Read the benefit before opening a Book.")
-        case .boss: return ("Read the Boss first.", "Items are only part of your plan. A Boss brings an announced rule; read it before starting and choose your moves around it.")
+        case .goal: return ("Score points. Leave blanks.", "Reach the target before your Turns run out. You can win with empty squares. Let's play one Turn.")
+        case .select: return ("Start with a number.", "Tap the outlined \(digit) below the board. Rows, columns and 3×3 boxes use 1–9 without repeats.")
+        case .place: return ("Give it a square.", "Tap the outlined empty square. Your \(digit) fits here. Wrong practice taps cost nothing.")
+        case .bank: return ("Bank your first Turn.", "Tap End Turn to add the live points to your score and refill your Hand. In a real Turn, you can place more numbers first.")
+        case .banked: return ("Points in the bank.", "Your score rose, your Hand refilled, and one Turn was spent. Next: items that make every placement worth more.")
+        case .shop: return ("Try a practice Shop.", "A real Shop opens after Cash Out. This supplied shelf lets you try all three item types.")
+        case .buyBookmark: return ("Buy a Bookmark.", "Buy Local Gossip below. It adds points to every correct placement automatically.")
+        case .buyMultiplier: return ("Give your score a multiplier.", "Buy Front Page Splash. It adds 1 Mult per Bookmark, including itself. Your two Bookmarks make ×3.")
+        case .buyMarker: return ("A bonus on one square.", "Buy Golden Marker. Your next lesson puts its +100 placement Points on a square you choose.")
+        case .buyBuff: return ("Keep a trick for later.", "Buy Fresh Ink. Use this consumable once for +2 Mult through the rest of the puzzle.")
+        case .markerPlacement: return ("Put your Marker to work.", "Tap the outlined blank to mark it. This prepared row and box share their last missing number.")
+        case .comboSelect: return ("Set up a Line Clear.", "Tap the outlined \(digit) in your Hand. Your Bookmarks are already working.")
+        case .comboPlace: return ("Make the pieces work together.", "Place \(digit) on the Golden square. Complete the row and box, then let your items add their bonuses.")
+        case .comboScore: return ("See your combination.", "Golden Marker and Local Gossip added Points. The row and box added two Line Clears; Front Page Splash made ×3.")
+        case .useBuff: return ("Use Fresh Ink.", "Tap Use. This copy is spent, and its +2 Mult also boosts the Points already earned this Turn.")
+        case .buffed: return ("Same Points. More Mult.", "Base 1 + Fresh Ink 2 + Front Page Splash 2 = 5 Mult. Your live total grew; the Buff left its slot.")
+        case .sellBookmark: return ("Sell a Bookmark.", "Sell Local Gossip below. Earned Points stay. In your Book, use the item's details or drag it to Sell.")
+        case .sellBuff: return ("Unused Buffs can be sold too.", "Sell the spare Overtime. A sale returns half the price paid, rounded down, with a minimum of one coin.")
+        case .comboBank: return ("Bank the combination.", "Tap End Turn to bank your multiplied Points and reach the practice target.")
+        case .won: return ("Target reached.", "Tap Cash Out for your payout. In your Book, Keep Filling can earn extra coins while Turns and blanks remain.")
+        case .payout: return ("Your next Shop is funded.", "Your coins and remaining items carry into the next puzzle of the Book.")
+        case .books: return ("Choose your Book's benefit.", "Probably Sudoku starts with an extra number in your Hand. Each Book brings its own benefit.")
+        case .boss: return ("Read the Boss first.", "Bosses change the rules. Read the announced effect before playing.")
         case .ready: return ("You're ready. Probably.", presentation.completionMessage)
         }
     }
@@ -404,8 +417,8 @@ private struct TutorialNote: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Paper.pageWarm, in: .rect(cornerRadius: 5))
-        .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(Paper.rule, lineWidth: 1) }
+        .background(Paper.pageWarm, in: .rect(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Paper.rule.opacity(0.65), lineWidth: 1) }
         .accessibilityElement(children: .combine)
     }
 }
@@ -420,8 +433,19 @@ private struct TutorialItemCard: View {
     let action: () -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(name, systemImage: ItemIcon.symbol(for: defID))
-                .font(.system(.title3, design: .serif).weight(.semibold))
+            HStack(alignment: .center, spacing: 12) {
+                ItemArtwork(id: defID, size: 32, style: .glyph)
+                    .foregroundStyle(isBuff ? Paper.pageWarm : GameplaySurface.sage)
+                    .frame(width: 50, height: 54)
+                    .background(isBuff ? Paper.ink : Paper.page, in: .rect(cornerRadius: 7))
+                    .overlay(alignment: .top) {
+                        if isBuff { Capsule().fill(Paper.coin).frame(height: 3).padding(.horizontal, 3) }
+                    }
+                    .accessibilityHidden(true)
+                Text(name)
+                    .font(.system(.title3, design: .serif).weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
                 .accessibilityAddTraits(.isHeader)
             Text(detail).font(.body).fixedSize(horizontal: false, vertical: true)
             Text(caption).font(.callout).foregroundStyle(Paper.inkSoft)
@@ -429,9 +453,12 @@ private struct TutorialItemCard: View {
                 .accessibilityIdentifier(actionID)
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Paper.pageWarm, in: .rect(cornerRadius: 5))
-        .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(Paper.sageDeep, lineWidth: 1.5) }
+        .background(Paper.pageWarm, in: .rect(cornerRadius: 9))
+        .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(Paper.sageDeep.opacity(0.6), lineWidth: 1) }
+        .shadow(color: Paper.ink.opacity(0.08), radius: 4, y: 3)
     }
+
+    private var isBuff: Bool { Catalog.item(defID)?.kind == .buff }
 }
 
 private struct TutorialPaper<Content: View>: View {
@@ -472,7 +499,7 @@ private struct TutorialButton: View {
                             in: .rect(cornerRadius: 5))
                 .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(Paper.sageDeep, lineWidth: prominent ? 1.5 : 0.7) }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressedPaperStyle())
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.5)
     }
@@ -480,18 +507,64 @@ private struct TutorialButton: View {
 
 private struct TutorialScore: View {
     let snapshot: TutorialPracticeSnapshot
+    @Environment(\.dynamicTypeSize) private var dynamicType
+    @Environment(\.gameReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("\(snapshot.score.formatted()) / \(snapshot.target.formatted()) points")
-                .font(.system(.title3, design: .serif).weight(.semibold))
-                .monospacedDigit()
-            Text("Turn \(snapshot.turn) of \(snapshot.turns) · \(snapshot.queued) points queued")
-                .font(.footnote)
-                .foregroundStyle(Paper.inkSoft)
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    bankedScore.fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 8)
+                    turn
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    bankedScore.fixedSize(horizontal: false, vertical: true)
+                    turn
+                }
+            }
+            if dynamicType.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 3) { turnTotal; calculation }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    turnTotal
+                    Spacer(minLength: 0)
+                    calculation
+                }
+            }
         }
+        .monospacedDigit()
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("tutorial-live-score")
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+    }
+
+    private var bankedScore: some View {
+        Text("\(snapshot.score.formatted()) / \(snapshot.target.formatted()) points")
+            .font(.system(.title3, design: .serif).weight(.semibold))
+    }
+
+    private var turn: some View {
+        Text("Turn \(snapshot.turn)/\(snapshot.turns)")
+            .font(.caption).foregroundStyle(Paper.inkSoft)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var turnTotal: some View {
+        Text("+\(snapshot.queued.formatted()) this Turn")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(GameplaySurface.sage)
+            .contentTransition(.numericText())
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: snapshot.queued)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var calculation: some View {
+        Text("\(snapshot.queuedBase.formatted()) Points × \(ScorePerformance.number(snapshot.multiplier)) Mult")
+            .font(.caption)
+            .foregroundStyle(Paper.inkSoft)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -505,23 +578,27 @@ private struct TutorialPracticeBoard: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 9)
 
     var body: some View {
+      GeometryReader { geometry in
         LazyVGrid(columns: columns, spacing: 0) {
             ForEach(cells) { cell in
                 Button { _ = place(cell.square) } label: {
                     Text(cell.digit.map { String($0.rawValue) } ?? " ")
-                        .font(.system(size: 20, weight: cell.isGiven ? .regular : .bold, design: .serif))
-                        .foregroundStyle(cell.isGiven ? Paper.inkSoft : Paper.ink)
+                        .font(.system(size: min(22, geometry.size.width / 9 * 0.58), weight: cell.isGiven ? .regular : .semibold))
+                        .foregroundStyle(Paper.ink)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .aspectRatio(1, contentMode: .fit)
                         .background(highlightsTarget && cell.square == target ? Paper.cellSelected :
-                                        (markedSquares.contains(cell.square) ? Color.yellow.opacity(0.24) : (cell.isGiven ? Paper.cellGiven : Paper.page)))
+                                        (markedSquares.contains(cell.square) ? Paper.coin.opacity(0.22) : Paper.pageWarm))
+                        .overlay(alignment: .top) {
+                            Rectangle().fill(.white.opacity(0.7)).frame(height: 1)
+                        }
                         .overlay {
                             if highlightsTarget && cell.square == target {
                                 Rectangle().strokeBorder(Paper.sageDeep, lineWidth: 3)
                             }
                         }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressedPaperStyle())
                 .disabled(!isInteractive || cell.digit != nil)
                 .accessibilityIdentifier("tutorial-cell-\(cell.square.index)")
                 .accessibilityLabel("Row \(cell.square.row + 1), column \(cell.square.col + 1), \(cell.digit.map { String($0.rawValue) } ?? "empty")")
@@ -538,13 +615,19 @@ private struct TutorialPracticeBoard: View {
                     path.addLine(to: CGPoint(x: x, y: size.height))
                     path.move(to: CGPoint(x: 0, y: y))
                     path.addLine(to: CGPoint(x: size.width, y: y))
-                    context.stroke(path, with: .color(Paper.gridBold.opacity(line.isMultiple(of: 3) ? 1 : 0.4)),
-                                   lineWidth: line.isMultiple(of: 3) ? 1.8 : 0.5)
+                    context.stroke(path, with: .color(line.isMultiple(of: 3) ? GameplaySurface.sage : .white.opacity(0.85)),
+                                   lineWidth: line.isMultiple(of: 3) ? 3.5 : 1)
                 }
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
+        .overlay { Rectangle().strokeBorder(GameplaySurface.sage, lineWidth: 3.5) }
+        .background {
+            Rectangle().fill(Paper.pageWarm)
+                .shadow(color: Paper.ink.opacity(0.16), radius: 3, y: 3)
+        }
+      }
         .dynamicTypeSize(.large) // Fixed grid geometry; VO gets a full-size placement button.
     }
 }
@@ -559,18 +642,21 @@ private struct TutorialHand: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Your Hand").font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 4)], spacing: 7) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: 2)], spacing: 7) {
                 ForEach(cards) { card in
                     Button { _ = select(card.id) } label: {
                         Text("\(card.digit.rawValue)")
                             .font(.system(.title2, design: .serif).weight(.semibold))
                             .foregroundStyle(Paper.ink)
                             .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(card.id == targetID ? Paper.cellSelected : Paper.pageWarm,
-                                        in: .rect(cornerRadius: 3))
-                            .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(card.id == targetID ? Paper.sageDeep : Paper.rule, lineWidth: card.id == targetID ? 2 : 0.7) }
+                            .background {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(card.id == targetID || card.id == selectedID ? Paper.cellSelected : Paper.pageWarm)
+                                    .shadow(color: Paper.ink.opacity(0.16), radius: 1, y: 2)
+                            }
+                            .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(card.id == targetID || card.id == selectedID ? Paper.sageDeep : .white.opacity(0.9), lineWidth: card.id == targetID || card.id == selectedID ? 2 : 1) }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressedPaperStyle())
                     .disabled(!isInteractive)
                     .accessibilityLabel("Number \(card.digit.rawValue)\(card.id == targetID ? ", outlined practice number" : "")")
                     .accessibilityIdentifier("tutorial-hand-\(card.id)")

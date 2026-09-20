@@ -10,11 +10,11 @@ final class CatalogActionIntegrationTests: XCTestCase {
         return game
     }
 
-    func testEveryBuffIsConsumedAndItsEffectReachesSavedGameplayState() throws {
+    func testOriginalBuffsReachSavedGameplayStateThroughRealActions() throws {
         let handled: Set<String> = [Buffs.peek, Buffs.redraw, "bf_overtime", "bf_double_down",
             "bf_insurance", "bf_second_print", "bf_lucky_dip", Buffs.birdSeed,
             Buffs.freshInk, Buffs.litmus, Buffs.paperCrane]
-        XCTAssertEqual(Set(Buffs.all.map(\.id)), handled)
+        XCTAssertEqual(Set(Buffs.all.prefix(11).map(\.id)), handled)
         let fixture = try startedGame()
         for id in handled.sorted() {
             var game = fixture
@@ -57,11 +57,11 @@ final class CatalogActionIntegrationTests: XCTestCase {
         return try game.place(handIndex: XCTUnwrap(game.stackHand(with: digit)), at: square)
     }
 
-    func testEveryMarkerChangesOnlyItsOwnedSquareThroughRealActions() throws {
+    func testHistoricalMarkersRetainTheirOwnedSquareBehaviorThroughRealActions() throws {
         let handled: Set<String> = ["mk_crimson", "mk_golden", "mk_azure", Markers.ivory,
             "mk_emerald", Markers.onyx, "mk_silver", "mk_sapphire", Markers.rose,
             "mk_copper", "mk_violet", Markers.jade]
-        XCTAssertEqual(Set(Markers.all.map(\.id)), handled)
+        XCTAssertEqual(Set(Markers.all.prefix(12).map(\.id)), handled)
         let fixture = try startedGame()
         for id in handled.sorted() {
             var baseline = fixture
@@ -110,7 +110,7 @@ final class CatalogActionIntegrationTests: XCTestCase {
         let cases: [(String, Int, Double, Int)] = [
             ("bm_morning_edition", 0, 1, 100), ("bm_evening_edition", 0, 1, 300),
             ("bm_local_gossip", 30, 1, 0), ("bm_op_ed", 0, 2, 0),
-            ("bm_editorial_board", 0, 3, 0), ("bm_front_page_splash", 0, 2, 0),
+            ("bm_editorial_board", 0, 1, 0), ("bm_front_page_splash", 0, 2, 0),
             ("bm_letters_to_the_editor", 0, 1, 0), (Bookmarks.rollingPresses, 0, 2, 0),
             (Bookmarks.syndication, 0, 2, 0), ("bm_stop_the_presses", 0, 3, 0),
             ("bm_the_sunday_supplement", 0, 2, 0),
@@ -134,7 +134,7 @@ final class CatalogActionIntegrationTests: XCTestCase {
         }
     }
 
-    func testClearAndStandingBookmarkMatrixCoversTheRestOfTheCatalog() throws {
+    func testOriginalClearAndStandingBookmarksRetainTheirEffects() throws {
         let placementIDs: Set<String> = ["bm_morning_edition", "bm_evening_edition", "bm_local_gossip",
             "bm_op_ed", "bm_editorial_board", "bm_front_page_splash", "bm_letters_to_the_editor",
             Bookmarks.rollingPresses, Bookmarks.syndication, "bm_stop_the_presses", "bm_the_sunday_supplement"]
@@ -142,7 +142,8 @@ final class CatalogActionIntegrationTests: XCTestCase {
             "bm_finance_pages", "bm_crossword_daily"]
         let standingIDs: Set<String> = [Bookmarks.paperRoute, Bookmarks.marketWrap, Bookmarks.auctionNotices,
             Bookmarks.helpWanted, Bookmarks.weatherForecast, Bookmarks.puzzleCorner, Bookmarks.lateCityFinal]
-        XCTAssertEqual(Set(Bookmarks.all.map(\.id)), placementIDs.union(clearIDs).union(standingIDs))
+        XCTAssertTrue(placementIDs.union(clearIDs).union(standingIDs).isSubset(of: Set(Bookmarks.all.map(\.id))))
+        XCTAssertEqual(Bookmarks.all.count, 50) // ExpandedBookmarkTests covers the additional/reworked mechanics.
         let fixture = try startedGame()
         for id in clearIDs.sorted() {
             var game = fixture
@@ -158,6 +159,9 @@ final class CatalogActionIntegrationTests: XCTestCase {
                 last = try XCTUnwrap(game.setUpRowClear(row: game.emptiestRow))
             }
             if game.puzzle?.phase == .won { try game.keepFilling() }
+            // Fixture construction is complete; the tested scoring batch starts here.
+            game.run.puzzle?.turnScoringState = nil
+            game.run.puzzle?.turnScoringOperations = []
             game.give(ad: id)
             let beforeCoins = game.run.coins
             let digit = try XCTUnwrap(game.puzzle?.board.correctDigit(at: last))
@@ -175,7 +179,7 @@ final class CatalogActionIntegrationTests: XCTestCase {
             }
         }
         for id in standingIDs.sorted() {
-            var game = fixture
+            var game = Game(seed: fixture.run.seed, book: fixture.run.book)
             game.give(ad: id)
             game.run.coins = 200
             try game.startPuzzle()
@@ -191,7 +195,7 @@ final class CatalogActionIntegrationTests: XCTestCase {
                 XCTAssertEqual(payout.paperRoute, id == Bookmarks.paperRoute ? 2 : 0)
                 XCTAssertEqual(payout.interest, id == Bookmarks.marketWrap ? 15 : 10)
             case Bookmarks.auctionNotices:
-                game.openShop()
+                Shop.open(&game.run)
                 try game.reroll()
                 XCTAssertEqual(game.run.coins, 200)
                 XCTAssertEqual(game.shop?.rerollCost, 2)
@@ -207,12 +211,14 @@ final class CatalogActionIntegrationTests: XCTestCase {
             try fixture.startPuzzle()
             fixture.run.puzzle?.boss = nil
             fixture.run.puzzle?.bossTurn = nil
-            for (id, multiplier) in [
-                ("bm_letters_to_the_editor", slot == .boss ? 4 : 1),
-                ("bm_the_sunday_supplement", slot == .boss ? 3 : 2),
+            for (id, paidBefore, multiplier) in [
+                ("bm_letters_to_the_editor", false, 1),
+                ("bm_letters_to_the_editor", true, slot == .boss ? 4 : 1),
+                ("bm_the_sunday_supplement", false, slot == .boss ? 3 : 2),
             ] {
                 var game = fixture
                 game.give(ad: id)
+                game.run.puzzle?.bookmarkState.previousPaidPenalty = paidBefore
                 let square = try XCTUnwrap(game.puzzle?.board.blanks.first)
                 let digit = try XCTUnwrap(game.puzzle?.board.correctDigit(at: square))
                 let outcome = try game.place(handIndex: XCTUnwrap(game.stackHand(with: digit)), at: square)
@@ -237,14 +243,18 @@ final class CatalogActionIntegrationTests: XCTestCase {
             let clearCount = Double(outcome.lineClears.count)
             XCTAssertGreaterThan(clearCount, 0)
             XCTAssertEqual(game.puzzle?.itemState[Bookmarks.rollingPresses], beforeState + clearCount)
-            XCTAssertEqual(game.puzzle?.pendingMultiplier, 1 + 0.5 * (beforeState + clearCount - 1),
-                           "The last Clear sees only previously completed units")
+            XCTAssertEqual(game.puzzle?.pendingMultiplier, 1 + 0.5 * (beforeState + clearCount),
+                           "Each completed clear grows the current held multiplier exactly once")
             let expectedScore = try XCTUnwrap(game.puzzle?.score) + XCTUnwrap(game.puzzle?.pendingScore)
             _ = try game.endTurn()
             XCTAssertEqual(game.puzzle?.score, expectedScore)
         }
         XCTAssertGreaterThanOrEqual(game.puzzle?.itemState[Bookmarks.rollingPresses] ?? 0, 2)
         game = try Game(decoding: game.encoded())
+        game.run.puzzle?.phase = .won
+        _ = try game.cashOut()
+        game.openShop()
+        XCTAssertTrue(game.advance())
         try game.startPuzzle()
         XCTAssertNil(game.puzzle?.itemState[Bookmarks.rollingPresses])
         let square = try XCTUnwrap(game.puzzle?.board.blanks.first)

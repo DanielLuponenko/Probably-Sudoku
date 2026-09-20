@@ -73,14 +73,37 @@ final class BookPresentationThemeTests: XCTestCase {
                         expectedFill: primary ? bookTheme.buttonFill
                             : cosmetic.paper.warm.mixed(with: cosmetic.paper.page, by: 0.1),
                         context: "PaperButton: \(context)")
+                }
+            }
+        }
+    }
 
-                    let puzzleButton = PuzzleActionButton(title: "", subtitle: "MMMM MMMM MMMM",
-                                                          kind: primary ? .primary : .quiet, action: {})
-                    try assertRenderedSubtitle(
-                        puzzleButton, bookTheme: bookTheme, cosmetic: cosmetic,
-                        expectedInk: expectedInk,
-                        expectedFill: primary ? bookTheme.buttonFill : cosmetic.paper.warm,
-                        context: "PuzzleActionButton: \(context)")
+    func testGameplayActionSubtitlesKeepFullContrastWithoutInheritingBookOrPaperColors() throws {
+        // The live game uses its fixed ivory/sage material. Book pages retain
+        // their authored palettes, checked above, including dark paper.
+        for primary in [false, true] {
+            let expectedInk = primary ? GameplaySurface.ivory : GameplaySurface.ink
+            let expectedFill = primary ? GameplaySurface.sage : GameplaySurface.ivory
+            XCTAssertGreaterThanOrEqual(
+                BookPresentationTheme.contrast(expectedInk, expectedFill), 4.5,
+                "Small gameplay subtitles require 4.5:1 contrast on their actual surface")
+            for book in Book.allCases {
+                let bookTheme = BookPresentationTheme(book: book)
+                for paperID in ["pp_newsprint", "pp_night_sky"] {
+                    var cosmetic = CosmeticTheme.standard
+                    cosmetic.paper = CosmeticCatalog.paper(paperID)
+                    for compact in [false, true] {
+                        // Empty titles ensure only the small subtitle's solid
+                        // glyph cores can satisfy the pixel contrast check.
+                        let button = PuzzleActionButton(title: "", subtitle: "MMMM MMMM MMMM",
+                                                        kind: primary ? .primary : .quiet,
+                                                        compact: compact, action: {})
+                        try assertRenderedSubtitle(
+                            button, bookTheme: bookTheme, cosmetic: cosmetic,
+                            expectedInk: expectedInk, expectedFill: expectedFill,
+                            context: "PuzzleActionButton: \(book.rawValue), \(paperID), "
+                                + "\(primary ? "primary" : "quiet"), \(compact ? "compact" : "regular")")
+                    }
                 }
             }
         }

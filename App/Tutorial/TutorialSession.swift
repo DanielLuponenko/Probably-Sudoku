@@ -11,7 +11,7 @@ struct TutorialPractice: Sendable {
 
     static let suppliedCoins = 30
     static let bookmarkID = "bm_local_gossip"
-    static let multiplierID = "bm_op_ed"
+    static let multiplierID = Bookmarks.frontPageSplash
     static let markerID = "mk_golden"
     static let spareBuffID = "bf_overtime"
 
@@ -39,36 +39,43 @@ struct TutorialPractice: Sendable {
         var run = game.run
         run.puzzle = nil
         run.coins = Self.suppliedCoins
-        run.buffs = [OwnedBuff(defID: Self.spareBuffID, pricePaid: 4)]
-        run.shop = ShopState(offers: [
-            ShopOffer(slot: 0, defID: Self.bookmarkID, price: 4),
-            ShopOffer(slot: 1, defID: Self.multiplierID, price: 5),
-            ShopOffer(slot: 2, defID: Self.markerID, price: 5),
-            ShopOffer(slot: 3, defID: Buffs.freshInk, price: 4)
-        ])
+        run.buffs = [OwnedBuff(defID: Self.spareBuffID,
+                              pricePaid: Catalog.item(Self.spareBuffID)!.listedPrice)]
+        let items = [Self.bookmarkID, Self.multiplierID, Self.markerID, Buffs.freshInk]
+        run.shop = ShopState(offers: items.enumerated().map { slot, id in
+            ShopOffer(slot: slot, defID: id, price: Catalog.item(id)!.listedPrice)
+        })
         game = Game(run: run)
     }
 
-    /// Set up an explicitly prepared row, keeping every number conserved.
+    /// Leave the teaching Shop through normal progression, then prepare a row
+    /// and box that share their final blank, keeping every number conserved.
     /// Only fixture construction fills squares directly; every learner action
     /// uses Game's production methods. This also works in release builds.
     fileprivate mutating func prepareCombination() throws {
+        guard game.advance() else { throw PracticeError.unavailable }
         try game.startPuzzle()
         var run = game.run
         guard var puzzle = run.puzzle,
-              let square = puzzle.board.blanks.first(where: { puzzle.board.correctDigit(at: $0) == .nine })
+              let square = puzzle.board.blanks.first(where: { candidate in
+                  puzzle.board.correctDigit(at: candidate) == .nine
+                      && puzzle.board.blanks.contains {
+                          $0.col == candidate.col && $0.box != candidate.box
+                      }
+              })
         else { throw PracticeError.unavailable }
 
-        for held in puzzle.hand { puzzle.pool.put(held) }
-        puzzle.hand = []
-        for other in puzzle.board.blanks where other.row == square.row && other != square {
+        for held in puzzle.removeAllHandCards() { puzzle.pool.put(held.digit) }
+        for other in puzzle.board.blanks
+            where (other.row == square.row || other.box == square.box) && other != square {
             let number = puzzle.board.correctDigit(at: other)
             guard puzzle.pool.take(number) else { throw PracticeError.unavailable }
             puzzle.board.fill(other, with: number, by: .player)
         }
         guard puzzle.pool.take(.nine) else { throw PracticeError.unavailable }
-        puzzle.hand = [.nine]
-        puzzle.hand += puzzle.pool.draw(&run.streams.pool, count: puzzle.handSize - 1)
+        puzzle.appendHandDigits([.nine])
+        let refill = puzzle.pool.draw(&run.streams.pool, count: puzzle.handSize - 1)
+        puzzle.appendHandDigits(refill)
         guard Conservation.check(board: puzzle.board, pool: puzzle.pool, hand: puzzle.hand) == nil
         else { throw PracticeError.unavailable }
         run.puzzle = puzzle
@@ -138,6 +145,21 @@ struct TutorialPracticeSnapshot: Equatable {
 @MainActor
 @Observable
 final class TutorialSession {
+    enum Chapter: Int, CaseIterable {
+        case play, shop, combine, sell, win, ready
+
+        var title: String {
+            switch self {
+            case .play: "Play a Turn"
+            case .shop: "Build your Book"
+            case .combine: "Make a combination"
+            case .sell: "Make room"
+            case .win: "Reach the target"
+            case .ready: "Your next Book"
+            }
+        }
+    }
+
     enum Step: Int, CaseIterable, Sendable {
         case goal, select, place, bank, banked
         case shop, buyBookmark, buyMultiplier, buyMarker, buyBuff
@@ -159,6 +181,17 @@ final class TutorialSession {
         }
 
         var showsShop: Bool { (Self.shop.rawValue...Self.buyBuff.rawValue).contains(rawValue) }
+
+        var chapter: Chapter {
+            switch self {
+            case .goal, .select, .place, .bank, .banked: .play
+            case .shop, .buyBookmark, .buyMultiplier, .buyMarker, .buyBuff: .shop
+            case .markerPlacement, .comboSelect, .comboPlace, .comboScore, .useBuff, .buffed: .combine
+            case .sellBookmark, .sellBuff: .sell
+            case .comboBank, .won, .payout: .win
+            case .books, .boss, .ready: .ready
+            }
+        }
     }
 
     private(set) var step: Step = .goal
@@ -176,8 +209,33 @@ final class TutorialSession {
     private(set) var lastPlacement: PlacementOutcome?
     private(set) var lastTurn: Actions.TurnResult?
     private(set) var lastSaleCoins: Int?
+    private(set) var completedActions: Set<Step> = []
+    private(set) var lastCompletedAction: Step?
     @ObservationIgnored private var practice: TutorialPractice?
     @ObservationIgnored private var loadingID: UUID?
+
+    static var actionCount: Int { Step.allCases.filter(\.requiresInteraction).count }
+
+    /// A receipt of an accepted practice action, never a promise about the
+    /// next move. Wrong taps and reading pages cannot earn progress.
+    var successMessage: String? {
+        guard let lastCompletedAction else { return nil }
+        switch lastCompletedAction {
+        case .select, .comboSelect: return "\(targetDigit?.rawValue ?? 0) selected"
+        case .place, .comboPlace: return "+\(snapshot?.queued.formatted() ?? "0") points this turn"
+        case .bank, .comboBank: return "\(lastTurn?.pointsGained.formatted() ?? "0") points banked"
+        case .buyBookmark: return "Local Gossip added to your Book"
+        case .buyMultiplier: return "Front Page Splash added to your Book"
+        case .buyMarker: return "Golden Marker bought"
+        case .buyBuff: return "Fresh Ink is ready to use"
+        case .markerPlacement: return "Golden Marker placed"
+        case .useBuff: return "Fresh Ink used · \(snapshot?.queued.formatted() ?? "0") points this turn"
+        case .sellBookmark: return "Local Gossip sold · +\(lastSaleCoins ?? 0) coins"
+        case .sellBuff: return "Overtime sold · +\(lastSaleCoins ?? 0) coins"
+        case .won: return "+\(snapshot?.payout?.total ?? 0) coins collected"
+        default: return nil
+        }
+    }
 
     var targetOfferSlot: Int? {
         switch step {
@@ -401,6 +459,12 @@ final class TutorialSession {
     }
 
     private func go(to step: Step) {
+        if self.step.requiresInteraction {
+            completedActions.insert(self.step)
+            lastCompletedAction = self.step
+        } else {
+            lastCompletedAction = nil
+        }
         self.step = step
         feedback = nil
         activityRevision += 1

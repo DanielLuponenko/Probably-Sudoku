@@ -7,6 +7,21 @@ import ProbablySudokuEngine
 
 @MainActor
 final class PuzzlePageLayoutTests: XCTestCase {
+    func testLargeIPadUsesItsAvailableSpaceWithoutMovingTimedBossBoardOrClippingFooter() async throws {
+        // Keep the large iPad out of the full Book/roster matrix. Two real
+        // states catch the former phone-width cap and transient HUD movement.
+        let tablet = Phone(name: "iPad13", size: CGSize(width: 1032, height: 1376),
+                           top: 24, bottom: 20, minimumBoardSide: 850)
+        let ordinary = try await measure(game(), phone: tablet, name: "ordinary-full-width",
+                                          verifyFooter: true)
+        let timed = try await measure(game(slot: .boss, boss: .tikTak), phone: tablet,
+                                     name: "timed-boss-full-width", verifyFooter: true)
+        assertSameBoard(timed, ordinary, "Large iPad: timed boss cannot shrink or move the board")
+        XCTAssertEqual(ordinary.grid.width, ordinary.grid.height, accuracy: 1,
+                       "The dominant board must retain genuinely square cells")
+        XCTAssertEqual(timed.hand.height, ordinary.hand.height, accuracy: 1)
+    }
+
     func testBoardSideIsStableAcrossLevelsAndBossStagesOnEachPhone() async throws {
         let representative: [(String, Game)] = [
             ("level1-easy", try game()),
@@ -194,7 +209,8 @@ final class PuzzlePageLayoutTests: XCTestCase {
             Phone(name: "SE2-3", size: CGSize(width: 375, height: 667), top: 20, bottom: 0, minimumBoardSide: 240),
             Phone(name: "375", size: CGSize(width: 375, height: 812), top: 44, bottom: 34, minimumBoardSide: 280),
             Phone(name: "402", size: CGSize(width: 402, height: 874), top: 62, bottom: 34, minimumBoardSide: 300),
-            Phone(name: "440", size: CGSize(width: 440, height: 956), top: 62, bottom: 34, minimumBoardSide: 350)
+            Phone(name: "440", size: CGSize(width: 440, height: 956), top: 62, bottom: 34, minimumBoardSide: 350),
+            Phone(name: "iPad", size: CGSize(width: 834, height: 1194), top: 24, bottom: 20, minimumBoardSide: 600)
         ]
     }
 
@@ -256,12 +272,12 @@ final class PuzzlePageLayoutTests: XCTestCase {
         var didReport = false
         var pageFrame = CGRect.zero
         var didReportPage = false
-        // The same BookmarkRow, insets, tuck, BookView and PageSurface used by
-        // GameView. Explicit safe areas keep every scenario on one viewport.
-        let content = VStack(spacing: 0) {
-            BookmarkRow(model: model, onTapBuff: { _ in })
-                .padding(.horizontal, 26).padding(.top, 4)
-            BookView(flipper: flipper) {
+        // Exercise the actual fullscreen HUD allocation used by GameView.
+        let content = BookView(flipper: flipper, showsChrome: false) {
+            GameplayShell(model: model, controls: [
+                StripControl(systemImage: "questionmark", label: "Run information", action: {}),
+                StripControl(systemImage: "gearshape", label: "Settings", action: {})
+            ], onTapBuff: { _ in }) {
                 PuzzlePageView(model: model, puzzle: puzzle, isClockRunning: false)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
                         pageFrame = frame
@@ -271,10 +287,7 @@ final class PuzzlePageLayoutTests: XCTestCase {
                         }
                     }
             }
-            .padding(.leading, 8).padding(.trailing, 10)
-            .padding(.top, -(BookmarkRow.tuck - 4))
         }
-        .padding(.bottom, 8)
         .padding(.top, phone.top).padding(.bottom, phone.bottom)
         .frame(width: phone.size.width, height: phone.size.height)
         .environment(\.cosmeticTheme, .standard)
@@ -310,7 +323,11 @@ final class PuzzlePageLayoutTests: XCTestCase {
         let grid = try XCTUnwrap(frames[NumberReturnMotionAnchor.grid])
         let hand = try XCTUnwrap(frames[NumberReturnMotionAnchor.hand])
         let measurement = Measurement(grid: grid, hand: hand)
-        XCTAssertGreaterThanOrEqual(measurement.boardSide, phone.minimumBoardSide,
+        // The existing 834pt iPad fixtures also enforce the expanded normal
+        // layout. Keep their accessibility-size allowance independent.
+        let minimumBoardSide = phone.name == "iPad" && type == .large
+            ? max(730, phone.minimumBoardSide) : phone.minimumBoardSide
+        XCTAssertGreaterThanOrEqual(measurement.boardSide, minimumBoardSide,
                                    "\(phone.name) \(name): a stable but undersized board is not acceptable")
         let pageBounds = CGRect(origin: .zero, size: pageFrame.size)
         for (part, frame) in [("grid", grid), ("hand", hand)] {

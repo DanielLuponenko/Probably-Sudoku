@@ -9,6 +9,7 @@ struct ProbablySudokuApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+            .modifier(GameMotionPreferences())
             .environment(profile)
             .environment(gameCenter)
             // Core gameplay currently has one fixed visual language. Saved

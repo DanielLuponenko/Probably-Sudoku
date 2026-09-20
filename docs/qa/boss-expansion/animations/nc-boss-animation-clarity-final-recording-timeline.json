@@ -1,0 +1,110 @@
+{
+  "recording": {
+    "device": "9C12E469-F20B-4728-9887-72F94459B081",
+    "movie": "/tmp/nc-boss-animation-clarity-final.mov",
+    "recordProcessStarted": 1789893281.415982,
+    "firstFrameAcknowledged": 1789893281.652586,
+    "testStarted": 1789893281.6527941,
+    "testFinished": 1789893333.785769,
+    "testExitCode": 0,
+    "recordProcessEnded": 1789893333.804836
+  },
+  "segments": [
+    {
+      "actions": [
+        {
+          "description": "Play held 4 at R1 C4; show the real updated boss state.",
+          "time": 1789893291.000782
+        }
+      ],
+      "bossID": "galleyQueue",
+      "end": 1789893296.583297,
+      "finalPendingPoints": 40,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Galley Queue",
+      "rule": "Your two oldest available cards play first. Use one to open the next card.",
+      "start": 1789893288.474133,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 9 at R1 C9; show the real updated boss state.",
+          "time": 1789893299.422203
+        }
+      ],
+      "bossID": "bookends",
+      "end": 1789893304.802473,
+      "finalPendingPoints": 90,
+      "finalScore": 0,
+      "finalTurn": 1,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Bookends",
+      "rule": "Only the lowest and highest available numbers can play.",
+      "start": 1789893297.155532,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 5 at R1 C5; show the real updated boss state.",
+          "time": 1789893307.2976918
+        },
+        {
+          "description": "End the real Turn; the chain anchor or repeat restrictions clear at the committed boundary.",
+          "time": 1789893310.6798282
+        }
+      ],
+      "bossID": "reprintBan",
+      "end": 1789893316.019768,
+      "finalPendingPoints": 0,
+      "finalScore": 50,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Reprint Ban",
+      "rule": "A number you filled this Turn waits while a new number can play. When only repeats remain, they open.",
+      "start": 1789893305.023731,
+      "width": 402
+    },
+    {
+      "actions": [
+        {
+          "description": "Play held 1 at R1 C1; show the real updated boss state.",
+          "time": 1789893318.366857
+        },
+        {
+          "description": "Play held 2 at R1 C2; show the real updated boss state.",
+          "time": 1789893321.5001888
+        },
+        {
+          "description": "Play held 9 at R5 C5; show the real updated boss state.",
+          "time": 1789893324.635058
+        },
+        {
+          "description": "End the real Turn; the chain anchor or repeat restrictions clear at the committed boundary.",
+          "time": 1789893328.074347
+        }
+      ],
+      "bossID": "chainStitcher",
+      "end": 1789893333.404156,
+      "finalPendingPoints": 0,
+      "finalScore": 75,
+      "finalTurn": 2,
+      "height": 874,
+      "initialTurn": 1,
+      "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+      "name": "The Chain Stitcher",
+      "rule": "Follow your last placement: same row, column or box earns full placement Points; elsewhere earns half. Clues don't move the link.",
+      "start": 1789893316.107966,
+      "width": 402
+    }
+  ]
+}

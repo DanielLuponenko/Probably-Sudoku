@@ -50,6 +50,15 @@ public struct PuzzleState: Codable, Sendable {
     public var board: Board
     public var pool: Pool
     public var hand: [Digit]
+    public var handCardIDs: [UUID] = []
+    public var handCardSerial: Int = 0
+    public var handIdentityDomain: String = ""
+    public var markerState = MarkerPuzzleState()
+    public var bookmarkState = BookmarkPuzzleState()
+    public var buffState = BuffPuzzleState()
+    public var bossState = ExpandedBossState()
+    /// Nil is the historical allowance accounting, before refundable charges.
+    public var tossChargesSpent: Int?
 
     public var handSize: Int
     public var turnNumber: Int
@@ -71,9 +80,16 @@ public struct PuzzleState: Codable, Sendable {
     public var clueReveals: Set<Square> = []
     /// Correct-play points held until the Turn closes.
     public var pendingBase: Int = 0
-    /// The best held-item multiplier earned this Turn. Square-local
-    /// multipliers are folded into the queued base score instead.
+    /// Version 1's best held multiplier; in version 2 this retains only the
+    /// historical Overprint seed. Ordered held modifiers live in the batch.
+    /// Square multipliers are folded into event Points instead.
     public var pendingMult: Double = 1
+    /// Missing in historical saves: finish that pending Turn under v1.
+    public var scoringVersion: Int = 2
+    public var turnScoringState: TurnScoringState?
+    public var turnScoringOperations: [ScoreOperation] = []
+    public var lastScoringLedger: ScoreLedger?
+    public var scoringBuffSources: [String: [UUID]] = [:]
 
     public var boss: BossModifier?
     /// Tik Tak's remaining active-play time. Nil in older saves and on
@@ -107,7 +123,8 @@ public struct PuzzleState: Codable, Sendable {
              turnsMax, rewardedRescueUsed, tossedThisPuzzle, tossAllowance, score, target,
              cluesRemaining, clueReveals, pendingBase, pendingMult, boss, clockSecondsRemaining,
              censoredDigit, blockedDigit, obstacleBlockedDigits, bossTurn, phase, keepFillingCoins,
-             bankedPayout, itemState, armedFlags
+             bankedPayout, itemState, armedFlags, scoringVersion, turnScoringState, turnScoringOperations, lastScoringLedger, scoringBuffSources,
+             handCardIDs, handCardSerial, handIdentityDomain, markerState, bookmarkState, buffState, tossChargesSpent, bossState
     }
 
     init(level: Int, slot: PuzzleSlot, difficulty: Difficulty, board: Board,
@@ -150,6 +167,15 @@ public struct PuzzleState: Codable, Sendable {
         board = try c.decode(Board.self, forKey: .board)
         pool = try c.decode(Pool.self, forKey: .pool)
         hand = try c.decode([Digit].self, forKey: .hand)
+        handCardIDs = try c.decodeIfPresent([UUID].self, forKey: .handCardIDs) ?? []
+        handCardSerial = try c.decodeIfPresent(Int.self, forKey: .handCardSerial) ?? 0
+        handIdentityDomain = try c.decodeIfPresent(String.self, forKey: .handIdentityDomain) ?? ""
+        markerState = try c.decodeIfPresent(MarkerPuzzleState.self, forKey: .markerState) ?? .init()
+        bookmarkState = try c.decodeIfPresent(BookmarkPuzzleState.self, forKey: .bookmarkState) ?? .init()
+        if !c.contains(.bookmarkState) { bookmarkState.legacyTurn = true }
+        buffState = try c.decodeIfPresent(BuffPuzzleState.self, forKey: .buffState) ?? .init()
+        bossState = try c.decodeIfPresent(ExpandedBossState.self, forKey: .bossState) ?? .init()
+        tossChargesSpent = try c.decodeIfPresent(Int.self, forKey: .tossChargesSpent)
         handSize = try c.decode(Int.self, forKey: .handSize)
         turnNumber = try c.decode(Int.self, forKey: .turnNumber)
         turnsMax = try c.decode(Int.self, forKey: .turnsMax)
@@ -162,6 +188,11 @@ public struct PuzzleState: Codable, Sendable {
         clueReveals = try c.decodeIfPresent(Set<Square>.self, forKey: .clueReveals) ?? []
         pendingBase = try c.decodeIfPresent(Int.self, forKey: .pendingBase) ?? 0
         pendingMult = try c.decodeIfPresent(Double.self, forKey: .pendingMult) ?? 1
+        scoringVersion = try c.decodeIfPresent(Int.self, forKey: .scoringVersion) ?? 1
+        turnScoringState = try c.decodeIfPresent(TurnScoringState.self, forKey: .turnScoringState)
+        turnScoringOperations = try c.decodeIfPresent([ScoreOperation].self, forKey: .turnScoringOperations) ?? []
+        lastScoringLedger = try c.decodeIfPresent(ScoreLedger.self, forKey: .lastScoringLedger)
+        scoringBuffSources = try c.decodeIfPresent([String: [UUID]].self, forKey: .scoringBuffSources) ?? [:]
         boss = try c.decodeIfPresent(BossModifier.self, forKey: .boss)
         clockSecondsRemaining = try c.decodeIfPresent(Double.self, forKey: .clockSecondsRemaining)
         censoredDigit = try c.decodeIfPresent(Digit.self, forKey: .censoredDigit)
@@ -179,23 +210,23 @@ public struct PuzzleState: Codable, Sendable {
     }
 
     public var isBoss: Bool { slot == .boss }
-    public var pendingMultiplier: Double {
-        let puzzleAdditive = Resolver.globalAdditive(self)
-        let bossMultiplier = boss?.halvesScoreMultiplier == true ? 0.5 : 1
-        return (pendingMult + puzzleAdditive) * bossMultiplier
-    }
-    public var pendingScore: Int {
-        Int((Double(pendingBase) * pendingMultiplier).rounded(.down))
-    }
+    public var pendingMultiplier: Double { pendingScoringLedger.multiplier }
+    public var pendingScore: Int { pendingScoringLedger.total }
     mutating func bankPending() {
-        score += pendingScore
+        BossEncounterRules.addScore(pendingScore, puzzle: &self)
         pendingBase = 0
         pendingMult = 1
+        scoringVersion = 2
+        turnScoringState = nil
+        turnScoringOperations = []
     }
     public var turnsRemaining: Int { max(0, turnsMax - turnNumber + 1) }
     /// A won board can continue only while both squares and Turns remain.
-    public var canKeepFilling: Bool { phase == .won && !board.isFull && turnsRemaining > 0 }
-    public var tossesRemaining: Int { max(0, tossAllowance - tossedThisPuzzle) }
+    public var canKeepFilling: Bool {
+        boss != .lastEdition && phase == .won && !board.isFull && turnsRemaining > 0
+            && BossEncounterRules.completionQualified(puzzle: self)
+    }
+    public var tossesRemaining: Int { max(0, tossAllowance - (tossChargesSpent ?? tossedThisPuzzle)) }
     public var canUseClue: Bool { cluesRemaining > 0 && boss?.disablesClues != true }
     public var blockedDigits: Set<Digit> {
         var digits = bossTurn?.blockedDigits ?? []
@@ -205,18 +236,26 @@ public struct PuzzleState: Codable, Sendable {
     }
     public func isBlocked(_ digit: Digit) -> Bool { blockedDigits.contains(digit) }
     public func isBlocked(handIndex: Int) -> Bool {
+        isIndependentlyBlocked(handIndex: handIndex)
+            || BossRuntime.placementRestricted(handIndex: handIndex, puzzle: self)
+    }
+    /// Underlying restrictions, before the dynamic placement-only bosses pick
+    /// their available front cards/extremes/packet. Toss intentionally differs.
+    public func isIndependentlyBlocked(handIndex: Int) -> Bool {
         guard hand.indices.contains(handIndex) else { return false }
         return isBlocked(hand[handIndex]) || bossTurn?.blockedHandIndices.contains(handIndex) == true
+            || (handCardIDs.indices.contains(handIndex) && bossState.sealedIDs.contains(handCardIDs[handIndex]))
     }
     /// Handy Dandy bars a specific card completely. Ordinary digit bars from
     /// Obstacles remain Tossable by design, so Toss must not use `isBlocked`.
     public func isTossBlocked(handIndex: Int) -> Bool {
         bossTurn?.blockedHandIndices.contains(handIndex) == true
+            || (handCardIDs.indices.contains(handIndex) && bossState.sealedIDs.contains(handCardIDs[handIndex]))
     }
     public var disabledBookmark: Int? { bossTurn?.disabledBookmark }
     public var barredSquares: Set<Square> {
         let fouled = bossTurn.map { Set($0.fouled.keys) } ?? []
-        return fouled.union(bossTurn?.greyed ?? [])
+        return fouled.union(bossTurn?.greyed ?? []).union(markerState.turn.blotterSquare.map { [$0] } ?? [])
     }
     public func isBarred(_ square: Square) -> Bool { barredSquares.contains(square) }
     /// §4 — what the player could work out for themselves. The UI must never
@@ -247,7 +286,9 @@ public extension PuzzleState {
 
         let generated = try Generator.generate(&run.streams.board, difficulty: difficulty,
                                                givens: run.book.givens(for: difficulty))
-        let board = Board(generated)
+        // Detour swaps only the dealt layout. Normal generation still consumes
+        // exactly its usual stream so later boards remain on their route.
+        let board = BuffRoutes.selectedBoard(run: run) ?? Board(generated)
         var pool = Pool(blanksOf: board)
 
         let handSize = run.effectiveHandSize(boss: boss)
@@ -266,8 +307,7 @@ public extension PuzzleState {
             tossedThisPuzzle: 0,
             tossAllowance: run.effectiveTossAllowance(boss: boss),
             score: 0,
-            target: run.book.target(level: run.level, slot: slot)
-                * (boss?.targetMultiplier ?? 1),
+            target: BossEncounterRules.startingTarget(base: run.book.target(level: run.level, slot: slot), boss: boss),
             cluesRemaining: run.effectiveClues(boss: boss),
             boss: boss,
             censoredDigit: censored,
@@ -277,6 +317,10 @@ public extension PuzzleState {
             phase: .playing,
             keepFillingCoins: 0
         )
+        puzzle.ensureHandIdentities(seed: run.seed)
+        BossRuntime.puzzleStarted(run: run, puzzle: &puzzle)
+        BookmarkMechanics.puzzleStarted(puzzle: &puzzle)
+        MarkerRuntime.synchronizeOwnership(run: &run)
         puzzle.startObstacleTurn(&run)
         puzzle.startBossTurn(&run)
 
@@ -410,24 +454,32 @@ public extension PuzzleState {
             // Sleeping suppresses event hooks, not starting Hand/Turn/Clue
             // budgets or permanent payout benefits. Only select an item the
             // resolver can actually put to sleep, preserving its array index.
-            let candidates = run.bookmarks.indices.filter { !run.bookmarks[$0].def.hooks.isEmpty }
-            state.disabledBookmark = candidates.isEmpty ? nil
+            let candidates = run.bookmarks.indices.filter {
+                BookmarkMechanics.hasGameplayHooks(run.bookmarks[$0])
+                    && !BookmarkMechanics.isSuspended(id: run.bookmarks[$0].id, puzzle: self)
+            }
+            let proposed = candidates.isEmpty ? nil
                 : candidates[run.streams.boss.int(candidates.count)]
+            state.disabledBookmark = BookmarkMechanics.redirectBossSilence(
+                proposedIndex: proposed, run: run, puzzle: &self)
         } else {
             state.disabledBookmark = nil
         }
         bossTurn = state
+        BossRuntime.turnStarted(puzzle: &self)
     }
 
     func assertConservation() {
-        assert(Conservation.check(board: board, pool: pool, hand: hand) == nil,
-               Conservation.check(board: board, pool: pool, hand: hand) ?? "")
+        let held = hand + markerState.reservedForkCards + reservedBossCards.map(\.digit)
+        assert(Conservation.check(board: board, pool: pool, hand: held) == nil,
+               Conservation.check(board: board, pool: pool, hand: held) ?? "")
     }
 }
 
 // MARK: - Outcomes reported back to the UI
 
 public struct PlacementOutcome: Sendable, Equatable {
+    public var pendingDecision = false
     public var scoreReceipts: [ScoreEventReceipt] = []
     public var automaticTurn: Actions.TurnResult?
     public var correct = false

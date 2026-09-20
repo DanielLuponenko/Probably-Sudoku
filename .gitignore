@@ -6,3 +6,21 @@ DerivedData/
 xcuserdata/
 App/Info.plist
 App/Info-AppStore.plist
+
+# Local visual QA captures and recordings are retained on disk.
+# Commit the written verification, fixtures and capture tools instead.
+docs/qa/**/*.png
+docs/qa/**/*.jpg
+docs/qa/**/*.jpeg
+docs/qa/**/*.mp4
+docs/qa/**/*.mov
+docs/qa/**/*.log
+docs/qa/**/*.pid
+docs/qa/**/user-simulator-backup/
+docs/qa/one-screen-ux/native/*save*.json
+docs/qa/boss-motion-v2/native/before-profile.json
+docs/qa/boss-motion-v2/native/before-run.json
+docs/qa/gameplay-repair/final-native/*.json
+docs/qa/gameplay-repair/flow-snapshots/*.json
+docs/qa/gameplay-repair/scoring-touch/*.json
+docs/qa/gameplay-repair/final-motion/save-comparison.json

@@ -1,0 +1,73 @@
+banks,blanksRemaining,boss,build,editionScores,editionTargets,listedLoadoutCost,numberIndexMult,openingHand,phase,placements,priorSyndicationWins,score,seed,target
+8,0,bindery,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,28740,finite-final-roster-0,512000
+5,15,bindery,Five-slot developed,"[0, 0]",[],82,0,7,won,37,12,1139270,finite-final-roster-0,512000
+4,22,bindery,Five-slot clear engine,"[0, 0]",[],89,0,7,won,30,18,548930,finite-final-roster-0,512000
+5,15,bindery,Five-slot number collection,"[0, 0]",[],89,10,7,won,37,0,1248675,finite-final-roster-0,512000
+8,0,bindery,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,28720,finite-final-roster-1,512000
+5,15,bindery,Five-slot developed,"[0, 0]",[],82,0,7,won,37,12,962790,finite-final-roster-1,512000
+4,22,bindery,Five-slot clear engine,"[0, 0]",[],89,0,7,won,30,18,523740,finite-final-roster-1,512000
+5,15,bindery,Five-slot number collection,"[0, 0]",[],89,10,7,won,37,0,1088640,finite-final-roster-1,512000
+8,0,bindery,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,29860,finite-final-roster-2,512000
+3,29,bindery,Five-slot developed,"[0, 0]",[],82,0,7,won,23,12,644660,finite-final-roster-2,512000
+3,29,bindery,Five-slot clear engine,"[0, 0]",[],89,0,7,won,23,18,854480,finite-final-roster-2,512000
+3,29,bindery,Five-slot number collection,"[0, 0]",[],89,10,7,won,23,0,770730,finite-final-roster-2,512000
+8,0,heavyLifter,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,34710,finite-final-roster-0,2048000
+6,8,heavyLifter,Five-slot developed,"[0, 0]",[],82,0,7,won,44,12,2145840,finite-final-roster-0,2048000
+6,8,heavyLifter,Five-slot clear engine,"[0, 0]",[],89,0,7,won,44,18,3128730,finite-final-roster-0,2048000
+6,8,heavyLifter,Five-slot number collection,"[0, 0]",[],89,10,7,won,44,0,2607795,finite-final-roster-0,2048000
+8,0,heavyLifter,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,35250,finite-final-roster-1,2048000
+7,1,heavyLifter,Five-slot developed,"[0, 0]",[],82,0,7,won,51,12,2980800,finite-final-roster-1,2048000
+6,8,heavyLifter,Five-slot clear engine,"[0, 0]",[],89,0,7,won,44,18,2616240,finite-final-roster-1,2048000
+6,8,heavyLifter,Five-slot number collection,"[0, 0]",[],89,10,7,won,44,0,2073600,finite-final-roster-1,2048000
+8,0,heavyLifter,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,35670,finite-final-roster-2,2048000
+7,1,heavyLifter,Five-slot developed,"[0, 0]",[],82,0,7,won,51,12,3257760,finite-final-roster-2,2048000
+6,8,heavyLifter,Five-slot clear engine,"[0, 0]",[],89,0,7,won,44,18,2232120,finite-final-roster-2,2048000
+7,1,heavyLifter,Five-slot number collection,"[0, 0]",[],89,10,7,won,51,0,4141530,finite-final-roster-2,2048000
+1,41,lastEdition,Three-slot basic,"[0, 0]",[],23,0,11,failed,11,0,6000,finite-final-roster-0,128000
+1,39,lastEdition,Five-slot developed,"[0, 0]",[],82,0,11,won,13,12,362880,finite-final-roster-0,128000
+1,39,lastEdition,Five-slot clear engine,"[0, 0]",[],89,0,11,won,13,18,419760,finite-final-roster-0,128000
+1,39,lastEdition,Five-slot number collection,"[0, 0]",[],89,10,11,won,13,0,456840,finite-final-roster-0,128000
+1,41,lastEdition,Three-slot basic,"[0, 0]",[],23,0,11,failed,11,0,4920,finite-final-roster-1,128000
+1,39,lastEdition,Five-slot developed,"[0, 0]",[],82,0,11,won,13,12,149760,finite-final-roster-1,128000
+1,39,lastEdition,Five-slot clear engine,"[0, 0]",[],89,0,11,won,13,18,130680,finite-final-roster-1,128000
+1,39,lastEdition,Five-slot number collection,"[0, 0]",[],89,10,11,won,13,0,160380,finite-final-roster-1,128000
+1,41,lastEdition,Three-slot basic,"[0, 0]",[],23,0,11,failed,11,0,6030,finite-final-roster-2,128000
+1,39,lastEdition,Five-slot developed,"[0, 0]",[],82,0,11,won,13,12,264240,finite-final-roster-2,128000
+1,39,lastEdition,Five-slot clear engine,"[0, 0]",[],89,0,11,won,13,18,268290,finite-final-roster-2,128000
+1,39,lastEdition,Five-slot number collection,"[0, 0]",[],89,10,11,won,13,0,307395,finite-final-roster-2,128000
+8,0,reviewBoard,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,34710,finite-final-roster-0,512000
+4,22,reviewBoard,Five-slot developed,"[0, 0]",[],82,0,7,won,30,12,752640,finite-final-roster-0,512000
+4,22,reviewBoard,Five-slot clear engine,"[0, 0]",[],89,0,7,won,30,18,916080,finite-final-roster-0,512000
+4,22,reviewBoard,Five-slot number collection,"[0, 0]",[],89,10,7,won,30,0,861840,finite-final-roster-0,512000
+8,0,reviewBoard,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,35250,finite-final-roster-1,512000
+3,29,reviewBoard,Five-slot developed,"[0, 0]",[],82,0,7,won,23,12,520320,finite-final-roster-1,512000
+3,29,reviewBoard,Five-slot clear engine,"[0, 0]",[],89,0,7,won,23,18,612480,finite-final-roster-1,512000
+3,29,reviewBoard,Five-slot number collection,"[0, 0]",[],89,10,7,won,23,0,605880,finite-final-roster-1,512000
+8,0,reviewBoard,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,35670,finite-final-roster-2,512000
+4,22,reviewBoard,Five-slot developed,"[0, 0]",[],82,0,7,won,30,12,920880,finite-final-roster-2,512000
+4,22,reviewBoard,Five-slot clear engine,"[0, 0]",[],89,0,7,won,30,18,1159290,finite-final-roster-2,512000
+4,22,reviewBoard,Five-slot number collection,"[0, 0]",[],89,10,7,won,30,0,1065555,finite-final-roster-2,512000
+8,0,splitEdition,Three-slot basic,"[16800, 17910]","[256000, 256000]",23,0,7,failed,52,0,34710,finite-final-roster-0,512000
+4,22,splitEdition,Five-slot developed,"[264960, 487680]","[256000, 256000]",82,0,7,won,30,12,752640,finite-final-roster-0,512000
+4,23,splitEdition,Five-slot clear engine,"[285120, 507870]","[256000, 256000]",89,0,7,won,29,18,792990,finite-final-roster-0,512000
+4,23,splitEdition,Five-slot number collection,"[262440, 513945]","[256000, 256000]",89,10,7,won,29,0,776385,finite-final-roster-0,512000
+8,0,splitEdition,Three-slot basic,"[15660, 19590]","[256000, 256000]",23,0,7,failed,52,0,35250,finite-final-roster-1,512000
+4,25,splitEdition,Five-slot developed,"[278400, 325440]","[256000, 256000]",82,0,7,won,27,12,603840,finite-final-roster-1,512000
+4,26,splitEdition,Five-slot clear engine,"[279840, 388080]","[256000, 256000]",89,0,7,won,26,18,667920,finite-final-roster-1,512000
+4,25,splitEdition,Five-slot number collection,"[338580, 349920]","[256000, 256000]",89,10,7,won,27,0,688500,finite-final-roster-1,512000
+8,0,splitEdition,Three-slot basic,"[17370, 18300]","[256000, 256000]",23,0,7,failed,52,0,35670,finite-final-roster-2,512000
+4,28,splitEdition,Five-slot developed,"[419520, 264000]","[256000, 256000]",82,0,7,won,24,12,683520,finite-final-roster-2,512000
+4,28,splitEdition,Five-slot clear engine,"[376200, 504240]","[256000, 256000]",89,0,7,won,24,18,880440,finite-final-roster-2,512000
+4,28,splitEdition,Five-slot number collection,"[498960, 319140]","[256000, 256000]",89,10,7,won,24,0,818100,finite-final-roster-2,512000
+8,0,unluckyLucky,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,19575,finite-final-roster-0,512000
+5,15,unluckyLucky,Five-slot developed,"[0, 0]",[],82,0,7,won,37,12,598740,finite-final-roster-0,512000
+4,22,unluckyLucky,Five-slot clear engine,"[0, 0]",[],89,0,7,won,30,18,571110,finite-final-roster-0,512000
+5,15,unluckyLucky,Five-slot number collection,"[0, 0]",[],89,10,7,won,37,0,630585,finite-final-roster-0,512000
+8,0,unluckyLucky,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,16705,finite-final-roster-1,512000
+6,8,unluckyLucky,Five-slot developed,"[0, 0]",[],82,0,7,won,44,12,655800,finite-final-roster-1,512000
+5,15,unluckyLucky,Five-slot clear engine,"[0, 0]",[],89,0,7,won,37,18,607620,finite-final-roster-1,512000
+6,8,unluckyLucky,Five-slot number collection,"[0, 0]",[],89,10,7,won,44,0,555120,finite-final-roster-1,512000
+8,0,unluckyLucky,Three-slot basic,"[0, 0]",[],23,0,7,failed,52,0,19630,finite-final-roster-2,512000
+3,29,unluckyLucky,Five-slot developed,"[0, 0]",[],82,0,7,won,23,12,526560,finite-final-roster-2,512000
+3,29,unluckyLucky,Five-slot clear engine,"[0, 0]",[],89,0,7,won,23,18,661650,finite-final-roster-2,512000
+5,15,unluckyLucky,Five-slot number collection,"[0, 0]",[],89,10,7,won,37,0,798030,finite-final-roster-2,512000

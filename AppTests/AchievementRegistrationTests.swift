@@ -52,7 +52,7 @@ final class AchievementRegistrationTests: XCTestCase {
         let history = GameCenterService.HistoricalProgress(profile: profile, progress: RunStore.Progress(), run: nil)
         XCTAssertEqual(history.achievementIDs, AchievementCatalog.registeredGameCenterIDs)
         XCTAssertEqual(profile, before, "Being local-only must never remove an earned achievement.")
-        XCTAssertEqual(profile.earnedAchievementIDs.count, 31)
+        XCTAssertEqual(profile.earnedAchievementIDs.count, 43)
     }
 
     private func settle(_ service: GameCenterService) async {

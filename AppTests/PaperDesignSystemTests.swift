@@ -42,8 +42,8 @@ final class PaperDesignSystemTests: XCTestCase {
             renderer.scale = 2
             let image = try XCTUnwrap(renderer.uiImage)
             let copy = try text(in: image)
-            for expected in ["unfinishedbook", "book11level1puzzle1", "continuecurrentbook",
-                             "startingvolume1replacesthisunfinishedrun", "startvolume1",
+            for expected in ["abookisalreadyopen", "book11level1puzzle1", "continuecurrentbook",
+                             "onebookatatime", "abandonsthisattempt", "abandonstartnew",
                              "backtotheshelf"] {
                 XCTAssertTrue(copy.contains(expected), "Missing \(expected): \(copy)")
             }

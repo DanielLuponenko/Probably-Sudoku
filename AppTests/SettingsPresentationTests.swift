@@ -7,6 +7,44 @@ import ProbablySudokuEngine
 
 @MainActor
 final class SettingsPresentationTests: XCTestCase {
+    func testEnlargedAbandonDecisionUsesWholeWordsAndReadableConsequences() throws {
+        var decisions = 0
+        for width in [240.0, 322.0] {
+            var normalHeight: CGFloat = 0
+            for size in [DynamicTypeSize.large, .accessibility5] {
+                let renderer = ImageRenderer(content:
+                    AbandonBookDecision(level: 1, puzzle: 1,
+                                        onKeepPlaying: { decisions += 1 }, onAbandon: { decisions += 1 })
+                        .frame(width: width)
+                        .environment(\.dynamicTypeSize, size)
+                        .environment(\.cosmeticTheme, .standard)
+                        .environment(\.colorScheme, .light)
+                        .background(Paper.page)
+                )
+                renderer.scale = 2
+                let image = try XCTUnwrap(renderer.uiImage)
+                attach(image, name: "abandon-decision-\(width)-\(size)")
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.usesLanguageCorrection = false
+                try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+                let rows = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string.lowercased() }
+                let copy = rows.joined(separator: " ")
+                XCTAssertTrue(copy.contains("cannot be continued"), copy)
+                if size == .large {
+                    normalHeight = image.size.height
+                } else {
+                    XCTAssertTrue(rows.contains { $0 == "keep playing" || $0 == "playing" },
+                                  "Playing must not split into Play / ing: \(rows)")
+                    XCTAssertTrue(rows.contains("abandon"), "The destructive choice must remain one whole word: \(rows)")
+                    XCTAssertGreaterThan(image.size.height, normalHeight * 1.5,
+                                         "The reading layout must enlarge rather than squeeze the old two-column row")
+                }
+            }
+        }
+        XCTAssertEqual(decisions, 0)
+    }
+
     func testSettingsIndexHasOneLocalAchievementDestinationAndPreservesLearningEntries() {
         XCTAssertEqual(SettingsDestination.allCases, [.guide, .practice, .achievements, .privacy])
         XCTAssertEqual(Set(SettingsDestination.allCases.map(\.accessibilityID)).count, 4)
@@ -40,7 +78,7 @@ final class SettingsPresentationTests: XCTestCase {
 
     func testSettingsContentHasThreeAudioSlidersAndCompactNavigation() throws {
         let renderer = ImageRenderer(content:
-            SettingsCommonContent()
+            SettingsCommonContent(destination: .constant(nil))
                 .frame(width: 320)
                 .environment(\.colorScheme, .light)
                 .background(Paper.page)
@@ -48,13 +86,81 @@ final class SettingsPresentationTests: XCTestCase {
         renderer.scale = 2
         let image = try XCTUnwrap(renderer.uiImage)
         let copy = try text(in: image)
-        for label in ["master", "music", "sound effects", "haptics", "background motion",
+        for label in ["master", "music", "sound effects", "haptics", "reduced motion", "background motion",
                       "how to play", "replay tutorial", "achievements", "privacy & support"] {
             XCTAssertTrue(copy.contains(label), "Missing Settings entry: \(label)")
         }
         XCTAssertFalse(copy.contains("leaderboards"), "Game Center detail belongs inside Achievements")
         XCTAssertFalse(copy.contains("same seed"), "Book statistics should not crowd app preferences")
         attach(image, name: "settings-common-index")
+    }
+
+    func testGameMotionPreferenceHasAccurateCopyAndReadableEnlargedText() throws {
+        let suite = "NumberClub.SettingsMotionPresentationTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for reduced in [false, true] {
+            if reduced {
+                defaults.set(true, forKey: AppPreferences.Key.reducedMotion)
+            } else {
+                defaults.removeObject(forKey: AppPreferences.Key.reducedMotion)
+            }
+            var normalHeights: [String: CGFloat] = [:]
+            for size in [DynamicTypeSize.large, .accessibility5] {
+                let renderer = ImageRenderer(content:
+                    SettingsCommonContent(destination: .constant(nil))
+                        .defaultAppStorage(defaults)
+                        .frame(width: 320)
+                        .environment(\.dynamicTypeSize, size)
+                        .environment(\.cosmeticTheme, .standard)
+                        .environment(\.colorScheme, .light)
+                        .environment(\.locale, Locale(identifier: "en_US"))
+                        .background(Paper.page))
+                renderer.scale = 2
+                let image = try XCTUnwrap(renderer.uiImage)
+                attach(image, name: "settings-game-motion-\(reduced)-\(size)")
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.recognitionLanguages = ["en-US"]
+                request.usesLanguageCorrection = false
+                try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+                let candidates = (request.results ?? []).compactMap { observation -> VNRecognizedText? in
+                    guard let candidate = observation.topCandidates(1).first else { return nil }
+                    // At AX5 Vision reads the right-hand paper check as "V"
+                    // between wrapped body lines. Ignore only that isolated
+                    // glyph in the checkbox column, not any explanation text.
+                    if ["v", "✓"].contains(candidate.string.lowercased()),
+                       observation.boundingBox.minX > 0.85,
+                       observation.boundingBox.width < 0.15 { return nil }
+                    return candidate
+                }
+                let copy = candidates.map(\.string).joined(separator: " ").lowercased()
+                    .filter { $0.isLetter || $0.isNumber }
+                for phrase in ["Reduced motion", "Gentler transitions and game effects."] {
+                    XCTAssertTrue(copy.contains(phrase.lowercased().filter { $0.isLetter || $0.isNumber }),
+                                  "Missing complete preference copy at \(size): \(phrase)")
+                }
+                XCTAssertFalse(copy.contains("iosreducemotion"))
+                XCTAssertEqual(copy.contains("pausedwhilereducedmotionison"), reduced, "\(size): \(copy)")
+                XCTAssertEqual(copy.contains("sceneryandquietpagedetails"), !reduced)
+                for word in ["Reduced", "Gentler"] {
+                    let heights = try candidates.compactMap { candidate -> CGFloat? in
+                        guard let range = candidate.string.range(of: word, options: .caseInsensitive),
+                              let box = try candidate.boundingBox(for: range)?.boundingBox else { return nil }
+                        return box.height * image.size.height
+                    }
+                    let height = try XCTUnwrap(heights.max(), "Missing actual \(word) text")
+                    if size == .large {
+                        normalHeights[word] = height
+                    } else {
+                        XCTAssertGreaterThan(height, try XCTUnwrap(normalHeights[word]) * 1.5,
+                                             "The preference and accessibility copy must genuinely enlarge")
+                    }
+                }
+            }
+            XCTAssertEqual(defaults.bool(forKey: AppPreferences.Key.reducedMotion), reduced,
+                           "Reading Settings must not change the saved motion choice")
+        }
     }
 
     func testBookstoreSettingsHasNativeScrollRangeAndReachesPrivacy() async throws {

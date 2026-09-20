@@ -40,7 +40,7 @@ final class ShopPurchaseProvenanceTests: XCTestCase {
         let purchaseVisit = try XCTUnwrap((before["shop"] as? [String: Any])?["visitID"] as? Int)
 
         XCTAssertTrue(game.advance())
-        game.openShop()
+        Shop.open(&game.run)
 
         XCTAssertEqual(game.run.level, 1)
         XCTAssertEqual(game.run.slot, .medium)
@@ -56,7 +56,7 @@ final class ShopPurchaseProvenanceTests: XCTestCase {
     func testNewStockOpeningIsDistinctEvenWithoutAdvancingThePuzzleSlot() throws {
         var game = stockedGame()
         let firstVisit = try XCTUnwrap(game.shop?.visitID)
-        game.openShop()
+        Shop.open(&game.run)
         XCTAssertEqual(game.run.level, 1)
         XCTAssertEqual(game.run.slot, .easy)
         XCTAssertEqual(game.shop?.visitID, firstVisit + 1)
@@ -169,17 +169,17 @@ final class ShopPurchaseProvenanceTests: XCTestCase {
     func testMissingCounterCannotReuseKnownItemOrCurrentShopIdentity() throws {
         var game = stockedGame()
         try game.buy(slot: 0)
-        game.openShop()
+        Shop.open(&game.run)
         let secondVisit = try XCTUnwrap(game.shop?.visitID)
         var partial = try savedObject(game)
         partial.removeValue(forKey: "shopVisitCount")
         var restored = try Game(decoding: JSONSerialization.data(withJSONObject: partial))
-        restored.openShop()
+        Shop.open(&restored.run)
         XCTAssertGreaterThan(try XCTUnwrap(restored.shop?.visitID), secondVisit)
 
         partial.removeValue(forKey: "shop")
         restored = try Game(decoding: JSONSerialization.data(withJSONObject: partial))
-        restored.openShop()
+        Shop.open(&restored.run)
         XCTAssertGreaterThan(try XCTUnwrap(restored.shop?.visitID),
                              try XCTUnwrap(restored.run.bookmarks.first?.boughtInShopVisitID))
     }
@@ -214,7 +214,9 @@ final class ShopPurchaseProvenanceTests: XCTestCase {
     private func stockedGame() -> Game {
         var game = Game(seed: "SHOP-PROVENANCE")
         game.run.coins = 100
-        game.openShop()
+        // This suite exercises Shop identity directly, without bypassing an
+        // unfinished Puzzle through the guarded navigation facade.
+        Shop.open(&game.run)
         game.run.shop?.offers = [
             ShopOffer(slot: 0, defID: Bookmarks.helpWanted, price: 5),
             ShopOffer(slot: 1, defID: Buffs.peek, price: 4)

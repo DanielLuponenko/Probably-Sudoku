@@ -12,24 +12,29 @@ struct ContentView: View {
     /// A saved run that should resume after the selected cover opens. A new
     /// Book leaves this nil and is dealt with `chosenObstacle` instead.
     @State private var openingSavedRun: Game?
+    /// A newly accepted Book is already durable while its cover opens.
+    @State private var openingModel: GameModel?
     /// The Book being opened, while its clip plays. `-playOpening` starts on
     /// it, so the transition can be recorded without tapping through the shelf.
     @State private var opening: BookEdition? = ContentView.debugOpening()
+    @State private var openingToken = UUID()
     /// Held over the swap from the opening clip to the first Puzzle, so the
     /// two never show a hard cut between them.
     @State private var veil: Double = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(PlayerProfileStore.self) private var profileStore
     @State private var onboardingStore = OnboardingStore()
     @State private var onboardingStage: OnboardingStage?
     @State private var frontDoor: FrontDoorRoute = FrontDoorRoute.launchRoute()
-    @State private var pendingRunConflict: RunStore.Conflict?
-    @State private var showingRunConflict = false
     /// A different Book was selected while an unfinished run is still safe.
     /// Nothing is cleared until the player explicitly starts the replacement.
     @State private var pendingBookReplacement: BookReplacement?
     @State private var closingBook: BookEdition?
+    @State private var closingPageSnapshot: UIImage?
+    @State private var closingToken = UUID()
     @State private var completionSummary: GameModel.BookCompletionSummary?
+    @State private var completedBookSelection: CompletedBookSelection?
+    @State private var storageError: String?
     @State private var menuReturn = MenuReturnTransition()
     @State private var introSceneReady = false
 
@@ -46,24 +51,30 @@ struct ContentView: View {
         if let index = arguments.firstIndex(of: "-seed"), index + 1 < arguments.count {
             seed = arguments[index + 1]
         }
-        let model = GameModel(seed: seed)
+        // A visual/debug launch must not replace the player's normal Book.
+        // Persistence QA opts in explicitly and uses its own simulator.
+        let model = GameModel(resuming: Game(seed: seed),
+                              savesProgress: arguments.contains("-persistQA"))
         // The rescue fixture deals/exhausts in GameView's one-shot task so
         // its presentation follows the mounted game's normal lifecycle.
         if arguments.contains("-rewardedRescue") { return model }
         // Direct visual QA for the in-run catalogue page. This is Debug-only
         // and still opens a real ShopState through the normal game action.
         if arguments.contains("-shop") {
+            model.beginPuzzle()
+            model.qaMeetTarget()
+            model.cashOut()
             model.openShop()
             return model
         }
         // The normal route deliberately pauses at the briefing page so a
-        // player can choose whether to spend a Clipping. This debug route is
+        // player can choose whether to skip for a Buff. This debug route is
         // normally for a live grid, while `-briefing` preserves that choice
         // for visual and interaction QA of the between-stage page itself.
         if !arguments.contains("-briefing") {
             model.beginPuzzle()
         }
-        // Screenshot route for the boss briefing: take the two real clipping
+        // Screenshot route for the boss briefing: take the two real Buff
         // skips so the view receives the exact state a player reaches.
         if arguments.contains("-briefingBoss") {
             model.skipCurrentPuzzle()
@@ -99,15 +110,17 @@ struct ContentView: View {
                 if let closingBook {
                     LiveBookClosing(edition: closingBook, obstacle: model?.run.obstacle ?? chosenObstacle,
                                     reduceMotion: reduceMotion,
-                                    onFinish: finishBookClosing)
+                                    outgoingPage: closingPageSnapshot) { [token = closingToken, owner = model] in
+                        finishBookClosing(token: token, owner: owner)
+                    }
                 } else if let model, !model.wantsMenu {
                     GameView(model: model, reduceMotion: reduceMotion,
                              onBookCompletion: beginBookClosing, onAbandon: abandonGame)
                 } else if let book = opening {
                     LiveBookOpening(edition: book,
                                     obstacle: openingSavedRun?.run.obstacle ?? chosenObstacle,
-                                    reduceMotion: reduceMotion) {
-                        begin(book)
+                                    reduceMotion: reduceMotion) { [token = openingToken] in
+                        begin(book, token: token)
                     }
                 } else {
                     switch frontDoor {
@@ -117,13 +130,15 @@ struct ContentView: View {
                         // across the handoff instead of constructing it on the white frame.
                         MainMenuView(
                             onBookSelected: { book, obstacle in
-                                openBookOrAskAboutConflict(book, obstacle: obstacle)
+                                openBookOrAskToReplace(book, obstacle: obstacle)
                             },
+                            onContinueBook: continueSavedRun,
                             onFirstFrame: { [token = menuReturn.token] in
                                 introSceneReady = true
                                 if let token { revealMenu(token: token) }
                             },
-                            isSceneVisible: frontDoor == .mainMenu && onboardingStage == nil
+                            isSceneVisible: frontDoor == .mainMenu && onboardingStage == nil,
+                            completedBookSelection: completedBookSelection
                         )
                         .allowsHitTesting(frontDoor == .mainMenu && onboardingStage == nil)
                         .accessibilityHidden(frontDoor == .studioIntro || onboardingStage != nil)
@@ -141,13 +156,9 @@ struct ContentView: View {
                 case .bookShelf:
                     StartBookView(
                         onStart: { book, obstacle in
-                            openBookOrAskAboutConflict(book, obstacle: obstacle)
+                            openBookOrAskToReplace(book, obstacle: obstacle)
                         },
-                        onContinue: {
-                            if let saved = RunStore.resumeRun() {
-                                model = GameModel(resuming: saved)
-                            }
-                        },
+                        onContinue: continueSavedRun,
                         onBack: {
                             withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .mainMenu }
                         },
@@ -193,23 +204,6 @@ struct ContentView: View {
                 }
             }
 
-            if showingRunConflict, let conflict = pendingRunConflict {
-                Color.black.opacity(0.48)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture { dismissRunConflict() }
-
-                RunConflictSlip(
-                    localLabel: conflict.label(for: .local),
-                    remoteLabel: conflict.label(for: .remote),
-                    onChooseLocal: { resume(.local, from: conflict) },
-                    onChooseRemote: { resume(.remote, from: conflict) },
-                    onCancel: dismissRunConflict
-                )
-                .transition(.opacity)
-                .zIndex(40)
-            }
-
             if let replacement = pendingBookReplacement {
                 Color.black.opacity(0.48)
                     .ignoresSafeArea()
@@ -219,7 +213,7 @@ struct ContentView: View {
                 BookReplacementSlip(
                     savedRunLabel: replacement.savedRunLabel,
                     savedRunCompleted: replacement.savedRun.run.outcome == .bookCompleted,
-                    newBookLabel: replacement.book.shelfLabel,
+                    newBookLabel: "\(replacement.book.shelfLabel) · \(replacement.obstacle.name)",
                     onContinueSaved: continueSavedRun,
                     onStartNew: { startReplacement(from: replacement) },
                     onCancel: dismissBookReplacement
@@ -242,6 +236,16 @@ struct ContentView: View {
                 .zIndex(100)
             }
         }
+        .inventoryDragHost()
+        .paperPanel(isPresented: Binding(get: { storageError != nil }, set: {
+            if !$0 { storageError = nil }
+        })) {
+            PaperSlip(title: "Book not changed", subtitle: storageError,
+                      onClose: { storageError = nil }) {
+                EmptyView()
+            }
+        }
+        .paperPanelHost()
         .task {
             guard !Task.isCancelled, !didInitializeDebugLaunch else { return }
             // Set the latch before the factory's profile/persistence writes.
@@ -270,19 +274,26 @@ struct ContentView: View {
     }
 
     private var isShowingRunDecision: Bool {
-        showingRunConflict || pendingBookReplacement != nil
+        pendingBookReplacement != nil
     }
 
     private func abandonGame(_ model: GameModel) {
+        guard self.model === model, !model.wantsMenu else { return }
         // Capture before removing the slip/game. The abandoned model can exit
         // immediately; its frozen pixels cover the scene's cold first render.
         let snapshot = MenuReturnTransition.captureCurrentScreen()
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
         withTransaction(transaction) {
+            guard model.abandonRun() else {
+                storageError = "This Book could not be removed. It is still open and can be continued. Try again."
+                return
+            }
             menuReturn.begin(snapshot: snapshot)
+            completedBookSelection = nil
+            // The return transition owns pixels, not the departed run.
+            self.model = nil
             frontDoor = .mainMenu
-            model.abandonRun()
         }
     }
 
@@ -296,14 +307,26 @@ struct ContentView: View {
         }
     }
 
-    /// Deals the first Puzzle behind the veil, then lifts it.
-    private func begin(_ book: BookEdition) {
+    /// Opens a saved route or a durably saved first briefing behind the veil.
+    private func begin(_ book: BookEdition, token: UUID) {
+        // A renderer may finish after another route has already taken over.
+        guard openingToken == token, opening == book,
+              model == nil || model?.wantsMenu == true else { return }
         veil = 1
-        if let saved = openingSavedRun {
+        if let prepared = openingModel {
+            model = prepared
+            openingModel = nil
+        } else if let saved = openingSavedRun {
             model = GameModel(resuming: saved)
             openingSavedRun = nil
         } else {
-            model = GameModel(book: book.rule, obstacle: chosenObstacle)
+            guard let started = GameModel.startingBook(book: book.rule, obstacle: chosenObstacle) else {
+                opening = nil
+                veil = 0
+                storageError = "The new Book could not be saved. Free some space, then try again."
+                return
+            }
+            model = started
         }
         opening = nil
         Task {
@@ -315,62 +338,123 @@ struct ContentView: View {
     }
 
     private func beginBookClosing(_ model: GameModel) {
-        guard closingBook == nil, let summary = model.bookCompletionSummary else { return }
+        guard self.model === model, !model.wantsMenu,
+              closingBook == nil, let summary = model.bookCompletionSummary else { return }
         completionSummary = summary
+        closingPageSnapshot = MenuReturnTransition.captureCurrentScreen()
+        closingToken = UUID()
         closingBook = summary.edition
     }
 
-    private func finishBookClosing() {
-        closingBook = nil
-        model?.abandonRun()
-        withAnimation(.easeInOut(duration: 0.28)) { frontDoor = .bookShelf }
-    }
-
-    private func openBookOrAskAboutConflict(_ book: BookEdition, obstacle: Obstacle) {
-        if let conflict = RunStore.conflict() {
-            pendingRunConflict = conflict
-            showingRunConflict = true
+    private func finishBookClosing(token: UUID, owner: GameModel?) {
+        guard closingToken == token, let owner, model === owner, closingBook != nil else { return }
+        let snapshot = MenuReturnTransition.captureCurrentScreen()
+        guard owner.abandonRun() else {
+            closingBook = nil
+            closingPageSnapshot = nil
+            storageError = "The final page could not be closed safely. Your completion has been kept. Try again."
             return
         }
+        // Change the route and remove the closed cover together. An animated
+        // intermediate render can otherwise expose the old studio-intro route.
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            menuReturn.begin(snapshot: snapshot)
+            completedBookSelection = CompletedBookSelection(
+                book: owner.run.book, completedObstacle: owner.run.obstacle,
+                progressByBookID: profileStore.profile.achievementProgress.unlockedObstaclesByBookID)
+            model = nil
+            frontDoor = .mainMenu
+            closingBook = nil
+            closingPageSnapshot = nil
+        }
+    }
+
+    private func openBookOrAskToReplace(_ book: BookEdition, obstacle: Obstacle) {
+        guard opening == nil, model == nil || model?.wantsMenu == true,
+              !isShowingRunDecision else { return }
 
         if let displayed = RunStore.displayedRun() {
-            if displayed.run.book == book.rule, let saved = RunStore.resumeRun() {
-                openingSavedRun = saved
-                opening = book
-            } else {
-                pendingBookReplacement = BookReplacement(
-                    book: book,
-                    obstacle: obstacle,
-                    savedRun: displayed
-                )
-            }
+            // Even the same cover needs an explicit resume decision. Otherwise
+            // "Open" silently jumps past the ordinary puzzle's skip briefing.
+            pendingBookReplacement = BookReplacement(
+                book: book, obstacle: obstacle, savedRun: displayed
+            )
             return
         }
 
         chosenObstacle = obstacle
+        guard let prepared = GameModel.startingBook(book: book.rule, obstacle: obstacle) else {
+            // A cloud-only current Book may arrive between drawing the shelf
+            // and the guarded durable start. Ask before replacing that Book.
+            if let saved = RunStore.displayedRun() {
+                pendingBookReplacement = BookReplacement(book: book, obstacle: obstacle, savedRun: saved)
+                return
+            }
+            storageError = "The new Book could not be saved. Free some space, then try again."
+            return
+        }
+        openingModel = prepared
         openingSavedRun = nil
+        openingToken = UUID()
         opening = book
     }
 
     private func continueSavedRun() {
+        guard opening == nil, model == nil || model?.wantsMenu == true else { return }
+        // Re-read the single authoritative run at acceptance. Home and the
+        // replacement decision both resume its exact saved page and inventory.
+        guard let saved = RunStore.resumeRun() else {
+            storageError = "This Book could not be opened safely. Your saved copies have been kept. Try again."
+            return
+        }
         pendingBookReplacement = nil
-        guard let saved = RunStore.resumeRun() else { return }
+        openingModel = nil
         openingSavedRun = saved
+        openingToken = UUID()
         opening = BookEdition.edition(for: saved.run.book)
     }
 
     private func startReplacement(from replacement: BookReplacement) {
-        pendingBookReplacement = nil
+        guard pendingBookReplacement?.id == replacement.id, opening == nil else { return }
+        // A remote-only save can change without creating a two-copy conflict.
+        // Never delete a different Book than the one named on this decision.
+        guard let current = RunStore.displayedRun() else {
+            pendingBookReplacement = nil
+            storageError = "The saved Book changed while this page was open. Choose a Book again."
+            return
+        }
+        guard RunStore.conflict(local: replacement.savedRun, remote: current) == nil else {
+            pendingBookReplacement = BookReplacement(book: replacement.book,
+                obstacle: replacement.obstacle, savedRun: current)
+            return
+        }
         if replacement.savedRun.run.outcome == .bookCompleted {
             // A legacy receipt may not yet have recorded its per-Book win.
             // Settle that idempotent resume before acknowledging the receipt.
             _ = GameModel(resuming: replacement.savedRun)
+            guard RunStore.recordBookCompleted(replacement.savedRun.run.book,
+                                               obstacle: replacement.savedRun.run.obstacle) else {
+                storageError = "The completed Book's unlock could not be saved. Its final page has been kept. Try again."
+                return
+            }
         }
-        // This is the only replacement path that clears the unfinished run,
-        // and it is reached solely from the explicit "Start new Book" action.
-        RunStore.clearRun()
+        // Replace the saved bytes in one write before the opening animation.
+        // A failed new save must leave the previous Book resumable.
+        guard let prepared = GameModel.startingBook(book: replacement.book.rule,
+                                                    obstacle: replacement.obstacle,
+                                                    saveInitial: {
+            RunStore.replace(expected: replacement.savedRun, with: $0)
+        }) else {
+            storageError = "The new Book could not be saved. The previous Book has been kept; try again."
+            return
+        }
+        pendingBookReplacement = nil
         chosenObstacle = replacement.obstacle
+        openingModel = prepared
         openingSavedRun = nil
+        openingToken = UUID()
         opening = replacement.book
     }
 
@@ -379,34 +463,19 @@ struct ContentView: View {
     }
 
     private struct BookReplacement {
+        let id = UUID()
         let book: BookEdition
         let obstacle: Obstacle
         let savedRun: Game
 
         var savedRunLabel: String {
-            if savedRun.run.outcome == .bookCompleted {
-                return "Book \(savedRun.run.book.volume) complete"
-            }
-            return "Book \(savedRun.run.book.volume), Level \(savedRun.run.level), Puzzle \(savedRun.run.slot.rawValue + 1)"
+            SavedBookSummary(game: savedRun)?.decisionLabel ?? "Current Book"
         }
-    }
-
-    private func resume(_ choice: RunStore.Conflict.Choice, from conflict: RunStore.Conflict) {
-        let chosen = RunStore.choose(choice, from: conflict)
-        pendingRunConflict = nil
-        showingRunConflict = false
-        openingSavedRun = chosen
-        opening = BookEdition.edition(for: chosen.run.book)
-    }
-
-    private func dismissRunConflict() {
-        showingRunConflict = false
-        pendingRunConflict = nil
     }
 }
 
-/// The destructive counterpart to `RunConflictSlip`: the saved Book remains
-/// untouched unless the red replacement action is pressed explicitly.
+/// The only choice when opening another Book: keep the current attempt or
+/// explicitly abandon it. Cancelling leaves its exact saved state intact.
 struct BookReplacementSlip: View {
     @Environment(\.cosmeticTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 14
@@ -418,7 +487,7 @@ struct BookReplacementSlip: View {
     var onCancel: () -> Void
 
     var body: some View {
-        PaperSlip(title: savedRunCompleted ? "Another Book?" : "Unfinished Book",
+        PaperSlip(title: savedRunCompleted ? "Another Book?" : "A Book is already open",
                   subtitle: nil,
                   closeLabel: "Back to the shelf",
                   dismissesOnBackground: false,
@@ -432,23 +501,25 @@ struct BookReplacementSlip: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 PaperButton(title: savedRunCompleted ? "View final page" : "Continue current Book",
+                            subtitle: savedRunCompleted ? nil : "Keep your current puzzle and items",
                             kind: .primary, action: onContinueSaved)
                     .accessibilityIdentifier("book-replacement.continue")
 
                 Text(savedRunCompleted
                      ? "Your earned progress stays saved when you begin another Book."
-                     : "Starting \(newBookLabel) replaces this unfinished run. Your earned unlocks stay saved.")
+                     : "You can play one Book at a time. Starting another abandons this attempt. Your achievements and unlocks stay saved.")
                     .font(Print.body(bodySize))
                     .foregroundStyle(theme.paper.softInk)
                     .fixedSize(horizontal: false, vertical: true)
 
-                PaperButton(title: "Start \(newBookLabel)",
+                PaperButton(title: savedRunCompleted ? "Start new Book" : "Abandon & start new",
+                            subtitle: newBookLabel,
                             kind: savedRunCompleted ? .quiet : .danger,
                             action: onStartNew)
                     .accessibilityIdentifier("book-replacement.replace")
                     .accessibilityHint(savedRunCompleted
                         ? "Begins the selected Book"
-                        : "Replaces the unfinished run; earned unlocks stay saved")
+                        : "Permanently abandons the current attempt and opens the selected Book")
             }
         }
     }
@@ -457,6 +528,7 @@ struct BookReplacementSlip: View {
 private struct GameView: View {
     @Environment(PlayerProfileStore.self) private var profile
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.paperPanelPresenter) private var panelPresenter
     @Bindable var model: GameModel
     var reduceMotion: Bool
     var onBookCompletion: (GameModel) -> Void
@@ -471,36 +543,18 @@ private struct GameView: View {
     @State private var isInspectingShopOffer = false
 
     var body: some View {
-        DeskView {
-            VStack(spacing: 0) {
-                BookmarkRow(model: model) { index in
-                    usingBuff = index
-                }
-                .padding(.horizontal, 26)
-                .padding(.top, 4)
-                // Bookmarks sit behind the page block: their lower tails are
-                // swallowed by the book rather than floating over the paper.
-                .zIndex(0)
+        GeometryReader { viewport in
+        ZStack {
+            GameplaySurfaceBackground()
+            .ignoresSafeArea()
 
-                BookView(flipper: flipper) {
-                    page(of: model)
-                        .background {
-                            if model.page == .briefing || model.page == .shop || model.page == .results {
-                                BookAmbientBackground(book: model.run.book,
-                                                      isActive: !isPresentingSlip && !isInspectingShopOffer && !flipper.isFlipping)
-                                    .modifier(BookPageMarginPlacement())
-                            }
-                        }
-                }
-                .padding(.leading, 8)
-                .padding(.trailing, 10)
-                // The tabs must remain above the book rather than covering
-                // the puzzle heading. Their lower tails still tuck into the
-                // page block, but the readable part keeps its own band.
-                .padding(.top, -(BookmarkRow.tuck - 4))
-                .zIndex(1)
+            // One host survives every route. The outgoing snapshot includes
+            // the actual controls, inventory, and content in one coordinate space.
+            RunPageSurface(model: model, flipper: flipper, controls: controls,
+                           safeAreaInsets: viewport.safeAreaInsets, onTapBuff: { usingBuff = $0 }) {
+                page(of: model)
             }
-            .padding(.bottom, 8)
+            .ignoresSafeArea()
             .overlay(alignment: .bottom) { toast }
             .onChange(of: model.puzzle?.phase) { _, _ in
                 // Reaching the target or running out of Turns finishes the
@@ -518,11 +572,8 @@ private struct GameView: View {
                 if !turning { reconcileFinishedPuzzle() }
             }
             .onChange(of: isPresentingSlip) { _, covered in
+                if covered { model.cancelClueTargeting() }
                 if !covered { reconcileFinishedPuzzle() }
-            }
-            .overlay(alignment: .top) {
-                IslandBar(coins: model.coins, controls: controls, charge: model.lastCoinCharge)
-                    .ignoresSafeArea(edges: .top)
             }
             .allowsHitTesting(!isPresentingSlip && !flipper.isFlipping && !model.hasRewardedRescueInFlight)
             // A paper slip covers the whole desk. Keep its obscured controls
@@ -551,6 +602,15 @@ private struct GameView: View {
                             closeSlip { claimingMarker = nil }
                         }
                     }
+                    if model.requestedCatalogueReading != nil, model.pendingItemDecision == nil,
+                       usingBuff == nil, !showingSettings, !showingRunInfo, claimingMarker == nil {
+                        CatalogueReadingsSlip(run: model.run) { model.dismissCatalogueReading() }
+                    }
+                    if let decision = model.pendingItemDecision, !flipper.isFlipping,
+                       usingBuff == nil, !showingSettings, !showingRunInfo, claimingMarker == nil {
+                        ItemDecisionSlip(model: model, decision: decision)
+                            .id(decision.id)
+                    }
                 }
                 // Only the slip animates. A Buff can change the Hand and
                 // board in this update too; those retain their own motions.
@@ -560,6 +620,9 @@ private struct GameView: View {
                 .animation(slipAnimation, value: showingRunInfo)
                 .animation(slipAnimation, value: usingBuff)
                 .animation(slipAnimation, value: claimingMarker)
+            }
+            .onChange(of: model.pendingItemDecision?.id) { _, id in
+                if id != nil { usingBuff = nil }
             }
             .task {
                 #if DEBUG && targetEnvironment(simulator)
@@ -610,6 +673,14 @@ private struct GameView: View {
                     return
                 }
                 let arguments = ProcessInfo.processInfo.arguments
+                if let index = arguments.firstIndex(of: "-gameplayFixture"), index + 1 < arguments.count {
+                    model.qaGameplayFixture(arguments[index + 1])
+                    if let bossIndex = arguments.firstIndex(of: "-qaBoss"), bossIndex + 1 < arguments.count,
+                       let boss = BossModifier(rawValue: arguments[bossIndex + 1]) {
+                        model.qaSetBoss(boss)
+                    }
+                    return
+                }
                 if arguments.contains("-autoPlayPuzzle") {
                     // Repeatable, hands-free recording of the real briefing
                     // action, after the ticket has finished arriving.
@@ -653,16 +724,27 @@ private struct GameView: View {
                 #endif
             }
         }
+        }
         .environment(flipper)
+        .environment(\.cosmeticTheme, runTheme)
         .environment(\.bookPresentation, BookPresentationTheme(book: model.run.book))
         .environment(\.bossMotionIsActive, !isPresentingSlip && !isInspectingShopOffer
                      && !flipper.isFlipping && !model.hasRewardedRescueInFlight)
+        .environment(\.bossEntranceIsDeferred, flipper.isFlipping && !isPresentingSlip
+                     && !isInspectingShopOffer && !model.hasRewardedRescueInFlight)
         .preferredColorScheme(.dark)
         .statusBarHidden()
     }
 
+    private var runTheme: CosmeticTheme {
+        var theme = profile.theme
+        theme.paper = CosmeticTheme.standard.paper
+        return theme
+    }
+
     private var isPresentingSlip: Bool {
         showingSettings || showingRunInfo || usingBuff != nil || claimingMarker != nil || isClosingSlip
+            || panelPresenter?.isPresenting == true || model.pendingItemDecision != nil || model.requestedCatalogueReading != nil
     }
 
     private var slipAnimation: Animation {
@@ -712,7 +794,7 @@ private struct GameView: View {
                                isClockRunning: scenePhase == .active && !isPresentingSlip
                                 && !flipper.isFlipping && !source.hasRewardedRescueInFlight)
                     .environment(\.levelPalette,
-                                 .forDisplay(slot: puzzle.slot).resolved(for: profile.theme.paper))
+                                 .forDisplay(slot: puzzle.slot).resolved(for: runTheme.paper))
             }
         case .results:
             ResultsPageView(model: source,
@@ -724,7 +806,9 @@ private struct GameView: View {
                     guard source.page == .shop, source.run.markers.indices.contains(index),
                           source.run.markers[index].pendingSquares(atLevel: source.run.level) > 0 else { return }
                     claimingMarker = index
-                }, onOfferPresentationChange: { isInspectingShopOffer = $0 })
+                }, onOfferPresentationChange: { isInspectingShopOffer = $0 },
+                   isPresentationCovered: isPresentingSlip,
+                   canStartPresentation: { scenePhase == .active && !isPresentingSlip })
             }
         case .achievements:
             AchievementsPageView {

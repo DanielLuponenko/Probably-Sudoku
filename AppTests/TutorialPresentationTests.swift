@@ -10,6 +10,49 @@ import ProbablySudokuEngine
 /// cover mutations, and the release walkthrough covers actual button taps.
 @MainActor
 final class TutorialPresentationTests: XCTestCase {
+    func testFirstWelcomeKeepsBothChoicesReachableAtNormalAndLargestTextSizes() async throws {
+        for type in [DynamicTypeSize.large, .accessibility5] {
+            var learned = 0, experienced = 0
+            let welcome = FirstTimeWelcomeView(onExperienced: { experienced += 1 }, onLearn: { learned += 1 })
+            let host = try hostView(welcome, viewport: .compactPhone, dynamicType: type)
+            defer { host.close() }
+            await settle(host)
+            let top = screenshot(host, name: "tutorial-welcome-\(type)-top")
+            try assertReadable("A little practice", rows: recognizedRows(in: top))
+            let scroll = try XCTUnwrap(lessonScroll(in: host))
+            if type.isAccessibilitySize {
+                XCTAssertGreaterThan(scroll.contentSize.height, scroll.bounds.height,
+                                     "The welcome must grow into scrolling instead of shrinking enlarged text.")
+            }
+            let primary = try await revealAction("Learn by playing", in: host)
+            attach(primary, name: "tutorial-welcome-\(type)-learn")
+            scroll.setContentOffset(CGPoint(x: 0, y: max(0, scroll.contentSize.height - scroll.bounds.height)), animated: false)
+            await settle(host)
+            let choices = screenshot(host, name: "tutorial-welcome-\(type)-choices")
+            let rows = try recognizedRows(in: choices)
+            // In this font Vision reads the capital I in "I've" as a
+            // lowercase l. Accept only that observed full-label alternative.
+            XCTAssertTrue(normalized(rows).contains("iveplayedbefore")
+                || normalized(rows).contains("lveplayedbefore"),
+                "The complete experienced-player choice must be readable: \(rows.map(\.text))")
+            try assertReadable("At your pace", rows: rows)
+            let visible = scroll.convert(scroll.bounds, to: host.window)
+            // The choice has a unique label. Its complete glyph bounds must
+            // fit inside the viewport, including when it wraps at AX size.
+            let choiceRows = rows.filter {
+                let text = normalize($0.text)
+                return text.contains("iveplayed") || text.contains("lveplayed")
+                    || text == "before" || text.contains("playedbefore")
+            }
+            XCTAssertFalse(choiceRows.isEmpty)
+            let choiceFrame = choiceRows.reduce(CGRect.null) { $0.union($1.frame) }
+            XCTAssertGreaterThan(choiceFrame.minY, visible.minY + 5)
+            XCTAssertLessThan(choiceFrame.maxY, visible.maxY - 5)
+            XCTAssertEqual(learned, 0)
+            XCTAssertEqual(experienced, 0, "Reading and scrolling cannot choose an onboarding path.")
+        }
+    }
+
     func testCompactPhoneAndIPadKeepTheOutlinedHandCardAboveTheFooter() async throws {
         for viewport in [Viewport.compactPhone, .iPad] {
             let session = TutorialSession(practice: try TutorialPractice.make())
@@ -44,7 +87,7 @@ final class TutorialPresentationTests: XCTestCase {
     func testItemActionsAndMultiplierAreReadableOnCompactPhone() async throws {
         let cases: [(TutorialSession.Step, String, String)] = [
             (.buyBookmark, "Buy a Bookmark", "Buy Local Gossip"),
-            (.buyMultiplier, "Give your score a multiplier", "Buy Op-Ed Column"),
+            (.buyMultiplier, "Give your score a multiplier", "Buy Front Page Splash"),
             (.buyMarker, "A bonus on one square", "Buy Golden Marker"),
             (.useBuff, "Use Fresh Ink", "Use Fresh Ink"),
             (.sellBookmark, "Sell a Bookmark", "Sell Local Gossip"),
@@ -75,9 +118,35 @@ final class TutorialPresentationTests: XCTestCase {
         let image = screenshot(host, name: "tutorial-combination-compact")
         let rows = try recognizedRows(in: image)
         try assertReadable("See your combination", rows: rows)
-        try assertReadable("265 queued base", rows: rows)
-        try assertReadable("530 points to bank", rows: rows)
+        try assertReadable("310 Points", rows: rows)
+        try assertReadable("3 Mult", rows: rows)
+        try assertReadable("+930 this Turn", rows: rows)
+        XCTAssertFalse(normalized(rows).contains("queued"))
         try assertReadable("Continue", rows: rows)
+    }
+
+    func testRealHandRemainsVisibleBelowBoardAfterPlacingAndBanking() async throws {
+        let session = TutorialSession(practice: try TutorialPractice.make())
+        try TutorialTestDriver.reach(.bank, in: session)
+        let host = try host(session, viewport: .compactPhone)
+        defer { host.close() }
+        await settle(host)
+        let image = screenshot(host, name: "tutorial-hand-after-placement-compact")
+        let rows = try recognizedRows(in: image)
+        try assertReadable("2 of 15 actions tried", rows: rows)
+        try assertReadable("End Turn", rows: rows)
+        try assertReadable("+\(try XCTUnwrap(session.snapshot).queued) this Turn", rows: rows)
+        try assertHandIsReadable(in: host, image: image, rows: rows, session: session)
+        XCTAssertFalse(normalized(rows).contains("queued"))
+
+        XCTAssertTrue(session.bankTurn())
+        await settle(host)
+        let bankedImage = screenshot(host, name: "tutorial-hand-after-bank-compact")
+        let bankedRows = try recognizedRows(in: bankedImage)
+        try assertReadable("3 of 15 actions tried", rows: bankedRows)
+        try assertReadable("points banked", rows: bankedRows)
+        try assertHandIsReadable(in: host, image: bankedImage, rows: bankedRows, session: session)
+        XCTAssertEqual(session.snapshot?.hand.count, 7)
     }
 
     func testLargestDynamicTypeCanScrollToRealBuyUseAndSellButtons() async throws {
@@ -153,7 +222,13 @@ final class TutorialPresentationTests: XCTestCase {
 
     private func host(_ session: TutorialSession, viewport: Viewport,
                       dynamicType: DynamicTypeSize = .large) throws -> HostedLesson {
-        let page = TutorialLessonPage(session: session, presentation: .replay)
+        try hostView(TutorialLessonPage(session: session, presentation: .replay),
+                     viewport: viewport, dynamicType: dynamicType)
+    }
+
+    private func hostView(_ view: some View, viewport: Viewport,
+                          dynamicType: DynamicTypeSize = .large) throws -> HostedLesson {
+        let page = view
             .environment(\.cosmeticTheme, .standard)
             .environment(\.dynamicTypeSize, dynamicType)
             .environment(\.colorScheme, .light)
@@ -249,11 +324,97 @@ final class TutorialPresentationTests: XCTestCase {
                                     "Pinned chrome must leave enough room to read and use a large-text lesson.")
         let chrome = rows.filter { $0.frame.midY < visible.minY || $0.frame.midY > visible.maxY }
         try assertReadable("Exit", rows: chrome)
-        try assertReadable("\(step.rawValue + 1)/\(TutorialSession.Step.allCases.count)", rows: chrome)
+        try assertReadable("\(step.chapter.rawValue + 1)/\(TutorialSession.Chapter.allCases.count)", rows: chrome)
         XCTAssertFalse(chrome.contains { $0.text.contains("…") || $0.text.contains("...") },
                        "Pinned controls and progress must not truncate: \(chrome.map(\.text))")
         XCTAssertFalse(normalized(chrome).contains("tapbuy"))
         XCTAssertFalse(normalized(chrome).contains("practicenever"))
+    }
+
+    private func assertHandIsReadable(in host: HostedLesson, image: UIImage,
+                                     rows: [TextRow], session: TutorialSession) throws {
+        let title = try textFrame("Your Hand", rows: rows, exact: true)
+        let scroll = try XCTUnwrap(lessonScroll(in: host))
+        let visible = scroll.convert(scroll.bounds, to: host.window)
+        let handArea = CGRect(x: visible.minX, y: title.maxY, width: visible.width,
+                              height: max(1, visible.maxY - title.maxY))
+        let cards = try paperCardBounds(in: image, within: handArea)
+        XCTAssertEqual(cards.count, try XCTUnwrap(session.snapshot).hand.count,
+                       "Every actual Hand card must be rendered, including the refill after End Turn.")
+        for card in cards {
+            XCTAssertGreaterThanOrEqual(card.width, 44)
+            XCTAssertGreaterThanOrEqual(card.height, 44)
+            XCTAssertGreaterThan(card.minY, title.maxY)
+            XCTAssertLessThan(card.maxY, visible.maxY,
+                              "A partially clipped card must not count as a visible Hand item.")
+            let glyph = try crop(image, to: card.insetBy(dx: 8, dy: 8))
+            XCTAssertGreaterThan(try inkPixelCount(in: glyph), 20,
+                                 "Each fully visible paper card must contain a printed number.")
+        }
+    }
+
+    /// White card rims are a stronger visibility measurement than recognizing
+    /// a row of isolated digits: Vision drops the clearly rendered serif 5.
+    /// Find the actual rims in the screenshot, without assuming grid columns.
+    private func paperCardBounds(in image: UIImage, within area: CGRect) throws -> [CGRect] {
+        let data = try pixelData(image)
+        let scale = CGFloat(data.width) / image.size.width
+        let clipped = area.intersection(CGRect(origin: .zero, size: image.size))
+        guard !clipped.isNull, !clipped.isEmpty else { return [] }
+        let minX = max(0, Int(clipped.minX * scale)), maxX = min(data.width, Int(clipped.maxX * scale))
+        let minY = max(0, Int(clipped.minY * scale)), maxY = min(data.height, Int(clipped.maxY * scale))
+        var unvisited = Set<Int>()
+        for y in minY..<maxY {
+            for x in minX..<maxX {
+                let index = y * data.width + x, p = index * 4
+                if data.pixels[p] > 245, data.pixels[p + 1] > 245, data.pixels[p + 2] > 245 {
+                    unvisited.insert(index)
+                }
+            }
+        }
+        var cards: [CGRect] = []
+        while let start = unvisited.first {
+            var stack = [start]
+            unvisited.remove(start)
+            var left = start % data.width, right = left
+            var top = start / data.width, bottom = top
+            while let current = stack.popLast() {
+                let x = current % data.width, y = current / data.width
+                left = min(left, x); right = max(right, x)
+                top = min(top, y); bottom = max(bottom, y)
+                for dy in -1...1 {
+                    for dx in -1...1 where dx != 0 || dy != 0 {
+                        let nextX = x + dx, nextY = y + dy
+                        guard nextX >= minX, nextX < maxX, nextY >= minY, nextY < maxY else { continue }
+                        let next = nextY * data.width + nextX
+                        if unvisited.remove(next) != nil { stack.append(next) }
+                    }
+                }
+            }
+            let bounds = CGRect(x: CGFloat(left) / scale, y: CGFloat(top) / scale,
+                                width: CGFloat(right - left + 1) / scale, height: CGFloat(bottom - top + 1) / scale)
+            if bounds.width >= 40, bounds.height >= 40 { cards.append(bounds) }
+        }
+        return cards.sorted { $0.minX < $1.minX }
+    }
+
+    private func inkPixelCount(in image: UIImage) throws -> Int {
+        let data = try pixelData(image)
+        return stride(from: 0, to: data.pixels.count, by: 4).reduce(into: 0) { count, p in
+            if data.pixels[p] < 90, data.pixels[p + 1] < 90, data.pixels[p + 2] < 90 { count += 1 }
+        }
+    }
+
+    private func pixelData(_ image: UIImage) throws -> (pixels: [UInt8], width: Int, height: Int) {
+        let cg = try XCTUnwrap(image.cgImage)
+        var pixels = [UInt8](repeating: 0, count: cg.width * cg.height * 4)
+        try pixels.withUnsafeMutableBytes { buffer in
+            let context = try XCTUnwrap(CGContext(data: buffer.baseAddress, width: cg.width, height: cg.height,
+                bitsPerComponent: 8, bytesPerRow: cg.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+        }
+        return (pixels, cg.width, cg.height)
     }
 
     private func assertReadable(_ phrase: String, rows: [TextRow],

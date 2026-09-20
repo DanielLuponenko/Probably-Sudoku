@@ -12,14 +12,14 @@ struct LearningSection: View {
 
     var body: some View {
         SlipSection(title: "Learn & practice",
-                    note: "A quick refresher or a fresh practice page. Your current Book stays exactly where you left it.") {
+                    note: "Six short chapters to learn by playing. Your current Book stays exactly where you left it.") {
             PaperButton(title: "How to play", kind: .quiet) { destination = .guide }
                 .accessibilityIdentifier("learning-how-to-play")
             PaperButton(title: "Replay tutorial", kind: .quiet) { destination = .practice }
                 .accessibilityIdentifier("learning-replay-tutorial")
                 .accessibilityHint("Hands-on lessons at your pace: play, buy, use and sell items. Your saved Book and achievements stay unchanged. Exit at any time.")
         }
-        .fullScreenCover(item: $destination) { destination in
+        .paperPanel(item: $destination) { destination in
             LearningPresentation(destination: destination)
         }
     }
@@ -27,7 +27,7 @@ struct LearningSection: View {
 
 struct LearningPresentation: View {
     let destination: LearningSection.Destination
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.paperPanelDismiss) private var dismiss
 
     var body: some View {
         switch destination {

@@ -27,12 +27,17 @@ public enum ReferenceDocument {
         lines += [
             "## Bosses",
             "",
-            "| Boss | Stage | Attacks |",
-            "| --- | --- | --- |",
+            "New Books use 22 active encounters: 16 regular bosses and 6 final bosses. Encounter history prevents repeats while unused eligible bosses remain and avoids consecutive mechanical families when possible. Bosses requiring Markers or triggered Bookmarks appear only when that build can interact with them.",
+            "",
+            "Previously saved Books retain the original 39-boss selection pool. Saved announcements and active encounters keep their exact identity and rules. Retired bosses remain available for legacy saves and QA replays.",
+            "",
+            "| Boss | Stage | Rule | Attacks |",
+            "| --- | --- | --- | --- |",
         ]
-        for boss in BossModifier.allCases {
-            let stage = boss.isFinalBoss ? "Level 9, Puzzle 3 only" : "Levels 1–8, Puzzle 3"
-            lines.append("| \(boss.name) | \(stage) | \(boss.attacks) |")
+        for boss in BossModifier.activeBosses + BossModifier.allCases.filter({ !$0.isActiveEncounter }) {
+            let stage = !boss.isActiveEncounter ? "Legacy saves / QA only"
+                : boss.isFinalBoss ? "Level 9, Puzzle 3 only" : "Levels 1–8, Puzzle 3"
+            lines.append("| \(boss.name) | \(stage) | \(boss.text) | \(boss.attacks) |")
         }
         lines.append("")
         return lines.joined(separator: "\n")

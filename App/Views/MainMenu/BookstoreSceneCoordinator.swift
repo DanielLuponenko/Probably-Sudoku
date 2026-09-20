@@ -78,6 +78,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     private let focusedBookLight = SCNLight()
     private let focusedBookLightNode = SCNNode()
     private weak var standTitlePrintNode: SCNNode?
+    private weak var standTitlePlaqueNode: SCNNode?
     private var standTitlePrintMaterial: SCNMaterial?
     private var standTitleContentKey: String?
     private var standTitleTextureCache: [String: UIImage] = [:]
@@ -4580,6 +4581,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         // Its old printed face at z=0.052 was cut through by the metal shaft.
         plaque.position.z = 0.105
         header.addChildNode(plaque)
+        standTitlePlaqueNode = plaque
 
         let plateMaterial = SCNMaterial()
         plateMaterial.lightingModel = .constant
@@ -4634,10 +4636,12 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func signTexture(title: String, detail: String? = nil,
+                             effectLines: [String] = [],
                              preservesIdentityTypography: Bool = false) -> UIImage {
-        // Match the physical 1.40:0.29 face exactly. The old 512:256 texture
+        // Match the physical face exactly. The old 512:256 texture
         // stretched every letter almost twice as wide, flattening the title.
-        let size = CGSize(width: 1008, height: 1008 * 0.29 / 1.40)
+        let faceHeight: CGFloat = effectLines.count > 1 ? 0.35 : 0.29
+        let size = CGSize(width: 1008, height: 1008 * faceHeight / 1.40)
         return UIGraphicsImageRenderer(size: size, format: oneXTextureFormat()).image { context in
             let cg = context.cgContext
             cg.setFillColor(rgb(0x242A23).cgColor)
@@ -4651,6 +4655,30 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
             let paragraph = NSMutableParagraphStyle()
             paragraph.alignment = .center
+            if !effectLines.isEmpty {
+                // The rules need to be readable on the physical phone, not
+                // only on this large texture. Keep effects at 56 points and
+                // give combined Obstacles a little more space below the fixed
+                // top edge rather than shrinking their lettering.
+                let hasTwoEffects = effectLines.count > 1
+                let headingSize: CGFloat = hasTwoEffects ? 60 : 72
+                let effectSize: CGFloat = 56
+                func draw(_ text: String, y: CGFloat, size pointSize: CGFloat,
+                          weight: UIFont.Weight, color: UIColor) {
+                    let font = UIFont.systemFont(ofSize: pointSize, weight: weight)
+                    let availableWidth = size.width - 72
+                    (text as NSString).draw(
+                        in: CGRect(x: 36, y: y, width: availableWidth, height: font.lineHeight),
+                        withAttributes: [.font: font, .foregroundColor: color, .paragraphStyle: paragraph])
+                }
+                draw(title.uppercased(), y: 16, size: headingSize,
+                     weight: .heavy, color: rgb(0xFFF8E9))
+                for (index, effect) in effectLines.enumerated() {
+                    draw(effect, y: hasTwoEffects ? 94 + CGFloat(index) * 67 : 116,
+                         size: effectSize, weight: .semibold, color: rgb(0xE4D6AE))
+                }
+                return
+            }
             let titleFont: UIFont
             let titleFrame: CGRect
             let detailFont: UIFont
@@ -4702,7 +4730,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
 
     private func updateStandTitle(edition: BookEdition, showsBookability: Bool,
                                   animated: Bool) {
-        let key = showsBookability ? "benefit|\(edition.id)" : "identity"
+        let presentation = BookstoreSignPresentation(edition: edition, obstacle: selectedObstacle)
+        let key = showsBookability ? presentation.cacheKey : "identity"
+        let effectLineCount = showsBookability ? presentation.effectLines.count : 0
+        let twoLines: Float = !showsBookability || !presentation.effectLines.isEmpty ? 1 : 0
         guard let material = standTitlePrintMaterial,
               let node = standTitlePrintNode else { return }
         if key == standTitleContentKey {
@@ -4710,7 +4741,9 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             node.removeAction(forKey: "stand-title-writing")
             material.setValue(Float(1), forKey: "standTitleReveal")
             material.diffuse.contents = standTitleTextureCache[key]
-            material.setValue(Float(showsBookability ? 0 : 1), forKey: "standTitleTwoLines")
+            material.setValue(twoLines, forKey: "standTitleTwoLines")
+            Self.updateStandTitleGeometry(printNode: node, plaqueNode: standTitlePlaqueNode,
+                                          effectLineCount: effectLineCount)
             node.opacity = 1
             return
         }
@@ -4721,9 +4754,7 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
             // Keep the identity print and at most the currently displayed
             // benefit; old editions must not accumulate title bitmaps.
             standTitleTextureCache = standTitleTextureCache.filter { $0.key == "identity" || $0.key == key }
-            // The benefit is a single centered title; the full explanation
-            // remains in the native accessibility label, not on the sign.
-            let rendered = signTexture(title: edition.benefit.title)
+            let rendered = signTexture(title: presentation.title, effectLines: presentation.effectLines)
             standTitleTextureCache[key] = rendered
             texture = rendered
         } else {
@@ -4734,8 +4765,10 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         node.removeAction(forKey: "stand-title-writing")
         guard animated else {
             material.diffuse.contents = texture
-            material.setValue(Float(showsBookability ? 0 : 1), forKey: "standTitleTwoLines")
+            material.setValue(twoLines, forKey: "standTitleTwoLines")
             material.setValue(Float(1), forKey: "standTitleReveal")
+            Self.updateStandTitleGeometry(printNode: node, plaqueNode: standTitlePlaqueNode,
+                                          effectLineCount: effectLineCount)
             node.opacity = 1
             return
         }
@@ -4747,15 +4780,30 @@ final class BookstoreSceneCoordinator: NSObject, UIGestureRecognizerDelegate {
         let eraseProgress = SCNAction.customAction(duration: 0.12) { _, elapsed in
             material.setValue(Float(startingReveal * max(0, 1.0 - Double(elapsed) / 0.12)), forKey: "standTitleReveal")
         }
-        let write = SCNAction.run { _ in
+        let plaqueNode = standTitlePlaqueNode
+        let write = SCNAction.run { printNode in
+            // Resize only after the old chalk has erased. Its fixed top edge
+            // and width keep the sign clear of the cutout and Book below it.
+            Self.updateStandTitleGeometry(printNode: printNode, plaqueNode: plaqueNode,
+                                          effectLineCount: effectLineCount)
             material.diffuse.contents = texture
-            material.setValue(Float(showsBookability ? 0 : 1), forKey: "standTitleTwoLines")
+            material.setValue(twoLines, forKey: "standTitleTwoLines")
         }
         let chalkWrite = SCNAction.customAction(duration: 0.80) { _, elapsed in
             material.setValue(Float(min(1, max(0, elapsed / 0.80))), forKey: "standTitleReveal")
         }
         let finish = SCNAction.run { _ in material.setValue(Float(1), forKey: "standTitleReveal") }
         node.runAction(.sequence([eraseProgress, write, chalkWrite, finish]), forKey: "stand-title-writing")
+    }
+
+    nonisolated private static func updateStandTitleGeometry(printNode: SCNNode, plaqueNode: SCNNode?,
+                                                            effectLineCount: Int) {
+        let faceHeight: CGFloat = effectLineCount > 1 ? 0.35 : 0.29
+        let centerOffset = Float((faceHeight - 0.29) * -0.5)
+        (printNode.geometry as? SCNPlane)?.height = faceHeight
+        printNode.position.y = centerOffset
+        (plaqueNode?.geometry as? SCNBox)?.height = faceHeight + 0.07
+        plaqueNode?.position.y = centerOffset
     }
 
     private func addEditionBooks() {

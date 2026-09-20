@@ -1,0 +1,722 @@
+[
+  {
+    "id": "censor",
+    "name": "The Censor",
+    "rule": "One random number scores no points this Puzzle",
+    "entrance": "A black 0 pts band settles onto playable Hand copies of the saved censored digit with the shared 0.23-second object arrival.",
+    "trigger": "The Hand band shows the zero price before play. When the censored digit actually scores, its receipt strikes the original Points and stamps the actual zero over 0.22 seconds.",
+    "persistent": "The header names the censored digit; its Hand price band stays readable beneath the number. No marks are painted over board numbers.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Views/GameplayScorePanel.swift"
+    ],
+    "notes": "The band is a public rule cue, not a prediction of correctness. It is omitted outside scoring play and when an independent Hand bar takes precedence.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "editor",
+    "name": "The Editor",
+    "rule": "Hand size -1",
+    "entrance": "A small folded-slot paper object settles into the Hand margin over 0.23 seconds.",
+    "trigger": "No additional boss-specific triggered motion.",
+    "persistent": "A folded corner and current Hand capacity identify the missing slot.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/HandStripView.swift"
+    ],
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "deadline",
+    "name": "The Deadline",
+    "rule": "8 Turns instead of 10",
+    "entrance": "The Turn label and cut margins settle in with a short tilt and drop.",
+    "trigger": "The standard Turn number updates after banking.",
+    "persistent": "Cut red margins remain beside the 8-Turn label.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/PuzzlePageView.swift"
+    ],
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "fog",
+    "name": "The Fog",
+    "rule": "Marked squares are hidden this Puzzle",
+    "entrance": "Two soft mist layers roll in from opposite sides over 0.65 seconds.",
+    "trigger": "Slow gray and faster ivory wisps drift continuously below the printed digits.",
+    "persistent": "Fog conceals Markers while numerals and selections stay crisp.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossFogLayer.swift",
+      "App/Views/GridView.swift"
+    ],
+    "notes": "Ambient motion pauses while covered, in the background, in Low Power Mode, or with in-game Reduced Motion/background motion disabled.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "critic",
+    "name": "The Critic",
+    "rule": "Wrong-placement penalty doubled",
+    "entrance": "No separate boss entrance; the ordinary page reveal is used.",
+    "trigger": "A wrong tile follows the existing return-to-Pool/Hand flight with the actual doubled debit printed beneath it.",
+    "persistent": "Header states that wrong-placement penalties double.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/NumberReturnMotion.swift",
+      "App/Model/GameModel.swift"
+    ],
+    "notes": "No unique Critic entrance or bespoke penalty animation was added; the shared wrong-number motion carries the larger penalty.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "mirror",
+    "name": "The Mirror",
+    "rule": "No Line Clear bonuses this Puzzle",
+    "entrance": "A small doubled paper receipt in the header carries a LINE 0 stamp.",
+    "trigger": "A committed suppressed Line Clear pulses the header stamp through anticipation, contact, and settle. Its scoring receipt strikes the original bonus and prints the actual zero over 0.22 seconds.",
+    "persistent": "The zero receipt stays off the board. The header says Line bonus: 0 and that placements still score.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/BossScoreReceipt.swift"
+    ],
+    "notes": "Full Clear bonuses are unaffected. The cue never paints over Sudoku numbers or previews placement correctness.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "paywall",
+    "name": "The Paywall",
+    "rule": "All Clues disabled, including Buff-granted",
+    "entrance": "If owned Clue charges expose the Clue control, a small lock seal settles onto it.",
+    "trigger": "The seal remains still when a blocked Clue is inspected.",
+    "persistent": "The Clue control stays sealed; Buff details explain the restriction.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/PuzzlePageView.swift",
+      "App/Views/BuffSlip.swift"
+    ],
+    "notes": "With no Clue charges, the conditional Clue control is absent, so its entrance seal is not visible.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "erratum",
+    "name": "The Erratum",
+    "rule": "No Tosses this Puzzle",
+    "entrance": "A crossed TOSS paper tab drops and straightens onto the existing Toss control.",
+    "trigger": "No additional boss-specific triggered motion.",
+    "persistent": "Toss stays disabled with the crossed tab visible.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/PuzzlePageView.swift"
+    ],
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "collector",
+    "name": "The Collector",
+    "rule": "This Puzzle's payout includes no interest",
+    "entrance": "No separate boss entrance; the ordinary page reveal is used.",
+    "trigger": "On a real payout, the saved interest amount is crossed out to zero over 0.20 seconds.",
+    "persistent": "The payout retains the crossed interest alongside unchanged base and other earnings.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/CollectorPayoutPrint.swift",
+      "App/Views/ResultsPageView.swift"
+    ],
+    "notes": "If the payout had no suppressed interest, there is no interest-crossing animation.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "heavyLifter",
+    "name": "The Final Draft",
+    "rule": "The target is four times what it would be",
+    "entrance": "At a fresh encounter, the original target transforms to its authoritative fourfold target over 0.35 seconds; a temporary ×4 paper tab appears.",
+    "trigger": "No additional boss-specific triggered motion.",
+    "persistent": "The final fourfold target remains in the normal score row.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossTargetNumber.swift",
+      "App/Views/GameplayScorePanel.swift"
+    ],
+    "notes": "Save/resume displays the final target directly and does not replay the expansion.",
+    "active": true,
+    "tier": "final"
+  },
+  {
+    "id": "unluckyLucky",
+    "name": "The Executive Editor",
+    "rule": "One triggered Bookmark sleeps each Turn; passive upgrades stay active",
+    "entrance": "The header identifies the actual sleeping slot with a folded paper copy and REST band.",
+    "trigger": "At the engine-selected sleep change, the exact owned Bookmark dims and folds over 0.20 seconds. Its REST band moves with the affected copy, not with an assumed inventory index.",
+    "persistent": "The sleeping copy stays visibly marked; the header states its current slot. Passive upgrades remain active.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BookmarkRow.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/BossStatusDiagram.swift"
+    ],
+    "notes": "The sleep cue communicates disabled triggered effects only. It does not imply that the player lost the Bookmark or its passive upgrades.",
+    "active": true,
+    "tier": "final"
+  },
+  {
+    "id": "buffborger",
+    "name": "The Fine Print",
+    "rule": "No Buff can be spent this Puzzle",
+    "entrance": "Lock seals settle onto the owned Buffs and empty Buff slots over 0.23 seconds.",
+    "trigger": "No additional boss-specific triggered motion.",
+    "persistent": "Buff slots remain sealed and owned Buffs subdued.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BookmarkRow.swift",
+      "App/Views/BossPaperObjects.swift"
+    ],
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "sashimi",
+    "name": "The Budget Cut",
+    "rule": "All score multipliers are cut in half",
+    "entrance": "No separate boss entrance; the ordinary page reveal is used.",
+    "trigger": "At an actual bank, the final Mult receipt moves slightly and a torn edge draws beneath its halved value over 0.22 seconds.",
+    "persistent": "The receipt shows the exact Mult before and after the cut.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Views/GameplayScorePanel.swift"
+    ],
+    "notes": "A live preview does not replay the bank-only cut effect.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "overPusher",
+    "name": "The Shredder",
+    "rule": "Up to three squares are fouled each Turn for two Turns; one blank stays free",
+    "entrance": "A falling ink droplet spreads into a wet, irregular pool on each newly fouled square.",
+    "trigger": "Each Turn, newly committed fouls get one 0.62-second droplet/spread; older pools remain until their saved expiry.",
+    "persistent": "Only truly fouled squares contain settled ink with a small wet highlight.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossInkLandingOverlay.swift",
+      "App/Views/BossBoardVisuals.swift",
+      "App/Views/GridView.swift"
+    ],
+    "notes": "Saved pools appear settled on resume; a remount never invents a fresh impact.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "accountant",
+    "name": "Natural Born Accountant",
+    "rule": "Every placement costs a coin, even if you have none",
+    "entrance": "The header presents a brass coin slot and the per-placement charge; the ordinary page reveal is used.",
+    "trigger": "Each committed coin-cost operation makes the header coin rise, turn, drop into the slot, and reset over 0.52 seconds. The existing balance receipt also shows the actual debit, including a wrong placement.",
+    "persistent": "The slot reads −1 coin / fill and counts actual charges this Turn. The balance can show debt; Keep Filling still shows the active placement charge.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/TopStripView.swift",
+      "App/Model/GameModel.swift"
+    ],
+    "notes": "Motion is keyed to the saved scoring operation ID, never to preview score changes. No coin flies over the board.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "tikTak",
+    "name": "Tik Tak",
+    "rule": "Four minutes for the whole Puzzle",
+    "entrance": "The ordinary header shows the live 04:00 clock; no separate entrance.",
+    "trigger": "The clock turns amber at 60 seconds, red at 30, and gives one brief scale pulse at 30 and 10 seconds.",
+    "persistent": "A large monospaced countdown replaces the boss rule line.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/TikTakCountdown.swift",
+      "App/Views/GameplayScorePanel.swift"
+    ],
+    "notes": "The clock reads active gameplay time; Settings pauses it. No decorative second timer is used.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "handyDandy",
+    "name": "Handy Dandy",
+    "rule": "Up to two cards are barred each Turn; your whole Hand is never barred",
+    "entrance": "Paper lock tabs settle onto the exact barred Hand copies.",
+    "trigger": "When bars change each Turn, the old tabs leave and new tabs enter over 0.20 seconds; committed Hand feedback uses the shared barred-card pop.",
+    "persistent": "The exact barred copies remain sealed, with their number glyphs readable.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/NumberReturnMotion.swift"
+    ],
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "grayTheGarry",
+    "name": "Gray the Garry",
+    "rule": "A row is barred each Turn, unless it holds every remaining blank",
+    "entrance": "Terracotta bricks drop onto the actually barred blank squares one by one, 0.11 seconds apart.",
+    "trigger": "Old bricks lift and fade before the next row receives new drops. Each impact has a small rebound and dust that fades over 0.34 seconds.",
+    "persistent": "Settled clay bricks and contact shadows cover only barred blanks.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossBoardVisuals.swift",
+      "App/Views/GridView.swift"
+    ],
+    "notes": "Given or filled squares never receive bricks. Save/resume starts settled.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "garryTheGray",
+    "name": "Garry the Gray",
+    "rule": "A box is barred each Turn, unless it holds every remaining blank",
+    "entrance": "Terracotta bricks drop onto the actually barred blank squares one by one, 0.11 seconds apart.",
+    "trigger": "Old bricks lift and fade before the next box receives new drops. Each impact has a small rebound and dust that fades over 0.34 seconds.",
+    "persistent": "Settled clay bricks and contact shadows cover only barred blanks.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossBoardVisuals.swift",
+      "App/Views/GridView.swift"
+    ],
+    "notes": "Given or filled squares never receive bricks. Save/resume starts settled.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "galleyQueue",
+    "name": "The Galley Queue",
+    "rule": "Your two oldest available cards play first. Use one to open the next card.",
+    "entrance": "Sage PLAY trays and wider locked WAIT sleeves settle onto the exact Hand copies with the shared 0.23-second object arrival.",
+    "trigger": "When eligibility changes, old bands slide down and the next eligible copies receive PLAY bands with a 0.38-second spring. Numbers shift slightly upward to keep the labels clear.",
+    "persistent": "PLAY and WAIT are printed on the cards themselves; a separate outer selection ring identifies the selected card. Queue order follows arrival identity even when the Hand is sorted.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/BossLiveStatus.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift"
+    ],
+    "notes": "Independent bars keep their ordinary crossed-card treatment. Release Note can make an otherwise waiting exact copy playable; visual state follows that engine permission.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "bookends",
+    "name": "The Bookends",
+    "rule": "Only the lowest and highest available numbers can play.",
+    "entrance": "Brass side posts and LOW/HIGH bands settle onto eligible extrema; middle cards get locked WAIT sleeves.",
+    "trigger": "Posts and bands update with a 0.38-second spring when the available lowest or highest digits change. The existing card identity and display order stay intact.",
+    "persistent": "All eligible duplicate extrema show LOW or HIGH. If all available digits match, they show PLAY; a Release Note bypass on a middle card also shows PLAY.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/BossLiveStatus.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift"
+    ],
+    "notes": "The card selection ring remains separate from the brass bookends. No visual rearrangement changes eligibility.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "reprintBan",
+    "name": "The Reprint Ban",
+    "rule": "A number you filled this Turn waits while a new number can play. When only repeats remain, they open.",
+    "entrance": "Available cards enter with sage PLAY bands; restored or already used restricted copies show red locked USED bands.",
+    "trigger": "After a correct fill, repeated copies that now must wait receive red USED bands through a 0.38-second spring transition. Bands reopen to PLAY when repeats become available, and close again if a new available digit is drawn.",
+    "persistent": "The header names currently waiting digits and asks for a new number, or says Repeats are open when a repeat is actually playable.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/BossLiveStatus.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift"
+    ],
+    "notes": "Correct Clue fills count as used; wrong attempts do not. Independent bars and exact-copy Release Note bypasses are respected. End Turn clears the used-digit restriction.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "rebinder",
+    "name": "The Rebinder",
+    "rule": "At End Turn, return leftovers to the Pool before drawing a fresh Hand",
+    "entrance": "No separate boss entrance; the ordinary page reveal is used.",
+    "trigger": "At End Turn, the exact leftover tiles shrink, rotate and fade toward the Hand’s Pool edge, followed by the existing fresh-card arrivals.",
+    "persistent": "The header explains that leftovers return before refill.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/GameModel.swift",
+      "App/Views/NumberReturnMotion.swift",
+      "App/Views/HandStripView.swift"
+    ],
+    "notes": "This uses the shared number-return motion with actual outgoing card identities; there is no visible Pool label.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "lateCourier",
+    "name": "The Late Courier",
+    "rule": "Automatic bonus draws arrive after banking and count toward refill",
+    "entrance": "No separate boss entrance; the ordinary page reveal is used.",
+    "trigger": "Folded draw tickets rise in as draws are owed, then fly upward/fade on delivery while actual cards enter the Hand.",
+    "persistent": "A small ticket count sits on End Turn until the draws are delivered.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossTurnObjects.swift",
+      "App/Views/PuzzlePageView.swift",
+      "App/Views/HandStripView.swift"
+    ],
+    "notes": "Tickets show counts, never the future hidden digits.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "collator",
+    "name": "The Collator",
+    "rule": "Half your Hand waits for 2 correct fills or an empty first packet",
+    "entrance": "Open packet cards enter with sage PLAY bands. Waiting packet cards wear broader paper sleeves with a lock and two progress circles.",
+    "trigger": "Correct fills update the two circles. When the engine opens the packet, the waiting sleeve slides away and PLAY arrives with the shared 0.38-second spring.",
+    "persistent": "The digits remain face-up above the bands; the header reports packet progress or that both packets are open.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/BossLiveStatus.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift"
+    ],
+    "notes": "Packet release also occurs when no independently available first-packet card remains. This is a changing sleeve, not a separately animated wrapper tear.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "pageCutter",
+    "name": "The Page Cutter",
+    "rule": "Every 4 correct fills end the Turn; start with 4 extra Turns",
+    "entrance": "Four numbered paper tickets and scissors appear in the header with the visible caption 4 fills → bank.",
+    "trigger": "Tickets fill as the committed correct-fill count advances, using the shared 0.3-second status transition. The real automatic Turn boundary resets the tickets; the existing short cutter sweep remains beside the Turn label.",
+    "persistent": "The four-ticket progress display explains the automatic bank before the fourth fill is made.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Views/BossTurnObjects.swift",
+      "App/Views/PuzzlePageView.swift"
+    ],
+    "notes": "This pass adds visible progress, not a separate lever-pull or full-screen cut scene. Banking remains an engine action, including correct Clue fills.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "chainStitcher",
+    "name": "The Chain Stitcher",
+    "rule": "Follow your last placement: same row, column or box earns full placement Points; elsewhere earns half. Clues don't move the link.",
+    "entrance": "Before the first unaided fill, the header asks the player to place a number to start. A resumed anchor displays its settled gold scoring region directly.",
+    "trigger": "Each later correct non-Clue fill moves the brass anchor and gold full-price region. A transient 0.8-second stitch links the old and new anchors; a disconnected fill uses a broken red stitch and a brief half-points tag. The existing actual halving receipt remains.",
+    "persistent": "Gold wells identify available blanks sharing the anchor row, column or box, distinct from sage matching-number selection. The header key reads Lit ×1 / Other ½ with Placement points. No persistent connecting line remains.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/BossLiveStatus.swift",
+      "App/Views/BossChainGuidance.swift",
+      "App/Views/GridView.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Views/BossScoreReceipt.swift"
+    ],
+    "notes": "Geometry never predicts a correct digit. Clues and wrong/rejected attempts do not move the anchor. Passage-enabled squares are included. The region and key stop during frozen scoring; first fill each Turn is full, and simultaneous clear bonuses are unchanged.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "returnSlip",
+    "name": "The Return Slip",
+    "rule": "Wrong cards return sealed until next Turn; normal penalties still apply",
+    "entrance": "No separate boss entrance. Any saved sealed Hand copies appear with full-width red SEALED bands rather than tiny lock tabs.",
+    "trigger": "A wrong card uses the existing exact-copy return flight and normal penalty. Its SEALED band enters with the shared 0.38-second spring and leaves when the next Turn releases it.",
+    "persistent": "Returned numbers remain readable above their red SEALED bands. The header reports how many cards are sealed.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Model/BossLiveStatus.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/NumberReturnMotion.swift",
+      "App/Model/GameModel.swift"
+    ],
+    "notes": "The seal does not cancel wrong-placement penalties. Exact-copy Release Note permission clears the visible blocked treatment while it applies.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "orphanLine",
+    "name": "The Orphan Line",
+    "rule": "Banking costs 20 queued Points per leftover card, up to 100",
+    "entrance": "A paper-stack symbol and live red Points debit appear in the existing header beside the leftover-card count.",
+    "trigger": "The prospective debit updates before End Turn as Hand size and queued Points change. Committed scoring and Points changes receive 0.3-second numeric transitions; banking retains the actual torn-receipt debit.",
+    "persistent": "The player can see the exact capped debit for ending now. Accessibility states that it is applied to Points before Mult.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Model/BossLiveStatus.swift"
+    ],
+    "notes": "There are no separate debt tickets on every Hand card. The displayed debit includes the current queued Points cap and is not a subtraction from final multiplied score.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "serialPublisher",
+    "name": "The Serial Publisher",
+    "rule": "Bank up to a third of target. Carry overflow; Full Clear pays all",
+    "entrance": "The existing header shows separate bordered BANK and stacked HOLD paper slips as soon as the scoring preview is available; no separate entrance cinematic.",
+    "trigger": "Live paid and carried amounts update from the real settlement preview with 0.3-second numeric transitions. Banking retains the actual banded settlement receipt.",
+    "persistent": "BANK and HOLD display the exact score paid now versus carried after banking. During Keep Filling, saved carry remains visible as HELD with Full Clear pays.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Model/BossLiveStatus.swift"
+    ],
+    "notes": "The held stack is a layered paper drawing, not a separate travelling-score animation. All values come from the saved state and pure ledger preview; Full Clear pays remaining carry.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "bindery",
+    "name": "The Bindery",
+    "rule": "Bookmarks pin on your first action; odd Turns read forwards, even Turns backwards",
+    "entrance": "Before the first action, the header shows that Bookmarks can be arranged. Pinning settles the stitched thread beneath the inventory.",
+    "trigger": "Actual Bookmark receipts move a brass-and-wood shuttle to the paid source in engine scoring order. Each passage has a short lift, contact, and settle; the header changes its read direction with the Turn.",
+    "persistent": "The stitched inventory and pin indicate that order is fixed for the Puzzle. Odd Turns read rightwards; even Turns read leftwards.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossBinderyThread.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/BookmarkRow.swift"
+    ],
+    "notes": "Shuttle motion follows committed source receipts. It does not reorder Bookmarks or run an idle loop.",
+    "active": true,
+    "tier": "final"
+  },
+  {
+    "id": "embargo",
+    "name": "The Embargo",
+    "rule": "Use preparation Buffs before your first placement attempt each Turn",
+    "entrance": "No separate boss entrance; the ordinary page reveal is used.",
+    "trigger": "After the first placement attempt, eligible preparation Buffs dim and small lock seals slide/fade in; next Turn clears them.",
+    "persistent": "Only preparation Buffs affected by the engine restriction are sealed.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BookmarkRow.swift",
+      "App/Views/BossPaperObjects.swift"
+    ],
+    "notes": "Embargo uses the existing Buff-slot seal transition rather than a separate embargo banner.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "dryPress",
+    "name": "The Dry Press",
+    "rule": "After a marked fill, its placement bonuses sleep until an unmarked fill",
+    "entrance": "A larger framed ink pad appears in the existing header: glossy dark felt marked INKED or pale cracked felt marked DRY, with a drop symbol.",
+    "trigger": "When readiness changes, the pad compresses to 90 percent then settles over 0.29 seconds; its wet/dry treatment transitions over 0.25 seconds.",
+    "persistent": "INKED and DRY are printed inside the physical pad. Gloss versus cracks and a crossed dry-drop symbol distinguish states beyond color alone.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/GameplayScorePanel.swift"
+    ],
+    "notes": "This is a stateful pad, not an ink flight from the board. Accessibility explains that an unmarked fill re-inks; the engine controls which immediate bonuses are suppressed.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "reviewBoard",
+    "name": "The Review Board",
+    "rule": "Reach the target and complete a row, a column and a box",
+    "entrance": "Three paper approval cards show miniature row, column and box diagrams with ROW, COL and BOX labels.",
+    "trigger": "A newly earned approval compresses then settles over 0.27 seconds. A check badge enters over 0.22 seconds and the approved card receives a sage border and slight tilt.",
+    "persistent": "Distinct unit diagrams and check badges show which approvals are earned and which remain, while the ordinary target remains in the score HUD.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/GameplayScorePanel.swift"
+    ],
+    "notes": "Approvals reflect committed engine units; neither the card pulse nor a redraw grants approval.",
+    "active": true,
+    "tier": "final"
+  },
+  {
+    "id": "rivalColumn",
+    "name": "The Rival Column",
+    "rule": "Beat your previous bank or lose 20% of this bank, up to 100 points",
+    "entrance": "The header invites the player to set a first record, then presents the live bank beside its saved rival benchmark.",
+    "trigger": "A live comparison meter grows with the bank preview, changing to sage and a checkered flag when the benchmark is beaten. Numerical changes use 0.3-second transitions; the actual bank fee still uses its settlement receipt.",
+    "persistent": "The header labels the comparison Now to Rival, or Now / Rival beaten. Accessibility includes the exact fee if ending now.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Model/BossLiveStatus.swift"
+    ],
+    "notes": "The comparison uses gross bank score; equality does not beat the rival. No new engine benchmark or fee is created by rendering.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "royaltyContract",
+    "name": "The Royalty Contract",
+    "rule": "Each Buff spent adds 5% of the starting target, up to 3 times",
+    "entrance": "Three unsigned miniature contract slips sit in the header alongside the exact next target increase.",
+    "trigger": "An actually spent Buff adds a wax signature seal to the next slip with a brief contact-and-settle transition. The real target increases and its existing signature tab shows the change.",
+    "persistent": "The three slips show exactly how many increases were charged. Next cost comes from the engine; once no increase remains, the contract reads SEALED and Target fixed.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "Engine/Sources/NumberClubEngine/BossBuffRules.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/BossTargetNumber.swift"
+    ],
+    "notes": "Restoring the same charged seals does not replay their impact. The seals never consume a Buff or apply an increase.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "publicist",
+    "name": "The Publicist",
+    "rule": "Each Bookmark’s flat placement or Line Clear bonus pays once per Turn",
+    "entrance": "The header shows a paper punchcard counting paid Bookmark bonuses this Turn.",
+    "trigger": "The shared scoring-source outline identifies an actually paid Bookmark. A larger readable PAID stamp appears on that exact owned copy and the header count updates.",
+    "persistent": "Each copy retains its PAID stamp for the rest of the Turn. The count and stamps reset next Turn; other effects remain active.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossInventoryStamp.swift",
+      "App/Views/BossHeaderObjects.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/BookmarkRow.swift"
+    ],
+    "notes": "The PAID stamp itself remains static. A count is not a claim that every kind of effect on that Bookmark is disabled.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "wordCount",
+    "name": "The Word Count",
+    "rule": "Item bonuses to natural placements share 150 Points per Turn",
+    "entrance": "A printer symbol, remaining / 150 amount and filled allowance meter occupy the existing header.",
+    "trigger": "The meter drains with committed extra placement Points and its number transitions over 0.3 seconds. An actual clipped award still shows the existing ruler-like deduction receipt.",
+    "persistent": "Bonus points left states the remaining shared allowance. The meter resets with the real Turn boundary.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossStatusDiagram.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Model/BossLiveStatus.swift"
+    ],
+    "notes": "The allowance is for item-added natural-placement Points; base Points and clear bonuses are unchanged. No additional budget is maintained by the view.",
+    "active": false,
+    "tier": "historical"
+  },
+  {
+    "id": "backPage",
+    "name": "The Back Page",
+    "rule": "Natural number values run backwards: 1 scores 90, 9 scores 10",
+    "entrance": "Each otherwise available Hand card gets a sage price band showing its reversed natural placement value, such as 1 at 90 pts and 9 at 10 pts.",
+    "trigger": "Price bands use the shared card-object arrival and spring changes. The actual base-Points receipt retains its 0.22-second forward flip when a number scores.",
+    "persistent": "The printed Point price is visible before committing a card; the digit remains large above it. Header examples remain available.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "App/Views/BossHandTreatment.swift",
+      "App/Views/HandStripView.swift",
+      "App/Views/BossPaperObjects.swift",
+      "App/Views/BossScoreReceipt.swift",
+      "App/Model/BossLiveStatus.swift"
+    ],
+    "notes": "Prices are natural base Points before other modifiers, not a full award prediction. Bands are absent during frozen scoring; the board and screen do not flip.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "collateral",
+    "name": "The Collateral",
+    "rule": "Target +50%. Before acting, pledge one card for +2 Mult this Turn. Banking returns it.",
+    "entrance": "An open paper envelope occupies the existing boss header. Selecting an eligible hand tile previews that exact number beside the Pledge action.",
+    "trigger": "A committed pledge slides the selected tile into the envelope and seals it with a +2 wax seal. A finite anticipation/contact/settle beat accompanies sealing. Banking returns that same tile and reopens preparation for the next Turn.",
+    "persistent": "The sealed envelope names the pledged number and says it returns at bank. Before a choice, the control distinguishes Pick a tile, Pledge, an ineligible selection, and closed preparation.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "Engine/Sources/NumberClubEngine/BossEncounterRules.swift",
+      "App/Views/BossEncounterObjects.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Model/GameModel.swift"
+    ],
+    "notes": "+2 Mult is added before ordered Bookmark operations. The pledged tile keeps its identity and is unavailable until bank; no animation mutates inventory or awards Mult.",
+    "active": true,
+    "tier": "regular"
+  },
+  {
+    "id": "splitEdition",
+    "name": "The Split Edition",
+    "rule": "Fill both editions. Choose where this Turn’s score goes before acting; excess stays in that edition.",
+    "entrance": "Two small A/B paper stacks appear in the existing header. A brass clip marks the selected destination.",
+    "trigger": "Selecting a destination moves the brass emphasis. A committed score increase presses a sheet onto the receiving stack with a short lift/contact/settle beat. The engine locks selection after an accepted action until the next Turn.",
+    "persistent": "Both stacks show their own exact score and target, a progress line, and completion seal. An odd total target is split using each authoritative target rather than rounding them to the same value.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "Engine/Sources/NumberClubEngine/BossEncounterRules.swift",
+      "App/Views/BossEncounterObjects.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Model/GameModel.swift"
+    ],
+    "notes": "Both editions must meet their target. Direct score awards and banks go to the selected edition; excess never spills into the other. The controls do not add an inventory row.",
+    "active": true,
+    "tier": "final"
+  },
+  {
+    "id": "lastEdition",
+    "name": "The Last Edition",
+    "rule": "One bank to win. Start with 4 extra cards and one quarter of the usual target. No extra Turns or rescue.",
+    "entrance": "A single paper sheet waits between press rails in the existing header. The sheet and ONE BANK label state the limited opportunity.",
+    "trigger": "Only a real bank event drives the platen anticipation, compression, brief hold, and release. The brass lever lowers and the sheet becomes PRINTED; changing a live score does not trigger the press.",
+    "persistent": "Before banking, the header shows the live projected score and one available bank. A spent bank shows a neutral printed-sheet mark; victory is decided separately by the engine.",
+    "sources": [
+      "Engine/Sources/NumberClubEngine/BossModifiers.swift",
+      "Engine/Sources/NumberClubEngine/BossEncounterRules.swift",
+      "App/Views/BossEncounterObjects.swift",
+      "App/Views/GameplayScorePanel.swift",
+      "App/Model/GameModel.swift"
+    ],
+    "notes": "The neutral printed mark does not imply success. No Keep Filling, extra Turns, or rewarded rescue can grant a second bank; animation callbacks never bank score.",
+    "active": true,
+    "tier": "final"
+  }
+]

@@ -30,7 +30,7 @@ final class RulesTests: XCTestCase {
     func testLitmusArmsUntilEitherKindOfPlacement() throws {
         var game = try startedGame()
         game.give(buff: Buffs.litmus)
-        XCTAssertTrue(try game.useBuff(at: 0))
+        XCTAssertTrue(try game.useBuff(at: 0, digit: .five))
         XCTAssertTrue(game.puzzle!.armedFlags.contains(.litmus))
 
         let correct = game.blank(wanting: .five)!
@@ -38,7 +38,7 @@ final class RulesTests: XCTestCase {
         XCTAssertFalse(game.puzzle!.armedFlags.contains(.litmus))
 
         game.give(buff: Buffs.litmus)
-        XCTAssertTrue(try game.useBuff(at: 0))
+        XCTAssertTrue(try game.useBuff(at: 0, digit: .four))
         let wrongSquare = game.blank(wanting: .one)!
         let wrong: Digit = game.puzzle!.board.correctDigit(at: wrongSquare) == .four ? .five : .four
         _ = try game.place(handIndex: game.stackHand(with: wrong)!, at: wrongSquare)
@@ -48,7 +48,7 @@ final class RulesTests: XCTestCase {
     func testLitmusStaysArmedWhenAPlacementIsBarred() throws {
         var game = try startedGame()
         game.give(buff: Buffs.litmus)
-        XCTAssertTrue(try game.useBuff(at: 0))
+        XCTAssertTrue(try game.useBuff(at: 0, digit: .five))
         let square = game.blank(wanting: .five)!
         var bossTurn = BossTurnState()
         bossTurn.fouled[square] = 2
@@ -212,7 +212,7 @@ final class RulesTests: XCTestCase {
     }
 
     func testOnyxRestoresAcluePlacementButNotItsLineClear() throws {
-        var game = try startedGame(book: .noPressure)
+        var game = Game(seed: "onyx-clue-clear", book: .noPressure)
         game.give(ad: Bookmarks.puzzleCorner)   // a second Clue
         try game.startPuzzle()
 
@@ -311,12 +311,15 @@ final class RulesTests: XCTestCase {
         XCTAssertFalse(game.isOver)
     }
 
-    func testMorningEditionPaysOutAtEachTurnEnd() throws {
+    func testMorningEditionPaysOnlyAfterAnEligiblePlacement() throws {
         var game = try startedGame()
         game.give(ad: "bm_morning_edition")
+        XCTAssertEqual(try game.endTurn().pointsGained, 0)
+        let digit = try XCTUnwrap(game.puzzle?.hand.first)
+        _ = try game.place(handIndex: 0, at: XCTUnwrap(game.blank(wanting: digit)))
         let result = try game.endTurn()
-        XCTAssertEqual(result.pointsGained, 100)
-        XCTAssertEqual(game.puzzle?.score, 100)
+        XCTAssertEqual(result.pointsGained, digit.rawValue * 10 + 100)
+        XCTAssertEqual(game.puzzle?.score, digit.rawValue * 10 + 100)
     }
 
     // MARK: Ending a Puzzle (§7)

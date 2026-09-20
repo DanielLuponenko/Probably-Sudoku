@@ -70,7 +70,7 @@ final class BookSidegradeTests: XCTestCase {
             var game = Game(seed: "book-reroll", book: .secondThoughts)
             game.run.coins = 100
             if ownsAuction { game.give(ad: Bookmarks.auctionNotices) }
-            game.openShop()
+            Shop.open(&game.run)
             XCTAssertEqual(game.shop?.rerollCost, 0)
             try game.reroll()
             XCTAssertEqual(game.run.coins, 100)
@@ -82,7 +82,7 @@ final class BookSidegradeTests: XCTestCase {
             try game.reroll()
             XCTAssertEqual(game.run.coins, 95)
             XCTAssertEqual(game.shop?.rerollCost, 4)
-            game.openShop()
+            Shop.open(&game.run)
             XCTAssertEqual(game.shop?.rerollCost, 0)
         }
     }

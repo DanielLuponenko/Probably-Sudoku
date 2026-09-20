@@ -130,13 +130,15 @@ final class RunStoreCompletionCompatibilityTests: XCTestCase {
         var run = RunState(seed: "completed-receipt-fixture", book: .smallVictories, obstacle: .shortHanded)
         run.level = 9
         run.slot = .boss
+        // These tests isolate paid/unpaid storage semantics. Choose an
+        // encounter whose victory condition is the score under test.
+        run.pendingBoss = .heavyLifter
         var game = Game(run: run)
         try game.startPuzzle()
-        run = game.run
-        let target = try XCTUnwrap(run.puzzle).target
-        run.puzzle?.score = target
-        run.puzzle?.phase = .won
-        return Game(run: run)
+        game.qaMeetTarget()
+        XCTAssertEqual(game.puzzle?.boss, .heavyLifter)
+        XCTAssertEqual(game.puzzle?.phase, .won)
+        return game
     }
 
     private func pendingRescue() throws -> Game {

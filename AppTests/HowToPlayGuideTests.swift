@@ -57,8 +57,8 @@ final class HowToPlayGuideTests: XCTestCase {
         for name in Set(GuideFigure.allCases.map(\.asset)) {
             let image = try XCTUnwrap(UIImage(named: name), "Missing actual game capture: \(name)")
             let pixels = try XCTUnwrap(image.cgImage)
-            XCTAssertEqual(pixels.width, 1284, name)
-            XCTAssertEqual(pixels.height, 2778, name)
+            XCTAssertEqual(pixels.width, 750, name)
+            XCTAssertEqual(pixels.height, 1334, name)
         }
     }
 

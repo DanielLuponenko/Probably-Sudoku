@@ -1,46 +1,54 @@
 import SwiftUI
 import ProbablySudokuEngine
 
-/// §9 — the Shop is its own page of the book, reached by turning one. Stock is
-/// always two Bookmarks, two Markers and one Buff.
+/// The catalogue is a single sheet. It divides the viewport left by the shared
+/// inventory into three rows, including a second Buff in historical Shops.
 struct ShopPageView: View {
     @Bindable var model: GameModel
     var shop: ShopState
     var onClaimMarker: (Int) -> Void
     var onOfferPresentationChange: (Bool) -> Void = { _ in }
+    var isPresentationCovered = false
+    var canStartPresentation: @MainActor () -> Bool = { true }
+    #if DEBUG
+    /// Hosted lifecycle tests invoke the exact production Button action.
+    var onContinueReady: ((@escaping @MainActor () -> Void) -> Void)? = nil
+    #endif
     @State private var markerPurchase = PendingMarkerPurchase()
     @State private var inspectedOffer: ShopOffer?
+    @State private var continueTask: Task<Void, Never>?
+    @State private var continueRequestID: UUID?
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PageFlipper.self) private var flipper
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.bookPresentation) private var bookTheme
     @Environment(\.cosmeticTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     var body: some View {
         GeometryReader { proxy in
-            // This is a composed page, not a feed. Scale the fixed editorial
-            // composition to the available sheet so all five offers and the
-            // action are visible together on every phone.
-            let designHeight: CGFloat = 860
-            let scale = min(1, proxy.size.height / designHeight)
-
-            catalogue
-                .frame(width: proxy.size.width / scale, height: designHeight, alignment: .topLeading)
-                .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-                .background {
-                    Image("BetweenPuzzlesPaper")
-                        .resizable()
-                        .scaledToFill()
-                        .opacity(0.24)
-                        .blendMode(.multiply)
-                        .padding(-16)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+            let layout = ShopPageLayout(available: proxy.size, textScale: textScale,
+                                        hasReservation: model.run.buffState.reservationIntent != nil)
+            VStack(spacing: layout.spacing) {
+                header(layout: layout)
+                if shop.offers.count > 5 {
+                    expandedStock(layout: layout, height: max(60, (proxy.size.height - layout.headerHeight - layout.footerHeight - 6 * layout.spacing - layout.bottomPadding) / 3))
+                } else {
+                    offerSection(title: "Bookmarks", kind: .bookmark, layout: layout)
+                    offerSection(title: "Markers", kind: .marker, layout: layout)
+                    offerSection(title: "Buffs", kind: .buff, layout: layout)
                 }
+                Spacer(minLength: 0)
+                continueButton(layout: layout)
+                    .inventorySaleActionArea()
+            }
+            .padding(.horizontal, 4)
+            .padding(.bottom, layout.bottomPadding)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
-        .sheet(item: $inspectedOffer, onDismiss: {
+        .paperPanel(item: $inspectedOffer, onDismiss: {
             onOfferPresentationChange(false)
-            // UIKit has removed the offer sheet and its dimmer. Only now lay
+            // The custom panel and its dimmer have finished closing. Now lay
             // the placement slip on the desk, never behind a departing sheet.
             if let index = markerPurchase.takeAfterOfferDismissal() {
                 onClaimMarker(index)
@@ -51,24 +59,27 @@ struct ShopPageView: View {
             }
         }
         .onChange(of: inspectedOffer?.id) { _, offerID in
-            // Stay paused throughout dismissal, until UIKit removes the sheet.
             if offerID != nil { onOfferPresentationChange(true) }
         }
-        .onDisappear { onOfferPresentationChange(false) }
-    }
-
-    private var catalogue: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            offerSection(title: "Bookmarks", kind: .bookmark)
-            offerSection(title: "Markers", kind: .marker)
-            offerSection(title: "Buffs", kind: .buff)
-            pageDivider
-            PaperButton(title: "Continue", subtitle: "Next Puzzle", kind: .primary) {
-                Task {
-                    await flipper.flip(from: model, reduceMotion: reduceMotion) { model.continueToNextPuzzle() }
-                }
-            }
+        .task(id: "\(model.puzzlePreparationRevision)-\(scenePhase == .active)") {
+            guard scenePhase == .active else { model.cancelShopExitPreparation(); return }
+            _ = await model.prepareShopExit()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { cancelContinue(); model.cancelShopExitPreparation() }
+        }
+        .onChange(of: isPresentationCovered) { _, covered in
+            if covered { cancelContinue() }
+        }
+        #if DEBUG
+        .onAppear { onContinueReady?(requestContinue) }
+        #endif
+        .onDisappear {
+            // The first printed frame commits the next briefing. Its curl
+            // outlives this outgoing Shop; other departures cancel the wait.
+            if model.page != .briefing || !flipper.isFlipping { cancelContinue() }
+            model.cancelShopExitPreparation()
+            onOfferPresentationChange(false)
         }
     }
 
@@ -76,120 +87,186 @@ struct ShopPageView: View {
         switch kind {
         case .bookmark: return model.run.bookmarks.count < kind.capacity
         case .marker: return true
-        case .buff: return model.run.buffs.count < kind.capacity
+        case .buff: return model.run.buffs.count < model.buffCapacity
         case .subscription: return true
         }
     }
 
-    @ViewBuilder private func offerSection(title: String, kind: ItemKind) -> some View {
+    @ViewBuilder private func offerSection(title: String, kind: ItemKind, layout: ShopPageLayout) -> some View {
         let offers = shop.offers.filter { $0.def.kind == kind }
         if !offers.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                sectionRule(title)
-
-                if kind == .buff {
+            VStack(alignment: .leading, spacing: layout.labelSpacing) {
+                sectionRule(title, layout: layout)
+                HStack(spacing: layout.spacing) {
                     ForEach(offers) { offer in
-                        OfferCard(offer: offer,
-                                  affordable: model.coins >= offer.price,
+                        OfferCard(offer: quoted(offer),
+                                  affordable: model.coins >= quoted(offer).price,
                                   hasSlot: hasSlot(for: kind),
-                                  layout: .wide) {
+                                  layout: offers.count == 1 ? .wide : .column,
+                                  fittedHeight: layout.cardHeight,
+                                  textScale: layout.cardTextScale) {
                             inspectedOffer = offer
                         }
-                    }
-                } else {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
-                                         GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                        ForEach(offers) { offer in
-                            OfferCard(offer: offer,
-                                      affordable: model.coins >= offer.price,
-                                      hasSlot: hasSlot(for: kind),
-                                      layout: .column) {
-                                inspectedOffer = offer
-                            }
-                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
+                .frame(height: layout.cardHeight)
             }
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Shop")
-                .pageHeading(62)
-                .fixedSize(horizontal: false, vertical: true)
+    private func quoted(_ offer: ShopOffer) -> ShopOffer {
+        ShopOffer(slot: offer.slot, defID: offer.defID,
+                  price: Shop.purchasePrice(model.run, slot: offer.slot) ?? offer.price, sold: offer.sold)
+    }
 
-            rerollButton
-
-            Text("Choose an item to take into the next puzzle.")
-                .font(Print.body(18))
-                .foregroundStyle(theme.paper.softInk)
+    private func expandedStock(layout: ShopPageLayout, height: CGFloat) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: layout.spacing) {
+            ForEach(shop.offers) { offer in
+                OfferCard(offer: quoted(offer), affordable: model.coins >= quoted(offer).price,
+                          hasSlot: hasSlot(for: offer.def.kind), layout: .column,
+                          fittedHeight: height, textScale: layout.cardTextScale) { inspectedOffer = offer }
+                    .frame(height: height)
+            }
         }
     }
 
-    private func sectionRule(_ title: String) -> some View {
-        HStack(spacing: 0) {
+    private func header(layout: ShopPageLayout) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Text("Shop")
+                    .font(.system(size: layout.compact ? 32 : 36, weight: .bold, design: .serif))
+                    .foregroundStyle(theme.paper.ink)
+                Spacer(minLength: 8)
+                rerollButton(layout: layout)
+            }
+            .frame(height: 44)
+            if layout.hasReservation {
+                Button { model.cancelReservation() } label: {
+                    Label("Cancel reservation", systemImage: "xmark")
+                        .font(Print.caption(12 * layout.actionTextScale))
+                        .foregroundStyle(Paper.redPencil)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("shop.cancel-reservation")
+            }
+        }
+        .frame(height: layout.headerHeight)
+    }
+
+    private func sectionRule(_ title: String, layout: ShopPageLayout) -> some View {
+        HStack(spacing: 9) {
             Text(title)
-                .font(Print.caption(13))
-                .tracking(3)
+                .font(Print.caption(10 * layout.cardTextScale))
+                .tracking(2)
                 .textCase(.uppercase)
-                .foregroundStyle(theme.paper.ink)
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .background(bookTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                .foregroundStyle(theme.paper.softInk)
             Rectangle()
                 .fill(theme.paper.ruleInk.opacity(0.72))
                 .frame(height: 1)
         }
+        .frame(height: layout.labelHeight)
+        .accessibilityAddTraits(.isHeader)
     }
 
-    /// Rerolling is the Shop's own action, so it lives on the Shop's page.
-    private var rerollButton: some View {
+    private func rerollButton(layout: ShopPageLayout) -> some View {
         Button { model.reroll() } label: {
             HStack(spacing: 5) {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 20, weight: .semibold))
                 Text("Reroll")
-                    .font(Print.subheading(20))
-                coinMark
-                Text(shop.rerollCost == 0 ? "Free" : "\(shop.rerollCost)")
-                    .font(Print.numeral(20, weight: .bold))
+                Circle()
+                    .fill(LinearGradient(colors: [Paper.coin, Paper.coinRim], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 15, height: 15)
+                Text(Shop.rerollPrice(model.run) == 0 ? "Free" : "\(Shop.rerollPrice(model.run))")
+                    .monospacedDigit()
             }
+            .font(Print.subheading(15 * layout.actionTextScale))
             .foregroundStyle(bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
-            .padding(.horizontal, 16)
-            .frame(height: 54)
+            .padding(.horizontal, 12)
+            .frame(height: 44)
             .background { RoundedRectangle(cornerRadius: 4).fill(theme.paper.warm) }
             .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(bookTheme.accent.opacity(0.7), lineWidth: 1) }
         }
         .buttonStyle(PressedPaperStyle())
-        .disabled(model.coins < shop.rerollCost)
-        .opacity(model.coins < shop.rerollCost ? 0.45 : 1)
-        .accessibilityLabel(shop.rerollCost == 0 ? "Reroll the shop for free"
-                                                   : "Reroll the shop for \(shop.rerollCost) \(shop.rerollCost == 1 ? "coin" : "coins")")
+        .disabled(model.coins < Shop.rerollPrice(model.run))
+        .opacity(model.coins < Shop.rerollPrice(model.run) ? 0.45 : 1)
+        .accessibilityLabel(Shop.rerollPrice(model.run) == 0 ? "Reroll the shop for free"
+                                                   : "Reroll the shop for \(Shop.rerollPrice(model.run)) \(Shop.rerollPrice(model.run) == 1 ? "coin" : "coins")")
+        .accessibilityIdentifier("shop.reroll")
     }
 
-    private var coinMark: some View {
-        ZStack {
-            Circle().fill(LinearGradient(colors: [Paper.coin, Paper.coinRim], startPoint: .top, endPoint: .bottom))
-            Circle().strokeBorder(Paper.coinRim.opacity(0.85), lineWidth: 1)
-            Text("N").font(Print.caption(10)).foregroundStyle(Paper.ink.opacity(0.76))
+    private func continueButton(layout: ShopPageLayout) -> some View {
+        Button(action: requestContinue) {
+            HStack(spacing: 8) {
+                Text(continueRequestID == nil ? "Continue" : "Preparing…")
+                Image(systemName: "arrow.right")
+            }
+            .font(Print.subheading(18 * layout.actionTextScale))
+            .foregroundStyle(bookTheme.buttonForeground)
+            .frame(maxWidth: .infinity)
+            .frame(height: layout.footerHeight)
+            .background(bookTheme.buttonFill, in: RoundedRectangle(cornerRadius: 5))
         }
-        .frame(width: 26, height: 26)
+        .buttonStyle(PressedPaperStyle())
+        .disabled(continueRequestID != nil)
+        .accessibilityLabel("Continue to next puzzle")
+        .accessibilityIdentifier("shop.continue")
     }
 
-    private var pageDivider: some View {
-        HStack(spacing: 10) {
-            Rectangle().fill(theme.paper.ruleInk.opacity(0.7)).frame(height: 1)
-            Circle().fill(theme.paper.faintInk.opacity(0.66)).frame(width: 7, height: 7)
-            Rectangle().fill(theme.paper.ruleInk.opacity(0.7)).frame(height: 1)
+    private func requestContinue() {
+        guard continueRequestID == nil, scenePhase == .active, !flipper.isFlipping,
+              !isPresentationCovered, canStartPresentation() else { return }
+        let requestID = UUID()
+        continueRequestID = requestID
+        continueTask = Task { @MainActor in
+            defer {
+                if continueRequestID == requestID { continueRequestID = nil; continueTask = nil }
+            }
+            guard let ready = await model.prepareShopExit(), !Task.isCancelled,
+                  continueRequestID == requestID, scenePhase == .active,
+                  !isPresentationCovered, canStartPresentation() else { return }
+            await flipper.flip(from: model, reduceMotion: reduceMotion) {
+                guard continueRequestID == requestID, scenePhase == .active,
+                      !isPresentationCovered, canStartPresentation() else { return }
+                model.leavePreparedShop(ready)
+            }
         }
-        .padding(.vertical, 2)
     }
 
+    private func cancelContinue() {
+        continueRequestID = nil
+        continueTask?.cancel()
+        continueTask = nil
+    }
 }
 
-/// A purchase has committed, but its native detail sheet still owns the screen.
-/// Keep the placement request until that sheet's actual dismissal callback.
+/// Give every offer a real share of the screen before choosing its typography.
+/// Large accessibility copy remains available in the custom detail panel and
+/// in each offer's complete spoken label; the overview never clips off a row.
+struct ShopPageLayout {
+    var available: CGSize
+    var textScale: CGFloat = 1
+    var hasReservation = false
+    var compact: Bool { available.height < 610 }
+    var spacing: CGFloat { compact ? 6 : 10 }
+    var labelSpacing: CGFloat { 4 }
+    var labelHeight: CGFloat { 16 }
+    var headerHeight: CGFloat { hasReservation ? 88 : 44 }
+    var footerHeight: CGFloat { textScale > 1.3 ? 60 : 52 }
+    var bottomPadding: CGFloat { 6 }
+    var actionTextScale: CGFloat { min(textScale, 1.25) }
+    var cardTextScale: CGFloat { min(textScale, compact ? 1.08 : 1.2) }
+    var cardHeight: CGFloat {
+        let fixed = headerHeight + footerHeight + bottomPadding + spacing * 5
+            + (labelHeight + labelSpacing) * 3
+        return max(44, min(220, (available.height - fixed) / 3))
+    }
+}
+
+/// A purchase has committed, but its detail panel still owns the screen.
+/// Keep the placement request until that panel's actual dismissal callback.
 struct PendingMarkerPurchase {
     private(set) var markerIndex: Int?
 
@@ -216,6 +293,8 @@ struct OfferCard: View {
     var affordable: Bool
     var hasSlot: Bool
     var layout: Layout
+    var fittedHeight: CGFloat? = nil
+    var textScale: CGFloat = 1
     var inspect: () -> Void
 
     private var def: ItemDef { offer.def }
@@ -229,9 +308,13 @@ struct OfferCard: View {
     /// The printed face owns the original card geometry. Its minimum height
     /// can grow with the copy; inspection treatment must not add to it.
     @ViewBuilder var ticketFace: some View {
-        switch layout {
-        case .column: columnContent
-        case .wide: wideContent
+        if let fittedHeight {
+            fittedContent(height: fittedHeight)
+        } else {
+            switch layout {
+            case .column: columnContent
+            case .wide: wideContent
+            }
         }
     }
 
@@ -254,18 +337,63 @@ struct OfferCard: View {
         .accessibilityIdentifier("shop.offer.\(offer.slot)")
     }
 
+    private func fittedContent(height: CGFloat) -> some View {
+        let generous = height >= 150
+        return VStack(alignment: .leading, spacing: generous ? 8 : 2) {
+            HStack(alignment: .center, spacing: 6) {
+                illustration(size: generous ? 30 : 24)
+                Text(def.name)
+                    .font(Print.subheading((generous ? 16 : 14) * textScale))
+                    .foregroundStyle(theme.paper.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.9)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(ShopOfferSummary.text(for: def))
+                .font(Print.body((generous ? 14 : 12) * textScale))
+                .foregroundStyle(theme.paper.softInk)
+                .lineLimit(4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                HStack(spacing: 3) {
+                    Circle()
+                        .fill(LinearGradient(colors: [Paper.coin, Paper.coinRim],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: 12, height: 12)
+                    Text("\(offer.price)")
+                        .font(Print.numeral(14 * textScale, weight: .bold))
+                        .foregroundStyle(theme.paper.ink)
+                }
+                Spacer(minLength: 0)
+                Text(offer.sold ? "Sold" : (!hasSlot ? "Slots full · Details" : (!affordable ? "Need coins · Details" : "Details ↗")))
+                    .font(Print.caption(10))
+                    .foregroundStyle(affordable && hasSlot && !offer.sold
+                                     ? bookTheme.quietInk(onDarkPaper: theme.paper.isDark)
+                                     : palette.resolved(for: theme.paper).danger)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+            }
+        }
+        .padding(generous ? 10 : 6)
+        .frame(maxWidth: .infinity)
+        .frame(height: height, alignment: .topLeading)
+    }
+
     private var columnContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 6) {
                 illustration(size: 30)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(def.name)
-                        .font(Print.subheading(15))
-                        .foregroundStyle(theme.paper.ink)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    RarityImprint(rarity: def.rarity)
-                }
+                Text(def.name)
+                    .font(Print.subheading(15))
+                    .foregroundStyle(theme.paper.ink)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(alignment: .bottom) {
+                RarityImprint(rarity: def.rarity)
+                Spacer(minLength: 4)
                 priceImprint(compact: true)
             }
             Rectangle().fill(theme.paper.ruleInk.opacity(0.65)).frame(maxWidth: .infinity).frame(height: 1)
@@ -296,21 +424,7 @@ struct OfferCard: View {
 
     /// A Marker's illustration is the colour itself — it is a mark, not an object.
     private func illustration(size: CGFloat) -> some View {
-        PrintedItemIllustration(size: size) {
-            if def.kind == .marker {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Paper.markerColor(def.id).opacity(0.4))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 2)
-                            .strokeBorder(Paper.markerColor(def.id), lineWidth: 2)
-                    }
-                    .frame(width: size * 0.55, height: size * 0.55)
-            } else {
-                Image(systemName: ItemIcon.symbol(for: def.id))
-                    .font(.system(size: size * 0.58, weight: .light))
-                    .foregroundStyle(bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
-            }
-        }
+        ItemArtwork(id: def.id, size: size)
     }
 
     private func priceImprint(compact: Bool) -> some View {
@@ -324,21 +438,71 @@ struct OfferCard: View {
                     .font(Print.numeral(compact ? 15 : 18, weight: .bold))
             }
             .foregroundStyle(theme.paper.ink)
-            Text(availability)
-                .font(Print.caption(compact ? 8 : 10))
+            Text(compact ? compactAvailability : availability)
+                .font(Print.caption(10))
                 .lineLimit(1)
-                .minimumScaleFactor(0.65)
+                .minimumScaleFactor(0.85)
                 .foregroundStyle(affordable && hasSlot && !offer.sold
                                  ? bookTheme.quietInk(onDarkPaper: theme.paper.isDark)
                                  : palette.resolved(for: theme.paper).danger)
         }
-        .frame(width: compact ? 40 : 64, alignment: .trailing)
+        .frame(width: compact ? 66 : 100, alignment: .trailing)
+    }
+
+    private var compactAvailability: String {
+        if offer.sold { return "Sold" }
+        if !hasSlot { return "Slots full" }
+        if !affordable { return "Need coins" }
+        return "Affordable"
     }
 
     private var accentColor: Color? {
         def.kind == .marker ? Paper.markerColor(def.id) : nil
     }
 
+}
+
+/// Catalogue summaries keep the decision readable at a glance. The complete
+/// rule, including rarity and exceptions, stays in the same custom purchase
+/// panel and in the offer's VoiceOver label.
+enum ShopOfferSummary {
+    static func text(for def: ItemDef) -> String {
+        compact[def.id] ?? CatalogueDetails.item(def.id)?.shortEffect ?? def.text
+    }
+
+    /// Only the catalogue's longer summaries need editorial shortening for
+    /// the small offer tickets. Purchase details retain the full source rule.
+    private static let compact: [String: String] = [
+        "bm_crossword_daily": "Draw 1 Pool card per clear, even Clues and Keep Filling.",
+        "bm_overflow_column": "Eligible: +25 per card over refill size; max +100.",
+        "bm_type_case": "Hold a digit: first 3 eligible others gain +50 Points.",
+        "bm_correction_ledger": "3 eligible fills refund half first paid penalty; max 150.",
+        "bm_personal_column": "Pick a digit: first 2 eligible fills draw its Pool copy.",
+        "bm_archive_room": "Win: +50/unused Clue next Puzzle’s first fill; max +150.",
+        "mk_patina": "Past eligible Puzzle fills here: +25 each, max +200.",
+        "mk_harvest": "Exchange up to 3 remaining copies for other Pool digits.",
+        "bf_peek": "+1 Clue. Zero Points; only Onyx restores placement Points.",
+        "bf_insurance": "Cancel the next wrong-placement score penalty.",
+        "bf_redraw": "Redraw the whole Hand from the Pool; no Toss spent.",
+        "bf_litmus": "Reveal a digit’s matching blanks until your next placement.",
+        "bf_careful_cut": "Return 1–3 cards. No Toss spent; no immediate refill.",
+        "bf_eraser_shavings": "Restore up to 2 spent Tosses, within the starting allowance.",
+        "bf_collation": "Reorder up to 3 future Pool draws; draw nothing now.",
+        "bf_proof_sheet": "Show visible-rule candidates in one unit for this Turn.",
+        "bf_rebind": "Move an untriggered blank Marker claim to an unmarked blank.",
+        "bf_transposition": "Swap untriggered blank claims of two different Marker types.",
+        "bf_supplement": "Add an extra paid offer of your chosen kind next Shop.",
+        "bf_detour": "Choose one of two equal-difficulty non-boss layouts.",
+        "bf_boss_draft": "Choose the announced boss or a revealed alternative.",
+        "bf_collateral": "Suspend 1 Bookmark this Puzzle: +2 Hand on future refills.",
+        "bf_return_receipt": "Recover an unused Insurance, Double Down or Second Print.",
+        "bf_clean_finish": "Cleanly place your whole Hand (3+ cards) this Turn: +150.",
+        "bf_cross_cut": "Eligible double/triple clear: +120/+180 Points, once.",
+        "bf_open_bracket": "Fill 2 chosen blanks in different boxes: +200 if eligible.",
+        "bf_new_edition": "Shop: swap a Bookmark for a random one of the same rarity.",
+        "bf_carbon_receipt": "Repeat your last eligible basic Buff effect; no new item.",
+        "bf_rain_check": "Defer 20–100 placement Points; eligible fill next Turn: ×2."
+    ]
 }
 
 /// Keep the catalogue's composed page height while making abbreviated copy
@@ -460,7 +624,7 @@ struct RarityImprint: View {
 // MARK: - Purchase and loadout slips
 
 struct OfferSlip: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.paperPanelDismiss) private var dismiss
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.bookPresentation) private var bookTheme
     @Environment(\.levelPalette) private var palette
@@ -469,17 +633,18 @@ struct OfferSlip: View {
     let offer: ShopOffer
     let markerBought: (Int) -> Void
     @State private var purchaseSubmitted = false
-    @State private var contentHeight: CGFloat = 360
 
     private var currentOffer: ShopOffer {
-        model.run.shop?.offers.first(where: { $0.slot == offer.slot }) ?? offer
+        let current = model.run.shop?.offers.first(where: { $0.slot == offer.slot }) ?? offer
+        return ShopOffer(slot: current.slot, defID: current.defID,
+                         price: Shop.purchasePrice(model.run, slot: current.slot) ?? current.price, sold: current.sold)
     }
 
     private var hasSlot: Bool {
         switch currentOffer.def.kind {
         case .bookmark: return model.run.bookmarks.count < ItemKind.bookmark.capacity
         case .marker: return true
-        case .buff: return model.run.buffs.count < ItemKind.buff.capacity
+        case .buff: return model.run.buffs.count < model.buffCapacity
         case .subscription: return true
         }
     }
@@ -495,35 +660,11 @@ struct OfferSlip: View {
         return "You have \(model.coins) coins on hand."
     }
 
-    var body: some View {
-        offerPaper
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background {
-                // Measure the complete paper at its natural height. Measuring
-                // the visible copy would trap a short offer in the initial
-                // detent once its article had selected the scrolling fallback.
-                // The visible copy still receives the sheet's capped height,
-                // so long copy scrolls while Close remains outside the article.
-                offerPaper
-                    .fixedSize(horizontal: false, vertical: true)
-                    .hidden()
-                    .accessibilityHidden(true)
-                    .allowsHitTesting(false)
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height.rounded(.up)
-                    } action: { height in
-                        if height > 0 && height != contentHeight { contentHeight = height }
-                    }
-            }
-            .presentationDetents([.height(contentHeight)])
-            .presentationContentInteraction(.scrolls)
-            .presentationDragIndicator(.hidden)
-            .presentationBackground(.clear)
-    }
+    var body: some View { offerPaper }
 
     private var offerPaper: some View {
         PaperSlip(title: currentOffer.def.name, subtitle: nil,
-                  dismissesOnBackground: false, dimsBackground: false,
+                  dismissesOnBackground: false,
                   closeAccessibilityID: "shop.offer.close",
                   maximumWidth: 440, fitsContent: true,
                   onClose: { dismiss() }) {
@@ -534,17 +675,7 @@ struct OfferSlip: View {
     private var offerContent: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                PrintedItemIllustration {
-                    if currentOffer.def.kind == .marker {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Paper.markerColor(currentOffer.defID))
-                            .frame(width: 22, height: 22)
-                    } else {
-                        Image(systemName: ItemIcon.symbol(for: currentOffer.defID))
-                            .font(.system(size: 23, weight: .light))
-                            .foregroundStyle(bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
-                    }
-                }
+                ItemArtwork(id: currentOffer.defID, size: 56)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(currentOffer.def.text)
                         .font(Print.body(15 * textScale))

@@ -27,6 +27,9 @@ final class PageFlipper {
     private static let log = Logger(subsystem: "com.numberclub.app", category: "PageTurn")
     private(set) var isFlipping = false
     private(set) var renderer: PageCurlRenderer?
+    /// Frozen until completion: a destination changing its internal chrome
+    /// cannot stretch the already printed outgoing hierarchy.
+    private(set) var capturedPageSize: CGSize?
     @ObservationIgnored weak var captureAnchor: UIView?
     @ObservationIgnored private var turnID: UUID?
     @ObservationIgnored private var didCommit = false
@@ -83,12 +86,19 @@ final class PageFlipper {
         let id = UUID()
         turnID = id
         didCommit = false
+        capturedPageSize = snapshot.size
         isFlipping = true
+        let cancellation = PageTurnCancellation()
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 finishWaiting = { continuation.resume() }
+                guard !cancellation.isCancelled else { cancel(id: id); return }
                 driver.start(duration: duration, heldProgress: nil, onFirstFrame: { [weak self] in
                     guard let self, self.turnID == id, !self.didCommit else { return }
+                    // The cancellation handler can run off-actor while this
+                    // callback is already queued. Its cleanup Task may not
+                    // have reached MainActor yet, but its signal is immediate.
+                    guard !cancellation.isCancelled else { self.cancel(id: id); return }
                     self.didCommit = true
                     // The complete old page now covers the destination.
                     // Mutating the game cannot alter the printed texture.
@@ -101,6 +111,7 @@ final class PageFlipper {
                 })
             }
         } onCancel: {
+            cancellation.cancel()
             Task { @MainActor [weak self] in self?.cancel(id: id) }
         }
     }
@@ -123,6 +134,7 @@ final class PageFlipper {
         turnID = nil
         didCommit = false
         isFlipping = false
+        capturedPageSize = nil
         let resume = finishWaiting
         finishWaiting = nil
         resume?()
@@ -138,6 +150,7 @@ final class PageFlipper {
         let id = UUID()
         turnID = id
         didCommit = false
+        capturedPageSize = snapshot.size
         isFlipping = true
         driver.start(duration: duration, heldProgress: min(1, max(0, progress)),
                        onFirstFrame: { [weak self] in
@@ -148,11 +161,13 @@ final class PageFlipper {
     }
     #endif
 
-    private func capturePage() -> PageTurnSnapshot? {
+    func capturePage() -> PageTurnSnapshot? {
         guard let anchor = captureAnchor, let window = anchor.window,
               anchor.bounds.width > 1, anchor.bounds.height > 1 else { return nil }
         let rect = anchor.convert(anchor.bounds, to: window)
-        guard rect.minX.isFinite, rect.minY.isFinite else { return nil }
+        guard rect.minX.isFinite, rect.minY.isFinite,
+              rect.width.isFinite, rect.height.isFinite,
+              window.bounds.contains(rect) else { return nil }
         let format = UIGraphicsImageRendererFormat()
         format.scale = min(window.screen.scale, 2)
         // Metal's image loader needs ordinary 8-bit stock, not an extended-
@@ -172,7 +187,17 @@ final class PageFlipper {
     }
 }
 
-/// Invisible marker defining the displayed leaf's bounds in its real window.
+/// Only the cancellation signal crosses executors. Renderer cleanup and
+/// destination ownership remain on MainActor.
+private final class PageTurnCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool { lock.withLock { cancelled } }
+    func cancel() { lock.withLock { cancelled = true } }
+}
+
+/// Invisible marker defining the full displayed page host in its real window.
 /// It does not host or recreate any SwiftUI content.
 struct PageCaptureAnchor: UIViewRepresentable {
     let flipper: PageFlipper

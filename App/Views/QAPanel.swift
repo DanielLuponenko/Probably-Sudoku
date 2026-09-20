@@ -8,7 +8,7 @@ import ProbablySudokuEngine
 /// it can never be mistaken for a feature.
 struct QAPanel: View {
     @Bindable var model: GameModel
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.paperPanelDismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -24,6 +24,10 @@ struct QAPanel: View {
 
                 Section("Coins") {
                     row("Add 1,000 coins", "circle.circle") { model.qaAward(coins: 1_000) }
+                }
+
+                Section {
+                    NavigationLink("Scoring fixtures") { scoringFixtures }
                 }
 
                 Section {
@@ -48,8 +52,22 @@ struct QAPanel: View {
                         }
                     }
                     NavigationLink("Force Boss") {
-                        List(BossModifier.allCases, id: \.rawValue) { boss in
-                            Button(boss.name) { model.qaSetBoss(boss) }
+                        List {
+                            Section("Regular encounters · 16") {
+                                ForEach(BossModifier.regularBosses, id: \.rawValue) { boss in
+                                    Button(boss.name) { model.qaSetBoss(boss) }
+                                }
+                            }
+                            Section("Final encounters · 6") {
+                                ForEach(BossModifier.finalBosses, id: \.rawValue) { boss in
+                                    Button(boss.name) { model.qaSetBoss(boss) }
+                                }
+                            }
+                            Section("Historical saves") {
+                                ForEach(BossModifier.allCases.filter { !$0.isActiveEncounter }, id: \.rawValue) { boss in
+                                    Button(boss.name) { model.qaSetBoss(boss) }
+                                }
+                            }
                         }
                         .navigationTitle("Bosses")
                     }
@@ -119,6 +137,30 @@ struct QAPanel: View {
                 }
             }
         }
+    }
+
+    private var scoringFixtures: some View {
+        List {
+            Section {
+                ForEach(QAScoringFixture.allCases) { fixture in
+                    Button {
+                        model.qaLoadScoringFixture(fixture)
+                        dismiss()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(fixture.title)
+                            Text(fixture.instructions)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityIdentifier("qa.scoring.\(fixture.rawValue)")
+                }
+            } footer: {
+                Text("Setup only: score starts at zero. Use the real inventory, hand and board controls. Fixtures never overwrite your saved Book.")
+            }
+        }
+        .navigationTitle("Scoring fixtures")
     }
 
     private func row(_ title: String, _ symbol: String,

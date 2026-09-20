@@ -11,7 +11,7 @@ final class ShopBookmarkPresentationTests: XCTestCase {
         var run = RunState(seed: "bookmark-sale-control")
         let selected = OwnedBookmark(defID: Bookmarks.syndication, boughtAtLevel: 2, pricePaid: 7)
         run.bookmarks = [selected]
-        let sale = InventorySale(bookmark: selected, index: 0)
+        let sale = InventorySale(bookmark: selected, index: 0, run: run)
 
         XCTAssertTrue(sale.matches(run))
         XCTAssertEqual(sale.refund, 3)
@@ -68,11 +68,13 @@ final class ShopBookmarkPresentationTests: XCTestCase {
     func testOwnedBookmarkDetailsShowTheCompleteCopyAndSaleRefund() throws {
         let def = try XCTUnwrap(Catalog.item(Bookmarks.syndication))
         let owned = OwnedBookmark(defID: def.id, boughtAtLevel: 2, pricePaid: 7)
-        let image = try render(ItemDetailCard(def: def, sale: InventorySale(bookmark: owned, index: 0),
+        var run = RunState(seed: "bookmark-detail-refund")
+        run.bookmarks = [owned]
+        let image = try render(ItemDetailCard(def: def, sale: InventorySale(bookmark: owned, index: 0, run: run),
                                               onSell: {}),
                                width: 260, name: "bookmark-details-sale")
         let text = try recognize(image)
-        XCTAssertTrue(text.contains("resetsonlyatanewbook"), "The sale action cannot clip the final sentence.")
+        XCTAssertTrue(text.contains("applythestoredfactoratthisbookmarkslockedslot"), "The sale action cannot clip the final sentence.")
         XCTAssertTrue(text.contains("sellfor3coins"), "The visible sale action must show the actual refund.")
     }
 
@@ -106,14 +108,14 @@ final class ShopBookmarkPresentationTests: XCTestCase {
         let printed = try recognize(image)
         XCTAssertTrue(printed.contains("syndication"), "The offer's name is the shared slip heading.")
         XCTAssertTrue(printed.contains("close"), "The paper Close action remains visible in a dark game.")
-        XCTAssertTrue(printed.contains("resetsonlyatanewbook"), "The complete rule stays readable on paper.")
+        XCTAssertTrue(printed.contains("applythestoredfactoratthisbookmarkslockedslot"), "The complete rule stays readable on paper.")
     }
 
-    func testRedrawOfferNativeSheetUsesMeasuredDetentAndShowsCompleteCopy() async throws {
+    func testRedrawOfferUsesCustomPaperPanelAndShowsCompleteCopy() async throws {
         let offer = try JSONDecoder().decode(ShopOffer.self, from: Data(
             #"{"slot":0,"defID":"bf_redraw","price":3,"sold":false}"#.utf8))
         let model = GameModel(frozen: Game(seed: "redraw-offer-sheet"), page: .shop)
-        let content = OfferSheetHarness(model: model, offer: offer)
+        let content = OfferPanelHarness(model: model, offer: offer)
             .environment(\.colorScheme, .light)
             .environment(\.cosmeticTheme, .standard)
             .environment(\.locale, Locale(identifier: "en_US"))
@@ -134,42 +136,29 @@ final class ShopBookmarkPresentationTests: XCTestCase {
         }
         window.makeKeyAndVisible()
 
-        var sheet: UIViewController?
-        for _ in 0..<50 {
-            window.layoutIfNeeded()
-            host.view.layoutIfNeeded()
-            if let presented = host.presentedViewController {
-                sheet = presented
-                break
-            }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        let presented = try XCTUnwrap(sheet, "The native OfferSlip sheet did not present within 3 seconds.")
-        for _ in 0..<4 {
-            window.layoutIfNeeded()
-            presented.view.layoutIfNeeded()
-            await Task.yield()
-        }
-
-        let sheetFrame = presented.view.convert(presented.view.bounds, to: window)
-        XCTAssertGreaterThan(sheetFrame.height, 300, "The offer sheet should retain a readable article.")
-        XCTAssertLessThan(sheetFrame.height, 500,
-                          "The offer sheet must use the measured article detent, not a full-height page.")
+        // Custom presentation remains in the game hierarchy. Wait for the
+        // panel's arrival frame rather than a UIKit sheet controller.
+        try await Task.sleep(for: .milliseconds(350))
+        window.layoutIfNeeded()
+        host.view.layoutIfNeeded()
+        XCTAssertNil(host.presentedViewController,
+                     "Offer details must use the game's paper panel, not a native sheet.")
 
         let image = UIGraphicsImageRenderer(size: viewport).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
-        attach(image, name: "redraw-offer-native-sheet-402x874")
+        attach(image, name: "redraw-offer-custom-panel-402x874")
         let text = try recognize(image)
-        for phrase in ["Redraw", "Return your whole Hand to the Pool",
-                       "immediately draw a fresh one", "Does not spend Toss allowance",
+        for phrase in ["Redraw", "Return every number in your Hand to the Pool",
+                       "draw up to your normal Hand refill target", "This spends no Toss allowance",
+                       "can redraw numbers you just returned",
                        "Buy this item", "Close"] {
             XCTAssertTrue(text.contains(phrase.lowercased().filter { $0.isLetter || $0.isNumber }),
-                          "Native sheet omitted or clipped '\(phrase)': \(text)")
+                          "Custom paper panel omitted or clipped '\(phrase)': \(text)")
         }
     }
 
-    private struct OfferSheetHarness: View {
+    private struct OfferPanelHarness: View {
         @Bindable var model: GameModel
         let offer: ShopOffer
         @State private var isPresented = false
@@ -178,9 +167,10 @@ final class ShopBookmarkPresentationTests: XCTestCase {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onAppear { isPresented = true }
-                .sheet(isPresented: $isPresented) {
+                .paperPanel(isPresented: $isPresented) {
                     OfferSlip(model: model, offer: offer, markerBought: { _ in })
                 }
+                .paperPanelHost()
         }
     }
 

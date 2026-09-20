@@ -7,6 +7,48 @@ import ProbablySudokuEngine
 
 @MainActor
 final class KeepFillingResultsTests: XCTestCase {
+    func testEnlargedResultsGrowsEarnedCoinsAndDecisionsWithoutChangingTheGame() async throws {
+        var game = Game(seed: "results-readable-enlargement")
+        try game.startPuzzle()
+        game.qaMeetTarget()
+        let model = GameModel(frozen: game, page: .results)
+        let before = try model.game.encoded()
+        let normal = try await render(model, width: 386, height: 646,
+                                      named: "readable-normal")
+        let enlarged = try await render(model, width: 386, height: 646,
+                                        dynamicType: .accessibility5, named: "readable-AX5")
+        for phrase in ["coins", "cashout"] {
+            let initial = try phrase == "coins"
+                ? recognizedWordFrame("coins", in: normal.initial)
+                : recognizedFrame(containing: phrase, in: normal.initial, exact: true)
+            let larger = try phrase == "coins"
+                ? recognizedWordFrame("coins", in: enlarged.initial)
+                : recognizedFrame(containing: phrase, in: enlarged.initial, exact: true)
+            XCTAssertGreaterThan(larger.height, initial.height * 1.2,
+                                 "Earned coins and the decision must actually enlarge")
+        }
+        XCTAssertEqual(try model.game.encoded(), before)
+    }
+
+    func testEnlargedResultsShowsEveryEarnedPayoutComponentAndTheWholeBoard() async throws {
+        var game = Game(seed: "results-all-payout-components")
+        try game.startPuzzle()
+        game.qaMeetTarget()
+        var run = game.run
+        run.coins = 100
+        run.bookmarks = [OwnedBookmark(defID: Bookmarks.paperRoute, boughtAtLevel: 1, pricePaid: 4)]
+        run.puzzle?.keepFillingCoins = 12
+        let model = GameModel(frozen: Game(run: run), page: .results)
+        for (name, width, height) in [("SE", 359.0, 529.0), ("17pro", 386.0, 646.0)] {
+            let rendered = try await render(model, width: width, height: height,
+                                            dynamicType: .accessibility5, named: "all-payout-\(name)")
+            let copy = try recognizedText(in: rendered.initial)
+            for component in ["base", "unusedturns", "keptfilling", "interest", "paperroute"] {
+                XCTAssertTrue(copy.contains(component), "\(name) omitted payout component \(component): \(copy)")
+            }
+        }
+    }
+
     func testFullClearCannotNavigateBackToAnUnplayableBoardOrDuplicateItsPayout() throws {
         let game = try fullClearAfterKeepFilling()
         let model = GameModel(frozen: game, page: .results)
@@ -50,7 +92,7 @@ final class KeepFillingResultsTests: XCTestCase {
         XCTAssertEqual(model.coins, game.run.coins)
     }
 
-    func testResultsPrintsKeepFillingOnlyWhenThereArePlayableBlanks() throws {
+    func testResultsPrintsKeepFillingOnlyWhenThereArePlayableBlanks() async throws {
         var partial = Game(seed: "results-keep-filling-copy")
         try partial.startPuzzle()
         partial.qaMeetTarget()
@@ -59,39 +101,72 @@ final class KeepFillingResultsTests: XCTestCase {
             ("full-clear", try fullClearAfterKeepFilling(), false)
         ] {
             let model = GameModel(frozen: game, page: .results)
-            let image = try render(model, named: name)
-            let text = try recognizedText(in: image)
-            XCTAssertTrue(text.contains("cashout"), text)
-            XCTAssertEqual(text.contains("keepfilling"), offersKeepFilling, text)
-            XCTAssertEqual(text.contains("playon"), offersKeepFilling, text)
+            let rendered = try await render(model, named: name)
+            let initialText = try recognizedText(in: rendered.initial)
+            let boardText = try recognizedText(in: rendered.boardVisible)
+            XCTAssertTrue(initialText.contains("puzzlecomplete"), initialText)
+            XCTAssertTrue(initialText.contains("cashout"), initialText)
+            XCTAssertEqual(initialText.contains("keepfilling"), offersKeepFilling, initialText)
+            XCTAssertEqual(initialText.contains("playon"), offersKeepFilling, initialText)
+            XCTAssertTrue(boardText.contains(offersKeepFilling ? "boardasplayed" : "boardcomplete"), boardText)
+            XCTAssertTrue(boardText.contains("cashout"), boardText)
             if !offersKeepFilling {
-                XCTAssertTrue(text.contains("boardcomplete"), text)
-                XCTAssertFalse(text.contains("totheshop"), text)
+                XCTAssertTrue(initialText.contains("boardcomplete"), initialText)
+                XCTAssertFalse(initialText.contains("totheshop"), initialText)
             }
         }
     }
 
-    func testSuccessfulResultsPrintsItsPlayedBoardAndKeepsActionsReachable() throws {
+    func testSuccessfulResultsPrintsItsPlayedBoardAndKeepsActionsReachable() async throws {
         var partial = Game(seed: "results-played-board-partial")
         try partial.startPuzzle()
         partial.qaMeetTarget()
         let partialModel = GameModel(frozen: partial, page: .results)
         let partialBefore = try partialModel.game.encoded()
-        let partialImage = try render(partialModel, named: "played-board-partial-phone")
-        let partialText = try recognizedText(in: partialImage)
-        XCTAssertTrue(partialText.contains("targetmet"), partialText)
-        XCTAssertTrue(partialText.contains("boardasplayed"), partialText)
-        XCTAssertTrue(partialText.contains("cashout"), partialText)
+        let partialImages = try await render(partialModel, named: "played-board-partial-phone")
+        let partialHeader = try recognizedText(in: partialImages.initial)
+        let partialBoard = try recognizedText(in: partialImages.boardVisible)
+        XCTAssertTrue(partialHeader.contains("puzzlecomplete"), partialHeader)
+        XCTAssertTrue(partialHeader.contains("targetmet"), partialHeader)
+        XCTAssertTrue(partialHeader.contains("cashout"), partialHeader)
+        XCTAssertTrue(partialBoard.contains("boardasplayed"), partialBoard)
+        XCTAssertTrue(partialBoard.contains("cashout"), partialBoard)
+        XCTAssertFalse(partialImages.scrolled, "All nine rows and both decisions must fit without scrolling.")
         XCTAssertEqual(try partialModel.game.encoded(), partialBefore)
+
+        let largeText = try await render(partialModel, dynamicType: .accessibility5,
+                                         named: "played-board-accessibility5")
+        let keepFilling = try recognizedFrame(containing: "keepfilling", in: largeText.boardVisible, exact: true)
+        let cashOut = try recognizedFrame(containing: "cashout", in: largeText.boardVisible, exact: true)
+        XCTAssertLessThan(keepFilling.maxX, cashOut.minX,
+                          "At AX5, complete labels share one compact decision row without hiding the board.")
+        XCTAssertEqual(keepFilling.midY, cashOut.midY, accuracy: 18)
+        XCTAssertGreaterThan(keepFilling.minX, 0)
+        XCTAssertLessThan(keepFilling.maxX, largeText.boardVisible.size.width)
+
+        for (name, width, height) in [("short-phone", 359.0, 529.0), ("iphone-17-pro-content", 386.0, 646.0)] {
+            let fitted = try await render(partialModel, width: width, height: height,
+                                          named: "played-board-\(name)")
+            XCTAssertFalse(fitted.scrolled)
+            XCTAssertEqual(try partialModel.game.encoded(), partialBefore)
+        }
+        let realPhone = try await render(partialModel, width: 402, height: 874,
+                                         insideRunSurface: true,
+                                         safeAreaInsets: EdgeInsets(top: 62, leading: 0, bottom: 34, trailing: 0),
+                                         named: "played-board-iphone-17-pro-fullscreen")
+        XCTAssertFalse(realPhone.scrolled)
 
         let full = try fullClearAfterKeepFilling()
         let fullModel = GameModel(frozen: full, page: .results)
-        let fullImage = try render(fullModel, width: 834, height: 1210,
-                                   horizontalSizeClass: .regular,
-                                   named: "played-board-complete-ipad")
-        let fullText = try recognizedText(in: fullImage)
-        XCTAssertTrue(fullText.contains("boardcomplete"), fullText)
-        XCTAssertTrue(fullText.contains("continue") || fullText.contains("cashout"), fullText)
+        let fullImages = try await render(fullModel, width: 834, height: 1210,
+                                          horizontalSizeClass: .regular,
+                                          named: "played-board-complete-ipad")
+        let fullHeader = try recognizedText(in: fullImages.initial)
+        let fullBoard = try recognizedText(in: fullImages.boardVisible)
+        XCTAssertTrue(fullHeader.contains("puzzlecomplete"), fullHeader)
+        XCTAssertTrue(fullHeader.contains("boardcomplete"), fullHeader)
+        XCTAssertTrue(fullBoard.contains("boardcomplete"), fullBoard)
+        XCTAssertTrue(fullBoard.contains("cashout"), fullBoard)
         XCTAssertTrue(full.puzzle?.board.isFull == true)
     }
 
@@ -209,27 +284,189 @@ final class KeepFillingResultsTests: XCTestCase {
         return game
     }
 
+    private struct RenderedResults {
+        let initial: UIImage
+        let boardVisible: UIImage
+        let scrolled: Bool
+    }
+
+    /// A real window verifies the rendered grid, its complete outer rim and
+    /// all four horizontal box boundaries, above the visible decisions. Merely
+    /// clipping an oversized board or hiding a ScrollView cannot satisfy this.
     private func render(_ model: GameModel, width: CGFloat = 328, height: CGFloat = 590,
                         horizontalSizeClass: UserInterfaceSizeClass = .compact,
-                        named name: String) throws -> UIImage {
-        let renderer = ImageRenderer(content: ResultsPageView(model: model, onBookCompletion: {}, onAbandon: {})
+                        dynamicType: DynamicTypeSize = .large,
+                        insideRunSurface: Bool = false,
+                        safeAreaInsets: EdgeInsets = EdgeInsets(),
+                        named name: String) async throws -> RenderedResults {
+        let before = try model.game.encoded()
+        let ready = expectation(description: "Hosted Results layout: \(name)")
+        var reportedLayout = false
+        let flipper = PageFlipper()
+        let page = ResultsPageView(model: model, onBookCompletion: {}, onAbandon: {})
+        let content = Group {
+            if insideRunSurface {
+                RunPageSurface(model: model, flipper: flipper, controls: [],
+                               safeAreaInsets: safeAreaInsets, onTapBuff: { _ in }) { page }
+            } else {
+                page
+            }
+        }
             .frame(width: width, height: height)
-            .padding(12)
-            .environment(PageFlipper())
+            .environment(flipper)
             .environment(\.cosmeticTheme, .standard)
+            .environment(\.bookPresentation, BookPresentationTheme(book: model.run.book))
+            .environment(\.levelPalette, .forDisplay(slot: .easy))
             .environment(\.colorScheme, .light)
             .environment(\.locale, Locale(identifier: "en_US"))
             .environment(\.horizontalSizeClass, horizontalSizeClass)
-            .environment(\.dynamicTypeSize, .large)
+            .environment(\.dynamicTypeSize, dynamicType)
             .transaction { $0.disablesAnimations = true }
-            .background(Paper.page))
-        renderer.scale = 3
-        let image = try XCTUnwrap(renderer.uiImage)
+            .background(Paper.page)
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+                if !reportedLayout, size.width > 0, size.height > 0 {
+                    reportedLayout = true
+                    ready.fulfill()
+                }
+            }
+        let host = UIHostingController(rootView: content)
+        host.safeAreaRegions = []
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previousKey = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        window.rootViewController = host
+        defer {
+            flipper.cancel()
+            window.isHidden = true
+            window.rootViewController = nil
+            previousKey?.makeKey()
+        }
+        window.makeKeyAndVisible()
+        await fulfillment(of: [ready], timeout: 5)
+        window.layoutIfNeeded()
+        let initial = screenshot(window)
+        attach(initial, name: "keep-filling-results-\(name)-initial-hosted")
+        let initialAction = try recognizedFrame(containing: "cashout", in: initial, exact: true)
+        XCTAssertGreaterThan(initialAction.minY, height / 2, "Decisions must remain at the bottom: \(name)")
+        XCTAssertLessThanOrEqual(initialAction.maxY, height, name)
+
+        let scrolls = scrollViews(in: host.view)
+        XCTAssertTrue(scrolls.isEmpty, "The complete Results page must have no scroll container: \(name)")
+        let boardVisible = initial
+        attach(boardVisible, name: "keep-filling-results-\(name)-board-caption-hosted")
+        let pinnedAction = try recognizedFrame(containing: "cashout", in: boardVisible, exact: true)
+        XCTAssertEqual(pinnedAction.midY, initialAction.midY, accuracy: 1,
+                       "Cash Out remains visible beside the complete board: \(name)")
+        let caption = try recognizedFrame(containing: model.puzzle?.board.isFull == true
+                                          ? "boardcomplete" : "boardasplayed", in: boardVisible,
+                                          preferLast: true)
+        XCTAssertGreaterThan(caption.minY, 0, "The board caption must be inside the visible viewport: \(name)")
+        XCTAssertLessThan(caption.maxY, pinnedAction.minY,
+                          "The board caption must be visible above, not hidden behind, the decisions: \(name)")
+        try assertCompleteBoard(in: initial, before: caption, name: name,
+                                minimumSide: dynamicType.isAccessibilitySize ? 140 : 200)
+        XCTAssertEqual(try model.game.encoded(), before,
+                       "Hosting Results must not place, score or pay out: \(name)")
+        return RenderedResults(initial: initial, boardVisible: boardVisible, scrolled: !scrolls.isEmpty)
+    }
+
+    private func assertCompleteBoard(in image: UIImage, before caption: CGRect, name: String,
+                                     minimumSide: Int) throws {
+        let width = Int(image.size.width), height = Int(image.size.height)
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        try pixels.withUnsafeMutableBytes { buffer in
+            let context = try XCTUnwrap(CGContext(data: buffer.baseAddress, width: width, height: height,
+                                                bitsPerComponent: 8, bytesPerRow: width * 4,
+                                                space: CGColorSpaceCreateDeviceRGB(),
+                                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(try XCTUnwrap(image.cgImage), in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        var rules: [(y: Int, left: Int, right: Int)] = []
+        for y in 0..<min(height, Int(caption.minY)) {
+            let matches = (0..<width).filter { x in
+                let offset = (y * width + x) * 4
+                let r = Int(pixels[offset]), g = Int(pixels[offset + 1]), b = Int(pixels[offset + 2])
+                return r < 150 && g > r + 15 && b > r + 10 && g > b + 4
+            }
+            if matches.count > min(width / 2, minimumSide - 10), let first = matches.first, let last = matches.last {
+                rules.append((y, first, last))
+            }
+        }
+        let top = try XCTUnwrap(rules.first, "No complete upper board rim: \(name)")
+        let bottom = try XCTUnwrap(rules.last, "No complete lower board rim: \(name)")
+        let boardWidth = rules.map { $0.right - $0.left }.max() ?? 0
+        XCTAssertGreaterThanOrEqual(boardWidth, minimumSide,
+                                   "Keep the whole preview visible while making space for enlarged receipt text: \(name)")
+        XCTAssertEqual(CGFloat(bottom.y - top.y), CGFloat(boardWidth), accuracy: 5,
+                       "Both rims of the entire square must be visible; a clipped ninth row fails: \(name)")
+        var groups = 0
+        var previousY = -10
+        for row in rules {
+            if row.y > previousY + 2 { groups += 1 }
+            previousY = row.y
+        }
+        XCTAssertEqual(groups, 4, "Top, both box dividers, and bottom must be on screen: \(name)")
+        XCTAssertLessThan(CGFloat(bottom.y), caption.minY,
+                          "The caption and choices must follow all nine rows without overlap: \(name)")
+    }
+
+    private func screenshot(_ window: UIWindow) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3
+        return UIGraphicsImageRenderer(size: window.bounds.size, format: format).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+    }
+
+    private func scrollViews(in view: UIView) -> [UIScrollView] {
+        (view as? UIScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
+    }
+
+    private func attach(_ image: UIImage, name: String) {
         let attachment = XCTAttachment(image: image)
-        attachment.name = "keep-filling-results-\(name)"
+        attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        return image
+    }
+
+    private func recognizedWordFrame(_ word: String, in image: UIImage) throws -> CGRect {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+        for observation in request.results ?? [] {
+            guard let candidate = observation.topCandidates(1).first,
+                  let range = candidate.string.range(of: word, options: .caseInsensitive),
+                  let bounds = try candidate.boundingBox(for: range)?.boundingBox else { continue }
+            return CGRect(x: bounds.minX * image.size.width, y: (1 - bounds.maxY) * image.size.height,
+                          width: bounds.width * image.size.width, height: bounds.height * image.size.height)
+        }
+        XCTFail("Missing complete rendered word: \(word)")
+        return .zero
+    }
+
+    private func recognizedFrame(containing phrase: String, in image: UIImage,
+                                 preferLast: Bool = false, exact: Bool = false) throws -> CGRect {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+        let matches = (request.results ?? []).filter { observation in
+            guard let text = observation.topCandidates(1).first?.string.lowercased()
+                .filter({ $0.isLetter || $0.isNumber }) else { return false }
+            // Full-clear subtitles also contain "Cash out". Only the exact
+            // printed button label identifies the pinned decision control.
+            return exact ? text == phrase : text.contains(phrase)
+        }
+        // Vision lists text from top to bottom. The full-board subtitle can
+        // also say "Board complete"; prefer the lower, actual board caption.
+        let match = try XCTUnwrap(preferLast ? matches.min { $0.boundingBox.minY < $1.boundingBox.minY }
+                                           : matches.first,
+                                 "Visible Results text missing: \(phrase)")
+        let box = match.boundingBox
+        return CGRect(x: box.minX * image.size.width, y: (1 - box.maxY) * image.size.height,
+                      width: box.width * image.size.width, height: box.height * image.size.height)
     }
 
     private func recognizedText(in image: UIImage) throws -> String {

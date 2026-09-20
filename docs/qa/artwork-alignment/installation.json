@@ -1,0 +1,9 @@
+{
+  "device": "223A4227-A28E-4939-BB5E-3AAB820EB635",
+  "app": "/tmp/NumberClub-boss-verification2/Build/Products/Debug-iphonesimulator/ProbablySudoku.app",
+  "backup": "/tmp/NumberClub-artwork-alignment-save-backup-20260920-110824",
+  "savedFilesUnchangedAfterInstall": true,
+  "launch": "com.numberclub.app: 22611",
+  "run.jsonUnchangedAfterLaunch": true,
+  "profile.jsonUnchangedAfterLaunch": true
+}

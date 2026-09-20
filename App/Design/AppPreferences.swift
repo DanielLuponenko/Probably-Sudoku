@@ -10,6 +10,7 @@ enum AppPreferences {
     enum Key {
         static let haptics = "settings.haptics"
         static let ambientMotion = "settings.ambientMotion"
+        static let reducedMotion = "settings.reducedMotion"
         static let sound = "settings.sound"
         static let music = "settings.music"
         static let masterVolume = "settings.audio.masterVolume"

@@ -8,7 +8,7 @@ struct BookAmbientBackground: View {
     var isActive: Bool = true
     var presentation: BookAmbientPresentation = .pageMargins
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.bossMotionIsActive) private var presentationMotionIsActive
     @AppStorage(AppPreferences.Key.ambientMotion) private var ambientMotion = true

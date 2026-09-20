@@ -1,0 +1,704 @@
+{
+  "censor": {
+    "file": "animations/censor.mp4",
+    "poster": "animations/censor.jpg",
+    "demonstration": "The rolled censored digit is underlined on the real board; this Hand has no matching copy.",
+    "limitation": "The actual random censored digit is not held, so this clip shows the standing cue without inventing a card or score receipt.",
+    "duration": 7.096528053283691,
+    "recordedAt": 1789892999.933518,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.9333739280700684,
+        "description": "The rolled censored digit is underlined on the real board; this Hand has no matching copy."
+      }
+    ]
+  },
+  "editor": {
+    "file": "animations/editor.mp4",
+    "demonstration": "Show the production encounter entry on the affected control or target, then make a legal placement.",
+    "limitation": "This boss has a restrained one-time object entrance and a persistent restriction, not a continuous character animation.",
+    "duration": 6.824169158935547,
+    "recordedAt": 1789889980.353222,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.667196273803711,
+        "description": "Show the production encounter entry on the affected control or target, then make a legal placement."
+      }
+    ],
+    "poster": "animations/editor.jpg"
+  },
+  "deadline": {
+    "file": "animations/deadline.mp4",
+    "demonstration": "Show the production encounter entry on the affected control or target, then make a legal placement.",
+    "limitation": "This boss has a restrained one-time object entrance and a persistent restriction, not a continuous character animation.",
+    "duration": 6.80977988243103,
+    "recordedAt": 1789889987.8804011,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6596689224243164,
+        "description": "Show the production encounter entry on the affected control or target, then make a legal placement."
+      }
+    ],
+    "poster": "animations/deadline.jpg"
+  },
+  "fog": {
+    "file": "animations/fog.mp4",
+    "poster": "animations/fog.jpg",
+    "demonstration": "Two production mist layers drift below crisp digits; a real legal placement leaves hidden Markers undisclosed.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 7.120970010757446,
+    "recordedAt": 1789898074.870559,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.8981549739837646,
+        "description": "Two production mist layers drift below crisp digits; a real legal placement leaves hidden Markers undisclosed."
+      }
+    ]
+  },
+  "critic": {
+    "file": "animations/critic.mp4",
+    "demonstration": "Place a held number on a deliberately incorrect blank; the engine applies the actual penalty. Bank once after the doubled wrong-placement penalty.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 9.014171838760376,
+    "recordedAt": 1789890003.0816422,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6722607612609863,
+        "description": "Place a held number on a deliberately incorrect blank; the engine applies the actual penalty."
+      },
+      {
+        "time": 3.8983869552612305,
+        "description": "Bank once after the doubled wrong-placement penalty."
+      }
+    ],
+    "poster": "animations/critic.jpg"
+  },
+  "mirror": {
+    "file": "animations/mirror.mp4",
+    "poster": "animations/mirror.jpg",
+    "demonstration": "Fill R 1 C 1 using the held 1, genuinely complete the row, column and box, and show the denied Line Clear receipt.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.844063997268677,
+    "recordedAt": 1789898082.141643,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6763038635253906,
+        "description": "Fill R1 C1 using the held1, genuinely complete the row, column and box, and show the denied Line Clear receipt."
+      }
+    ]
+  },
+  "paywall": {
+    "file": "animations/paywall.mp4",
+    "demonstration": "Show the production encounter entry on the affected control or target, then make a legal placement.",
+    "limitation": "This boss has a restrained one-time object entrance and a persistent restriction, not a continuous character animation.",
+    "duration": 6.781055927276611,
+    "recordedAt": 1789890019.586711,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.657135009765625,
+        "description": "Show the production encounter entry on the affected control or target, then make a legal placement."
+      }
+    ],
+    "poster": "animations/paywall.jpg"
+  },
+  "erratum": {
+    "file": "animations/erratum.mp4",
+    "poster": "animations/erratum.jpg",
+    "demonstration": "Show the production encounter entry on the affected control or target, then make a legal placement.",
+    "limitation": "This boss has a restrained one-time object entrance and a persistent restriction, not a continuous character animation.",
+    "duration": 6.816473007202148,
+    "recordedAt": 1789898090.000169,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6844151020050049,
+        "description": "Show the production encounter entry on the affected control or target, then make a legal placement."
+      }
+    ]
+  },
+  "collector": {
+    "file": "animations/collector.mp4",
+    "demonstration": "QA marks the target met solely to expose the real Results payout. The engine computes cancelled interest from 50 held coins.",
+    "limitation": "Target completion is an explicit QA setup, not earned play in this short clip. The displayed interest cancellation and animation are the production payout view.",
+    "duration": 6.841303825378418,
+    "recordedAt": 1789890034.336184,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6846020221710205,
+        "description": "QA marks the target met solely to expose the real Results payout. The engine computes cancelled interest from50 held coins."
+      }
+    ],
+    "poster": "animations/collector.jpg"
+  },
+  "heavyLifter": {
+    "file": "animations/heavyLifter.mp4",
+    "poster": "animations/heavyLifter.jpg",
+    "demonstration": "Show the production encounter entry on the affected control or target, then make a legal placement.",
+    "limitation": "This boss has a restrained one-time object entrance and a persistent restriction, not a continuous character animation.",
+    "duration": 6.809700965881348,
+    "recordedAt": 1789898220.429481,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.656114101409912,
+        "description": "Show the production encounter entry on the affected control or target, then make a legal placement."
+      }
+    ]
+  },
+  "unluckyLucky": {
+    "file": "animations/unluckyLucky.mp4",
+    "poster": "animations/unluckyLucky.jpg",
+    "demonstration": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.845719814300537,
+    "recordedAt": 1789898227.7213712,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.7202608585357666,
+        "description": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters."
+      }
+    ]
+  },
+  "buffborger": {
+    "file": "animations/buffborger.mp4",
+    "demonstration": "Show the production encounter entry on the affected control or target, then make a legal placement.",
+    "limitation": "This boss has a restrained one-time object entrance and a persistent restriction, not a continuous character animation.",
+    "duration": 6.796202182769775,
+    "recordedAt": 1789890055.760191,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6604008674621582,
+        "description": "Show the production encounter entry on the affected control or target, then make a legal placement."
+      }
+    ],
+    "poster": "animations/buffborger.jpg"
+  },
+  "sashimi": {
+    "file": "animations/sashimi.mp4",
+    "demonstration": "Place the held 1; then bank the actual Bookmark multiplier and show the Budget Cut receipt.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 9.25548505783081,
+    "recordedAt": 1789890062.831634,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6557540893554688,
+        "description": "Place the held1; then bank the actual Bookmark multiplier and show the Budget Cut receipt."
+      }
+    ],
+    "poster": "animations/sashimi.jpg"
+  },
+  "overPusher": {
+    "file": "animations/overPusher.mp4",
+    "demonstration": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.844388008117676,
+    "recordedAt": 1789890072.270824,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6831960678100586,
+        "description": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters."
+      }
+    ],
+    "poster": "animations/overPusher.jpg"
+  },
+  "accountant": {
+    "file": "animations/accountant.mp4",
+    "poster": "animations/accountant.jpg",
+    "demonstration": "Make a legal placement; the actual coin debit prints next to the existing coin total.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.8230299949646,
+    "recordedAt": 1789898098.4076471,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.676994800567627,
+        "description": "Make a legal placement; the actual coin debit prints next to the existing coin total."
+      }
+    ]
+  },
+  "tikTak": {
+    "file": "animations/tikTak.mp4",
+    "poster": "animations/tikTak.jpg",
+    "demonstration": "Resume a saved 32-second QA checkpoint and let the actual active-play clock cross 30 seconds and pulse.",
+    "limitation": "The clip begins at a disclosed32-second saved checkpoint. It does not compress or claim to show the complete four-minute clock.",
+    "duration": 9.996419906616211,
+    "recordedAt": 1789898105.3566,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6610538959503174,
+        "description": "Resume a saved32-second QA checkpoint and let the actual active-play clock cross30 seconds and pulse."
+      }
+    ]
+  },
+  "handyDandy": {
+    "file": "animations/handyDandy.mp4",
+    "demonstration": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.818012952804565,
+    "recordedAt": 1789890097.857363,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6638410091400146,
+        "description": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters."
+      }
+    ],
+    "poster": "animations/handyDandy.jpg"
+  },
+  "grayTheGarry": {
+    "file": "animations/grayTheGarry.mp4",
+    "demonstration": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.840928077697754,
+    "recordedAt": 1789890104.941575,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6799499988555908,
+        "description": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters."
+      }
+    ],
+    "poster": "animations/grayTheGarry.jpg"
+  },
+  "garryTheGray": {
+    "file": "animations/garryTheGray.mp4",
+    "poster": "animations/garryTheGray.jpg",
+    "demonstration": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.843983173370361,
+    "recordedAt": 1789898115.845182,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6718621253967285,
+        "description": "End the real Turn; previous blockers or item restrictions settle and the next deterministic selection enters."
+      }
+    ]
+  },
+  "galleyQueue": {
+    "file": "animations/galleyQueue.mp4",
+    "poster": "animations/galleyQueue.jpg",
+    "demonstration": "Play held 4 at R 1 C 4; show the real updated boss state.",
+    "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+    "duration": 8.109163999557495,
+    "recordedAt": 1789893288.474133,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 2.526648998260498,
+        "description": "Play held 4 at R1 C4; show the real updated boss state."
+      }
+    ]
+  },
+  "bookends": {
+    "file": "animations/bookends.mp4",
+    "poster": "animations/bookends.jpg",
+    "demonstration": "Play held 9; both distinct 1 copies stay eligible and 7 becomes the upper bookend.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.833846092224121,
+    "recordedAt": 1789898122.8504229,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6685740947723389,
+        "description": "Play held9; both distinct1 copies stay eligible and7 becomes the upper bookend."
+      }
+    ]
+  },
+  "reprintBan": {
+    "file": "animations/reprintBan.mp4",
+    "poster": "animations/reprintBan.jpg",
+    "demonstration": "Play held 5 at R 1 C 5; show the real updated boss state. End the real Turn; the chain anchor or repeat restrictions clear at the committed boundary.",
+    "limitation": "Deterministic QA board and conserved held cards. All visual transitions and score receipts follow accepted production actions; this is not a full boss completion.",
+    "duration": 10.996037006378174,
+    "recordedAt": 1789893305.023731,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 2.273960828781128,
+        "description": "Play held 5 at R1 C5; show the real updated boss state."
+      },
+      {
+        "time": 5.656097173690796,
+        "description": "End the real Turn; the chain anchor or repeat restrictions clear at the committed boundary."
+      }
+    ]
+  },
+  "rebinder": {
+    "file": "animations/rebinder.mp4",
+    "poster": "animations/rebinder.jpg",
+    "demonstration": "Place held 7, then bank; the exact remaining cards fly back before a new conserved Hand arrives.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 9.278940916061401,
+    "recordedAt": 1789898129.966162,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6847829818725586,
+        "description": "Place held7, then bank; the exact remaining cards fly back before a new conserved Hand arrives."
+      }
+    ]
+  },
+  "lateCourier": {
+    "file": "animations/lateCourier.mp4",
+    "demonstration": "Place 1 on Sapphire; a real owed-draw ticket appears instead of an immediate replacement card. Place 2 on Sapphire, earning the second delivery request. Bank; both saved tickets deliver real Pool draws into the Hand.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 10.704119205474854,
+    "recordedAt": 1789890151.218463,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6693439483642578,
+        "description": "Place1 on Sapphire; a real owed-draw ticket appears instead of an immediate replacement card."
+      },
+      {
+        "time": 3.5018510818481445,
+        "description": "Place2 on Sapphire, earning the second delivery request."
+      },
+      {
+        "time": 5.53524112701416,
+        "description": "Bank; both saved tickets deliver real Pool draws into the Hand."
+      }
+    ],
+    "poster": "animations/lateCourier.jpg"
+  },
+  "collator": {
+    "file": "animations/collator.mp4",
+    "poster": "animations/collator.jpg",
+    "demonstration": "Play 1 and then 2 from the open packet; the original waiting cards unband after two correct fills.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 8.691442012786865,
+    "recordedAt": 1789893007.20877,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6910760402679443,
+        "description": "Play1 and then2 from the open packet; the original waiting cards unband after two correct fills."
+      }
+    ]
+  },
+  "pageCutter": {
+    "file": "animations/pageCutter.mp4",
+    "poster": "animations/pageCutter.jpg",
+    "demonstration": "Correct fill 1 of 4; the fourth cuts and automatically banks exactly once. Correct fill 2 of 4; the fourth cuts and automatically banks exactly once. Correct fill 3 of 4; the fourth cuts and automatically banks exactly once. Correct fill 4 of 4; the fourth cuts and automatically banks exactly once.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 10.558085203170776,
+    "recordedAt": 1789893016.503423,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6632270812988281,
+        "description": "Correct fill1 of4; the fourth cuts and automatically banks exactly once."
+      },
+      {
+        "time": 2.8728039264678955,
+        "description": "Correct fill2 of4; the fourth cuts and automatically banks exactly once."
+      },
+      {
+        "time": 4.098124980926514,
+        "description": "Correct fill3 of4; the fourth cuts and automatically banks exactly once."
+      },
+      {
+        "time": 5.328233957290649,
+        "description": "Correct fill4 of4; the fourth cuts and automatically banks exactly once."
+      }
+    ]
+  },
+  "chainStitcher": {
+    "file": "animations/chainStitcher.mp4",
+    "poster": "animations/chainStitcher.jpg",
+    "demonstration": "Play 1 at R 1 C 1 to anchor the chain. Play 9 at R 5 C 5 outside the anchor's units; the actual half-Points receipt threads itself.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 8.635700225830078,
+    "recordedAt": 1789898140.1225839,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6621031761169434,
+        "description": "Play1 at R1 C1 to anchor the chain."
+      },
+      {
+        "time": 3.497493267059326,
+        "description": "Play9 at R5 C5 outside the anchor's units; the actual half-Points receipt threads itself."
+      }
+    ]
+  },
+  "returnSlip": {
+    "file": "animations/returnSlip.mp4",
+    "poster": "animations/returnSlip.jpg",
+    "demonstration": "Place a held number on a deliberately incorrect blank; the engine applies the actual penalty. Bank once; the exact returned copy's seal releases at the Turn boundary.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 9.04072093963623,
+    "recordedAt": 1789898151.209433,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6743738651275635,
+        "description": "Place a held number on a deliberately incorrect blank; the engine applies the actual penalty."
+      },
+      {
+        "time": 3.905080795288086,
+        "description": "Bank once; the exact returned copy's seal releases at the Turn boundary."
+      }
+    ]
+  },
+  "orphanLine": {
+    "file": "animations/orphanLine.mp4",
+    "poster": "animations/orphanLine.jpg",
+    "demonstration": "Bank real 9,8,7 Points with four leftover cards; the 80-Point debit tears the score receipt.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 9.038180828094482,
+    "recordedAt": 1789893039.8684192,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 3.8012518882751465,
+        "description": "Bank real9,8,7 Points with four leftover cards; the80-Point debit tears the score receipt."
+      }
+    ]
+  },
+  "serialPublisher": {
+    "file": "animations/serialPublisher.mp4",
+    "poster": "animations/serialPublisher.jpg",
+    "demonstration": "Play Crimson 9 with Local Gossip and Sunday; actual 1440 pending score exceeds the QA 900 target's 300 bank cap. Bank 300 and save 1140 carry; the production settlement receipt bands the held amount.",
+    "limitation": "Explicit QA starting target900 makes the carry readable in a short clip. All1440 Points and1140 saved carry come from real card/item actions.",
+    "duration": 10.188016891479492,
+    "recordedAt": 1789893050.461452,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.730414867401123,
+        "description": "Play Crimson9 with Local Gossip and Sunday; actual1440 pending score exceeds the QA900 target's300 bank cap."
+      },
+      {
+        "time": 5.037623882293701,
+        "description": "Bank300 and save1140 carry; the production settlement receipt bands the held amount."
+      }
+    ]
+  },
+  "bindery": {
+    "file": "animations/bindery.mp4",
+    "poster": "animations/bindery.jpg",
+    "demonstration": "Play 1 to pin Op-Ed then Sunday; the needle follows actual owned Bookmark scoring sources. Bank into Turn 2; play 2 and show the same pinned copies reading in reverse order.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 12.201444864273071,
+    "recordedAt": 1789898234.6507301,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.660024881362915,
+        "description": "Play1 to pin Op-Ed then Sunday; the needle follows actual owned Bookmark scoring sources."
+      },
+      {
+        "time": 4.1682329177856445,
+        "description": "Bank into Turn2; play2 and show the same pinned copies reading in reverse order."
+      }
+    ]
+  },
+  "embargo": {
+    "file": "animations/embargo.mp4",
+    "poster": "animations/embargo.jpg",
+    "demonstration": "Place 9; the actual preparation Buff acquires a seal while reactive Rain Check remains available.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.77928900718689,
+    "recordedAt": 1789890431.906965,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6523640155792236,
+        "description": "Place9; the actual preparation Buff acquires a seal while reactive Rain Check remains available."
+      }
+    ]
+  },
+  "dryPress": {
+    "file": "animations/dryPress.mp4",
+    "poster": "animations/dryPress.jpg",
+    "demonstration": "Play Golden 1; the tiny real ink pad dries after that marked fill. Play a plain 2; the pad visibly re-inks from the accepted unmarked fill.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 8.83388614654541,
+    "recordedAt": 1789898160.503996,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6810431480407715,
+        "description": "Play Golden1; the tiny real ink pad dries after that marked fill."
+      },
+      {
+        "time": 3.7141690254211426,
+        "description": "Play a plain2; the pad visibly re-inks from the accepted unmarked fill."
+      }
+    ]
+  },
+  "reviewBoard": {
+    "file": "animations/reviewBoard.mp4",
+    "poster": "animations/reviewBoard.jpg",
+    "demonstration": "Fill R 1 C 1 with held 1; a real row, column and box complete and receive three approval stamps.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.8553290367126465,
+    "recordedAt": 1789898248.148775,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6705269813537598,
+        "description": "Fill R1 C1 with held1; a real row, column and box complete and receive three approval stamps."
+      }
+    ]
+  },
+  "rivalColumn": {
+    "file": "animations/rivalColumn.mp4",
+    "poster": "animations/rivalColumn.jpg",
+    "demonstration": "Play 9 and bank 90 to establish the true benchmark. Play 1 and bank below the benchmark; the actual fee-adjusted settlement is underlined.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 12.360720872879028,
+    "recordedAt": 1789898186.797231,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6877729892730713,
+        "description": "Play9 and bank90 to establish the true benchmark."
+      },
+      {
+        "time": 5.654335021972656,
+        "description": "Play1 and bank below the benchmark; the actual fee-adjusted settlement is underlined."
+      }
+    ]
+  },
+  "royaltyContract": {
+    "file": "animations/royaltyContract.mp4",
+    "poster": "animations/royaltyContract.jpg",
+    "demonstration": "Spend the owned Fresh Ink Buff; the exact 5% target increase tucks into the target number. Place 9 with the real active Fresh Ink multiplier.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 8.869627952575684,
+    "recordedAt": 1789898177.6920981,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.658430814743042,
+        "description": "Spend the owned Fresh Ink Buff; the exact5% target increase tucks into the target number."
+      },
+      {
+        "time": 3.6917388439178467,
+        "description": "Place9 with the real active Fresh Ink multiplier."
+      }
+    ]
+  },
+  "publicist": {
+    "file": "animations/publicist.mp4",
+    "poster": "animations/publicist.jpg",
+    "demonstration": "Place 9; Local Gossip's exact owned copy receives its paid stamp. Place 1; the already-paid copy stays stamped and does not pay again.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 8.866849899291992,
+    "recordedAt": 1789898199.6814451,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6929717063903809,
+        "description": "Place9; Local Gossip's exact owned copy receives its paid stamp."
+      },
+      {
+        "time": 3.703022003173828,
+        "description": "Place1; the already-paid copy stays stamped and does not pay again."
+      }
+    ]
+  },
+  "wordCount": {
+    "file": "animations/wordCount.mp4",
+    "poster": "animations/wordCount.jpg",
+    "demonstration": "Place Crimson 9 with Local Gossip; the measuring-edge receipt shows the real 150-extra-Points cap.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.768599033355713,
+    "recordedAt": 1789893091.7814589,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6631371974945068,
+        "description": "Place Crimson9 with Local Gossip; the measuring-edge receipt shows the real150-extra-Points cap."
+      }
+    ]
+  },
+  "backPage": {
+    "file": "animations/backPage.mp4",
+    "poster": "animations/backPage.jpg",
+    "demonstration": "Place 1; only the actual score ticket flips to its reversed natural 90 value.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 6.823835134506226,
+    "recordedAt": 1789898169.538861,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.678581953048706,
+        "description": "Place1; only the actual score ticket flips to its reversed natural90 value."
+      }
+    ]
+  },
+  "collateral": {
+    "file": "animations/collateral.mp4",
+    "poster": "animations/collateral.jpg",
+    "demonstration": "Select the exact held tile and pledge it for the advertised Turn Mult. Make a real scored placement with the pledged Mult, then bank and return the same tile.",
+    "limitation": "Deterministic QA board and owned loadout; this is a live production-view recording, not a normal encounter-selection or full-boss-completion claim.",
+    "duration": 11.37219500541687,
+    "recordedAt": 1789898208.903446,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6841330528259277,
+        "description": "Select the exact held tile and pledge it for the advertised Turn Mult."
+      },
+      {
+        "time": 4.215044021606445,
+        "description": "Make a real scored placement with the pledged Mult, then bank and return the same tile."
+      }
+    ]
+  },
+  "splitEdition": {
+    "file": "animations/splitEdition.mp4",
+    "poster": "animations/splitEdition.jpg",
+    "demonstration": "Choose edition B before playing; the destination locks on the first accepted fill. Choose edition A on the next Turn and print into its separate target.",
+    "limitation": "Two disclosed 300-point QA targets show allocation in a short recording; real final-stage targets are tested separately. All fills and banks use production actions.",
+    "duration": 14.899563789367676,
+    "recordedAt": 1789898257.632492,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.686410903930664,
+        "description": "Choose edition B before playing; the destination locks on the first accepted fill."
+      },
+      {
+        "time": 6.85371208190918,
+        "description": "Choose edition A on the next Turn and print into its separate target."
+      }
+    ]
+  },
+  "lastEdition": {
+    "file": "animations/lastEdition.mp4",
+    "poster": "animations/lastEdition.jpg",
+    "demonstration": "Prepare Fresh Ink, then make two accepted placements before using the only bank. Print the only edition; the real bank settles the score and resolves the encounter.",
+    "limitation": "Disclosed 400-point QA target demonstrates the press and single-bank victory. Real final-stage difficulty is measured separately. The showcase holds the gameplay surface to display the settled press; the app normally transitions to its result page.",
+    "duration": 10.546662092208862,
+    "recordedAt": 1789898272.789387,
+    "provenance": "Hosted production iOS views; real game actions on a deterministic non-saving QA fixture.",
+    "actions": [
+      {
+        "time": 1.6940128803253174,
+        "description": "Prepare Fresh Ink, then make two accepted placements before using the only bank."
+      },
+      {
+        "time": 5.330114126205444,
+        "description": "Print the only edition; the real bank settles the score and resolves the encounter."
+      }
+    ]
+  }
+}

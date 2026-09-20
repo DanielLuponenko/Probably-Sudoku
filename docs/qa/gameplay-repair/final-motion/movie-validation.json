@@ -1,0 +1,47 @@
+[
+  {
+    "name": "toss",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 750,
+        "height": 1334
+      }
+    ],
+    "format": {
+      "duration": "19.250000"
+    }
+  },
+  {
+    "name": "redraw",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 750,
+        "height": 1334
+      }
+    ],
+    "format": {
+      "duration": "5.056667"
+    }
+  },
+  {
+    "name": "wrong",
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 750,
+        "height": 1334
+      }
+    ],
+    "format": {
+      "duration": "13.115000"
+    }
+  }
+]

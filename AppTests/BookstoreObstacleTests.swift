@@ -2,6 +2,7 @@ import XCTest
 import SceneKit
 import SwiftUI
 import UIKit
+import Vision
 import ProbablySudokuEngine
 @testable import ProbablySudoku
 
@@ -26,6 +27,133 @@ final class BookstoreObstacleTests: XCTestCase {
     func testObstacleInfoCloseKeepsVisibleIconButProvidesAccessibleHitTarget() {
         XCTAssertEqual(ObstacleInfoPopup.closeIconSize, 28)
         XCTAssertGreaterThanOrEqual(ObstacleInfoPopup.closeHitTarget, 44)
+    }
+
+    func testObstaclePopupFitsNormalPaperAndKeepsEnlargedCloseAboveScrollableCopy() async throws {
+        let viewport = CGSize(width: 375, height: 667)
+        var normalPaperHeight: CGFloat = 0
+        var dismissals = 0
+        for type in [DynamicTypeSize.large, .accessibility5] {
+            let popup = ObstacleInfoPopup(obstacle: .finalEdition, isLocked: true,
+                                          onClose: { dismissals += 1 })
+                .background(Color.black)
+                .environment(\.dynamicTypeSize, type)
+                .environment(\.gameReduceMotion, true)
+                .environment(\.colorScheme, .light)
+                .environment(\.locale, Locale(identifier: "en_US"))
+                .transaction { $0.disablesAnimations = true }
+            let host = UIHostingController(rootView: popup)
+            host.safeAreaRegions = []
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let previousKey = scene.windows.first { $0.isKeyWindow }
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: viewport)
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            defer {
+                window.isHidden = true
+                window.rootViewController = nil
+                previousKey?.makeKey()
+            }
+            try await Task.sleep(for: .milliseconds(100))
+            window.layoutIfNeeded()
+            func capture(_ suffix: String) -> UIImage {
+                let image = UIGraphicsImageRenderer(size: viewport).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "obstacle-popup-\(type)-\(suffix)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                return image
+            }
+            let image = capture("top")
+            let paper = try obstaclePaperBounds(in: image)
+            XCTAssertGreaterThanOrEqual(paper.minY, 19)
+            XCTAssertLessThanOrEqual(paper.maxY, viewport.height - 19)
+            let rows = try obstacleTextRows(in: image)
+            XCTAssertTrue(rows.contains { $0.contains("obstacle") },
+                          "The word OBSTACLE must not split across lines: \(rows)")
+            XCTAssertTrue(rows.joined(separator: " ").contains("locked"), "\(rows)")
+            let close = CGRect(x: paper.maxX - 50, y: paper.minY + 30, width: 20, height: 20)
+            XCTAssertGreaterThan(try obstacleInkPixels(in: image, within: close), 8,
+                                 "The close glyph must stay inside the visible paper header")
+            if type == .large {
+                normalPaperHeight = paper.height
+                XCTAssertLessThan(paper.height, 360,
+                                  "A short normal explanation must not paint a nearly full-screen card")
+                XCTAssertTrue(rows.joined(separator: " ").contains("tosses"), "\(rows)")
+                XCTAssertTrue(rows.joined(separator: " ").contains("unlock"), "\(rows)")
+            } else {
+                XCTAssertGreaterThan(paper.height, normalPaperHeight * 1.3)
+                func scrolls(_ view: UIView) -> [UIScrollView] {
+                    (view as? UIScrollView).map { [$0] } ?? view.subviews.flatMap(scrolls)
+                }
+                let scroll = try XCTUnwrap(scrolls(host.view).max { $0.bounds.height < $1.bounds.height })
+                XCTAssertGreaterThan(scroll.contentSize.height, scroll.bounds.height,
+                                     "The full AX5 explanation must enlarge and scroll, not shrink or truncate")
+                let maxOffset = max(0, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+                scroll.setContentOffset(CGPoint(x: 0, y: maxOffset), animated: false)
+                try await Task.sleep(for: .milliseconds(50))
+                window.layoutIfNeeded()
+                let bottom = capture("bottom")
+                let bottomRows = try obstacleTextRows(in: bottom).joined(separator: " ")
+                XCTAssertTrue(bottomRows.contains("unlock"), bottomRows)
+                XCTAssertGreaterThan(try obstacleInkPixels(in: bottom, within: close), 8,
+                                     "Scrolling the explanation must leave Close visible")
+            }
+        }
+        XCTAssertEqual(dismissals, 0)
+    }
+
+    private func obstacleTextRows(in image: UIImage) throws -> [String] {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string.lowercased() }
+    }
+
+    private func obstaclePixels(in image: UIImage) throws -> (data: [UInt8], width: Int, height: Int, scale: CGFloat) {
+        let cg = try XCTUnwrap(image.cgImage)
+        var pixels = [UInt8](repeating: 0, count: cg.width * cg.height * 4)
+        try pixels.withUnsafeMutableBytes { data in
+            let context = try XCTUnwrap(CGContext(data: data.baseAddress, width: cg.width, height: cg.height,
+                bitsPerComponent: 8, bytesPerRow: cg.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+        }
+        return (pixels, cg.width, cg.height, CGFloat(cg.width) / image.size.width)
+    }
+
+    private func obstaclePaperBounds(in image: UIImage) throws -> CGRect {
+        let pixels = try obstaclePixels(in: image)
+        var left = pixels.width, right = -1, top = pixels.height, bottom = -1
+        for y in 0..<pixels.height {
+            for x in 0..<pixels.width {
+                let p = (y * pixels.width + x) * 4
+                if pixels.data[p] > 210, pixels.data[p + 1] > 205, pixels.data[p + 2] > 190 {
+                    left = min(left, x); right = max(right, x)
+                    top = min(top, y); bottom = max(bottom, y)
+                }
+            }
+        }
+        XCTAssertGreaterThan(right, left)
+        return CGRect(x: CGFloat(left) / pixels.scale, y: CGFloat(top) / pixels.scale,
+                      width: CGFloat(right - left + 1) / pixels.scale,
+                      height: CGFloat(bottom - top + 1) / pixels.scale)
+    }
+
+    private func obstacleInkPixels(in image: UIImage, within area: CGRect) throws -> Int {
+        let pixels = try obstaclePixels(in: image)
+        var count = 0
+        for y in max(0, Int(area.minY * pixels.scale))..<min(pixels.height, Int(area.maxY * pixels.scale)) {
+            for x in max(0, Int(area.minX * pixels.scale))..<min(pixels.width, Int(area.maxX * pixels.scale)) {
+                let p = (y * pixels.width + x) * 4
+                if pixels.data[p] < 160, pixels.data[p + 1] < 160, pixels.data[p + 2] < 160 { count += 1 }
+            }
+        }
+        return count
     }
 
     func testEveryBookUsesItsOwnSuppliedCeilingIncludingNormalDebugLaunches() {
@@ -374,7 +502,10 @@ final class BookstoreObstacleTests: XCTestCase {
             }
             .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
         )
-        renderer.scale = 2
+        // The production shelf prints this 480pt canvas at 1.5×. Different
+        // raster scales cannot produce equal PNGs even with identical locks.
+        // Keep the obstacle threshold independent and compare every pixel.
+        renderer.scale = 1.5
         let image = try XCTUnwrap(renderer.uiImage, "Expected cover did not render: \(edition.id)")
         return try XCTUnwrap(image.pngData())
     }

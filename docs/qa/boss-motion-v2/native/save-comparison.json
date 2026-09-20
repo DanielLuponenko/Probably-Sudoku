@@ -1,0 +1,12 @@
+{
+  "Library/Application Support/run.json": {
+    "before": "0a030b0c208417bf2f2566cb24c62e3a72fdba861ddc69e14dc6ae5d92a21710",
+    "after": "0a030b0c208417bf2f2566cb24c62e3a72fdba861ddc69e14dc6ae5d92a21710",
+    "identical": true
+  },
+  "Library/Application Support/profile.json": {
+    "before": "668b7119ae917a707c84ebc9cdf1f0ae262c7ba86417ef63a50b591ecb6955b3",
+    "after": "668b7119ae917a707c84ebc9cdf1f0ae262c7ba86417ef63a50b591ecb6955b3",
+    "identical": true
+  }
+}

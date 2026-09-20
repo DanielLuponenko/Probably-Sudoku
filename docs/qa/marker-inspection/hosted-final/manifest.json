@@ -1,0 +1,176 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "103ED4C9-98FC-4AB7-AC7F-57E090185492.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-17Pro-R9C9_0_D11555E2-947F-4B4A-955D-8C37DA2666DF.png",
+        "timestamp" : 1789822508.783
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "6DEE50E8-1490-4454-9286-385002DA9923.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-17Pro-R9C1_0_4709DDC8-F780-4BBE-B99F-AABAD5EC0D4E.png",
+        "timestamp" : 1789822507.731
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "02A91058-D4C2-4097-AC29-FDA87F329D31.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-17Pro-R1C9_0_A57964A6-810F-404A-8AA1-DBD750DC78A8.png",
+        "timestamp" : 1789822506.716
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "4F48BFB9-8403-4336-B4D7-87C5E67276FD.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-17Pro-R1C1_0_4D323BCB-7179-4507-B608-3259F0F55227.png",
+        "timestamp" : 1789822505.689
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "A64CC742-A90F-440D-8088-94C75EBEE74C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-resting-17Pro_0_EC2C86D1-CBFB-4413-A552-4549E422AD55.png",
+        "timestamp" : 1789822505.295
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "3B1AB70C-3DAD-49DC-9ECC-DDA4FE917014.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-SE-R9C9_0_8E68CC41-8D24-4DFA-A41B-10E6140144D8.png",
+        "timestamp" : 1789822504.14
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "0C2CB073-3A78-4BB5-9AB0-D3F0D22876E4.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-SE-R9C1_0_2EF252FA-D5B6-4EB5-89B1-E48D2A92E01F.png",
+        "timestamp" : 1789822503.146
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "8EB5380D-7D65-4631-BC21-B3143327493F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-SE-R1C9_0_BEB4BFE9-C698-4084-BF79-4FD10793CB15.png",
+        "timestamp" : 1789822502.152
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "8CE83B79-3AF6-410A-BE7D-499FEF5EC3DF.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-inspected-SE-R1C1_0_E2615CDA-5AB8-4E80-9CBA-74BFC0882D0D.png",
+        "timestamp" : 1789822500.988
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "EDB372A4-A8BB-4BEC-873A-BEA195B487E2.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-resting-SE_0_60C890C4-95F5-4653-B17F-F5C05E90898D.png",
+        "timestamp" : 1789822500.649
+      }
+    ],
+    "testIdentifier" : "MarkerInspectionLayoutTests/testJadeAtAllFourBoardCornersFitsBothPhoneSizesWithoutMovingGameplay()",
+    "testIdentifierURL" : "test://com.apple.xcode/ProbablySudoku/ProbablySudokuTests/MarkerInspectionLayoutTests/testJadeAtAllFourBoardCornersFitsBothPhoneSizesWithoutMovingGameplay"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "03674AE2-FA27-4213-8328-E81BD4F037FF.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-17Pro-filled-bottom_0_65316D9B-6229-44CF-8EA2-CC15C6F98055.png",
+        "timestamp" : 1789822518.191
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "7C69401C-5554-4E54-BD2F-B553DCD4678B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-17Pro-filled-top_0_2398284B-6844-4339-8E1B-EF92B56CD92E.png",
+        "timestamp" : 1789822517.025
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "6BCDAEB6-DDAC-495D-ACD0-286E33B0C9EC.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-17Pro-givenCovered-bottom_0_D8E02B86-ECAF-4B64-8C23-558C9BDFA371.png",
+        "timestamp" : 1789822515.654
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "35438F07-56FB-4359-8AB6-B58F9CDB69FF.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-17Pro-givenCovered-top_0_7FB07CDA-B2FE-4B68-B749-6E9EC95E9B09.png",
+        "timestamp" : 1789822514.518
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "C6FFF740-CCC2-46B3-BBD5-F06FB039F052.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-SE-filled-bottom_0_080CD6D6-8773-432D-9226-A79FC7678E1A.png",
+        "timestamp" : 1789822513.037
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "64D434B4-8346-4FF9-B0E1-520AFAD66B97.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-SE-filled-top_0_43F07EDF-33E7-49E6-8FFF-4CD1DA526A0E.png",
+        "timestamp" : 1789822512.121
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "8CF2EA72-695C-4917-8865-5999E1FAF724.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-SE-givenCovered-bottom_0_62E694C5-5EB1-42D0-8E49-DB4B2BBBC9C0.png",
+        "timestamp" : 1789822511.007
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "exportedFileName" : "DDCF534A-5B69-427F-91DE-42D6495EE706.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "marker-AX5-SE-givenCovered-top_0_97B11ED4-28E9-41EC-BBA4-2D321319652A.png",
+        "timestamp" : 1789822510.075
+      }
+    ],
+    "testIdentifier" : "MarkerInspectionLayoutTests/testLongGivenAndFilledExplanationsStayReadableAtAccessibilitySize()",
+    "testIdentifierURL" : "test://com.apple.xcode/ProbablySudoku/ProbablySudokuTests/MarkerInspectionLayoutTests/testLongGivenAndFilledExplanationsStayReadableAtAccessibilitySize"
+  }
+]

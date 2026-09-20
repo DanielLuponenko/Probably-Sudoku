@@ -1,0 +1,48 @@
+{
+  "device": "223A4227-A28E-4939-BB5E-3AAB820EB635",
+  "container": "/Users/daniel/Library/Developer/CoreSimulator/Devices/223A4227-A28E-4939-BB5E-3AAB820EB635/data/Containers/Data/Application/AC9BD830-1AAA-40FF-A2F6-B9ED28BB630F",
+  "backup": "/tmp/NumberClub-boss-clarity-save-backup-20260920-114100",
+  "before": {
+    "Library/Application Support/discarded-runs.json": "9385754429b6a73f46a3104f392a011fbc87571ced791900971f07b784be13bc",
+    "Library/Application Support/run.json": "c068b0fb377135f8887c4d99c3ee8979756012500e010ae4003953013814ce43",
+    "Library/Application Support/profile.json": "9fceb3e994497059db4842840fbb668e948ea059f9cb68ab39f5bb14d3a5a9b8",
+    "Library/Application Support/GoogleMobileAds/Settings": "629a2fc813c066d14329f02b13ad42bc9aaba8ed48441b247c66a27186606796",
+    "Library/Application Support/GoogleMobileAds/storage": "23a30ea0f05ce51e0ce76eb278dcc184db1e841ab8b6ef69b97415c80bf7d7a5",
+    "Library/Application Support/GoogleMobileAds/AdapterSettings": "5c262f238fb90f0eb33263734e753a7cd92a64247fef3f484f86bf5ff2cb99d0",
+    "Library/Preferences/boss-motion-disabled-FA2E7815-B614-4FA9-8AE6-A9D577DF3AC6.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-63302088-6F25-4DF4-ACFD-2EEB912B2F05.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-0EDF734B-8F1D-4C02-B323-C44B357E2C81.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/com.apple.gamecenter.plist": "33c19907dd7a5263bbb2237de7fedc1de5cc235e278daef630ab98c056da5e80",
+    "Library/Preferences/boss-motion-disabled-9DCFC065-F1A2-485F-A790-23790DC5AFF0.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/com.numberclub.app.plist": "8e74f91241676997e830b425b8131531c567ec68deda8f965c103f9199e19f49",
+    "Library/Preferences/boss-motion-disabled-193B0A1F-DF74-4C71-B04D-501EC526A7E4.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-1E8EBB6B-106F-459B-A66C-0376C4C492B0.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-9A848C49-F0BE-49E8-9188-EC753CB8D14B.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1"
+  },
+  "afterInstall": {
+    "Library/Application Support/discarded-runs.json": "9385754429b6a73f46a3104f392a011fbc87571ced791900971f07b784be13bc",
+    "Library/Application Support/run.json": "c068b0fb377135f8887c4d99c3ee8979756012500e010ae4003953013814ce43",
+    "Library/Application Support/profile.json": "9fceb3e994497059db4842840fbb668e948ea059f9cb68ab39f5bb14d3a5a9b8",
+    "Library/Application Support/GoogleMobileAds/Settings": "629a2fc813c066d14329f02b13ad42bc9aaba8ed48441b247c66a27186606796",
+    "Library/Application Support/GoogleMobileAds/storage": "23a30ea0f05ce51e0ce76eb278dcc184db1e841ab8b6ef69b97415c80bf7d7a5",
+    "Library/Application Support/GoogleMobileAds/AdapterSettings": "5c262f238fb90f0eb33263734e753a7cd92a64247fef3f484f86bf5ff2cb99d0",
+    "Library/Preferences/boss-motion-disabled-FA2E7815-B614-4FA9-8AE6-A9D577DF3AC6.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-63302088-6F25-4DF4-ACFD-2EEB912B2F05.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-0EDF734B-8F1D-4C02-B323-C44B357E2C81.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/com.apple.gamecenter.plist": "33c19907dd7a5263bbb2237de7fedc1de5cc235e278daef630ab98c056da5e80",
+    "Library/Preferences/boss-motion-disabled-9DCFC065-F1A2-485F-A790-23790DC5AFF0.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/com.numberclub.app.plist": "8e74f91241676997e830b425b8131531c567ec68deda8f965c103f9199e19f49",
+    "Library/Preferences/boss-motion-disabled-193B0A1F-DF74-4C71-B04D-501EC526A7E4.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-1E8EBB6B-106F-459B-A66C-0376C4C492B0.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1",
+    "Library/Preferences/boss-motion-disabled-9A848C49-F0BE-49E8-9188-EC753CB8D14B.plist": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1"
+  },
+  "preservedAfterInstall": true,
+  "installedContainer": "/Users/daniel/Library/Developer/CoreSimulator/Devices/223A4227-A28E-4939-BB5E-3AAB820EB635/data/Containers/Data/Application/82B2F4FA-5C5B-4F47-9DE4-56BFE103ABB9",
+  "launch": "com.numberclub.app: 30659",
+  "coreSaveHashesAfterLaunch": {
+    "Library/Application Support/run.json": "c068b0fb377135f8887c4d99c3ee8979756012500e010ae4003953013814ce43",
+    "Library/Application Support/profile.json": "9fceb3e994497059db4842840fbb668e948ea059f9cb68ab39f5bb14d3a5a9b8",
+    "Library/Application Support/discarded-runs.json": "9385754429b6a73f46a3104f392a011fbc87571ced791900971f07b784be13bc"
+  },
+  "coreSavesPreservedAfterLaunch": true
+}

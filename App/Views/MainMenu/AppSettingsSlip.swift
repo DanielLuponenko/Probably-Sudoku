@@ -10,11 +10,13 @@ struct AppSettingsSlip: View {
     var onClose: () -> Void
 
     var body: some View {
-        PaperSlip(title: "Settings",
+        SettingsNavigationHost { destination in
+            PaperSlip(title: "Settings",
                   subtitle: nil,
                   maximumWidth: 540, maximumHeight: 740,
                   onClose: onClose) {
-            SettingsCommonContent()
+                SettingsCommonContent(destination: destination)
+            }
         }
     }
 }
@@ -97,6 +99,7 @@ private struct PaperThemeOption: View {
 /// be the one iOS control in a room made of wood and paper.
 struct SlipToggle: View {
     @Environment(\.cosmeticTheme) private var theme
+    @Environment(\.gameReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     var label: String
     var note: String?
@@ -107,12 +110,12 @@ struct SlipToggle: View {
             isOn.toggle()
             if isOn { Haptics.menuOpen() }
         } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 11) {
-                box
+            HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
-                        .font(Print.body(14 * textScale))
+                        .font(Print.body(15 * textScale))
                         .foregroundStyle(theme.paper.ink)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let note {
                         Text(note)
                             .font(Print.body(11.5 * textScale))
@@ -121,32 +124,44 @@ struct SlipToggle: View {
                             .multilineTextAlignment(.leading)
                     }
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 4)
+                box
             }
+            .padding(.vertical, 3)
             .frame(minHeight: 44, alignment: .center)
             .contentShape(Rectangle())
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(theme.paper.ruleInk.opacity(0.35)).frame(height: 0.5)
+                    .allowsHitTesting(false)
+            }
         }
         .buttonStyle(PressedPaperStyle())
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityHint(note ?? "")
         .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
     }
 
     private var box: some View {
-        RoundedRectangle(cornerRadius: 2)
-            .strokeBorder(theme.paper.ruleInk, lineWidth: 1.2)
-            .background(RoundedRectangle(cornerRadius: 2).fill(theme.paper.warm))
-            .frame(width: 20, height: 20)
+        RoundedRectangle(cornerRadius: 5)
+            .fill(isOn ? theme.paper.accentInk.opacity(0.13) : theme.paper.warm)
+            .overlay {
+                RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(isOn ? theme.paper.accentInk : theme.paper.ruleInk, lineWidth: 1.2)
+            }
+            .frame(width: 30, height: 30)
             .overlay {
                 if isOn {
                     Tick()
-                        .stroke(Paper.sageDeep,
-                                style: StrokeStyle(lineWidth: 2.4, lineCap: .round,
+                        .stroke(theme.paper.accentInk,
+                                style: StrokeStyle(lineWidth: 2.5, lineCap: .round,
                                                    lineJoin: .round))
-                        .padding(4)
+                        .padding(7)
                 }
             }
-            .offset(y: 2)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: isOn)
+            .accessibilityHidden(true)
     }
 }
 

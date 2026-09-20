@@ -7,314 +7,338 @@ import ProbablySudokuEngine
 
 @MainActor
 final class BriefingBoundsTests: XCTestCase {
-    func testTabletReadingMeasureDoesNotChangePhonePageProposals() {
-        for size in [CGSize(width: 300, height: 590), CGSize(width: 327, height: 646),
-                     CGSize(width: 365, height: 700), CGSize(width: 390, height: 760)] {
-            XCTAssertEqual(PuzzleBriefingLayout(available: size).contentSize, size)
-            XCTAssertEqual(PuzzleBriefingLayout(available: size).clippingMaximumHeight, 280,
-                           "Phone coupons must not stretch into empty portrait cards either.")
+    private let verifiedPeekSource = "+1 Clue this Puzzle; a revealed placement scores 0 unless Onyx restores it."
+
+    func testVerifiedPeekOCRCorrectionCannotAcceptAnotherNumberOrMissingOnyxRule() throws {
+        let peek = try XCTUnwrap(Buffs.all.first { $0.id == Buffs.peek })
+        XCTAssertEqual(CatalogueDetails.item(peek.id)?.shortEffect, verifiedPeekSource,
+                       "The numerical gameplay rule must remain literal0 in the actual catalogue source")
+        let observed = verifiedPeekSource.replacingOccurrences(of: "scores 0 unless Onyx restores it",
+                                                               with: "scores O unless Onyx restores it")
+        XCTAssertTrue(matchesVerifiedPeekRendering(normalize(observed), buff: peek))
+        for wrong in ["1", "2", "10"] {
+            XCTAssertFalse(matchesVerifiedPeekRendering(normalize(verifiedPeekSource
+                .replacingOccurrences(of: "scores 0", with: "scores \(wrong)")), buff: peek))
         }
-        for size in [CGSize(width: 708, height: 870), CGSize(width: 774, height: 1_040),
-                     CGSize(width: 964, height: 1_210)] {
-            XCTAssertEqual(PuzzleBriefingLayout(available: size).contentSize,
-                           CGSize(width: 560, height: 840))
-            XCTAssertEqual(PuzzleBriefingLayout(available: size).clippingMaximumHeight, 280)
+        XCTAssertFalse(matchesVerifiedPeekRendering(normalize(observed.replacingOccurrences(of: "Onyx restores it", with: "")), buff: peek))
+        XCTAssertFalse(matchesVerifiedPeekRendering(normalize(observed.replacingOccurrences(of: "+1 Clue", with: "+2 Clues")), buff: peek))
+        let insurance = try XCTUnwrap(Buffs.all.first { $0.id == "bf_insurance" })
+        XCTAssertFalse(matchesVerifiedPeekRendering(normalize(observed), buff: insurance))
+    }
+
+    func testEveryViewportBudgetsTheWholeDecisionWithoutScrolling() {
+        for size in [CGSize(width: 300, height: 440), CGSize(width: 359, height: 537),
+                     CGSize(width: 386, height: 672), CGSize(width: 834, height: 1_040)] {
+            let layout = PuzzleBriefingLayout(available: size)
+            let used = layout.headerHeight + layout.routeHeight + layout.targetHeight
+                + layout.boardSide + layout.decisionHeight + layout.actionHeight + layout.spacing * 5
+            XCTAssertLessThanOrEqual(used, layout.contentSize.height + 0.01)
+            XCTAssertLessThanOrEqual(layout.boardSide, layout.contentSize.width)
+            XCTAssertGreaterThanOrEqual(layout.boardSide, 80)
+            XCTAssertGreaterThanOrEqual(layout.actionHeight, 44)
+            XCTAssertLessThanOrEqual(layout.contentSize.width, 560)
+            XCTAssertLessThanOrEqual(layout.contentSize.height, 840)
         }
     }
 
-    func testEveryClippingFitsTheWidePageTicketWithoutItsFormerEmptyInterior() throws {
-        let layout = PuzzleBriefingLayout(available: CGSize(width: 964, height: 1_210))
-        for clipping in Clipping.allCases {
-            let renderer = ImageRenderer(content: ClippingOfferTicket(
-                clipping: clipping, remaining: 2, arrived: true,
-                clipBounced: false, stampVisible: true, onTake: {})
-                .frame(maxHeight: layout.clippingMaximumHeight)
-                .environment(\.cosmeticTheme, .standard)
-                .environment(\.dynamicTypeSize, .large))
-            renderer.proposedSize = ProposedViewSize(width: layout.contentSize.width,
-                                                     height: layout.contentSize.height)
-            renderer.scale = 2
-            let image = try XCTUnwrap(renderer.uiImage)
-            XCTAssertEqual(image.size.height, 280, accuracy: 0.5)
-            let text = try recognize(image)
-            XCTAssertTrue(text.contains(normalize(clipping.name)))
-            XCTAssertTrue(text.contains(normalize(clipping.detail)))
-            XCTAssertTrue(text.contains(normalize("Skip + reward")))
-        }
-    }
-
-    func testRouteCardsKeepTheirCompactMeasureInsteadOfStretchingAcrossAnIPad() throws {
-        for width: CGFloat in [300, 327, 365, 708, 774, 964] {
-            let renderer = ImageRenderer(content: RunRouteStrip(currentSlot: .easy, boss: .paywall)
-                .environment(\.cosmeticTheme, .standard)
-                .environment(\.dynamicTypeSize, .large))
-            renderer.proposedSize = ProposedViewSize(width: width, height: nil)
-            renderer.scale = 2
-            let image = try XCTUnwrap(renderer.uiImage)
-            XCTAssertEqual(image.size.width, min(width, PuzzleBriefingLayout.routeMaximumWidth), accuracy: 0.5)
-            XCTAssertEqual(image.size.height, RunRouteStrip.height(for: width), accuracy: 0.5,
-                           "Labels sit outside true square boards; there is no portrait card shell.")
-        }
-    }
-
-    func testIPadBriefingsKeepTheirDecisionAndPlayActionInsideABoundedReadingColumn() async throws {
-        let tablets = [
-            Phone(size: CGSize(width: 768, height: 1_024), top: 24, bottom: 20),
-            Phone(size: CGSize(width: 834, height: 1_194), top: 24, bottom: 20),
-            Phone(size: CGSize(width: 1_024, height: 1_366), top: 24, bottom: 20)
-        ]
-        for tablet in tablets {
-            let ordinary = try await measure(slot: .easy, boss: .paywall, phone: tablet)
-            let boss = try await measure(slot: .boss, boss: .paywall, phone: tablet)
-            let clipping = try XCTUnwrap(RunState(seed: "briefing-height-regression").currentClipping)
-            XCTAssertTrue(ordinary.text.contains(normalize(clipping.name)), "The offered reward stays visible.")
-            XCTAssertTrue(ordinary.text.contains(normalize(clipping.detail)), "Keep the full clipping rule readable.")
-            XCTAssertTrue(ordinary.text.contains(normalize("Skip + reward")))
-            let ticketHeading = try recognizedFrame(in: ordinary.image, containing: "Clipping on offer")
-            let ticketAction = try recognizedFrame(in: ordinary.image, containing: "Skip + reward")
-            XCTAssertLessThanOrEqual(ticketAction.maxY - ticketHeading.minY, 280,
-                "The real page must not stretch the single-rule ticket back to roughly 500 points.")
-            for page in [ordinary, boss] {
-                let heading = try recognizedFrame(in: page.image, containing: "Next Puzzle")
-                let play = try recognizedFrame(in: page.image, containing: "Play Puzzle")
-                // Allow the Book's asymmetric binding insets and OCR glyph
-                // bounds; the old edge-to-edge column misses by over 60pt.
-                XCTAssertGreaterThanOrEqual(heading.minX, (tablet.size.width - 560) / 2 - 8,
-                    "The decision must be centered in a reading column, not spread across the tablet.")
-                XCTAssertLessThanOrEqual(play.maxY - heading.minY, 840,
-                    "The flexible Clipping/encounter cannot stretch to fill the whole iPad page.")
-                XCTAssertGreaterThan(play.minY, heading.maxY + 300)
-                XCTAssertEqual(play.midX, tablet.size.width / 2, accuracy: 28)
-                XCTAssertLessThanOrEqual(page.book.maxY, tablet.size.height - tablet.bottom - 8 + 0.5)
-            }
-            XCTAssertEqual(boss.book, ordinary.book, "Tablet content must not resize the physical Book.")
-            XCTAssertEqual(boss.bookmarks, ordinary.bookmarks, "The HUD/bookmark boundary stays fixed.")
-            XCTAssertTrue(boss.text.contains(normalize("Boss encounter")))
-            XCTAssertTrue(boss.text.contains(normalize(BossModifier.paywall.name)))
-        }
-    }
-
-    func testBossBriefingsKeepTheOrdinaryBookAndBookmarkFramesOnPhone() async throws {
-        for phone in Phone.all {
-            let ordinary = try await measure(slot: .easy, boss: .unluckyLucky, phone: phone)
-            for boss in [BossModifier.unluckyLucky, .accountant, .heavyLifter] {
-                let encounter = try await measure(slot: .boss, boss: boss, phone: phone)
-                XCTAssertEqual(encounter.book.minY, ordinary.book.minY, accuracy: 0.5,
-                               "\(boss.name) cannot push the Book upward into the HUD.")
-                XCTAssertEqual(encounter.book.height, ordinary.book.height, accuracy: 0.5,
-                               "An encounter must fit the existing Book, not enlarge it.")
-                XCTAssertEqual(encounter.bookmarks.minY, ordinary.bookmarks.minY, accuracy: 0.5,
-                               "The Bookmark row must keep its normal desk position.")
-                XCTAssertGreaterThanOrEqual(encounter.bookmarks.minY, phone.top)
-                XCTAssertLessThanOrEqual(encounter.book.maxY, phone.size.height - phone.bottom - 8 + 0.5)
-                XCTAssertTrue(encounter.text.contains(normalize("Boss encounter")))
-                XCTAssertTrue(encounter.text.contains(normalize(boss.name)), "Boss identity must remain visible.")
-                XCTAssertTrue(encounter.text.contains(normalize("Play Puzzle")), "The play action must remain visible.")
+    func testEveryBuffKeepsItsCanonicalSummaryOnTheCompactRewardSlip() throws {
+        for width: CGFloat in [320, 386, 560] {
+            for buff in Buffs.all {
+                let compact = width == 320
+                // Enlarged text owns its natural height. The hosted page
+                // tests verify that this measured article and both decisions
+                // fit the phone; a fixed 100pt box would reward tiny type.
+                let renderer = ImageRenderer(content: BriefingRewardSlip(buff: buff, compact: compact,
+                    readingStyle: BriefingReadingStyle(available: CGSize(width: width, height: compact ? 440 : 650), scale: 3.12))
+                    .frame(width: width)
+                    .environment(\.cosmeticTheme, .standard)
+                    .environment(\.dynamicTypeSize, .accessibility5))
+                renderer.scale = 3
+                let image = try XCTUnwrap(renderer.uiImage)
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "briefing-readable-reward-\(Int(width))-\(buff.id)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                let text = try recognize(image)
+                XCTAssertTrue(text.contains(normalize(buff.name)), "\(width): \(buff.name): \(text)")
+                let printedEffect = CatalogueDetails.item(buff.id)?.shortEffect ?? buff.text
+                let effect = normalize(printedEffect)
+                // A serif 0 may be recognized as O without language context.
+                // Re-read the same pixels; retain the exact numerical rule.
+                let retry = text.contains(effect) ? text : try recognize(image, languageCorrection: true)
+                let exactCandidate = retry.contains(effect) ? true : try recognizesExactPhrase(printedEffect, in: image)
+                XCTAssertTrue(exactCandidate || matchesVerifiedPeekRendering(text, buff: buff),
+                              "\(width): \(buff.text): \(text); retry: \(retry)")
+                XCTAssertTrue(text.contains("skipreward"))
+                XCTAssertFalse(text.contains("skipsremaining"))
             }
         }
     }
 
-    func testTakingBothClippingsDoesNotMoveTheRouteOrPlayButton() async throws {
-        for phone in Phone.all {
-            let first = try await measure(slot: .easy, boss: .editor, phone: phone)
-            let route = try recognizedFrame(in: first.image, containing: BossModifier.editor.name)
-            let play = try recognizedFrame(in: first.image, containing: "Play Puzzle")
-            let skip = try recognizedFrame(in: first.image, containing: "Skip + reward")
-            let receipt = try recognizedFrame(in: first.image, containing: "Clippings are optional")
-            XCTAssertLessThan(skip.maxY, receipt.minY,
-                              "The entire coupon must fit above the reserved receipt without scrolling.")
-            for skips in 1...2 {
-                let after = try await measure(slot: .easy, boss: .editor, phone: phone, skips: skips)
-                let nextRoute = try recognizedFrame(in: after.image, containing: BossModifier.editor.name)
-                let nextPlay = try recognizedFrame(in: after.image, containing: "Play Puzzle")
-                XCTAssertEqual(nextRoute.midY, route.midY, accuracy: 1.5,
-                    "A receipt must not squeeze the square boards after skip \(skips).")
-                XCTAssertEqual(nextPlay.midY, play.midY, accuracy: 1.5,
-                    "The fixed Play action must not jump after skip \(skips).")
-                XCTAssertEqual(after.book, first.book)
-                XCTAssertEqual(after.bookmarks, first.bookmarks)
-                XCTAssertTrue(after.text.contains(normalize("Play Puzzle")))
+    func testPhoneAndTabletBriefingsShowBoardOfferAndActionsTogether() async throws {
+        for viewport in Viewport.all {
+            for slot in [PuzzleSlot.easy, .boss] {
+                let page = try await measure(slot: slot, boss: .editor, viewport: viewport,
+                                             fullInventory: true)
+                XCTAssertTrue(page.text.contains("nextpuzzle"), page.text)
+                XCTAssertTrue(page.text.contains("chapter1"), page.text)
+                XCTAssertTrue(page.text.contains("target"), page.text)
+                XCTAssertTrue(page.text.contains("10turns"), page.text)
+                XCTAssertTrue(page.text.contains("playpuzzle"), page.text)
+                XCTAssertTrue(page.text.contains(normalize(BossModifier.editor.name)), page.text)
+                XCTAssertFalse(page.text.contains("preparingpuzzle"), "The real prepared board must be visible.")
+                XCTAssertFalse(page.hasScrollableContent)
+                if slot == .easy {
+                    let buff = try XCTUnwrap(RunState(seed: "briefing-height-regression").currentSkipOffer).buff
+                    XCTAssertTrue(page.text.contains(normalize(buff.name)), page.text)
+                    XCTAssertTrue(page.text.contains(normalize(CatalogueDetails.item(buff.id)?.shortEffect ?? buff.text)), page.text)
+                    let skip = try recognizedFrame(in: page.image, containing: "Skip + Buff")
+                    let play = try recognizedFrame(in: page.image, containing: "Play puzzle")
+                    XCTAssertLessThan(skip.maxX, play.minX)
+                    XCTAssertEqual(skip.midY, play.midY, accuracy: 8)
+                } else {
+                    XCTAssertTrue(page.text.contains("bosspuzzlesmustbeplayed"), page.text)
+                    XCTAssertFalse(page.text.contains("skipbuff"))
+                }
             }
         }
     }
 
-    func testLongBossRulesFitTheCompactEncounterWithoutCoveringPlay() async throws {
-        let phone = Phone(size: CGSize(width: 375, height: 812), top: 44, bottom: 34)
-        for boss in [BossModifier.unluckyLucky, .overPusher, .grayTheGarry, .garryTheGray] {
-            let page = try await measure(slot: .boss, boss: boss, phone: phone)
-            XCTAssertTrue(page.text.contains(normalize(boss.text)), "Keep the complete \(boss.name) rule.")
-            let note = try recognizedFrame(in: page.image, containing: "No clipping gets you past")
-            let play = try recognizedFrame(in: page.image, containing: "Play Puzzle")
-            XCTAssertLessThan(note.maxY, play.minY - 20)
+    func testSkippingKeepsRouteBoardAndActionAllocationStable() async throws {
+        let viewport = Viewport.pro
+        let first = try await measure(slot: .easy, boss: .editor, viewport: viewport)
+        let route = try recognizedFrame(in: first.image, containing: BossModifier.editor.name)
+        let play = try recognizedFrame(in: first.image, containing: "Play puzzle")
+        for skips in 1...2 {
+            let after = try await measure(slot: .easy, boss: .editor, viewport: viewport, skips: skips)
+            let nextRoute = try recognizedFrame(in: after.image, containing: BossModifier.editor.name)
+            let nextPlay = try recognizedFrame(in: after.image, containing: "Play puzzle")
+            XCTAssertEqual(nextRoute.midY, route.midY, accuracy: 1.5)
+            XCTAssertEqual(nextPlay.midY, play.midY, accuracy: 1.5)
+            XCTAssertTrue(after.text.contains("buffadded"), after.text)
+            XCTAssertFalse(after.hasScrollableContent)
         }
     }
 
-    func testCompactClippingTicketKeepsEveryRewardAndActionReadable() throws {
-        for clipping in Clipping.allCases {
-            let renderer = ImageRenderer(content: ClippingOfferTicket(
-                clipping: clipping, remaining: 2, arrived: true,
-                clipBounced: false, stampVisible: true, onTake: {})
-                .frame(width: 296, height: 176)
-                .environment(\.cosmeticTheme, .standard)
-                .environment(\.dynamicTypeSize, .large))
-            renderer.scale = 3
-            let image = try XCTUnwrap(renderer.uiImage)
-            let text = try recognize(image)
-            XCTAssertTrue(text.contains(normalize(clipping.name)), clipping.name)
-            XCTAssertTrue(text.contains(normalize(clipping.detail)), clipping.detail)
-            XCTAssertTrue(text.contains(normalize("Skip + reward")))
+    func testLongestBossRulesRemainCompleteOnShortPhoneWithoutScrolling() async throws {
+        for boss in [BossModifier.unluckyLucky, .overPusher, .grayTheGarry, .garryTheGray, .accountant] {
+            for type in [DynamicTypeSize.large, .accessibility5] {
+            let page = try await measure(slot: .boss, boss: boss, viewport: .short,
+                                         dynamicType: type)
+            XCTAssertTrue(page.text.contains(normalize(boss.text)), "\(boss.name): \(page.text)")
+            XCTAssertTrue(page.text.contains(normalize(boss.name)), page.text)
+            // The full name in the lower encounter slip must not mask a
+            // truncated route label. Read only the third stop above Target.
+            if type == .large {
+                let routeCrop = try bossRouteCrop(in: page.image)
+                let routeText = try recognize(routeCrop)
+                XCTAssertTrue(routeText.contains(normalize(boss.name)),
+                              "The route itself must name \(boss.name) completely: \(routeText)")
+                let routeAttachment = XCTAttachment(image: routeCrop)
+                routeAttachment.name = "briefing-route-name-\(boss.rawValue)"
+                routeAttachment.lifetime = .keepAlways
+                add(routeAttachment)
+            } else {
+                XCTAssertTrue(page.text.contains("chapter1boss"), "The concise reading hierarchy must retain the current stop.")
+            }
+            let note = try recognizedFrame(in: page.image, containing: "Boss Puzzles must be played")
+            let play = try recognizedFrame(in: page.image, containing: "Play puzzle")
+            XCTAssertLessThan(note.maxY, play.minY)
+            XCTAssertFalse(page.hasScrollableContent)
+            }
+        }
+    }
+
+    func testLargerTextOrdinaryBriefingsRetainTheAnnouncedBossAndItsPower() async throws {
+        for boss in [BossModifier.collateral, .chainStitcher, .unluckyLucky] {
+            for type in [DynamicTypeSize.xLarge, .accessibility5] {
+                let page = try await measure(slot: .easy, boss: boss, viewport: .short, dynamicType: type)
+                XCTAssertTrue(page.text.contains(normalize("Chapter boss: \(boss.name)")), page.text)
+                XCTAssertTrue(page.text.contains(normalize(boss.text)), page.text)
+                XCTAssertTrue(page.text.contains("skipbuff"), page.text)
+                XCTAssertTrue(page.text.contains("playpuzzle"), page.text)
+                XCTAssertFalse(page.hasScrollableContent)
+                let skip = try recognizedFrame(in: page.image, containing: "Skip + Buff")
+                let play = try recognizedFrame(in: page.image, containing: "Play puzzle")
+                XCTAssertLessThan(skip.maxY, play.minY, "Both enlarged actions remain separate and reachable")
+            }
         }
     }
 
     func testBlankBossBandPreservesTheExactPreviousBoardHeightBudget() throws {
         for width: CGFloat in [280, 300, 327, 365] {
             for type in [DynamicTypeSize.large, .accessibility5] {
-                let oldReservation = try render(BossStamp(boss: .deadline, censored: nil).opacity(0),
-                                                 width: width, type: type)
+                let oldReservation = try render(BossStamp(boss: .deadline, censored: nil).opacity(0), width: width, type: type)
                 let emptyReservation = try render(BossStampReservation(), width: width, type: type)
-                XCTAssertEqual(emptyReservation.size.height, oldReservation.size.height, accuracy: 0.01,
-                               "Removing the placeholder's semantics must not move the gameplay grid.")
-                XCTAssertTrue(try recognize(emptyReservation).isEmpty,
-                              "The reserved band must not print an adversary or rule.")
+                XCTAssertEqual(emptyReservation.size.height, oldReservation.size.height, accuracy: 0.01)
+                XCTAssertTrue(try recognize(emptyReservation).isEmpty)
             }
         }
     }
 
-    func testEveryKnownRunPlanAnnouncesTheCommittedBossNameAndFullPower() {
+    func testEveryKnownRouteAnnouncesCommittedBossNameAndFullPower() {
         for slot in PuzzleSlot.allCases {
             for boss in BossModifier.allCases {
                 let announcement = RunRouteStrip(currentSlot: slot, boss: boss).accessibilitySummary
                 XCTAssertTrue(announcement.contains(boss.name))
-                XCTAssertTrue(announcement.contains(boss.text),
-                              "The ordinary-puzzle preview must expose the same known power as the Boss briefing.")
+                XCTAssertTrue(announcement.contains(boss.text))
             }
         }
         let unknown = RunRouteStrip(currentSlot: .easy, boss: nil).accessibilitySummary
         XCTAssertTrue(unknown.contains("not yet known"))
-        XCTAssertFalse(unknown.contains(BossModifier.deadline.name), "Missing metadata cannot invent a Boss.")
+        XCTAssertFalse(unknown.contains(BossModifier.deadline.name))
     }
 
-    private struct Phone {
+    private struct Viewport {
         let size: CGSize
         let top: CGFloat
         let bottom: CGFloat
-
-        static let all = [
-            Phone(size: CGSize(width: 402, height: 874), top: 62, bottom: 34),
-            Phone(size: CGSize(width: 375, height: 812), top: 44, bottom: 34)
-        ]
+        static let short = Viewport(size: CGSize(width: 375, height: 667), top: 20, bottom: 0)
+        static let pro = Viewport(size: CGSize(width: 402, height: 874), top: 62, bottom: 34)
+        static let all = [short, pro, Viewport(size: CGSize(width: 834, height: 1_194), top: 24, bottom: 20)]
     }
 
     private struct Measurement {
-        let book: CGRect
-        let bookmarks: CGRect
         let text: String
         let image: UIImage
+        let hasScrollableContent: Bool
     }
 
-    private func measure(slot: PuzzleSlot, boss: BossModifier, phone: Phone, skips: Int = 0) async throws -> Measurement {
+    private func measure(slot: PuzzleSlot, boss: BossModifier, viewport: Viewport, skips: Int = 0,
+                         fullInventory: Bool = false, dynamicType: DynamicTypeSize = .large) async throws -> Measurement {
         var run = RunState(seed: "briefing-height-regression")
         run.slot = slot
         run.pendingBoss = boss
-        let model = GameModel(frozen: Game(run: run), page: .briefing)
-        for _ in 0..<skips {
-            let claim = try XCTUnwrap(model.currentClippingClaim)
-            XCTAssertTrue(model.takeClipping(ifCurrent: claim))
-        }
-        let flipper = PageFlipper()
-        let ready = expectation(description: "Briefing frames \(slot)-\(boss.rawValue)-\(phone.size.width)")
-        var frames = [String: CGRect]()
-        var reported = false
-        let content = VStack(spacing: 0) {
-            BookmarkRow(model: model, onTapBuff: { _ in })
-                .background(frameProbe("bookmarks"))
-                .padding(.horizontal, 26).padding(.top, 4)
-            BookView(flipper: flipper) {
-                PuzzleBriefingView(model: model)
+        if fullInventory {
+            run.bookmarks = Bookmarks.all.prefix(5).map {
+                OwnedBookmark(defID: $0.id, boughtAtLevel: run.level, pricePaid: $0.listedPrice)
             }
-            .background(frameProbe("book"))
-            .padding(.leading, 8).padding(.trailing, 10)
-            .padding(.top, -(BookmarkRow.tuck - 4))
+            run.buffs = [OwnedBuff(defID: Buffs.peek, pricePaid: 3), OwnedBuff(defID: Buffs.freshInk, pricePaid: 4)]
         }
-        .padding(.bottom, 8)
-        .padding(.top, phone.top).padding(.bottom, phone.bottom)
-        .frame(width: phone.size.width, height: phone.size.height)
+        let model = GameModel(resuming: Game(run: run), savesProgress: false)
+        for _ in 0..<skips {
+            let claim = try XCTUnwrap(model.currentSkipClaim)
+            XCTAssertTrue(model.takeSkip(ifCurrent: claim))
+        }
+        let before = try model.game.encoded()
+        let preparation = await model.prepareUpcomingPuzzle()
+        XCTAssertNotNil(preparation)
+        let preview = try XCTUnwrap(model.preparedPuzzlePreview)
+        let preparedBoard = try XCTUnwrap(preparation?.puzzle?.board)
+        XCTAssertEqual(preview.board.placed, preparedBoard.placed)
+        XCTAssertEqual(preview.board.filledBy, preparedBoard.filledBy)
+        let flipper = PageFlipper()
+        let content = RunPageSurface(model: model, flipper: flipper, controls: [
+            StripControl(systemImage: "questionmark", label: "Run information", action: {}),
+            StripControl(systemImage: "gearshape", label: "Settings", action: {})
+        ], safeAreaInsets: EdgeInsets(top: viewport.top, leading: 0, bottom: viewport.bottom, trailing: 0),
+           onTapBuff: { _ in }) {
+            PuzzleBriefingView(model: model)
+        }
+        .frame(width: viewport.size.width, height: viewport.size.height)
         .environment(flipper)
         .environment(\.cosmeticTheme, .standard)
         .environment(\.levelPalette, .forDisplay(slot: slot))
-        .environment(\.scenePhase, .inactive)
-        .environment(\.dynamicTypeSize, .large)
+        .environment(\.scenePhase, .active)
+        .environment(\.dynamicTypeSize, dynamicType)
         .environment(\.colorScheme, .dark)
         .environment(\.locale, Locale(identifier: "en_US"))
         .transaction { $0.disablesAnimations = true }
-        .onPreferenceChange(BriefingFrames.self) { latest in
-            frames = latest
-            if !reported, latest["book"] != nil, latest["bookmarks"] != nil {
-                reported = true
-                ready.fulfill()
-            }
-        }
         let host = UIHostingController(rootView: content)
         host.safeAreaRegions = []
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previousKey = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(origin: .zero, size: phone.size)
+        window.frame = CGRect(origin: .zero, size: viewport.size)
         window.rootViewController = host
         defer {
+            model.cancelPuzzlePreparation()
             flipper.cancel()
             window.isHidden = true
             window.rootViewController = nil
             previousKey?.makeKey()
         }
         window.makeKeyAndVisible()
-        await fulfillment(of: [ready], timeout: 5)
-        if phone.size.width >= 768, slot != .boss {
-            // The ticket's real arrival is task-driven. Frame preferences can
-            // precede that first state update; capture its settled visible state.
-            try await Task.sleep(for: .milliseconds(550))
-        }
+        try await Task.sleep(for: .milliseconds(150))
         window.layoutIfNeeded()
-        let image = UIGraphicsImageRenderer(size: phone.size).image { _ in
+        let image = UIGraphicsImageRenderer(size: viewport.size).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
+        func scrollViews(in view: UIView) -> [UIScrollView] {
+            (view as? UIScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
+        }
+        let scrollable = scrollViews(in: host.view).contains {
+            $0.contentSize.height > $0.bounds.height + 1 || $0.contentSize.width > $0.bounds.width + 1
+        }
+        XCTAssertEqual(try model.game.encoded(), before, "Rendering the true next board cannot commit a deal, award, or RNG change.")
         let attachment = XCTAttachment(image: image)
-        attachment.name = "briefing-\(Int(phone.size.width))-\(slot.rawValue)-\(boss.rawValue)-skips\(skips)"
+        attachment.name = "briefing-single-page-\(Int(viewport.size.width))-\(slot.rawValue)-\(boss.rawValue)-skips\(skips)"
         attachment.lifetime = .keepAlways
         add(attachment)
-        return Measurement(book: try XCTUnwrap(frames["book"]),
-                           bookmarks: try XCTUnwrap(frames["bookmarks"]),
-                           text: try recognize(image), image: image)
+        return Measurement(text: try recognize(image), image: image, hasScrollableContent: scrollable)
     }
 
-    private func frameProbe(_ key: String) -> some View {
-        GeometryReader { proxy in
-            Color.clear.preference(key: BriefingFrames.self, value: [key: proxy.frame(in: .global)])
-        }
-    }
-
-    private struct BriefingFrames: PreferenceKey {
-        static var defaultValue: [String: CGRect] = [:]
-        static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-            value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
-        }
+    private func bossRouteCrop(in image: UIImage) throws -> UIImage {
+        let chapter = try recognizedFrame(in: image, containing: "Chapter 1")
+        let target = try recognizedFrame(in: image, containing: "Target")
+        let bounds = CGRect(x: image.size.width * 2 / 3,
+                            y: chapter.maxY + 3,
+                            width: image.size.width / 3,
+                            height: target.minY - chapter.maxY - 6)
+        XCTAssertGreaterThan(bounds.height, 0)
+        let pixels = bounds.applying(CGAffineTransform(scaleX: image.scale, y: image.scale))
+        let crop = try XCTUnwrap(image.cgImage?.cropping(to: pixels))
+        return UIImage(cgImage: crop, scale: image.scale, orientation: .up)
     }
 
     private func render<V: View>(_ content: V, width: CGFloat, type: DynamicTypeSize) throws -> UIImage {
-        let renderer = ImageRenderer(content: content.frame(width: width)
-            .environment(\.dynamicTypeSize, type))
+        let renderer = ImageRenderer(content: content.frame(width: width).environment(\.dynamicTypeSize, type))
         renderer.scale = 3
         return try XCTUnwrap(renderer.uiImage)
     }
 
-    private func recognize(_ image: UIImage) throws -> String {
+    private func recognize(_ image: UIImage, languageCorrection: Bool = false) throws -> String {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = languageCorrection
+        try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+        return normalize((request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " "))
+    }
+
+    /// Vision can rank O above 0 in a serif line. Require a complete sequence
+    /// of its actual candidates, including the digit; never substitute a rule
+    /// word or number in the recognized output.
+    private func recognizesExactPhrase(_ phrase: String, in image: UIImage) throws -> Bool {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["en-US"]
         request.usesLanguageCorrection = false
         try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
-        return normalize((request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-            .joined(separator: " "))
+        let rows = request.results ?? []
+        let goal = normalize(phrase)
+        for start in rows.indices {
+            var prefixes: Set<String> = [""]
+            for row in rows.dropFirst(start) {
+                let candidates = row.topCandidates(10).map { normalize($0.string) }
+                prefixes = Set(prefixes.flatMap { prefix in candidates.map { prefix + $0 } }
+                    .filter { goal.hasPrefix($0) })
+                if prefixes.contains(goal) { return true }
+                if prefixes.isEmpty { break }
+            }
+        }
+        return false
+    }
+
+    /// Verified against verified-peek-ocr-zero.png. The view renders
+    /// the canonical short effect; this exact source contains0, while both Vision engines
+    /// identify the narrow serif glyph as O at the start of its wrapped line.
+    /// No other number, clause, item, or catalogue revision is normalized.
+    private func matchesVerifiedPeekRendering(_ text: String, buff: ItemDef) -> Bool {
+        guard buff.id == Buffs.peek, CatalogueDetails.item(buff.id)?.shortEffect == verifiedPeekSource else { return false }
+        let observed = verifiedPeekSource.replacingOccurrences(of: "scores 0 unless Onyx restores it",
+                                                               with: "scores O unless Onyx restores it")
+        return text.contains(normalize(observed))
     }
 
     private func recognizedFrame(in image: UIImage, containing text: String) throws -> CGRect {
@@ -331,7 +355,5 @@ final class BriefingBoundsTests: XCTestCase {
                       width: rect.width * image.size.width, height: rect.height * image.size.height)
     }
 
-    private func normalize(_ text: String) -> String {
-        text.lowercased().filter { $0.isLetter || $0.isNumber }
-    }
+    private func normalize(_ text: String) -> String { text.lowercased().filter { $0.isLetter || $0.isNumber } }
 }

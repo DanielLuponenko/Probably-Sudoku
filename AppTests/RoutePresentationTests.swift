@@ -5,12 +5,10 @@ import ProbablySudokuEngine
 
 @MainActor
 final class RoutePresentationTests: XCTestCase {
-    func testFunnyRouteNamesAndSquareGeometry() {
+    func testRouteKeepsThreeOrderedNamesAndACompactNumberedFootprint() {
         XCTAssertEqual(PuzzleSlot.allCases.map(RunRouteStrip.title), ["Easy", "Easy but hard", "Boss"])
         for width: CGFloat in [280, 300, 327, 365, 560, 964] {
-            let side = RunRouteStrip.boardSide(for: width)
-            XCTAssertEqual(side * 3 + 36, min(width, 560), accuracy: 0.001)
-            XCTAssertEqual(RunRouteStrip.height(for: width), side + 80)
+            XCTAssertEqual(RunRouteStrip.height(for: width), 80)
         }
     }
 
@@ -37,47 +35,49 @@ final class RoutePresentationTests: XCTestCase {
         }
     }
 
-    func testCouponClaimPaysOnceAndCannotConsumeTheNextOffer() throws {
-        let model = GameModel(frozen: Game(seed: "coupon-single-claim"), page: .briefing)
-        let before = model.run.skipsRemaining
-        let claim = try XCTUnwrap(model.currentClippingClaim)
-        XCTAssertTrue(model.takeClipping(ifCurrent: claim))
+    func testSkipClaimPaysOnceAndCannotConsumeTheNextOffer() throws {
+        let model = GameModel(resuming: Game(seed: "coupon-single-claim"), savesProgress: false)
+        let before = model.run.skipsUsed
+        let claim = try XCTUnwrap(model.currentSkipClaim)
+        XCTAssertTrue(model.takeSkip(ifCurrent: claim))
         let snapshot = try model.game.encoded()
-        XCTAssertEqual(model.run.skipsRemaining, before - 1)
-        XCTAssertFalse(model.takeClipping(ifCurrent: claim))
+        XCTAssertEqual(model.run.skipsUsed, before + 1)
+        XCTAssertEqual(model.run.buffs.map(\.defID), [claim.offer.buffID])
+        XCTAssertFalse(model.takeSkip(ifCurrent: claim))
         XCTAssertEqual(try model.game.encoded(), snapshot)
-        XCTAssertEqual(model.run.skipsRemaining, before - 1)
+        XCTAssertEqual(model.run.skipsUsed, before + 1)
         XCTAssertEqual(model.run.slot, .medium)
     }
 
-    func testCouponDoesNotCommitMerelyBecauseItWasPickedUp() throws {
-        let model = GameModel(frozen: Game(seed: "coupon-cancel"), page: .briefing)
+    func testSkipDoesNotCommitMerelyBecauseItWasPickedUp() throws {
+        let model = GameModel(resuming: Game(seed: "coupon-cancel"), savesProgress: false)
         let before = model.run
-        let claim = try XCTUnwrap(model.currentClippingClaim)
+        let claim = try XCTUnwrap(model.currentSkipClaim)
         // Presentation can cancel on background/cover/disappearance; no model
         // method is called until the final falling frame has completed.
         XCTAssertEqual(model.run.slot, before.slot)
         XCTAssertEqual(model.run.coins, before.coins)
-        XCTAssertEqual(model.run.skipsRemaining, before.skipsRemaining)
+        XCTAssertEqual(model.run.skipsUsed, before.skipsUsed)
+        XCTAssertTrue(model.run.buffs.isEmpty)
         model.beginPuzzle()
-        XCTAssertNil(model.currentClippingClaim)
-        XCTAssertFalse(model.takeClipping(ifCurrent: claim))
-        XCTAssertEqual(model.run.skipsRemaining, before.skipsRemaining)
+        XCTAssertNil(model.currentSkipClaim)
+        XCTAssertFalse(model.takeSkip(ifCurrent: claim))
+        XCTAssertEqual(model.run.skipsUsed, before.skipsUsed)
     }
 
     func testBossNeverOffersASkip() {
         var run = RunState(seed: "boss-no-coupon")
         run.slot = .boss
-        let model = GameModel(frozen: Game(run: run), page: .briefing)
-        XCTAssertNil(model.currentClippingClaim)
+        let model = GameModel(resuming: Game(run: run), savesProgress: false)
+        XCTAssertNil(model.currentSkipClaim)
     }
 
-    func testCouponCannotBeRedeemedByAnotherBookSession() throws {
-        let first = GameModel(frozen: Game(seed: "identical-offer"), page: .briefing)
-        let other = GameModel(frozen: Game(seed: "identical-offer"), page: .briefing)
-        let claim = try XCTUnwrap(first.currentClippingClaim)
+    func testSkipCannotBeRedeemedByAnotherBookSession() throws {
+        let first = GameModel(resuming: Game(seed: "identical-offer"), savesProgress: false)
+        let other = GameModel(resuming: Game(seed: "identical-offer"), savesProgress: false)
+        let claim = try XCTUnwrap(first.currentSkipClaim)
         let saved = try other.game.encoded()
-        XCTAssertFalse(other.takeClipping(ifCurrent: claim))
+        XCTAssertFalse(other.takeSkip(ifCurrent: claim))
         XCTAssertEqual(try other.game.encoded(), saved)
     }
 

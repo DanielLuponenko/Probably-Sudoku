@@ -1,24 +1,36 @@
 import SwiftUI
+import UIKit
 import ProbablySudokuEngine
 
 struct PuzzlePageView: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.levelPalette) private var palette
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var model: GameModel
     var puzzle: PuzzleState
     var isClockRunning = true
     @State private var numberReturnFrames: [String: CGRect] = [:]
+    @State private var liveNumberReturnFrames: [String: CGRect] = [:]
 
     var body: some View {
         GeometryReader { proxy in
             // Compactness belongs to the available page, never the current
             // level, Boss, score or Hand. Short phones keep room for the grid.
-            pageContent(compact: proxy.size.height < 560)
+            pageContent(layout: GameplayPuzzleLayout(available: proxy.size,
+                                                   accessibilityText: dynamicTypeSize.isAccessibilitySize))
         }
         .coordinateSpace(name: NumberReturnMotionAnchor.space)
-        .onPreferenceChange(NumberReturnMotionFrames.self) { numberReturnFrames = $0 }
+        .onPreferenceChange(NumberReturnMotionFrames.self) { latest in
+            liveNumberReturnFrames = latest
+            // A consumed card leaves the Hand before its return flight finishes.
+            numberReturnFrames = model.numberReturns.isEmpty ? latest
+                : numberReturnFrames.merging(latest, uniquingKeysWith: { _, new in new })
+        }
+        .onChange(of: model.numberReturns) { _, events in
+            if events.isEmpty { numberReturnFrames = liveNumberReturnFrames }
+        }
         .overlay {
             NumberReturnMotionOverlay(events: model.numberReturns, frames: numberReturnFrames)
         }
@@ -28,31 +40,37 @@ struct PuzzlePageView: View {
         .onDisappear {
             model.setClockRunning(false)
             model.finishScorePresentation()
+            model.cancelClueTargeting()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { model.finishScorePresentation() }
+            if phase != .active {
+                model.finishScorePresentation()
+                model.cancelClueTargeting()
+            }
         }
         .onChange(of: isClockRunning) { _, available in
             if !available { model.finishScorePresentation() }
         }
-        .task(id: model.scorePerformance?.id) {
+        .task(id: ScorePlaybackID(performanceID: model.scorePerformance?.id,
+                                  isVisible: isClockRunning && scenePhase == .active,
+                                  reduceMotion: reduceMotion)) {
             guard let performance = model.scorePerformance else { return }
-            guard scenePhase == .active else {
+            // A Buff may be committed during its slip's closing animation.
+            // Start its feedback once the board is visible; opening a cover
+            // during existing playback still cancels via onChange above.
+            guard isClockRunning, scenePhase == .active else { return }
+            let beats = performance.feedbackBeats
+            guard !beats.isEmpty else {
                 model.finishScorePresentation(id: performance.id)
                 return
             }
-            if reduceMotion {
-                if let last = performance.beats.last {
-                    model.advanceScore(last, performanceID: performance.id)
-                }
-                try? await Task.sleep(for: .milliseconds(450))
-            } else {
-                // Long combinations accelerate instead of blocking play for
-                // seconds per item. A new action replaces this task safely.
-                let interval = max(0.16, min(0.30, 1.8 / Double(max(1, performance.beats.count))))
-                for (index, beat) in performance.beats.enumerated() {
-                    guard !Task.isCancelled else { return }
-                    model.advanceScore(beat, performanceID: performance.id)
+            // Reduce Motion retains each readable receipt with steady source
+            // outlines. A new action replaces playback without delaying input.
+            let interval = max(0.40, min(0.70, 4.2 / Double(beats.count)))
+            for (index, beat) in beats.enumerated() {
+                guard !Task.isCancelled, model.scorePerformance?.id == performance.id else { return }
+                model.advanceScore(beat, performanceID: performance.id)
+                if !reduceMotion {
                     if beat.kind == .bank {
                         GameAudio.shared.play(.scoreBank)
                         Haptics.scoreStamp(bank: true)
@@ -62,8 +80,8 @@ struct PuzzlePageView: View {
                         GameAudio.shared.play(index <= 1 ? .scoreTick : .scoreTickHigh)
                         Haptics.scoreStamp(bank: false)
                     }
-                    try? await Task.sleep(for: .seconds(beat.kind == .bank ? 0.5 : interval))
                 }
+                try? await Task.sleep(for: .seconds(beat.kind == .bank ? 0.5 : interval))
             }
             guard !Task.isCancelled else { return }
             model.finishScorePresentation(id: performance.id)
@@ -78,36 +96,36 @@ struct PuzzlePageView: View {
         }
     }
 
-    private func pageContent(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: compact ? 3 : 5) {
-            header(compact: compact)
-            ScoreMeter(score: model.presentedScore ?? puzzle.score, target: puzzle.target,
-                       queuedBase: model.presentedQueue ?? puzzle.pendingBase,
-                       queuedMultiplier: puzzle.pendingMultiplier,
-                       recentCoins: model.lastOutcome?.coinsEarned,
-                       compact: compact,
-                       beat: model.scoreBeat,
-                       performanceSummary: model.scorePerformance?.summary)
-                .dismissesPuzzleSelection(when: hasSelection) {
-                    model.dismissSelection()
-                }
+    private func pageContent(layout: GameplayPuzzleLayout) -> some View {
+        VStack(spacing: layout.spacing) {
+            GameplayScorePanel(model: model, puzzle: puzzle, compact: layout.compact)
+                .frame(height: layout.scoreHeight)
+                .dismissesPuzzleSelection(when: hasSelection) { model.dismissSelection() }
 
             GridView(model: model, board: puzzle.board)
-                .layoutPriority(1)
+                .frame(width: layout.boardSide, height: layout.boardSide)
+                .frame(maxWidth: .infinity)
 
-            marginBand(compact: compact)
-                .dismissesPuzzleSelection(when: hasSelection) {
-                    model.dismissSelection()
+            HandStripView(model: model, handSize: puzzle.handSize, tileHeight: layout.tileHeight)
+                .frame(height: layout.handHeight)
+            actionRow(compact: layout.compact)
+                .frame(height: layout.actionHeight)
+                .inventorySaleActionArea()
+            PuzzleTurnLine(turn: puzzle.turnNumber, total: puzzle.turnsMax,
+                           isDeadline: puzzle.boss == .deadline)
+                .modifier(BossObjectArrival(eventKey: puzzle.boss == .deadline
+                    ? model.bossEntranceID.map { "deadline:\($0)" } : nil,
+                    consume: model.consumeBossVisualEvent))
+                .overlay(alignment: .trailing) {
+                    if puzzle.boss == .pageCutter {
+                        PageCutterMarks(fills: puzzle.bossState.correctFills, turn: puzzle.turnNumber)
+                            .padding(.trailing, 8)
+                    }
                 }
-
-            HandStripView(model: model, handSize: puzzle.handSize,
-                          tileHeight: compact ? 44 : 50)
-            actionRow(compact: compact)
-            PuzzleTurnLine(turn: puzzle.turnNumber, total: puzzle.turnsMax)
-                .dismissesPuzzleSelection(when: hasSelection) {
-                    model.dismissSelection()
-                }
+                .frame(height: layout.turnHeight)
+                .dismissesPuzzleSelection(when: hasSelection) { model.dismissSelection() }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .disabled(!model.acceptsPuzzleInput)
     }
 
@@ -123,74 +141,91 @@ struct PuzzlePageView: View {
         model.selectedHandIndex != nil || model.selectedSquare != nil || model.isChoosingClue
     }
 
-    private func header(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Puzzle \(puzzle.slot.rawValue + 1)")
-                    .pageHeading(compact ? 22 : 25)
-                Spacer(minLength: 4)
-                Text("Level \(puzzle.level)")
-                    .font(Print.body(11))
-                    .foregroundStyle(palette.ink.opacity(0.72))
-                ProgressDots(index: puzzle.slot.rawValue, count: 3)
-                if let secondsLeft = model.secondsLeft {
-                    Label(clockText(secondsLeft), systemImage: "timer")
-                        .font(Print.caption(12))
-                        .foregroundStyle(secondsLeft <= 30 ? palette.danger : palette.ink.opacity(0.72))
-                        .accessibilityLabel("Time remaining, \(Int(secondsLeft.rounded(.up))) seconds")
-                }
-            }
-
-            // A full-width two-line annotation keeps every Boss readable
-            // without reserving the old three-line, two-column stamp.
-            if let boss = puzzle.boss {
-                BossStamp(boss: boss, censored: puzzle.censoredDigit)
-            } else {
-                BossStampReservation()
-            }
-
-            Rectangle().fill(palette.rule).frame(height: 1)
-        }
-        .dismissesPuzzleSelection(when: hasSelection) {
-            model.dismissSelection()
-        }
-    }
-
-    private func clockText(_ seconds: Double) -> String {
-        let whole = max(0, Int(seconds.rounded(.up)))
-        return String(format: "%d:%02d", whole / 60, whole % 60)
-    }
-
-    /// The Book's own handwriting, given room whether or not it speaks, so a
-    /// note appearing never shifts the grid.
-    private func marginBand(compact: Bool) -> some View {
-        PuzzleMarginBand(note: model.marginNote, compact: compact)
-    }
-
     // MARK: Actions
 
     private func actionRow(compact: Bool) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             PuzzleActionButton(title: model.tossButtonTitle,
-                               subtitle: model.tossButtonSubtitle,
+                               subtitle: "\(puzzle.tossesRemaining) left",
                                kind: .quiet,
                                compact: compact,
                                isEnabled: model.canToss) {
                 model.tossSelected()
             }
-
-            if puzzle.canUseClue {
-                PuzzleActionButton(title: model.isChoosingClue ? "Cancel" : "Clue",
-                                   subtitle: model.isChoosingClue
-                                       ? "pick a number" : "\(puzzle.cluesRemaining) left",
-                                   kind: .quiet,
-                                   compact: compact,
-                                   isEnabled: !model.hand.isEmpty) {
-                    model.chooseClue()
+            .overlay(alignment: .topLeading) {
+                if puzzle.boss == .erratum {
+                    BossCrossedTossTab()
+                        .padding(.leading, 8).offset(y: -4)
+                        .modifier(BossObjectArrival(eventKey: model.bossEntranceID.map { "erratum:\($0)" },
+                                                    consume: model.consumeBossVisualEvent))
                 }
             }
 
-            PuzzleActionButton(title: "End Turn", kind: .primary, compact: compact) { model.endTurn() }
+            PuzzleActionButton(title: puzzle.boss == .lastEdition && puzzle.phase == .playing ? "Print edition" : "End Turn",
+                               subtitle: puzzle.boss == .lastEdition && puzzle.phase == .playing ? "Your only bank"
+                                   : puzzle.boss == .orphanLine && puzzle.phase == .playing
+                                       ? "−\(BossScoring.orphanDebit(puzzle)) pts for leftovers" : nil,
+                               kind: .primary, compact: compact) { model.endTurn() }
+                .overlay(alignment: .topTrailing) {
+                    if puzzle.boss == .lateCourier {
+                        CourierTickets(count: puzzle.bossState.deferredDraws.reduce(0) { $0 + $1.count })
+                            .padding(.trailing, 5).offset(y: -7)
+                    }
+                }
+        }
+    }
+}
+
+private struct ScorePlaybackID: Equatable {
+    var performanceID: UUID?
+    var isVisible: Bool
+    var reduceMotion: Bool
+}
+
+/// Book rules, Puzzle Corner and historical saves can own Clue charges
+/// independently of the two consumable slots. Their one resource control
+/// shares the same explicit hand-targeting flow as an inventory Peek.
+struct ClueResourceButton: View {
+    @Bindable var model: GameModel
+
+    private var count: Int { model.puzzle?.cluesRemaining ?? 0 }
+    private var isLocked: Bool { model.puzzle?.boss?.disablesClues == true }
+
+    var body: some View {
+        if count > 0 || model.isChoosingClue {
+            Button {
+                model.chooseClue()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: model.isChoosingClue ? "xmark" : "lightbulb")
+                    if !model.isChoosingClue { Text("\(count)").monospacedDigit() }
+                }
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(model.isChoosingClue ? GameplaySurface.ivory : GameplaySurface.ink)
+                .padding(.horizontal, 10)
+                .frame(minWidth: 44, minHeight: 44)
+                .background(model.isChoosingClue ? GameplaySurface.sage : GameplaySurface.ivory,
+                            in: RoundedRectangle(cornerRadius: 9))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9)
+                        .strokeBorder(GameplaySurface.sage.opacity(0.5), lineWidth: 1)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if isLocked {
+                    BossActionSeal().offset(x: 4, y: -3)
+                        .modifier(BossObjectArrival(eventKey: model.bossEntranceID.map { "paywall:\($0)" },
+                                                    consume: model.consumeBossVisualEvent))
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(!model.acceptsPuzzleInput)
+            .accessibilityLabel(model.isChoosingClue ? "Cancel Clue selection" : "Clues")
+            .accessibilityValue(model.isChoosingClue ? "Choose a hand card" : isLocked ? "\(count) owned. Clues locked." : "\(count) available")
+            .accessibilityHint(isLocked ? "The Paywall prevents using Clues"
+                : model.isChoosingClue ? "Keeps your Clue or Peek"
+                : "Select a number from your hand to reveal a legal square")
+            .accessibilityIdentifier("clue-resource")
         }
     }
 }
@@ -271,7 +306,7 @@ struct ScoreMeter: View {
                         ScoreReceiptView(beat: beat, summary: performanceSummary ?? "\(beat.source), \(beat.value)")
                     } else {
                         if queuedBase > 0 {
-                            Text("+\(queuedBase.formatted()) × \(queuedMultiplier.formatted(.number.precision(.fractionLength(0...2)))) queued")
+                            Text("+\(queuedBase.formatted()) × \(ScorePerformance.number(queuedMultiplier)) queued")
                                 .font(Print.caption(11))
                                 .foregroundStyle(palette.accent)
                                 .accessibilityLabel("\(queued) points queued until end turn")
@@ -358,34 +393,44 @@ private struct ScoreRuler: View {
 struct PuzzleActionButton: View {
     @Environment(\.cosmeticTheme) private var theme
     @Environment(\.bookPresentation) private var bookTheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .headline) private var titleSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body) private var subtitleSize: CGFloat = 11.5
     enum Kind { case primary, quiet }
     var title: String
     var subtitle: String? = nil
     var kind: Kind
     var compact = false
     var isEnabled: Bool = true
+    var badgeSubtitle = false
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 2) {
-                Text(title).font(Print.subheading(compact ? 16 : 18)).tracking(1.1).textCase(.uppercase)
-                if let subtitle { Text(subtitle).font(Print.body(11.5)) }
+                Text(title).font(Print.subheading(min(titleSize * (compact ? 15.0 / 17.0 : 1), 22)))
+                if let subtitle {
+                    Text(subtitle).font(Print.body(min(subtitleSize, 18)))
+                        .foregroundStyle(badgeSubtitle ? GameplaySurface.ivory
+                                         : (kind == .primary ? GameplaySurface.ivory : GameplaySurface.ink))
+                        .padding(.horizontal, badgeSubtitle ? 12 : 0)
+                        .background {
+                            if badgeSubtitle { Capsule().fill(GameplaySurface.sage) }
+                        }
+                }
             }
-            // Clue availability changes two columns to three (and back),
-            // but wrapping button copy must never renegotiate the grid height.
+            // Action copy cannot renegotiate the grid's reserved height.
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(kind == .primary ? bookTheme.buttonForeground
-                             : bookTheme.quietInk(onDarkPaper: theme.paper.isDark))
+            .foregroundStyle(kind == .primary ? GameplaySurface.ivory : GameplaySurface.ink)
             .frame(maxWidth: .infinity)
-            .frame(height: compact ? 44 : 52)
+            .frame(height: dynamicTypeSize.isAccessibilitySize ? 64 : (compact ? 44 : 50))
             .background {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(kind == .primary ? bookTheme.buttonFill : theme.paper.warm)
+                    .fill(kind == .primary ? GameplaySurface.sage : GameplaySurface.ivory)
                     .shadow(color: .black.opacity(kind == .primary ? 0.27 : 0.15), radius: 2, x: 0, y: 2)
             }
-            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(bookTheme.accent.opacity(0.7), lineWidth: 1) }
+            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(GameplaySurface.frame.opacity(0.45), lineWidth: 1) }
         }
         .buttonStyle(PressedPaperStyle())
         .disabled(!isEnabled)
@@ -397,11 +442,14 @@ private struct PuzzleTurnLine: View {
     @Environment(\.levelPalette) private var palette
     var turn: Int
     var total: Int
+    var isDeadline = false
     var body: some View {
         HStack(spacing: 8) {
-            Rectangle().fill(palette.rule.opacity(0.5)).frame(width: 18, height: 1)
-            Text("Turn \(min(turn, total))/\(total)").font(Print.body(13)).foregroundStyle(palette.ink.opacity(0.70))
-            Rectangle().fill(palette.rule.opacity(0.5)).frame(width: 18, height: 1)
+            if isDeadline { BossTurnCut() }
+            else { Rectangle().fill(GameplaySurface.softInk.opacity(0.4)).frame(width: 18, height: 1) }
+            Text("Turn \(min(turn, total))/\(total)").font(Print.body(13)).foregroundStyle(GameplaySurface.softInk)
+            if isDeadline { BossTurnCut() }
+            else { Rectangle().fill(GameplaySurface.softInk.opacity(0.4)).frame(width: 18, height: 1) }
         }
         .frame(maxWidth: .infinity)
     }
@@ -521,7 +569,7 @@ struct PaperButton: View {
 
 /// A button on paper does not glow; it presses in.
 struct PressedPaperStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.gameReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

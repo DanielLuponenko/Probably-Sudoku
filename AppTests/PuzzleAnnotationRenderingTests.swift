@@ -8,8 +8,6 @@ import ProbablySudokuEngine
 @MainActor
 final class PuzzleAnnotationRenderingTests: XCTestCase {
     func testChangingTurnReplacesHandwritingWithoutSuperimposingThePreviousSentence() async throws {
-        try XCTSkipIf(UIAccessibility.isReduceMotionEnabled,
-                      "This mid-animation check requires the normal-motion simulator setting.")
         let state = MarginBandTestState()
         let content = MarginBandTestView(state: state)
             .frame(width: 365, height: 46)
@@ -17,6 +15,7 @@ final class PuzzleAnnotationRenderingTests: XCTestCase {
             .background(Color.white)
             .environment(\.cosmeticTheme, .standard)
             .environment(\.colorScheme, .light)
+            .environment(\.gameReduceMotion, false)
         let host = UIHostingController(rootView: content)
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previousKey = scene.windows.first { $0.isKeyWindow }

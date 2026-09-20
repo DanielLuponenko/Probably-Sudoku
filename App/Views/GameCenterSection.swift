@@ -20,12 +20,16 @@ struct GameCenterSection: View {
         .font(Print.body(14))
         .foregroundStyle(Paper.ink)
         .buttonStyle(PressedPaperStyle())
-        .alert("Game Center", isPresented: $showingNotice) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(dashboardResult == .signInRequired
-                 ? "Sign in from iOS Settings → Game Center, then return here. You can keep playing without signing in."
-                 : "Game Center could not open right now. Try again when the game is active. Your progress is safe.")
+        .paperPanel(isPresented: $showingNotice) {
+            PaperSlip(title: "Game Center", subtitle: nil,
+                      onClose: { showingNotice = false }) {
+                Text(dashboardResult == .signInRequired
+                     ? "Sign in from iOS Settings → Game Center, then return here. You can keep playing without signing in."
+                     : "Game Center could not open right now. Try again when the game is active. Your progress is safe.")
+                    .font(Print.body(14))
+                    .foregroundStyle(Paper.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

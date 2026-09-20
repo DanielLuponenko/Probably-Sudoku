@@ -1,0 +1,46 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64",
+        "deviceId" : "9C12E469-F20B-4728-9887-72F94459B081",
+        "deviceName" : "Book UI Regression Gate",
+        "modelName" : "iPhone 17 Pro",
+        "osBuildNumber" : "23D8133",
+        "osVersion" : "26.3.1",
+        "platform" : "iOS Simulator"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 0,
+      "passedTests" : 628,
+      "skippedTests" : 0,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "ProbablySudoku · Built with macOS 26.3.1",
+  "expectedFailures" : 0,
+  "failedTests" : 0,
+  "finishTime" : 1789785339.757,
+  "passedTests" : 628,
+  "result" : "Passed",
+  "skippedTests" : 0,
+  "startTime" : 1789784655.905,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+
+  ],
+  "title" : "Test - ProbablySudoku",
+  "topInsights" : [
+    {
+      "category" : "Longest Test Runs",
+      "impact" : "57% of duration",
+      "text" : "14 longest test runs with outlier durations exceeding 14.33s (three standard deviations)"
+    }
+  ],
+  "totalTestCount" : 628
+}

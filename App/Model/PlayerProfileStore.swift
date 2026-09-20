@@ -57,6 +57,7 @@ final class PlayerProfileStore {
         // Injected test/preview stores return above without reading player data.
         let beforeMigration = self.profile
         self.profile.achievementProgress.merge(localProgress: RunStore.progress())
+        self.profile.normalize()
         // CloudSync has not delivered its cached remote profile at this point.
         // Keep the migration durable locally without overwriting that snapshot
         // before its independent Book completions can be merged.

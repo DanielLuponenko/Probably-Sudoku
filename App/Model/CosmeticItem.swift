@@ -287,6 +287,9 @@ struct PlayerProfile: Codable, Equatable {
     }
 
     mutating func normalize() {
+        // Backfill only identity-bearing wins. A generic historical finish
+        // award or an unknown future volume cannot identify a completed Book.
+        earnedAchievementIDs.formUnion(AchievementRules.completedBookAwards(progress: achievementProgress))
         ownedCosmeticIDs.formUnion(CosmeticCatalog.startingOwnedIDs)
         for category in CosmeticCategory.allCases {
             let id = equipped[category]

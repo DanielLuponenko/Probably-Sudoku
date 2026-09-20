@@ -11,6 +11,8 @@ public struct Game: Sendable {
     public init(run: RunState) {
         self.run = run
         self.run.finishBookIfCashedOut()
+        self.run.puzzle?.ensureHandIdentities(seed: run.seed)
+        BuffRuntime.prepareLegacyLitmus(&self.run)
     }
 
     public var puzzle: PuzzleState? { run.puzzle }
@@ -20,19 +22,26 @@ public struct Game: Sendable {
 
     /// Deals the current Level and slot's board.
     public mutating func startPuzzle() throws {
-        guard !isOver else { throw PlacementError.puzzleNotPlayable }
-        run.shop = nil
-        var puzzle = try PuzzleState.create(run: &run)
-        if let overprint = run.runItemState.removeValue(forKey: "clipping.overprint"), overprint > 0 {
+        guard !isOver, run.puzzle == nil, run.shop == nil, run.pendingItemDecisions.isEmpty else {
+            throw PlacementError.puzzleNotPlayable
+        }
+        var next = run
+        var puzzle = try PuzzleState.create(run: &next)
+        if let overprint = next.runItemState.removeValue(forKey: "clipping.overprint"), overprint > 0 {
             puzzle.pendingMult += overprint
         }
-        run.puzzle = puzzle
+        next.puzzle = puzzle
+        BuffRoutes.didStartPuzzle(&next)
+        MarkerRuntime.synchronizeOwnership(run: &next)
+        BookmarkMechanics.enqueueChoices(run: &next)
+        run = next
     }
 
     /// §9 — a Shop opens between Puzzles, never after the final victory.
     public mutating func openShop() {
         run.finishBookIfCashedOut()
-        guard !isOver, !run.isFinalPuzzle else { return }
+        guard !isOver, !run.isFinalPuzzle, run.pendingItemDecisions.isEmpty,
+              run.shop == nil, run.puzzle?.phase == .cashedOut else { return }
         run.puzzle = nil
         Shop.open(&run)
     }
@@ -43,18 +52,49 @@ public struct Game: Sendable {
     public mutating func advance() -> Bool {
         run.finishBookIfCashedOut()
         // Final completion belongs to the successful cash-out, not navigation.
-        guard !isOver, !run.isFinalPuzzle else { return false }
+        guard !isOver, !run.isFinalPuzzle, run.pendingItemDecisions.isEmpty,
+              run.shop != nil || run.puzzle?.phase == .cashedOut else { return false }
         // Leaving the Shop is part of moving to the next briefing. Keeping its
-        // stale state made `currentClipping` think the next normal Puzzle was
+        // stale state made `currentSkipOffer` think the next normal Puzzle was
         // still in a Shop, so its skip offer disappeared.
-        run.shop = nil
-        return run.advance()
+        var next = run
+        if next.shop != nil {
+            Shop.close(&next)
+        }
+        next.shop = nil
+        next.puzzle = nil
+        let advanced = next.advance()
+        run = next
+        return advanced
     }
     @discardableResult
-    public mutating func skipPuzzle() throws -> Clipping {
-        let clipping = try run.takeCurrentClipping()
-        _ = run.advance()
-        return clipping
+    public mutating func skipPuzzle(ifCurrent offer: SkipOffer,
+                                    replacingBuffID: UUID? = nil) throws -> SkipRecord {
+        guard run.pendingItemDecisions.isEmpty, let current = run.currentSkipOffer else { throw SkipError.cannotSkip }
+        guard current == offer else { throw SkipError.staleOffer }
+        let replacementIndex: Int?
+        if let replacingBuffID {
+            guard run.buffs.count == BookmarkMechanics.capacity(run: run),
+                  let index = run.buffs.firstIndex(where: { $0.id == replacingBuffID }) else {
+                throw SkipError.invalidReplacement
+            }
+            replacementIndex = index
+        } else {
+            guard run.buffs.count < BookmarkMechanics.capacity(run: run) else { throw SkipError.inventoryFull }
+            replacementIndex = nil
+        }
+
+        // Validate everything first, then publish one complete value. UI
+        // cancellation never calls this, and stale animation callbacks cannot
+        // claim a new position using the previous offer.
+        var next = run
+        if let replacementIndex { next.buffs.remove(at: replacementIndex) }
+        next.buffs.append(OwnedBuff(defID: offer.buffID, pricePaid: 0, id: offer.id))
+        let record = SkipRecord(offer: offer, replacedBuffID: replacingBuffID)
+        next.skipHistory.append(record)
+        _ = next.advance()
+        run = next
+        return record
     }
 
     // Pass-throughs, so callers never have to reach for `Actions` and `Shop`
@@ -74,6 +114,41 @@ public struct Game: Sendable {
     }
     public mutating func useBuff(at index: Int, digit: Digit? = nil) throws -> Bool {
         try Actions.useBuff(&run, index: index, digit: digit)
+    }
+    @discardableResult
+    public mutating func beginBuff(id: UUID) throws -> BuffUseOutcome {
+        var next = run
+        let result = try BuffRuntime.begin(buffID: id, run: &next)
+        if result.consumedID != nil || next.puzzle?.bossState.pendingAutoEnd == true {
+            _ = try Actions.finishAutomaticTurnIfNeeded(&next)
+        }
+        run = next
+        return result
+    }
+    /// One saved transaction includes the resolved choice, its reward and any
+    /// automatic empty-Hand bank. Repeated or stale decision IDs cannot claim.
+    @discardableResult
+    public mutating func resolveItemDecision(id: UUID, selected: [String]?) throws -> Bool {
+        guard let decision = run.pendingItemDecisions.first, decision.id == id else { return false }
+        var next = run
+        let outgoingTurn = next.puzzle?.turnNumber
+        if decision.sourceID.hasPrefix("bf_") {
+            if let selected {
+                _ = try BuffRuntime.commit(decisionID: id, selected: selected, run: &next)
+            } else {
+                guard BuffRuntime.cancel(decisionID: id, run: &next) else { return false }
+            }
+        } else if decision.sourceID.hasPrefix("mk_") {
+            guard try MarkerRuntime.resolveDecision(run: &next, id: id, selected: selected) else { return false }
+        } else {
+            _ = try BookmarkMechanics.resolveDecision(id: id, selected: selected, run: &next)
+        }
+        if next.puzzle?.turnNumber == outgoingTurn,
+           selected != nil || decision.sourceID.hasPrefix("mk_") || next.puzzle?.bossState.pendingAutoEnd == true {
+            _ = try Actions.finishAutomaticTurnIfNeeded(&next)
+        }
+        run = next
+        return true
     }
     public mutating func endTurn() throws -> Actions.TurnResult {
         try Actions.endTurn(&run)
@@ -100,16 +175,34 @@ public struct Game: Sendable {
         try Actions.keepFilling(&run)
     }
     public mutating func buy(slot: Int) throws {
+        guard run.pendingItemDecisions.isEmpty else { throw BuffUseError.pendingChoice }
         try Shop.buy(&run, slot: slot)
     }
     public mutating func reroll() throws {
+        guard run.pendingItemDecisions.isEmpty else { throw BuffUseError.pendingChoice }
         try Shop.reroll(&run)
     }
     @discardableResult
     public mutating func sell(kind: ItemKind, index: Int) throws -> Int {
-        try Shop.sell(&run, kind: kind, index: index)
+        guard run.pendingItemDecisions.isEmpty else { throw BuffUseError.pendingChoice }
+        return try Shop.sell(&run, kind: kind, index: index)
+    }
+    public mutating func requestCapacitySale(bookmarkID: UUID) throws {
+        guard run.pendingItemDecisions.isEmpty else { throw BookmarkChoiceError.staleChoice }
+        var next = run
+        try BookmarkMechanics.requestCapacitySale(bookmarkID: bookmarkID, run: &next)
+        run = next
+    }
+    public mutating func cancelReservation() {
+        guard run.pendingItemDecisions.isEmpty else { return }
+        BuffShop.cancelReservation(&run)
+    }
+    public mutating func reopenRecycledChoice(bookmarkID: UUID) {
+        guard run.pendingItemDecisions.isEmpty else { return }
+        BookmarkMechanics.reopenRecycledChoice(bookmarkID: bookmarkID, run: &run)
     }
     public mutating func claimSquare(markerIndex: Int, square: Square) throws {
+        guard run.pendingItemDecisions.isEmpty else { throw BuffUseError.pendingChoice }
         try Shop.claimSquare(&run, markerIndex: markerIndex, square: square)
     }
 }
@@ -123,7 +216,7 @@ public extension Game {
         return try encoder.encode(run)
     }
     init(decoding data: Data) throws {
-        run = try JSONDecoder().decode(RunState.self, from: data)
+        self.init(run: try JSONDecoder().decode(RunState.self, from: data))
     }
 }
 
@@ -137,7 +230,7 @@ public extension Game {
 
     mutating func qaAward(points: Int) {
         guard var puzzle = run.puzzle else { return }
-        puzzle.score = max(0, puzzle.score + points)
+        BossEncounterRules.addScore(points, puzzle: &puzzle)
         Actions.updatePhase(&puzzle)
         run.puzzle = puzzle
     }
@@ -149,8 +242,23 @@ public extension Game {
     /// Puts the score exactly on target, which is the fastest way to reach the
     /// Cash Out / Keep Filling choice and everything downstream of it.
     mutating func qaMeetTarget() {
-        guard let puzzle = run.puzzle else { return }
-        qaAward(points: puzzle.target - puzzle.score)
+        guard var puzzle = run.puzzle else { return }
+        if puzzle.boss == .splitEdition {
+            let selected = puzzle.bossState.encounter.selectedEdition
+            let targets = BossEncounterRules.editionTargets(puzzle: puzzle)
+            for index in 0..<2 {
+                puzzle.bossState.encounter.selectedEdition = index
+                BossEncounterRules.addScore(max(0, targets[index] - puzzle.bossState.encounter.editionScores[index]), puzzle: &puzzle)
+            }
+            puzzle.bossState.encounter.selectedEdition = selected
+            Actions.updatePhase(&puzzle)
+            run.puzzle = puzzle
+        } else {
+            qaAward(points: max(0, puzzle.target - puzzle.score))
+            // Even QA takes Last Edition through its one authoritative bank.
+            if puzzle.boss == .lastEdition, puzzle.bossState.encounter.banksUsed == 0,
+               run.pendingItemDecisions.isEmpty { _ = try? endTurn() }
+        }
     }
 
     mutating func qaFailPuzzle() {
@@ -175,6 +283,7 @@ public extension Game {
         guard run.outcome == nil else { return }
         run.level = 9
         run.slot = .boss
+        if run.pendingBoss?.isFinalBoss != true { run.pendingBoss = nil }
         run.puzzle = nil
         run.shop = nil
         do {
@@ -183,6 +292,9 @@ public extension Game {
             return
         }
         qaMeetTarget()
+        // Review Board also requires completed units. Use the existing
+        // conserved QA fill instead of bypassing its live qualification rule.
+        if run.puzzle?.boss == .reviewBoard { qaFillBoard() }
         guard (try? cashOut()) != nil else { return }
     }
 
@@ -199,7 +311,7 @@ public extension Game {
 
     /// Hands over a Buff, for exercising the ones that ask a question.
     mutating func qaGrantBuff(_ defID: String) {
-        guard Catalog.item(defID) != nil, run.buffs.count < ItemKind.buff.capacity else { return }
+        guard Catalog.item(defID) != nil, run.buffs.count < BookmarkMechanics.capacity(run: run) else { return }
         run.buffs.append(OwnedBuff(defID: defID, pricePaid: 0))
     }
 
@@ -235,6 +347,10 @@ public extension Game {
     mutating func qaSetBoss(_ boss: BossModifier) {
         guard var puzzle = run.puzzle else { return }
 
+        if let card = puzzle.bossState.encounter.pledgedCard {
+            puzzle.bossState.encounter.pledgedCard = nil
+            puzzle.appendHandCard(card)
+        }
         puzzle.boss = boss
         puzzle.clockSecondsRemaining = boss.secondsAllowed
         puzzle.censoredDigit = boss.censorsARandomDigit
@@ -244,9 +360,11 @@ public extension Game {
         // the previously selected Boss (fouls, sleeping Bookmark, barred
         // digits) must not bleed into the one being inspected next.
         puzzle.bossTurn = nil
+        puzzle.bossState = .init()
         run.puzzle = puzzle
         qaRefreshActivePuzzleLimits()
         guard var active = run.puzzle else { return }
+        BossRuntime.puzzleStarted(run: run, puzzle: &active)
         active.startBossTurn(&run)
         run.puzzle = active
     }
@@ -261,16 +379,20 @@ public extension Game {
         puzzle.turnNumber = min(puzzle.turnNumber, puzzle.turnsMax)
         puzzle.tossAllowance = run.effectiveTossAllowance(boss: boss)
         puzzle.cluesRemaining = run.effectiveClues(boss: boss)
-        puzzle.target = run.book.target(level: puzzle.level, slot: puzzle.slot)
-            * (boss?.targetMultiplier ?? 1)
+        puzzle.target = BossEncounterRules.startingTarget(
+            base: run.book.target(level: puzzle.level, slot: puzzle.slot), boss: boss)
+        if boss == .splitEdition {
+            puzzle.bossState.encounter.editionTargets = [puzzle.target / 2 + puzzle.target % 2, puzzle.target / 2]
+        }
 
         let targetHandSize = run.effectiveHandSize(boss: boss)
-        while puzzle.hand.count > targetHandSize {
-            puzzle.pool.put(puzzle.hand.removeLast())
+        let drawable = max(0, targetHandSize - puzzle.reservedBossCards.count)
+        while puzzle.hand.count > drawable {
+            puzzle.pool.put(puzzle.removeHandCard(at: puzzle.hand.count - 1).digit)
         }
-        puzzle.hand.append(contentsOf: puzzle.pool.draw(&run.streams.pool,
-                                                        count: targetHandSize - puzzle.hand.count))
-        puzzle.handSize = puzzle.hand.count
+        puzzle.appendHandDigits(puzzle.pool.draw(&run.streams.pool,
+                                                        count: max(0, drawable - puzzle.hand.count)))
+        puzzle.handSize = targetHandSize
         run.puzzle = puzzle
         puzzle.assertConservation()
     }
@@ -282,7 +404,7 @@ public extension Game {
         if puzzle.pool.take(digit) {
             // taken from the Pool
         } else if let index = puzzle.hand.firstIndex(of: digit) {
-            puzzle.hand.remove(at: index)
+            _ = puzzle.removeHandCard(at: index)
         } else {
             return false
         }
@@ -294,7 +416,7 @@ public extension Game {
     /// Moves one number from the Pool into the Hand.
     mutating func qaTakeFromPool(_ digit: Digit) -> Bool {
         guard var puzzle = run.puzzle, puzzle.pool.take(digit) else { return false }
-        puzzle.hand.append(digit)
+        puzzle.appendHandDigits([digit])
         run.puzzle = puzzle
         return true
     }
@@ -306,7 +428,9 @@ public extension Game {
             if puzzle.pool.take(digit) {
                 // taken from the Pool
             } else if let index = puzzle.hand.firstIndex(of: digit) {
-                puzzle.hand.remove(at: index)
+                _ = puzzle.removeHandCard(at: index)
+            } else if puzzle.bossState.encounter.pledgedCard?.digit == digit {
+                puzzle.bossState.encounter.pledgedCard = nil
             } else {
                 continue
             }
@@ -315,6 +439,8 @@ public extension Game {
         Actions.updatePhase(&puzzle)
         run.puzzle = puzzle
         puzzle.assertConservation()
+        if puzzle.boss == .lastEdition, puzzle.bossState.encounter.banksUsed == 0,
+           puzzle.phase == .playing, run.pendingItemDecisions.isEmpty { _ = try? endTurn() }
     }
 }
 #endif
